@@ -66,7 +66,7 @@ interface InputTextAreaProps {
 const InputTextArea: React.FC<InputTextAreaProps> = ({
   message,
   textareaRef,
-  textareaHeight,
+ 
   showCharCount,
   handleChange,
   handleKeyDown,
@@ -228,23 +228,26 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
         className="custom-thin-scrollbar"
         style={{
           fontSize: isTablet ? '17px' : '16px',
-          padding: '0', // 移除内边距
+          padding: '8px 0 4px 8px', // 增加左边距8px，让文字与下方按钮对齐
           border: 'none',
           outline: 'none',
           width: '100%',
           backgroundColor: 'transparent',
-          lineHeight: '1.4',
+          lineHeight: '1.2', // 调整行高
           fontFamily: 'inherit',
           resize: 'none',
           overflow: message.trim().length > 0 ? 'auto' : 'hidden',
-          minHeight: expanded ? `${expandedHeight}px` : `${isMobile ? 32 : isTablet ? 36 : 34}px`,
-          height: expanded ? `${expandedHeight}px` : `${textareaHeight}px`,
+          minHeight: '36px', // 固定最小高度
+          height: expanded ? `${expandedHeight}px` : '36px', // 固定高度为36px
           maxHeight: expanded ? `${expandedHeight}px` : `${isMobile ? 200 : 250}px`,
           color: textColor,
           transition: 'height 0.3s ease-out, min-height 0.3s ease-out, max-height 0.3s ease',
           // Firefox 滚动条样式
           scrollbarWidth: 'thin',
-          scrollbarColor: `${isDarkMode ? '#555' : '#ccc'} transparent`
+          scrollbarColor: `${isDarkMode ? '#555' : '#ccc'} transparent`,
+          // 确保文本垂直居中对齐
+          verticalAlign: 'middle',
+          boxSizing: 'border-box'
         }}
         placeholder={
           imageGenerationMode

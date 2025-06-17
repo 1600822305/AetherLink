@@ -578,12 +578,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <div style={{
           display: 'flex',
           flexDirection: 'column', // 改为垂直布局
-          padding: isTablet ? '12px' : isMobile ? '8px' : '10px',
+          padding: isTablet ? '8px 12px' : isMobile ? '6px 8px' : '7px 10px', // 减少内边距
           borderRadius: '20px', // 增加圆角半径
           /* 使用主题颜色作为背景，防止输入框与底部消息重叠或产生视觉干扰 */
           background: themeColors.paper,
           border: border,
-          minHeight: isTablet ? '80px' : isMobile ? '70px' : '75px', // 增加容器最小高度以适应两层布局
+          minHeight: isTablet ? '72px' : isMobile ? '64px' : '68px', // 调整容器最小高度
           boxShadow: boxShadow,
           width: '100%',
           maxWidth: '100%', // 使用100%宽度，与外部容器一致
@@ -639,9 +639,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
         {/* 上层：文本输入区域 */}
         <div style={{
           display: 'flex',
-          alignItems: 'flex-start',
-          marginBottom: '8px', // 上下层之间的间距
-          minHeight: '40px'
+          alignItems: 'center', // 改为center，让内容垂直居中
+          marginBottom: '0px', // 移除间距，让两层紧密相连
+          minHeight: '36px', // 设置固定高度
+          height: '36px', // 确保高度一致
+          flex: '1' // 让上层占据可用空间
         }}>
           {/* 输入区域 - 根据三状态显示不同的输入方式 */}
           {voiceState === 'recording' ? (
@@ -704,7 +706,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingTop: '4px'
+            paddingTop: '0px', // 移除上边距
+            minHeight: '36px', // 与上层相同的固定高度
+            height: '36px', // 确保高度一致
+            flex: '0 0 auto' // 不允许伸缩，固定高度
           }}>
             {/* 左侧：添加按钮 */}
             <div style={{
