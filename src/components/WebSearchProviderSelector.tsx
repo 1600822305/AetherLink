@@ -74,12 +74,6 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
     onClose();
   };
 
-  const handleDisableWebSearch = () => {
-    dispatch(setWebSearchProvider('custom' as any)); // 设置为无效提供商来禁用
-    onProviderSelect?.('');
-    onClose();
-  };
-
   const handleOpenSettings = () => {
     onClose();
     navigate('/settings/web-search');
@@ -162,7 +156,7 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
       >
         <LanguageIcon color="#1976d2" />
         <Typography variant="h6" component="span">
-          选择搜索提供商
+          切换搜索提供商
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
         <IconButton onClick={handleRefreshProviders} size="small" title="刷新提供商列表">
@@ -174,49 +168,6 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
       </DialogTitle>
 
       <DialogContent sx={{ px: 0, pb: 2 }}>
-        {/* 禁用网络搜索选项 */}
-        <List dense>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleDisableWebSearch}
-              selected={!enabled || !currentProvider}
-              sx={{
-                mx: 2,
-                borderRadius: 2,
-                mb: 1
-              }}
-            >
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: alpha('#666', 0.1),
-                    fontSize: '16px'
-                  }}
-                >
-                  🚫
-                </Box>
-              </ListItemIcon>
-              <ListItemText
-                primary="不使用网络搜索"
-                secondary="禁用网络搜索功能"
-              />
-              {(!enabled || !currentProvider) && (
-                <ListItemSecondaryAction>
-                  <CheckIcon color="#1976d2" />
-                </ListItemSecondaryAction>
-              )}
-            </ListItemButton>
-          </ListItem>
-        </List>
-
-        <Divider sx={{ my: 1 }} />
-
         {/* 🚀 所有搜索提供商 */}
         {allProviders.length > 0 && (
           <>

@@ -156,14 +156,8 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
 
   // 处理网络搜索按钮点击
   const handleWebSearchClick = () => {
-    if (webSearchActive) {
-      // 如果当前处于搜索模式，则关闭搜索
-      toggleWebSearch?.();
-      onClose();
-    } else {
-      // 如果当前不在搜索模式，显示提供商选择器
-      setShowProviderSelector(true);
-    }
+    // 总是显示提供商选择器
+    setShowProviderSelector(true);
   };
 
   // 处理提供商选择
@@ -338,7 +332,7 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
           : (isDarkMode ? 'rgba(59, 130, 246, 0.6)' : 'rgba(59, 130, 246, 0.5)')
         }
       />,
-      label: webSearchActive ? '关闭搜索' : (webSearchSettings?.providers?.find(p => p.id === currentProvider)?.name || '搜索'),
+      label: webSearchSettings?.providers?.find(p => p.id === currentProvider)?.name || '网络搜索',
       onClick: handleWebSearchClick,
       isActive: webSearchActive
     } : null

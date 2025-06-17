@@ -17,8 +17,9 @@ import FileUploadManager, { type FileUploadManagerRef } from './ChatInput/FileUp
 import InputTextArea from './ChatInput/InputTextArea';
 import EnhancedToast, { toastManager } from '../EnhancedToast';
 import { dexieStorage } from '../../shared/services/DexieStorageService';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
+import { toggleWebSearchEnabled, setWebSearchProvider } from '../../shared/store/slices/webSearchSlice';
 import AIDebateButton from '../AIDebateButton';
 import type { DebateConfig } from '../../shared/services/AIDebateService';
 import QuickPhraseButton from '../QuickPhraseButton';
@@ -106,6 +107,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // 获取当前助手状态
   const currentAssistant = useSelector((state: RootState) => state.assistants.currentAssistant);
+  
+  // Redux dispatch
+  const dispatch = useDispatch();
+
+  // 获取网络搜索设置
+  const webSearchSettings = useSelector((state: RootState) => state.webSearch);
 
   // 使用共享的 hooks
   const { styles, isDarkMode, inputBoxStyle } = useInputStyles();
@@ -358,6 +365,35 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const handleCloseToolsMenu = () => {
     setToolsMenuAnchorEl(null);
     setToolsMenuOpen(false);
+  };
+
+  // 处理快速网络搜索切换
+  const handleQuickWebSearchToggle = () => {
+    if (webSearchActive) {
+      // 如果当前网络搜索处于激活状态，则关闭它
+      toggleWebSearch?.();
+    } else {
+      // 如果当前网络搜索未激活，检查是否有可用的搜索提供商
+      const enabled = webSearchSettings?.enabled || false;
+      const currentProvider = webSearchSettings?.provider;
+      
+      if (enabled && currentProvider && currentProvider !== 'custom') {
+        // 如果网络搜索已启用且有有效的提供商，直接激活
+        toggleWebSearch?.();
+      } else {
+        // 如果没有配置或未启用，需要先启用网络搜索和设置默认提供商
+        if (!enabled) {
+          dispatch(toggleWebSearchEnabled());
+        }
+        if (!currentProvider || currentProvider === 'custom') {
+          dispatch(setWebSearchProvider('bing-free'));
+        }
+        // 然后激活搜索模式
+        setTimeout(() => {
+          toggleWebSearch?.();
+        }, 100);
+      }
+    }
   };
 
   // 文件上传处理函数 - 通过 ref 调用 FileUploadManager 的方法
@@ -785,13 +821,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
               gap: '4px'
             }}>
               {/* 搜索按钮 */}
-              <Tooltip title="网络搜索">
+              <Tooltip title={webSearchActive ? "关闭网络搜索" : "开启网络搜索"}>
                 <IconButton
                   size="medium"
-                  onClick={() => {/* 这里可以添加搜索功能 */}}
+                  onClick={handleQuickWebSearchToggle}
                   style={{
-                    color: iconColor,
-                    padding: '6px'
+                    color: webSearchActive ? '#3b82f6' : iconColor,
+                    backgroundColor: webSearchActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                    padding: '6px',
+                    transition: 'all 0.2s ease-in-out'
                   }}
                 >
                   <Search size={20} />
@@ -829,7 +867,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   disabled={!isStreaming && (!canSendMessage() || (isLoading && !allowConsecutiveMessages))}
                   size="medium"
                   style={{
-                    color: isStreaming ? '#ff4d4f' : !canSendMessage() || (isLoading && !allowConsecutiveMessages) ? disabledColor : imageGenerationMode ? '#9C27B0' : webSearchActive ? '#3b82f6' : isDarkMode ? '#4CAF50' : '#09bb07',
+                    color: isStreaming ? '#ff4d4f' : !canSendMessage() || (isLoading && !allowConsecutiveMessages) ? disabledColor : imageGenerationMode ? '#9C27B0' : isDarkMode ? '#4CAF50' : '#09bb07',
                     padding: '6px'
                   }}
                 >
@@ -843,12 +881,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     <Tooltip title="生成图像">
                       <Image size={18} />
                     </Tooltip>
-                  ) : webSearchActive ? (
-                    <Tooltip title="搜索网络">
-                      <Search size={18} />
-                    </Tooltip>
                   ) : (
-                    <Send size={18} />
+                    <Tooltip title="发送消息">
+                      <Send size={18} />
+                    </Tooltip>
                   )}
               </IconButton>
             </div>

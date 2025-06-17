@@ -17,8 +17,9 @@ import { useKeyboardManager } from '../../shared/hooks/useKeyboardManager';
 import { getBasicIcons, getExpandedIcons } from '../../shared/config/inputIcons';
 
 import { Plus, X, Send, Square, Paperclip, ChevronUp, ChevronDown } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
+import { toggleWebSearchEnabled, setWebSearchProvider } from '../../shared/store/slices/webSearchSlice';
 import type { SiliconFlowImageFormat, ImageContent, FileContent } from '../../shared/types';
 import type { DebateConfig } from '../../shared/services/AIDebateService';
 import { dexieStorage } from '../../shared/services/DexieStorageService';
@@ -216,6 +217,39 @@ const CompactChatInput: React.FC<CompactChatInputProps> = ({
     } else {
       // 如果当前不在搜索模式，显示提供商选择器
       setShowProviderSelector(true);
+    }
+  };
+
+  // Redux状态和dispatch
+  const dispatch = useDispatch();
+  const webSearchSettings = useSelector((state: RootState) => state.webSearch);
+
+  // 处理快速网络搜索切换（直接切换，不显示选择器）
+  const handleQuickWebSearchToggle = () => {
+    if (webSearchActive) {
+      // 如果当前网络搜索处于激活状态，则关闭它
+      toggleWebSearch?.();
+    } else {
+      // 如果当前网络搜索未激活，检查是否有可用的搜索提供商
+      const enabled = webSearchSettings?.enabled || false;
+      const currentProvider = webSearchSettings?.provider;
+      
+      if (enabled && currentProvider && currentProvider !== 'custom') {
+        // 如果网络搜索已启用且有有效的提供商，直接激活
+        toggleWebSearch?.();
+      } else {
+        // 如果没有配置或未启用，需要先启用网络搜索和设置默认提供商
+        if (!enabled) {
+          dispatch(toggleWebSearchEnabled());
+        }
+        if (!currentProvider || currentProvider === 'custom') {
+          dispatch(setWebSearchProvider('bing-free'));
+        }
+        // 然后激活搜索模式
+        setTimeout(() => {
+          toggleWebSearch?.();
+        }, 100);
+      }
     }
   };
 
@@ -636,7 +670,7 @@ const CompactChatInput: React.FC<CompactChatInputProps> = ({
     imageGenerationMode,
     onNewTopic,
     onClearTopic,
-    handleWebSearchClick,
+    handleWebSearchClick: handleQuickWebSearchToggle, // 使用快速切换函数
     toggleImageGenerationMode
   });
 
