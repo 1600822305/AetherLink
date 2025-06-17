@@ -439,7 +439,17 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = ({
         />
       );
     } else {
-      return <ChatInput key="default-input" {...commonProps} />;
+      return (
+        <ChatInput
+          key="default-input"
+          {...commonProps}
+          onClearTopic={handleClearTopic}
+          toggleImageGenerationMode={toggleImageGenerationMode}
+          toggleVideoGenerationMode={toggleVideoGenerationMode}
+          toggleWebSearch={toggleWebSearch}
+          onToolsEnabledChange={toggleToolsEnabled}
+        />
+      );
     }
   }, [
     inputLayoutStyle,

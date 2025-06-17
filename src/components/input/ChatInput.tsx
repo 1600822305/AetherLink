@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { IconButton, CircularProgress, Badge, Tooltip } from '@mui/material';
-import { Send, Plus, Square, Keyboard, Mic, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Plus, Square, Keyboard, Mic, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 
 import { useChatInputLogic } from '../../shared/hooks/useChatInputLogic';
 
@@ -12,6 +12,7 @@ import { Image, Search } from 'lucide-react';
 
 import type { FileStatus } from '../FilePreview';
 import UploadMenu from './UploadMenu';
+import ToolsMenu from './ToolsMenu';
 import FileUploadManager, { type FileUploadManagerRef } from './ChatInput/FileUploadManager';
 import InputTextArea from './ChatInput/InputTextArea';
 import EnhancedToast, { toastManager } from '../EnhancedToast';
@@ -43,6 +44,12 @@ interface ChatInputProps {
   isDebating?: boolean; // 是否正在AI辩论中
   toolsEnabled?: boolean; // 工具开关状态
   availableModels?: any[]; // 可用模型列表
+  // 工具栏相关props
+  onClearTopic?: () => void;
+  toggleImageGenerationMode?: () => void;
+  toggleVideoGenerationMode?: () => void;
+  toggleWebSearch?: () => void;
+  onToolsEnabledChange?: (enabled: boolean) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -60,11 +67,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isStreaming = false,
   isDebating = false, // 默认不在辩论中
   toolsEnabled = true, // 默认启用工具
-  availableModels = [] // 默认空数组
+  availableModels = [], // 默认空数组
+  // 工具栏相关props
+  onClearTopic,
+  toggleImageGenerationMode,
+  toggleVideoGenerationMode,
+  toggleWebSearch,
+  onToolsEnabledChange
 }) => {
   // 基础状态
   const [uploadMenuAnchorEl, setUploadMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [multiModelSelectorOpen, setMultiModelSelectorOpen] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false); // 工具菜单状态
+  const [toolsMenuAnchorEl, setToolsMenuAnchorEl] = useState<null | HTMLElement>(null); // 工具菜单锚点
   const [isIOS, setIsIOS] = useState(false); // 新增: 是否是iOS设备
   // 语音识别三状态管理
   const [voiceState, setVoiceState] = useState<'normal' | 'voice-mode' | 'recording'>('normal');
@@ -332,6 +347,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleCloseUploadMenu = () => {
     setUploadMenuAnchorEl(null);
+  };
+
+  // 工具菜单处理函数
+  const handleOpenToolsMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setToolsMenuAnchorEl(event.currentTarget);
+    setToolsMenuOpen(true);
+  };
+
+  const handleCloseToolsMenu = () => {
+    setToolsMenuAnchorEl(null);
+    setToolsMenuOpen(false);
   };
 
   // 文件上传处理函数 - 通过 ref 调用 FileUploadManager 的方法
@@ -735,6 +761,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   )}
                 </IconButton>
               </Tooltip>
+
+              {/* 工具按钮 */}
+              <Tooltip title="工具">
+                <IconButton
+                  size="medium"
+                  onClick={handleOpenToolsMenu}
+                  disabled={isLoading && !allowConsecutiveMessages}
+                  style={{
+                    color: iconColor,
+                    padding: '6px'
+                  }}
+                >
+                  <Settings size={20} />
+                </IconButton>
+              </Tooltip>
             </div>
 
             {/* 右侧：搜索、语音、发送按钮 */}
@@ -840,6 +881,22 @@ const ChatInput: React.FC<ChatInputProps> = ({
         availableModels={availableModels}
         onConfirm={handleMultiModelSend}
         maxSelection={5}
+      />
+
+      {/* 工具菜单 */}
+      <ToolsMenu
+        anchorEl={toolsMenuAnchorEl}
+        open={toolsMenuOpen}
+        onClose={handleCloseToolsMenu}
+        onClearTopic={onClearTopic}
+        imageGenerationMode={imageGenerationMode}
+        toggleImageGenerationMode={toggleImageGenerationMode}
+        videoGenerationMode={videoGenerationMode}
+        toggleVideoGenerationMode={toggleVideoGenerationMode}
+        webSearchActive={webSearchActive}
+        toggleWebSearch={toggleWebSearch}
+        toolsEnabled={toolsEnabled}
+        onToolsEnabledChange={onToolsEnabledChange}
       />
 
       {/* Toast通知 */}
