@@ -3,7 +3,7 @@ import { Box, AppBar, Toolbar, Typography, IconButton } from '@mui/material';
 import { AlignJustify, Settings, Plus, Trash2 } from 'lucide-react';
 
 import MessageList from '../../../components/message/MessageList';
-import { ChatInput, CompactChatInput, ChatToolbar } from '../../../components/input';
+import { ChatInput, CompactChatInput } from '../../../components/input';
 import { Sidebar } from '../../../components/TopicManagement';
 import { ModelSelector } from './ModelSelector';
 import { useSelector, useDispatch } from 'react-redux';
@@ -146,10 +146,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = ({
     ...topToolbarSettings
   }), [topToolbarSettings]);
 
-  const shouldShowToolbar = useMemo(() =>
-    inputLayoutStyle === 'default',
-    [inputLayoutStyle]
-  );
+
 
   // 生成背景样式
   const backgroundStyle = useMemo(() =>
@@ -479,26 +476,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = ({
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        {shouldShowToolbar && (
-          <Box sx={{
-            width: '100%',
-            maxWidth: '800px',
-            display: 'flex',
-            justifyContent: 'center'
-          }}>
-            <ChatToolbar
-              onClearTopic={handleClearTopic}
-              imageGenerationMode={imageGenerationMode}
-              toggleImageGenerationMode={toggleImageGenerationMode}
-              videoGenerationMode={videoGenerationMode}
-              toggleVideoGenerationMode={toggleVideoGenerationMode}
-              webSearchActive={webSearchActive}
-              toggleWebSearch={toggleWebSearch}
-              toolsEnabled={toolsEnabled}
-              onToolsEnabledChange={toggleToolsEnabled}
-            />
-          </Box>
-        )}
+
 
         <Box sx={{
           width: '100%',
@@ -511,7 +489,6 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = ({
       </Box>
     );
   }, [
-    shouldShowToolbar,
     handleClearTopic,
     imageGenerationMode,
     toggleImageGenerationMode,

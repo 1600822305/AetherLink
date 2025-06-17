@@ -3,7 +3,7 @@ export { default as ChatInput } from './ChatInput';
 export { default as CompactChatInput } from './CompactChatInput';
 export { default as UploadMenu } from './UploadMenu';
 export { default as MultiModelSelector } from './MultiModelSelector';
-export { default as ChatToolbar, getGlassmorphismToolbarStyles, getTransparentToolbarStyles } from './ChatToolbar';
+
 
 // 重新导出类型（如果有的话）
 export type { default as ChatInputProps } from './ChatInput';

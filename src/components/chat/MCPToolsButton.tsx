@@ -25,8 +25,96 @@ import type { RootState } from '../../shared/store';
 import type { MCPServer, MCPServerType } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
 import CustomSwitch from '../CustomSwitch';
-import { getGlassmorphismToolbarStyles, getTransparentToolbarStyles } from '../input';
+
 import { useMCPServerStateManager } from '../../hooks/useMCPServerStateManager';
+
+// 玻璃形态样式
+const getGlassmorphismToolbarStyles = (isDarkMode: boolean) => {
+  return {
+    button: {
+      background: isDarkMode
+        ? 'rgba(255, 255, 255, 0.08)'
+        : 'rgba(255, 255, 255, 0.15)',
+      border: isDarkMode
+        ? '1px solid rgba(255, 255, 255, 0.12)'
+        : '1px solid rgba(255, 255, 255, 0.25)',
+      borderRadius: '16px',
+      padding: '8px 14px',
+      backdropFilter: 'blur(12px) saturate(120%)',
+      WebkitBackdropFilter: 'blur(12px) saturate(120%)',
+      boxShadow: isDarkMode
+        ? '0 4px 16px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        : '0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      minHeight: '36px',
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      willChange: 'transform, background, box-shadow',
+      transform: 'translateZ(0)'
+    },
+    buttonHover: {
+      background: isDarkMode
+        ? 'rgba(255, 255, 255, 0.12)'
+        : 'rgba(255, 255, 255, 0.25)',
+      border: isDarkMode
+        ? '1px solid rgba(255, 255, 255, 0.18)'
+        : '1px solid rgba(255, 255, 255, 0.35)',
+      backdropFilter: 'blur(16px) saturate(140%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+      boxShadow: isDarkMode
+        ? '0 6px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+        : '0 6px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+      transform: 'translateY(-1px) translateZ(0)'
+    },
+    buttonActive: {
+      background: isDarkMode
+        ? 'rgba(255, 255, 255, 0.15)'
+        : 'rgba(255, 255, 255, 0.3)',
+      border: isDarkMode
+        ? '1px solid rgba(255, 255, 255, 0.2)'
+        : '1px solid rgba(255, 255, 255, 0.4)',
+      backdropFilter: 'blur(20px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+      boxShadow: isDarkMode
+        ? '0 2px 8px rgba(0, 0, 0, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+        : '0 2px 8px rgba(0, 0, 0, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+      transform: 'translateY(0px) scale(0.98) translateZ(0)'
+    }
+  };
+};
+
+// 透明样式
+const getTransparentToolbarStyles = (isDarkMode: boolean) => {
+  return {
+    button: {
+      background: 'transparent',
+      border: 'none',
+      borderRadius: '20px',
+      padding: '6px 12px',
+      transition: 'all 0.15s ease',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      minHeight: '32px'
+    },
+    buttonHover: {
+      background: isDarkMode
+        ? 'rgba(255, 255, 255, 0.06)'
+        : 'rgba(0, 0, 0, 0.04)'
+    },
+    buttonActive: {
+      background: isDarkMode
+        ? 'rgba(255, 255, 255, 0.1)'
+        : 'rgba(0, 0, 0, 0.06)',
+      transform: 'scale(0.96)'
+    }
+  };
+};
 
 interface MCPToolsButtonProps {
   toolsEnabled?: boolean;
