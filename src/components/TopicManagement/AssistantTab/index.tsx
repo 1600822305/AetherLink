@@ -146,7 +146,7 @@ export default function AssistantTab({
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* 标题和按钮区域 */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, minHeight: '32px' }}>
+      <Box sx={{ mb: 1 }}>
         {showSearch ? (
           <TextField
             fullWidth
@@ -174,11 +174,15 @@ export default function AssistantTab({
           />
         ) : (
           <>
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ flexShrink: 0 }}>所有助手</Typography>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
-              <IconButton size="small" onClick={handleSearchClick} sx={{ mr: 0.5 }}>
+            {/* 第一行：标题和搜索按钮 */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle1" fontWeight="medium" sx={{ flexShrink: 0 }}>所有助手</Typography>
+              <IconButton size="small" onClick={handleSearchClick}>
                 <Search size={18} />
               </IconButton>
+            </Box>
+            {/* 第二行：创建分组和添加助手按钮 */}
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
               <Tooltip title="创建分组">
                 <Button
                   variant="outlined"
@@ -186,11 +190,12 @@ export default function AssistantTab({
                   startIcon={<FolderPlus size={16} />}
                   onClick={handleOpenGroupDialog}
                   sx={{
+                    flex: 1,
                     color: 'text.primary',
                     borderColor: 'text.secondary',
-                    minWidth: 'auto',
                     px: 1,
                     fontSize: '0.75rem',
+                    justifyContent: 'center',
                     '&:hover': {
                       borderColor: 'text.primary',
                       backgroundColor: 'action.hover'
@@ -207,11 +212,12 @@ export default function AssistantTab({
                   startIcon={<Plus size={16} />}
                   onClick={handleOpenAssistantDialog}
                   sx={{
+                    flex: 1,
                     color: 'text.primary',
                     borderColor: 'text.secondary',
-                    minWidth: 'auto',
                     px: 1,
                     fontSize: '0.75rem',
+                    justifyContent: 'center',
                     '&:hover': {
                       borderColor: 'text.primary',
                       backgroundColor: 'action.hover'
