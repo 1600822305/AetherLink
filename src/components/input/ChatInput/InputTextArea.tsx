@@ -81,7 +81,6 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
   isMobile,
   isTablet,
   isDarkMode,
-  shouldHideVoiceButton,
   expanded,
   expandedHeight,
   onExpandToggle,
@@ -217,10 +216,8 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
   return (
     <div style={{
       flexGrow: 1,
-      // 当语音按钮隐藏时，左边距减少，为文本区域让出更多空间
-      margin: shouldHideVoiceButton
-        ? (isTablet ? '0 12px 0 4px' : '0 8px 0 2px')  // 语音按钮隐藏时减少左边距
-        : (isTablet ? '0 12px' : '0 8px'),              // 正常状态
+      // 移除边距，让文本区域占满上层空间
+      margin: '0',
       position: 'relative',
       transition: 'margin 0.25s ease-in-out' // 平滑过渡动画
     }}>
@@ -231,7 +228,7 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
         className="custom-thin-scrollbar"
         style={{
           fontSize: isTablet ? '17px' : '16px',
-          padding: isTablet ? '10px 0' : '8px 0',
+          padding: '0', // 移除内边距
           border: 'none',
           outline: 'none',
           width: '100%',
@@ -256,7 +253,7 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
               ? "输入视频生成提示词... (Ctrl+Enter 展开)"
               : webSearchActive
                 ? "输入网络搜索内容... (Ctrl+Enter 展开)"
-                : "和ai助手说点什么... (Ctrl+Enter 展开)"
+                : "说点什么..." // 简化placeholder文本
         }
         value={message}
         onChange={handleChange}
