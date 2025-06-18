@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   FormControl,
   Select,
   MenuItem,
-  Divider
+  Divider,
+  Box
 } from '@mui/material';
 import CustomSwitch from '../../CustomSwitch'; // 导入 CustomSwitch 组件
 import { getAppSettings } from '../../../shared/utils/settingsUtils';
@@ -120,16 +120,30 @@ export default function SettingItem({ setting, onChange }: SettingItemProps) {
 
   return (
     <>
-      <ListItem sx={{ px: 2, py: 0.5 }}>
+      <ListItem
+        sx={{
+          px: 2,
+          py: 1, // 增加垂直内边距以改善观感
+          display: 'flex', // *** 核心修复：使用Flexbox ***
+          alignItems: 'center', // 垂直居中对齐
+          gap: 2, // 在文本和控件之间增加间距
+        }}
+      >
         <ListItemText
           primary={setting.name}
           secondary={setting.description}
-          primaryTypographyProps={{ fontSize: '0.9rem', lineHeight: 1.2 }}
-          secondaryTypographyProps={{ fontSize: '0.75rem', lineHeight: 1.2, mt: 0.2 }}
+          primaryTypographyProps={{ fontSize: '0.9rem', lineHeight: 1.4, fontWeight: 'medium' }}
+          secondaryTypographyProps={{
+            fontSize: '0.75rem',
+            lineHeight: 1.4,
+            mt: 0.2,
+            sx: { whiteSpace: 'normal', wordBreak: 'break-word' } 
+          }}
+          sx={{ flex: 1, minWidth: 0 }} // *** 核心修复：让文本区域可伸缩 ***
         />
-        <ListItemSecondaryAction>
+        <Box>
           {renderControl()}
-        </ListItemSecondaryAction>
+        </Box>
       </ListItem>
       <Divider sx={{ opacity: 0.4 }} />
     </>

@@ -9,7 +9,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemButton,
   ListItemAvatar,
   Switch,
   Chip,
@@ -58,8 +57,6 @@ const MCPServerSettings: React.FC = () => {
     severity: 'success'
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-
 
   // 新服务器表单状态
   const [newServer, setNewServer] = useState<Partial<MCPServer>>({
@@ -236,8 +233,6 @@ const MCPServerSettings: React.FC = () => {
       setDeletingId(null); // 重置
     }
   };
-
-
 
   const handleImportJson = async () => {
     try {
@@ -503,176 +498,69 @@ const MCPServerSettings: React.FC = () => {
           <Paper
             elevation={0}
             sx={{
-              mb: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'hidden',
-              bgcolor: 'background.paper',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              m: { xs: 1, sm: 2 },
+              p: { xs: 1, sm: 2 },
+              borderRadius: '12px',
+              bgcolor: 'background.paper'
             }}
           >
-            <Box sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: 'rgba(0,0,0,0.01)' }}>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: { xs: '1rem', sm: '1.1rem' }
-                }}
-              >
-                MCP 服务器列表
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
-              >
-                管理您的 MCP 服务器配置和状态
-              </Typography>
-            </Box>
-
-            <Divider />
-
             <List disablePadding>
               {servers.map((server, index) => (
                 <React.Fragment key={server.id}>
                   <ListItem
-                    disablePadding
                     sx={{
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-                      }
-                    }}
-                  >
-                    <ListItemButton
-                      onClick={() => handleEditServer(server)}
-                      sx={{ flex: 1 }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar
-                          sx={{
-                            bgcolor: alpha(getServerTypeColor(server.type), 0.12),
-                            color: getServerTypeColor(server.type),
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
-                          }}
-                        >
-                          {getServerTypeIcon(server.type)}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Box sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: { xs: 0.5, sm: 1 },
-                            flexWrap: 'wrap'
-                          }}>
-                            <Typography sx={{
-                              fontWeight: 600,
-                              color: 'text.primary',
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
-                            }}>
-                              {server.name}
-                            </Typography>
-                            <Chip
-                              label={getServerTypeLabel(server.type)}
-                              size="small"
-                              sx={{
-                                bgcolor: alpha(getServerTypeColor(server.type), 0.1),
-                                color: getServerTypeColor(server.type),
-                                fontWeight: 500,
-                                fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                                height: { xs: 20, sm: 24 }
-                              }}
-                            />
-                            {server.isActive && (
-                              <Chip
-                                label="运行中"
-                                size="small"
-                                color="success"
-                                variant="outlined"
-                                sx={{
-                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                                  height: { xs: 20, sm: 24 }
-                                }}
-                              />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Box component="div" sx={{ mt: { xs: 0.5, sm: 1 } }}>
-                            {server.description && (
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                component="div"
-                                sx={{
-                                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
-                                  lineHeight: 1.4,
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: { xs: 2, sm: 3 },
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden'
-                                }}
-                              >
-                                {server.description}
-                              </Typography>
-                            )}
-                            {server.baseUrl && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                component="div"
-                                sx={{
-                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                                  mt: 0.5,
-                                  wordBreak: 'break-all'
-                                }}
-                              >
-                                {server.baseUrl}
-                              </Typography>
-                            )}
-                          </Box>
-                        }
-                      />
-                    </ListItemButton>
-
-                    {/* 操作按钮区域 */}
-                    <Box sx={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 1,
-                      pr: 2
-                    }}>
-                      <Switch
-                        checked={server.isActive}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleToggleServer(server.id, e.target.checked);
-                        }}
-                        color="primary"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteServer(server);
-                        }}
-                        size="small"
-                        disabled={deletingId === server.id}
+                      py: { xs: 1.5, sm: 2 },
+                      px: { xs: 1, sm: 2 },
+                      gap: 2,
+                      transition: 'background-color 0.2s',
+                      '&:hover': {
+                        bgcolor: theme => alpha(theme.palette.primary.main, 0.04),
+                      },
+                    }}
+                  >
+                    {/* 左侧图标 */}
+                    <ListItemAvatar sx={{ minWidth: 'auto' }}>
+                      <Avatar
                         sx={{
-                          color: deletingId === server.id ? 'text.disabled' : 'error.main',
-                          '&:hover': {
-                            bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
-                          }
+                          bgcolor: alpha(getServerTypeColor(server.type), 0.12),
+                          color: getServerTypeColor(server.type),
                         }}
                       >
-                        <DeleteIcon size={18} />
+                        {getServerTypeIcon(server.type)}
+                      </Avatar>
+                    </ListItemAvatar>
+
+                    {/* 中间文本内容 - 可伸缩 */}
+                    <Box sx={{ flexGrow: 1, cursor: 'pointer' }} onClick={() => handleEditServer(server)}>
+                      <ListItemText
+                        primary={
+                          <Typography sx={{ fontWeight: 600, color: 'text.primary' }}>
+                            {server.name}
+                          </Typography>
+                        }
+                        secondary={
+                          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'normal', wordBreak: 'break-word', mt: 0.5 }}>
+                            {server.description}
+                          </Typography>
+                        }
+                      />
+                    </Box>
+
+                    {/* 右侧操作按钮 - 固定 */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.5 } }}>
+                      <Switch
+                        checked={server.isActive}
+                        onChange={e => handleToggleServer(server.id, e.target.checked)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <IconButton onClick={() => handleDeleteServer(server)} disabled={!!deletingId} size="small">
+                        <DeleteIcon size={18} color={deletingId === server.id ? 'grey' : 'error'} />
                       </IconButton>
                     </Box>
                   </ListItem>
-                  {index < servers.length - 1 && <Divider variant="inset" component="li" sx={{ ml: 0 }} />}
+                  {index < servers.length - 1 && <Divider variant="inset" component="li" />}
                 </React.Fragment>
               ))}
             </List>
@@ -1181,8 +1069,6 @@ const MCPServerSettings: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-
 
       <Snackbar
         open={snackbar.open}

@@ -181,30 +181,52 @@ export * from './messages';
  */
 export async function initializeServices(): Promise<void> {
   try {
+    // 并行加载所有需要的服务模块
+    const [
+      devToolsModule,
+      ttsModule
+    ] = await Promise.all([
+      // 开发者工具（用于错误反馈，生产环境也需要）
+      (async () => {
+        try {
+          const [consoleService, networkService] = await Promise.all([
+            import('./EnhancedConsoleService'),
+            import('./EnhancedNetworkService')
+          ]);
+          return { consoleService, networkService };
+        } catch (e) {
+          console.warn('无法加载开发者工具:', e);
+          return null;
+        }
+      })(),
+      // TTS服务
+      (async () => {
+        try {
+          return await import('./TTSService');
+        } catch (e) {
+          console.warn('无法加载TTS服务:', e);
+          return null;
+        }
+      })(),
+    ]);
+
     // 初始化开发者工具服务
-    try {
-      const { default: EnhancedConsoleService } = await import('./EnhancedConsoleService');
-      const { default: EnhancedNetworkService } = await import('./EnhancedNetworkService');
-      
-      // 初始化控制台拦截
-      EnhancedConsoleService.getInstance();
+    if (devToolsModule?.consoleService && devToolsModule?.networkService) {
+      devToolsModule.consoleService.default.getInstance();
       console.log('控制台拦截服务初始化完成');
-      
-      // 初始化网络拦截
-      EnhancedNetworkService.getInstance();
+      devToolsModule.networkService.default.getInstance();
       console.log('网络拦截服务初始化完成');
-    } catch (devToolsError) {
-      console.warn('开发者工具服务初始化失败:', devToolsError);
     }
 
     // 初始化TTS服务配置
-    try {
-      const { TTSService } = await import('./TTSService');
-      const ttsService = TTSService.getInstance();
-      await ttsService.initializeConfig();
-      console.log('TTS服务配置初始化完成');
-    } catch (ttsError) {
-      console.warn('TTS服务配置初始化失败:', ttsError);
+    if (ttsModule?.TTSService) {
+      try {
+        const ttsService = ttsModule.TTSService.getInstance();
+        await ttsService.initializeConfig();
+        console.log('TTS服务配置初始化完成');
+      } catch (ttsError) {
+        console.warn('TTS服务配置初始化失败:', ttsError);
+      }
     }
 
     // 系统提示词服务现在通过Redux thunk初始化

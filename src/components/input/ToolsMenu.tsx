@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, useTheme, Menu, MenuItem, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction, Chip, Avatar, Button, Divider, alpha } from '@mui/material';
+import { Box, Typography, useTheme, Menu, MenuItem, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction, Chip, Avatar, Button, alpha } from '@mui/material';
 // Lucide Icons - 按需导入，高端简约设计
 import { Plus, Trash2, AlertTriangle, Camera, Search, BookOpen, Video, Settings, Wrench, Database, Globe } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -390,11 +390,8 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
                   // 不关闭菜单，让用户看到确认状态
                   return;
                 }
+                // 对于其他所有按钮，执行操作后关闭菜单
                 button.onClick();
-                // MCP工具按钮点击后不关闭菜单，让对话框处理
-                if (button.id === 'mcp-tools') {
-                  return;
-                }
                 onClose();
               }}
               sx={{
@@ -551,67 +548,65 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
             </Box>
           ) : (
             <>
-              <List sx={{ py: 0 }}>
-                {servers.map((server, index) => (
-                  <React.Fragment key={server.id}>
-                    <ListItem sx={{ py: { xs: 1.5, sm: 2 }, px: { xs: 2, sm: 3 } }}>
-                      <ListItemIcon sx={{ minWidth: { xs: 36, sm: 40 } }}>
-                        <Avatar
-                          sx={{
-                            bgcolor: alpha(getServerTypeColor(server.type), 0.1),
-                            color: getServerTypeColor(server.type),
-                            width: { xs: 28, sm: 32 },
-                            height: { xs: 28, sm: 32 },
-                            '& svg': {
-                              width: { xs: '14px', sm: '16px' },
-                              height: { xs: '14px', sm: '16px' }
-                            }
-                          }}
-                        >
-                          {getServerTypeIcon(server.type)}
-                        </Avatar>
-                      </ListItemIcon>
+              <List sx={{ px: { xs: 0, sm: 1 } }}>
+                {servers.map((server) => (
+                  <ListItem
+                    key={server.id}
+                    sx={{
+                      padding: { xs: '12px 16px', sm: '12px' },
+                      borderRadius: 2,
+                      mb: 1.5,
+                      backgroundColor: isDarkMode ? alpha('#333', 0.5) : alpha('#f5f5f5', 0.7),
+                      transition: 'background-color 0.2s',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      '&:hover': {
+                        backgroundColor: isDarkMode ? alpha('#444', 0.7) : alpha('#eeeeee', 0.9),
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
+                      <Avatar
+                        sx={{
+                          bgcolor: alpha(getServerTypeColor(server.type), 0.1),
+                          color: getServerTypeColor(server.type),
+                          width: { xs: 28, sm: 32 },
+                          height: { xs: 28, sm: 32 },
+                          '& svg': {
+                            width: { xs: '14px', sm: '16px' },
+                            height: { xs: '14px', sm: '16px' }
+                          }
+                        }}
+                      >
+                        {getServerTypeIcon(server.type)}
+                      </Avatar>
+                    </ListItemIcon>
+                    <Box sx={{ flex: 1, pr: 7 }}> 
                       <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="subtitle2" fontWeight={600}>
-                              {server.name}
-                            </Typography>
-                            {server.isActive && (
-                              <Chip
-                                label="运行中"
-                                size="small"
-                                color="success"
-                                variant="outlined"
-                              />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Box component="div">
-                            {server.description && (
-                              <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'block' }}>
-                                {server.description}
-                              </Typography>
-                            )}
-                            {server.baseUrl && (
-                              <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
-                                {server.baseUrl}
-                              </Typography>
-                            )}
-                          </Box>
-                        }
-                        secondaryTypographyProps={{ component: 'div' }}
+                        primary={server.name}
+                        secondary={server.description}
+                        primaryTypographyProps={{
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          color: isDarkMode ? '#f0f0f0' : '#333',
+                        }}
+                        secondaryTypographyProps={{
+                          fontSize: '0.875rem',
+                          color: isDarkMode ? '#b0b0b0' : '#666',
+                          whiteSpace: 'normal',
+                          sx: { wordBreak: 'break-word' },
+                        }}
                       />
-                      <ListItemSecondaryAction>
-                        <CustomSwitch
-                          checked={server.isActive}
-                          onChange={(e) => handleToggleServer(server.id, e.target.checked)}
-                        />
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                    {index < servers.length - 1 && <Divider />}
-                  </React.Fragment>
+                    </Box>
+                    <ListItemSecondaryAction>
+                      <CustomSwitch
+                        checked={server.isActive}
+                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                          void handleToggleServer(server.id, event.target.checked);
+                        }}
+                      />
+                    </ListItemSecondaryAction>
+                  </ListItem>
                 ))}
               </List>
 

@@ -341,51 +341,43 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
                       </Button>
                     </Box>
                   ) : (
-                    <List dense sx={{ py: 0 }}>
-                      {servers.map((server) => (
+                    <List sx={{ p: 0, opacity: toolsEnabled ? 1 : 0.6 }} disablePadding>
+                      {servers.map(server => (
                         <ListItem
                           key={server.id}
                           sx={{
-                            px: 1,
-                            py: 0.5,
-                            ...listItemOptimization,
+                            px: 0, // 列表项本身无内边距
+                            py: 1.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 2,
                           }}
+                          disabled={!toolsEnabled}
                         >
-                          <ListItemIcon sx={{ minWidth: 32 }}>
+                          <ListItemIcon sx={{ minWidth: 'auto' }}>
                             <Avatar
                               sx={{
-                                bgcolor: alpha(getServerTypeColor(server.type), 0.1),
+                                bgcolor: alpha(getServerTypeColor(server.type), 0.12),
                                 color: getServerTypeColor(server.type),
-                                width: 24,
-                                height: 24
                               }}
                             >
                               {getServerTypeIcon(server.type)}
                             </Avatar>
                           </ListItemIcon>
                           <ListItemText
-                            primary={
-                              <Typography variant="body2" fontWeight={500}>
-                                {server.name}
-                              </Typography>
-                            }
-                            secondary={
-                              server.description && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {server.description}
-                                </Typography>
-                              )
-                            }
+                            primary={server.name}
+                            secondary={server.description}
+                            primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 'medium' }}
+                            secondaryTypographyProps={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'normal', wordBreak: 'break-word', mt: 0.2 }}
+                            sx={{ flex: 1, minWidth: 0, my: 0 }}
                           />
-                          <ListItemSecondaryAction>
+                          <Box>
                             <CustomSwitch
                               checked={server.isActive}
-                              onChange={createOptimizedSwitchHandler((checked) =>
-                                handleToggleServer(server.id, checked)
-                              )}
+                              onChange={(e) => handleToggleServer(server.id, e.target.checked)}
                               disabled={!toolsEnabled}
                             />
-                          </ListItemSecondaryAction>
+                          </Box>
                         </ListItem>
                       ))}
                     </List>
