@@ -196,22 +196,28 @@ const AppInitializer = () => {
             }
           }
         } else {
-          console.log('[AppInitializer] 没有可用的助手，需要创建默认助手');
+          console.log('[AppInitializer] 没有可用的助手，请用户手动创建');
+          
+          // 2024-07-28: 暂时注释掉自动创建默认助手的功能
+          // 观察这是否能解决每次刷新都重复创建助手的问题
+          // 如果用户确实需要一个引导流程，我们后续再设计一个更完善的、只执行一次的初始化方案
 
-          // 创建默认助手
-          const defaultAssistants = await AssistantService.initializeDefaultAssistants();
+          // console.log('[AppInitializer] 没有可用的助手，需要创建默认助手');
 
-          if (defaultAssistants.length > 0) {
-            const firstAssistant = defaultAssistants[0];
+          // // 创建默认助手
+          // const defaultAssistants = await AssistantService.initializeDefaultAssistants();
 
-            // 设置当前助手
-            dispatch(setCurrentAssistant(firstAssistant));
+          // if (defaultAssistants.length > 0) {
+          //   const firstAssistant = defaultAssistants[0];
 
-            // 选择第一个话题
-            if (firstAssistant.topics && firstAssistant.topics.length > 0) {
-              dispatch(newMessagesActions.setCurrentTopicId(firstAssistant.topics[0].id));
-            }
-          }
+          //   // 设置当前助手
+          //   dispatch(setCurrentAssistant(firstAssistant));
+
+          //   // 选择第一个话题
+          //   if (firstAssistant.topics && firstAssistant.topics.length > 0) {
+          //     dispatch(newMessagesActions.setCurrentTopicId(firstAssistant.topics[0].id));
+          //   }
+          // }
         }
       } catch (error) {
         console.error('[AppInitializer] 选择第一个助手失败:', error);

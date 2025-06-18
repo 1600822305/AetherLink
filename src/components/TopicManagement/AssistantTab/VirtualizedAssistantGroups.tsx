@@ -1,6 +1,8 @@
-import React, { memo, useMemo, useCallback } from 'react';
-import { Box, Typography, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
-import { ChevronDown } from 'lucide-react';
+import React, { memo, useMemo, useCallback, useState } from 'react';
+import { Box, Typography, Accordion, AccordionSummary, AccordionDetails, IconButton, Menu, MenuItem } from '@mui/material';
+import { ChevronDown, MoreVertical, Trash2 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { deleteGroup } from '../../../shared/store/slices/groupsSlice';
 import VirtualScroller from '../../common/VirtualScroller';
 import AssistantItem from './AssistantItem';
 import type { Assistant } from '../../../shared/types/Assistant';
@@ -14,8 +16,6 @@ interface VirtualizedAssistantGroupsProps {
   onSelectAssistant: (assistant: Assistant) => void;
   onOpenMenu: (event: React.MouseEvent, assistant: Assistant) => void;
   onDeleteAssistant: (assistantId: string, event: React.MouseEvent) => void;
-  isGroupEditMode: boolean;
-  onAddItem?: () => void;
 }
 
 /**
@@ -32,6 +32,10 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
   onDeleteAssistant
 }: VirtualizedAssistantGroupsProps) {
   
+  const dispatch = useDispatch();
+  const [groupMenuAnchorEl, setGroupMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+
   // 使用 useMemo 缓存分组助手的计算结果
   const groupedAssistants = useMemo(() => {
     return assistantGroups.map((group) => {
@@ -45,6 +49,25 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
       };
     });
   }, [assistantGroups, userAssistants, assistantGroupMap]);
+
+  // 处理分组菜单
+  const handleGroupMenuOpen = useCallback((event: React.MouseEvent<HTMLElement>, group: Group) => {
+    event.stopPropagation();
+    setGroupMenuAnchorEl(event.currentTarget);
+    setSelectedGroup(group);
+  }, []);
+
+  const handleGroupMenuClose = useCallback(() => {
+    setGroupMenuAnchorEl(null);
+    setSelectedGroup(null);
+  }, []);
+
+  const handleDeleteGroup = useCallback(() => {
+    if (selectedGroup) {
+      dispatch(deleteGroup(selectedGroup.id));
+    }
+    handleGroupMenuClose();
+  }, [dispatch, selectedGroup, handleGroupMenuClose]);
 
   // 缓存助手项渲染函数
   const renderAssistantItem = useCallback((assistant: Assistant, _index: number) => {
@@ -92,6 +115,8 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
             minHeight: '48px',
             '& .MuiAccordionSummary-content': {
               margin: '8px 0',
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }
           }}
         >
@@ -99,6 +124,13 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
             {group.name} ({groupAssistants.length})
             {shouldVirtualize && ' 🚀'}
           </Typography>
+          <IconButton
+            size="small"
+            onClick={(e) => handleGroupMenuOpen(e, group)}
+            sx={{ p: 0.5 }}
+          >
+            <MoreVertical size={16} />
+          </IconButton>
         </AccordionSummary>
         <AccordionDetails sx={{ p: 1 }}>
           {groupAssistants.length > 0 ? (
@@ -146,7 +178,7 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
         </AccordionDetails>
       </Accordion>
     );
-  }, [renderAssistantItem, getAssistantKey]);
+  }, [renderAssistantItem, getAssistantKey, handleGroupMenuOpen]);
 
   if (groupedAssistants.length === 0) {
     return (
@@ -159,6 +191,16 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
   return (
     <Box sx={{ mb: 2 }}>
       {groupedAssistants.map(renderGroup)}
+      <Menu
+        anchorEl={groupMenuAnchorEl}
+        open={Boolean(groupMenuAnchorEl)}
+        onClose={handleGroupMenuClose}
+      >
+        <MenuItem onClick={handleDeleteGroup}>
+          <Trash2 size={16} style={{ marginRight: 8 }} />
+          删除分组
+        </MenuItem>
+      </Menu>
     </Box>
   );
 });
