@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Typography, useTheme, Menu, MenuItem, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction, Chip, Avatar, Button, alpha } from '@mui/material';
+import React, { useState, useRef, useEffect } from 'react';
+import { Box, Typography, useTheme, Menu, MenuItem, Dialog, DialogTitle, DialogContent, List, ListItem, ListItemText, ListItemIcon, ListItemSecondaryAction, Chip, Avatar, Button, alpha, useMediaQuery } from '@mui/material';
 // Lucide Icons - 按需导入，高端简约设计
 import { Plus, Trash2, AlertTriangle, Camera, Search, BookOpen, Video, Settings, Wrench, Database, Globe } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import type { MCPServer, MCPServerType } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
 import CustomSwitch from '../CustomSwitch';
-import { useMCPServerStateManager } from '../../hooks/useMCPServerStateManager';
+import { useInputStyles } from '../../shared/hooks/useInputStyles';
 
 interface ToolsMenuProps {
   anchorEl: null | HTMLElement;
@@ -52,12 +52,14 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
   const [activeServers, setActiveServers] = useState<MCPServer[]>([]);
 
   const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isDarkMode } = useInputStyles();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   // 使用共享的MCP状态管理Hook
-  const { createMCPToggleHandler } = useMCPServerStateManager();
+  // 注释掉未使用的mcpStateManager
+  // const mcpStateManager = useMCPServerStateManager();
 
   // 从Redux获取网络搜索设置
   const webSearchSettings = useSelector((state: RootState) => state.webSearch);
@@ -77,6 +79,18 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
       'web-search': true
     }
   });
+
+  // 用于清理计时器的ref
+  const clearTimerRef = useRef<number | undefined>(undefined);
+
+  // 清理计时器的useEffect
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+      }
+    };
+  }, []);
 
   // 创建新话题
   const handleCreateTopic = async () => {
@@ -120,7 +134,10 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
       // 进入确认模式，但不关闭菜单
       setClearConfirmMode(true);
       // 3秒后自动退出确认模式
-      setTimeout(() => setClearConfirmMode(false), 3000);
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+      }
+      clearTimerRef.current = window.setTimeout(() => setClearConfirmMode(false), 3000);
     }
   };
 
@@ -217,7 +234,12 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
   };
 
   // 使用共享的MCP状态管理逻辑
-  const handleToolsEnabledChange = createMCPToggleHandler(loadServers, onToolsEnabledChange);
+  const handleMCPToolsEnabledChange = (enabled: boolean) => {
+    if (onToolsEnabledChange) {
+      onToolsEnabledChange(enabled);
+    }
+    loadServers();
+  };
 
   const getServerTypeIcon = (type: MCPServerType) => {
     switch (type) {
@@ -464,7 +486,7 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
         onClose={handleCloseMCPDialog}
         maxWidth="sm"
         fullWidth
-        fullScreen={window.innerWidth < 600}
+        fullScreen={isXs}
         PaperProps={{
           sx: {
             borderRadius: { xs: 0, sm: 2 },
@@ -500,7 +522,7 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
             {onToolsEnabledChange && (
               <CustomSwitch
                 checked={toolsEnabled}
-                onChange={(e) => handleToolsEnabledChange(e.target.checked)}
+                onChange={(e) => handleMCPToolsEnabledChange(e.target.checked)}
               />
             )}
           </Box>

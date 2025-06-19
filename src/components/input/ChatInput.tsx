@@ -103,7 +103,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   // FileUploadManager 引用
   const fileUploadManagerRef = useRef<FileUploadManagerRef>(null);
 
-
+  // 用于标记是否需要触发Web搜索的状态
+  const [pendingWebSearchToggle, setPendingWebSearchToggle] = useState(false);
 
   // 获取当前助手状态
   const currentAssistant = useSelector((state: RootState) => state.assistants.currentAssistant);
@@ -127,6 +128,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // 获取快捷短语按钮显示设置
   const showQuickPhraseButton = useSelector((state: RootState) => state.settings.showQuickPhraseButton ?? true);
+
+  // 监听Web搜索设置变化，当设置完成后触发搜索
+  useEffect(() => {
+    if (pendingWebSearchToggle && webSearchSettings?.enabled && webSearchSettings?.provider && webSearchSettings.provider !== 'custom') {
+      toggleWebSearch?.();
+      setPendingWebSearchToggle(false);
+    }
+  }, [webSearchSettings?.enabled, webSearchSettings?.provider, pendingWebSearchToggle, toggleWebSearch]);
 
   // 聊天输入逻辑 - 启用 ChatInput 特有功能
   const {
@@ -382,16 +391,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
         toggleWebSearch?.();
       } else {
         // 如果没有配置或未启用，需要先启用网络搜索和设置默认提供商
+        const actions: any[] = [];
         if (!enabled) {
-          dispatch(toggleWebSearchEnabled());
+          actions.push(toggleWebSearchEnabled());
         }
         if (!currentProvider || currentProvider === 'custom') {
-          dispatch(setWebSearchProvider('bing-free'));
+          actions.push(setWebSearchProvider('bing-free'));
         }
-        // 然后激活搜索模式
-        setTimeout(() => {
-          toggleWebSearch?.();
-        }, 100);
+        
+        // 批量dispatch并设置等待标记
+        actions.forEach(action => dispatch(action));
+        setPendingWebSearchToggle(true);
       }
     }
   };

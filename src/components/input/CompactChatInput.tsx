@@ -209,20 +209,20 @@ const CompactChatInput: React.FC<CompactChatInputProps> = ({
     return () => window.removeEventListener('resize', updateExpandedHeight);
   }, []);
 
-  // 处理网络搜索按钮点击
-  const handleWebSearchClick = () => {
-    if (webSearchActive) {
-      // 如果当前处于搜索模式，则关闭搜索
-      toggleWebSearch?.();
-    } else {
-      // 如果当前不在搜索模式，显示提供商选择器
-      setShowProviderSelector(true);
-    }
-  };
+  // 用于标记是否需要触发Web搜索的状态
+  const [pendingWebSearchToggle, setPendingWebSearchToggle] = useState(false);
 
-  // Redux状态和dispatch
+  // Redux相关
   const dispatch = useDispatch();
   const webSearchSettings = useSelector((state: RootState) => state.webSearch);
+
+  // 监听Web搜索设置变化，当设置完成后触发搜索
+  useEffect(() => {
+    if (pendingWebSearchToggle && webSearchSettings?.enabled && webSearchSettings?.provider && webSearchSettings.provider !== 'custom') {
+      toggleWebSearch?.();
+      setPendingWebSearchToggle(false);
+    }
+  }, [webSearchSettings?.enabled, webSearchSettings?.provider, pendingWebSearchToggle, toggleWebSearch]);
 
   // 处理快速网络搜索切换（直接切换，不显示选择器）
   const handleQuickWebSearchToggle = () => {
@@ -239,16 +239,17 @@ const CompactChatInput: React.FC<CompactChatInputProps> = ({
         toggleWebSearch?.();
       } else {
         // 如果没有配置或未启用，需要先启用网络搜索和设置默认提供商
+        const actions: any[] = [];
         if (!enabled) {
-          dispatch(toggleWebSearchEnabled());
+          actions.push(toggleWebSearchEnabled());
         }
         if (!currentProvider || currentProvider === 'custom') {
-          dispatch(setWebSearchProvider('bing-free'));
+          actions.push(setWebSearchProvider('bing-free'));
         }
-        // 然后激活搜索模式
-        setTimeout(() => {
-          toggleWebSearch?.();
-        }, 100);
+        
+        // 批量dispatch并设置等待标记
+        actions.forEach(action => dispatch(action));
+        setPendingWebSearchToggle(true);
       }
     }
   };
@@ -746,6 +747,7 @@ const CompactChatInput: React.FC<CompactChatInputProps> = ({
             setIsVoiceMode(false);
           }}
           startRecognition={startRecognition}
+          currentMessage={message}
         />
       ) : (
         /* 文本输入模式 */
