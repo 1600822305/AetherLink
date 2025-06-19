@@ -873,6 +873,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
               {/* 发送按钮 */}
               <IconButton
+                  aria-label={
+                    isStreaming
+                      ? '停止生成'
+                      : imageGenerationMode
+                        ? '生成图像'
+                        : '发送消息'
+                  }
                   onClick={isStreaming && onStopResponse ? onStopResponse : handleSubmit}
                   disabled={!isStreaming && (!canSendMessage() || (isLoading && !allowConsecutiveMessages))}
                   size="medium"

@@ -363,8 +363,14 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
   // 根据设置生成按钮数组
   const buttons = toolbarButtons.order
     .filter(buttonId => {
-      // 过滤掉不可见的按钮和不存在的按钮配置
-      return toolbarButtons.visibility[buttonId] && allButtonConfigs[buttonId as keyof typeof allButtonConfigs];
+      // 过滤掉不可见的按钮，以及配置不合法的按钮
+      const config = allButtonConfigs[buttonId as keyof typeof allButtonConfigs];
+      return (
+        toolbarButtons.visibility[buttonId] &&
+        config &&
+        typeof config === 'object' &&
+        'id' in config
+      );
     })
     .map(buttonId => allButtonConfigs[buttonId as keyof typeof allButtonConfigs])
     .filter((button): button is NonNullable<typeof button> => button !== null);
