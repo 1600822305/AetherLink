@@ -1,3 +1,5 @@
+package com.aetherlink.app.kotlin
+
 import java.io.File
 import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.DefaultTask
@@ -16,16 +18,12 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun assemble() {
-        val executable = """npm""";
-        try {
-            runTauriCli(executable)
-        } catch (e: Exception) {
-            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                runTauriCli("$executable.cmd")
-            } else {
-                throw e;
-            }
+        val executable = if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            "npm.cmd"
+        } else {
+            "npm"
         }
+        runTauriCli(executable)
     }
 
     fun runTauriCli(executable: String) {
