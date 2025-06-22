@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiki 语法高亮测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Shiki 语法高亮测试页面</h1>
+        
+        <div class="test-section">
+            <h3>测试说明</h3>
+            <p>这个页面用于测试我们新添加的 Shiki 语法高亮功能。</p>
+            <p>在代码块组件中，您现在应该能看到一个新的 <strong>🎨 语法高亮预览</strong> 按钮。</p>
+        </div>
+
+        <div class="test-section">
+            <h3>功能特点</h3>
+            <ul>
+                <li>✅ 真正的 Shiki 语法高亮（替代简化版本）</li>
+                <li>✅ 支持 40+ 种编程语言</li>
+                <li>✅ 深色/浅色主题自动切换</li>
+                <li>✅ 保留原有的编辑和特殊预览功能</li>
+                <li>✅ 移动端优化</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>使用方法</h3>
+            <ol>
+                <li>在任何代码块中，点击工具栏中的 <strong>🎨</strong> 按钮</li>
+                <li>即可看到带有语法高亮的代码预览</li>
+                <li>支持 Python、JavaScript、TypeScript、Java、C++ 等多种语言</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>测试代码示例</h3>
+            <p>您可以复制以下代码到聊天中测试语法高亮效果：</p>
+            
+            <h4>Python 示例：</h4>
+            <pre><code>```python
+def fibonacci(n):
+    """计算斐波那契数列的前n项"""
+    fib_sequence = []
+    a, b = 0, 1  # 初始化前两个斐波那契数
+    
+    for _ in range(n):
+        fib_sequence.append(a)
+        a, b = b, a + b  # 更新a和b的值
+    
+    return fib_sequence
+
+# 示例用法
+n = 10  # 你可以修改这个值来计算不同数量的项
+result = fibonacci(n)
+print(f"斐波那契数列的前{n}项是: {result}")
+```</code></pre>
+
+            <h4>JavaScript 示例：</h4>
+            <pre><code>```javascript
+// 异步函数示例
+async function fetchUserData(userId) {
+    try {
+        const response = await fetch(`/api/users/${userId}`);
+        const userData = await response.json();
+        
+        return {
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            isActive: userData.status === 'active'
+        };
+    } catch (error) {
+        console.error('获取用户数据失败:', error);
+        throw new Error('用户数据获取失败');
+    }
+}
+
+// 使用示例
+fetchUserData(123)
+    .then(user => console.log('用户信息:', user))
+    .catch(err => console.error('错误:', err));
+```</code></pre>
+        </div>
+    </div>
+</body>
+</html>

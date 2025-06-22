@@ -1,0 +1,570 @@
+/* Markdown 样式 - 参考简洁风格 */
+.markdown {
+  color: inherit;
+  line-height: 1.6;
+  user-select: text;
+  word-break: break-word;
+}
+
+/* 图片样式 */
+.markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 链接样式 */
+.markdown a {
+  color: #1976d2;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+}
+
+/* 标题样式 */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child,
+.markdown h4:first-child,
+.markdown h5:first-child,
+.markdown h6:first-child {
+  margin-top: 0;
+}
+
+.markdown h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 4px;
+}
+
+.markdown h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 4px;
+}
+
+.markdown h3 {
+  font-size: 1.2em;
+}
+
+.markdown h4 {
+  font-size: 1em;
+}
+
+.markdown h5 {
+  font-size: 0.9em;
+}
+
+.markdown h6 {
+  font-size: 0.8em;
+}
+
+/* 段落样式 */
+.markdown p {
+  margin: 1em 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.markdown p:last-child {
+  margin-bottom: 5px;
+}
+
+.markdown p:first-child {
+  margin-top: 0;
+}
+
+/* 段落与列表的特殊关系 - 注意：CSS :has() 选择器支持有限 */
+.markdown p + ul {
+  margin-top: 0;
+}
+
+/* 列表样式 */
+.markdown ul,
+.markdown ol {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.markdown li {
+  margin-bottom: 0.5em;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin: 0.5em 0;
+}
+
+.markdown ul {
+  list-style: initial;
+}
+
+/* 列表标记样式 */
+.markdown li::marker {
+  color: #999;
+}
+
+/* 列表中的代码块 */
+.markdown li pre {
+  margin: 1.5em 0;
+}
+
+/* 引用样式 */
+.markdown blockquote {
+  border-left: 4px solid #ccc;
+  padding-left: 16px;
+  margin-left: 0;
+  margin: 16px 0;
+  color: #666;
+}
+
+/* 分隔线样式 */
+.markdown hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 20px 0;
+}
+
+/* 行内代码样式 */
+.markdown code {
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', Menlo, Courier, monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 3px 5px;
+  border-radius: 5px;
+  word-break: keep-all;
+  white-space: pre;
+}
+
+/* 段落和列表中的行内代码 */
+.markdown p code,
+.markdown li code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 3px 5px;
+  border-radius: 5px;
+  word-break: keep-all;
+  white-space: pre;
+}
+
+/* Claude 主题气泡内的行内代码 - 移除背景色避免双层效果 */
+[data-theme-style="claude"] .markdown code {
+  background-color: transparent;
+  /* 添加轻微的边框来保持视觉区分 */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 深色模式 */
+@media (prefers-color-scheme: dark) {
+  .markdown a {
+    color: #90caf9;
+  }
+
+  .markdown h1,
+  .markdown h2 {
+    border-bottom-color: #404040;
+  }
+
+  .markdown blockquote {
+    border-left-color: #666;
+    color: #ccc;
+  }
+
+  .markdown hr {
+    border-top-color: #404040;
+  }
+
+  .markdown code,
+  .markdown p code,
+  .markdown li code {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e3e3e3;
+  }
+
+  .markdown pre {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .markdown li::marker {
+    color: #666;
+  }
+
+  .markdown .footnote-ref {
+    color: #90caf9;
+  }
+
+  .footnotes {
+    background-color: #2a2a2a;
+  }
+
+  .footnotes li {
+    color: #ccc;
+  }
+
+  .footnotes a,
+  .footnotes .footnote-backref {
+    color: #90caf9;
+  }
+
+  /* Claude 主题深色模式气泡内的行内代码 */
+  [data-theme-style="claude"] .markdown code {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: inherit;
+  }
+}
+
+/* 代码块容器样式 */
+.markdown pre {
+  border-radius: 5px;
+  overflow-x: auto;
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  margin: 1em 0;
+}
+
+/* 特殊预览的代码块 */
+.markdown pre:has(.mermaid),
+.markdown pre:has(.plantuml-preview),
+.markdown pre:has(.svg-preview) {
+  background-color: transparent;
+}
+
+/* 嵌套代码块样式 */
+.markdown pre:not(pre pre) > code:not(pre pre > code) {
+  padding: 15px;
+  display: block;
+}
+
+.markdown pre pre {
+  margin: 0 !important;
+}
+
+.markdown pre pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* 连续代码块间距 */
+.markdown pre + pre {
+  margin-top: 10px;
+}
+
+/* 文本格式化样式 */
+.markdown strong {
+  font-weight: bold;
+}
+
+.markdown em {
+  font-style: italic;
+}
+
+.markdown del {
+  text-decoration: line-through;
+}
+
+/* 上标和下标 */
+.markdown sup,
+.markdown sub {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.markdown sup {
+  top: -0.5em;
+}
+
+.markdown sub {
+  bottom: -0.25em;
+}
+
+/* 表格滚动容器 */
+.markdown-table-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  margin: 1em 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  background-color: #ffffff !important;
+  /* 滚动条样式 */
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.3) rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Webkit滚动条样式 */
+.markdown-table-container::-webkit-scrollbar {
+  height: 8px !important;
+}
+
+.markdown-table-container::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+.markdown-table-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border-radius: 4px !important;
+}
+
+.markdown-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 深色模式表格容器 */
+@media (prefers-color-scheme: dark) {
+  .markdown-table-container {
+    background-color: #1a1a1a !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .markdown-table-container::-webkit-scrollbar-track {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .markdown-table-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+  }
+
+  .markdown-table-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+  }
+}
+
+[data-theme="dark"] .markdown-table-container {
+  background-color: #1a1a1a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .markdown-table-container::-webkit-scrollbar-track {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .markdown-table-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="dark"] .markdown-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* 表格样式 - 最高优先级，确保不受气泡背景影响 */
+.markdown table {
+  border-collapse: collapse !important;
+  margin: 0 !important;
+  width: auto !important;
+  min-width: 100% !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  /* 强制使用独立背景色，不受任何外部样式影响 */
+  background-color: transparent !important;
+  box-shadow: none !important;
+  /* 防止表格被压缩 */
+  table-layout: auto !important;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid #e0e0e0 !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+  vertical-align: top !important;
+  /* 强制文字颜色，确保可读性 */
+  color: #333333 !important;
+  background-color: inherit !important;
+  /* 防止单元格内容换行，保持表格宽度 */
+  white-space: nowrap !important;
+  /* 设置最小宽度确保内容可读 */
+  min-width: 80px !important;
+}
+
+.markdown th {
+  background-color: #f8f9fa !important;
+  font-weight: bold !important;
+  color: #2c3e50 !important;
+}
+
+/* 斑马纹效果 - 强制应用 */
+.markdown tbody tr:nth-child(even) {
+  background-color: #f8f9fa !important;
+}
+
+.markdown tbody tr:hover {
+  background-color: #e9ecef !important;
+}
+
+/* 深色模式表格样式 - 最高优先级，强制覆盖所有样式 */
+@media (prefers-color-scheme: dark) {
+  .markdown table {
+    background-color: #1a1a1a !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .markdown th,
+  .markdown td {
+    border-color: #404040 !important;
+    color: #e0e0e0 !important;
+    background-color: inherit !important;
+  }
+
+  .markdown th {
+    background-color: #2d3748 !important;
+    color: #f7fafc !important;
+  }
+
+  .markdown tbody tr:nth-child(even) {
+    background-color: #2d3748 !important;
+  }
+
+  .markdown tbody tr:hover {
+    background-color: #4a5568 !important;
+  }
+}
+
+/* 主题类深色模式表格样式 - 最高优先级，支持手动主题切换 */
+[data-theme="dark"] .markdown table {
+  background-color: #1a1a1a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .markdown th,
+[data-theme="dark"] .markdown td {
+  border-color: #404040 !important;
+  color: #e0e0e0 !important;
+  background-color: inherit !important;
+}
+
+[data-theme="dark"] .markdown th {
+  background-color: #2d3748 !important;
+  color: #f7fafc !important;
+}
+
+[data-theme="dark"] .markdown tbody tr:nth-child(even) {
+  background-color: #2d3748 !important;
+}
+
+[data-theme="dark"] .markdown tbody tr:hover {
+  background-color: #4a5568 !important;
+}
+
+/* 脚注引用样式 */
+.markdown .footnote-ref {
+  font-size: 0.8em;
+  vertical-align: super;
+  line-height: 0;
+  margin: 0 2px;
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.markdown .footnote-ref:hover {
+  text-decoration: underline;
+}
+
+/* 脚注区域样式 */
+.footnotes {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.footnotes h4 {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.footnotes a {
+  color: #1976d2;
+}
+
+.footnotes ol {
+  padding-left: 1em;
+  margin: 0;
+}
+
+.footnotes li:last-child {
+  margin-bottom: 0;
+}
+
+.footnotes li {
+  font-size: 0.9em;
+  margin-bottom: 0.5em;
+  color: #666;
+}
+
+.footnotes li p {
+  display: inline;
+  margin: 0;
+}
+
+.footnotes .footnote-backref {
+  font-size: 0.8em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 5px;
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.footnotes .footnote-backref:hover {
+  text-decoration: underline;
+}
+
+/* 数学公式样式 */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+mjx-container {
+  overflow-x: auto;
+}
+
+/* span 元素保持预格式化 */
+.markdown span {
+  white-space: pre;
+}
+
+
+/* Mermaid 图表样式 */
+.markdown .mermaid {
+  text-align: center;
+  margin: 1em 0;
+}
+
+.markdown .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 暗色主题下的 Mermaid 优化 */
+@media (prefers-color-scheme: dark) {
+  .markdown .mermaid {
+    background-color: transparent;
+  }
+}
+
+/* 移动端 Mermaid 响应式优化 */
+@media (max-width: 768px) {
+  .markdown .mermaid svg {
+    font-size: 12px;
+  }
+}

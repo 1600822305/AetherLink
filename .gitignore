@@ -28,3 +28,17 @@ dist-ssr
 *.jks
 keystore.txt
 scripts/keystore/
+
+# Tauri specific files (in aetherlink-tauri folder)
+aetherlink-tauri/node_modules/
+aetherlink-tauri/dist/
+aetherlink-tauri/src-tauri/target/
+aetherlink-tauri/src-tauri/Cargo.lock
+
+# Tauri build outputs
+aetherlink-tauri/src-tauri/target/release/bundle/
+*.exe
+*.msi
+*.dmg
+*.deb
+*.AppImage

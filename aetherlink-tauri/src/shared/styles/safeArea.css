@@ -1,0 +1,191 @@
+/**
+ * 全局安全区域样式
+ * 处理 Android 15 底部导航栏和各平台安全区域
+ */
+
+/* 基础安全区域变量 - 由 SafeAreaService 动态设置 */
+:root {
+  --safe-area-inset-top: 0px;
+  --safe-area-inset-right: 0px;
+  --safe-area-inset-bottom: 0px;
+  --safe-area-inset-left: 0px;
+  
+  /* 常用组合变量 */
+  --safe-area-top: var(--safe-area-inset-top);
+  --safe-area-bottom: var(--safe-area-inset-bottom);
+  
+  /* Android 15 专用变量 */
+  --android-nav-bar-height: 0px;
+  --chat-input-bottom-padding: 8px;
+  
+  /* 聊天界面专用变量 */
+  --chat-container-padding-top: var(--safe-area-inset-top);
+  --chat-container-padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* 全局容器安全区域适配 */
+.safe-area-container {
+  padding-top: var(--safe-area-inset-top);
+  padding-right: var(--safe-area-inset-right);
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-left: var(--safe-area-inset-left);
+}
+
+/* 只适配顶部安全区域 */
+.safe-area-top {
+  padding-top: var(--safe-area-inset-top);
+}
+
+/* 只适配底部安全区域 */
+.safe-area-bottom {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* 聊天页面主容器 */
+.chat-page-container {
+  min-height: 100vh;
+  min-height: 100dvh; /* 动态视口高度 */
+  padding-top: var(--chat-container-padding-top);
+  padding-bottom: var(--chat-container-padding-bottom);
+  box-sizing: border-box;
+}
+
+/* 聊天消息列表容器 */
+.chat-messages-container {
+  /* 确保消息列表不被状态栏和底部导航栏遮挡 */
+  padding-top: calc(var(--safe-area-inset-top) + 8px);
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 80px); /* 80px 为输入框高度 */
+  min-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+  min-height: calc(100dvh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+}
+
+/* 聊天输入框容器 */
+.chat-input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  
+  /* 使用安全区域变量确保不被底部导航栏遮挡 */
+  padding-bottom: var(--chat-input-bottom-padding);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+  
+  /* 背景和边框 */
+  background: var(--mui-palette-background-paper);
+  border-top: 1px solid var(--mui-palette-divider);
+  
+  /* 确保在 Android 15 上正确显示 */
+  box-sizing: border-box;
+}
+
+/* Android 15 特殊处理 */
+@supports (padding: max(0px)) {
+  .chat-input-container {
+    /* 使用 max() 确保至少有基础 padding */
+    padding-bottom: max(var(--chat-input-bottom-padding), 8px);
+  }
+}
+
+/* 工具栏安全区域适配 */
+.toolbar-container {
+  padding-top: var(--safe-area-inset-top);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+}
+
+/* 抽屉/侧边栏安全区域适配 */
+.drawer-container {
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* 模态框安全区域适配 */
+.modal-container {
+  margin-top: var(--safe-area-inset-top);
+  margin-bottom: var(--safe-area-inset-bottom);
+  margin-left: var(--safe-area-inset-left);
+  margin-right: var(--safe-area-inset-right);
+}
+
+/* 全屏内容适配 */
+.fullscreen-content {
+  height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+  height: calc(100dvh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+  margin-top: var(--safe-area-inset-top);
+  margin-bottom: var(--safe-area-inset-bottom);
+}
+
+/* 底部固定按钮适配 */
+.bottom-fixed-button {
+  bottom: calc(var(--safe-area-inset-bottom) + 16px);
+  left: calc(var(--safe-area-inset-left) + 16px);
+  right: calc(var(--safe-area-inset-right) + 16px);
+}
+
+/* 浮动操作按钮适配 */
+.fab-container {
+  bottom: calc(var(--safe-area-inset-bottom) + 80px); /* 80px 为输入框高度 */
+  right: calc(var(--safe-area-inset-right) + 16px);
+}
+
+/* 响应式适配 */
+@media (orientation: landscape) {
+  /* 横屏时可能需要不同的适配策略 */
+  .chat-input-container {
+    padding-bottom: max(var(--safe-area-inset-bottom), 8px);
+  }
+}
+
+/* 特定平台适配 */
+.platform-android .chat-input-container {
+  /* Android 特殊处理 */
+  padding-bottom: var(--chat-input-bottom-padding);
+}
+
+.platform-ios .chat-input-container {
+  /* iOS 特殊处理 */
+  padding-bottom: max(var(--safe-area-inset-bottom), 8px);
+}
+
+/* 调试样式（开发时可用） */
+.debug-safe-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.debug-safe-area::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-area-inset-top);
+  background: rgba(255, 0, 0, 0.3);
+}
+
+.debug-safe-area::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-area-inset-bottom);
+  background: rgba(0, 255, 0, 0.3);
+}
+
+/* 隐藏调试样式（默认） */
+.debug-safe-area {
+  display: none;
+}
+
+/* 启用调试模式 */
+.debug-mode .debug-safe-area {
+  display: block;
+}
