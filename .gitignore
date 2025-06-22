@@ -42,3 +42,12 @@ aetherlink-tauri/src-tauri/target/release/bundle/
 *.dmg
 *.deb
 *.AppImage
+
+# Android specific files (keep source but ignore build artifacts)
+aetherlink-tauri/src-tauri/gen/android/app/build/
+aetherlink-tauri/src-tauri/gen/android/app/src/main/jniLibs/
+aetherlink-tauri/src-tauri/gen/android/.gradle/
+aetherlink-tauri/src-tauri/gen/android/build/
+aetherlink-tauri/src-tauri/gen/android/local.properties
+*.apk
+*.aab

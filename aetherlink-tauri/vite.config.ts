@@ -52,7 +52,7 @@ export default defineConfig(async () => ({
     chunkSizeWarningLimit: 500
   },
 
-  // 优化依赖预构建
+  // 优化依赖预构建 - Rolldown-Vite 优化
   optimizeDeps: {
     include: [
       'react',
@@ -62,7 +62,11 @@ export default defineConfig(async () => ({
       '@mui/system',
       '@reduxjs/toolkit'
     ],
-    force: true
+    force: true,
+    // 使用 rollupOptions 替代已弃用的 esbuildOptions
+    rollupOptions: {
+      external: [],
+    }
   },
 
   // 解析配置
