@@ -8,6 +8,7 @@ import { updateOneBlock, addOneBlock } from '../../../store/slices/messageBlocks
 import type { Chunk } from '../../../types/chunk';
 import { ChunkType } from '../../../types/chunk';
 import { v4 as uuid } from 'uuid';
+import { getHighPerformanceUpdateInterval } from '../../../utils/performanceSettings';
 
 /**
  * 响应块处理器 - 处理文本和思考块的逻辑
@@ -29,17 +30,17 @@ export class ResponseChunkProcessor {
     this.blockId = blockId;
     this.lastBlockId = blockId;
 
-    // 🚀 统一节流频率，避免不同步更新导致的抖动
-    const UNIFIED_THROTTLE_INTERVAL = 100; // 统一使用100ms
+    // 🚀 使用动态节流频率，根据用户设置调整
+    const dynamicThrottleInterval = getHighPerformanceUpdateInterval();
 
     // 创建节流函数
     this.throttledUpdateBlock = throttle((blockId: string, changes: any) => {
       dexieStorage.updateMessageBlock(blockId, changes);
-    }, UNIFIED_THROTTLE_INTERVAL);
+    }, dynamicThrottleInterval);
 
     this.throttledReduxUpdate = throttle((blockId: string, changes: any) => {
       store.dispatch(updateOneBlock({ id: blockId, changes }));
-    }, UNIFIED_THROTTLE_INTERVAL);
+    }, dynamicThrottleInterval);
   }
 
   /**
