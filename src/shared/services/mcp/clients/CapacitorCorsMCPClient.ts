@@ -402,15 +402,32 @@ export class CapacitorCorsMCPClient {
    * 调用工具
    */
   async callTool(name: string, arguments_: Record<string, any>): Promise<MCPCallToolResponse> {
-    const result = await this.sendRequest('tools/call', {
-      name,
-      arguments: arguments_
-    });
+    const maxRetries = 3;
+    let lastError: any;
 
-    return {
-      content: result.content || [],
-      isError: Boolean(result.isError)
-    };
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await this.sendRequest('tools/call', {
+          name,
+          arguments: arguments_
+        });
+
+        return {
+          content: result.content || [],
+          isError: Boolean(result.isError)
+        };
+      } catch (error) {
+        lastError = error;
+        console.warn(`[Capacitor CORS MCP] 工具调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, error);
+
+        if (attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   /**

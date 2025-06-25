@@ -624,9 +624,10 @@ export function getMainTextContent(message: Message): string {
         }
       }
 
-      // 缓存空结果
-      contentCache.set(cacheKey, { content: '', timestamp: now });
-      return '';
+      // 缓存空结果，但返回默认内容防止API错误
+      const defaultContent = '[消息内容为空]';
+      contentCache.set(cacheKey, { content: defaultContent, timestamp: now });
+      return defaultContent;
     }
 
     // 获取Redux状态
@@ -715,7 +716,10 @@ export function getMainTextContent(message: Message): string {
         console.warn(`[getMainTextContent] 消息 ${message.id} 没有有效的文本内容`);
         loggedWarnings.add(warningKey);
       }
-      return '';
+      // 返回默认内容防止API错误
+      const defaultContent = '[消息内容为空]';
+      contentCache.set(cacheKey, { content: defaultContent, timestamp: now });
+      return defaultContent;
     }
 
     // 连接所有文本块的内容

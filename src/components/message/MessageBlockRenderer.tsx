@@ -222,7 +222,6 @@ const MessageBlockRenderer: React.FC<Props> = ({
               case MessageBlockType.TOOL:
                 // 🔧 修复工具块重复渲染问题：
                 // 工具块已经在 MainTextBlock 中原位渲染，这里跳过避免重复显示
-                console.log(`[MessageBlockRenderer] 跳过工具块 ${block.id}，已在 MainTextBlock 中原位渲染`);
                 blockComponent = null;
                 break;
               case MessageBlockType.SEARCH_RESULTS:

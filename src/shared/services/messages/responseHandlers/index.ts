@@ -2,7 +2,7 @@
  * 响应处理器模块统一导出
  */
 
-export { ResponseChunkProcessor } from './ResponseChunkProcessor';
+export { ResponseChunkProcessor, createResponseChunkProcessor } from './ResponseChunkProcessor';
 export { ToolResponseHandler } from './ToolResponseHandler';
 export { ComparisonResultHandler } from './ComparisonResultHandler';
 export { KnowledgeSearchHandler } from './KnowledgeSearchHandler';

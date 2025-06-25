@@ -371,11 +371,11 @@ export const processAssistantResponse = async (
           {
             onUpdate: (content: string, reasoning?: string) => {
               // 组合模型的推理内容通过onUpdate传递
-              responseHandler.handleChunk(content, reasoning);
+              responseHandler.handleStringContent(content, reasoning);
             },
             onChunk: (chunk: import('../../../types/chunk').Chunk) => {
               // 普通模型的流式内容通过onChunk传递
-              responseHandler.handleChunkEvent(chunk);
+              responseHandler.handleChunk(chunk);
             },
             enableTools: toolsEnabled !== false,
             mcpTools: mcpTools,

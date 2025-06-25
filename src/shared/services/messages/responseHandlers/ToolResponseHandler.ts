@@ -303,7 +303,7 @@ export class ToolResponseHandler {
   /**
    * 处理基于 Chunk 事件的工具调用
    */
-  async handleChunkEvent(chunk: any) {
+  async handleChunk(chunk: any) {
     try {
       switch (chunk.type) {
         case ChunkType.MCP_TOOL_IN_PROGRESS:
@@ -322,8 +322,11 @@ export class ToolResponseHandler {
       }
     } catch (error) {
       console.error(`[ToolResponseHandler] 处理 chunk 事件失败:`, error);
+      throw error;
     }
   }
+
+
 
   // Getter 方法
   get toolMapping() { return this.toolCallIdToBlockIdMap; }

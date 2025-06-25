@@ -169,7 +169,6 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
       // 添加工具块（如果存在）
       if (toolIndex < toolBlocks.length) {
         const toolBlock = toolBlocks[toolIndex];
-        console.log(`[MainTextBlock] 渲染工具块 ${toolIndex}: ${toolBlock.id}`);
         parts.push(
           <div key={`tool-${toolBlock.id}`} style={{ margin: '16px 0' }}>
             <ToolBlock block={toolBlock} />

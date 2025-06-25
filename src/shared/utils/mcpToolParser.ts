@@ -394,11 +394,15 @@ export function mcpToolCallResponseToMessage(
 ): any {
   const message: any = {
     role: 'user',
-    content: []
+    content: '工具调用完成' // 默认内容，防止空内容
   };
 
   if (result.isError) {
-    message.content = result.content.map(c => c.text).join('\n');
+    // 错误情况下，确保有内容
+    const errorText = result.content && result.content.length > 0
+      ? result.content.map(c => c.text || '').join('\n')
+      : '工具调用失败';
+    message.content = errorText || '工具调用失败';
   } else {
     const content: any[] = [
       {
@@ -408,29 +412,37 @@ export function mcpToolCallResponseToMessage(
     ];
 
     // 处理不同类型的内容
-    for (const item of result.content) {
-      switch (item.type) {
-        case 'text':
-          content.push({
-            type: 'text',
-            text: item.text || '无内容'
-          });
-          break;
-        case 'image':
-          if (item.data) {
+    if (result.content && result.content.length > 0) {
+      for (const item of result.content) {
+        switch (item.type) {
+          case 'text':
             content.push({
-              type: 'image',
-              image_url: `data:${item.mimeType || 'image/png'};base64,${item.data}`
+              type: 'text',
+              text: item.text || '无内容'
             });
-          }
-          break;
-        default:
-          content.push({
-            type: 'text',
-            text: `不支持的内容类型: ${item.type}`
-          });
-          break;
+            break;
+          case 'image':
+            if (item.data) {
+              content.push({
+                type: 'image',
+                image_url: `data:${item.mimeType || 'image/png'};base64,${item.data}`
+              });
+            }
+            break;
+          default:
+            content.push({
+              type: 'text',
+              text: `不支持的内容类型: ${item.type}`
+            });
+            break;
+        }
       }
+    } else {
+      // 如果没有内容，添加默认文本
+      content.push({
+        type: 'text',
+        text: '工具执行完成，但没有返回内容'
+      });
     }
 
     message.content = content;

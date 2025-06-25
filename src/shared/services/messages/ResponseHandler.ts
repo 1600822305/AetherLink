@@ -2,18 +2,21 @@ import store from '../../store';
 import { EventEmitter, EVENT_NAMES } from '../EventService';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
-import type { Chunk } from '../../types/chunk';
+import type { Chunk, TextDeltaChunk, ThinkingDeltaChunk } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
 
 // 导入拆分后的处理器
 import {
-  ResponseChunkProcessor,
+  createResponseChunkProcessor,
   ToolResponseHandler,
   ComparisonResultHandler,
   KnowledgeSearchHandler,
   ResponseCompletionHandler,
   ResponseErrorHandler
 } from './responseHandlers';
+import { dexieStorage } from '../storage/DexieStorageService';
+import { updateOneBlock, addOneBlock } from '../../store/slices/messageBlocksSlice';
+import { getHighPerformanceUpdateInterval } from '../../utils/performanceSettings';
 
 /**
  * 响应处理器配置类型
@@ -34,13 +37,22 @@ export class ApiError extends Error {
   }
 }
 
+
+
 /**
  * 创建响应处理器
  * 处理API流式响应的接收、更新和完成
  */
 export function createResponseHandler({ messageId, blockId, topicId }: ResponseHandlerConfig) {
   // 创建各个专门的处理器实例
-  const chunkProcessor = new ResponseChunkProcessor(messageId, blockId);
+  const chunkProcessor = createResponseChunkProcessor(
+    messageId,
+    blockId,
+    store,
+    dexieStorage,
+    { updateOneBlock, addOneBlock, upsertBlockReference: newMessagesActions.upsertBlockReference },
+    getHighPerformanceUpdateInterval()
+  );
   const toolHandler = new ToolResponseHandler(messageId);
   const comparisonHandler = new ComparisonResultHandler(messageId);
   const knowledgeHandler = new KnowledgeSearchHandler(messageId);
@@ -50,16 +62,7 @@ export function createResponseHandler({ messageId, blockId, topicId }: ResponseH
   // 事件监听器清理函数
   let eventCleanupFunctions: (() => void)[] = [];
 
-  // 实现回调系统，委托给块处理器
-  const callbacks = {
-    onTextChunk: (text: string) => {
-      chunkProcessor.onTextChunk(text);
-    },
 
-    onThinkingChunk: (text: string, thinking_millsec?: number) => {
-      chunkProcessor.onThinkingChunk(text, thinking_millsec);
-    }
-  };
 
   // 设置事件监听器
   const setupEventListeners = () => {
@@ -82,10 +85,10 @@ export function createResponseHandler({ messageId, blockId, topicId }: ResponseH
 
   const responseHandlerInstance = {
     /**
-     * 处理基于 Chunk 事件
+     * 处理标准化的 Chunk 事件 - 主要处理方法
      * @param chunk Chunk 事件对象
      */
-    async handleChunkEvent(chunk: Chunk) {
+    async handleChunk(chunk: Chunk): Promise<void> {
       try {
         switch (chunk.type) {
           case ChunkType.THINKING_DELTA:
@@ -93,13 +96,13 @@ export function createResponseHandler({ messageId, blockId, topicId }: ResponseH
           case ChunkType.TEXT_DELTA:
           case ChunkType.TEXT_COMPLETE:
             // 委托给块处理器
-            await chunkProcessor.handleChunkEvent(chunk);
+            await chunkProcessor.handleChunk(chunk);
             break;
 
           case ChunkType.MCP_TOOL_IN_PROGRESS:
           case ChunkType.MCP_TOOL_COMPLETE:
             // 委托给工具处理器
-            await toolHandler.handleChunkEvent(chunk);
+            await toolHandler.handleChunk(chunk);
             break;
 
           default:
@@ -108,88 +111,103 @@ export function createResponseHandler({ messageId, blockId, topicId }: ResponseH
         }
       } catch (error) {
         console.error(`[ResponseHandler] 处理 chunk 事件失败:`, error);
+        throw error;
       }
     },
 
     /**
-     * 处理流式响应片段（兼容旧接口）
-     * @param chunk 响应片段
-     * @param reasoning 推理内容（可选）
+     * 处理字符串内容（向后兼容）
      */
-    handleChunk(chunk: string, reasoning?: string) {
-      // 检查是否被中断 - 如果被中断则停止处理
+    async handleStringContent(content: string, reasoning?: string): Promise<string> {
+      // 检查消息是否完成
       const currentState = store.getState();
       const message = currentState.messages.entities[messageId];
       if (message?.status === AssistantMessageStatus.SUCCESS) {
-        console.log(`[ResponseHandler] 消息已完成，停止处理新的块`);
+        console.log(`[ResponseHandler] 消息已完成，停止处理`);
         return chunkProcessor.content;
       }
 
-      // 检查是否是对比结果
-      if (comparisonHandler.isComparisonResult(chunk, reasoning)) {
+      // 检查对比结果
+      if (comparisonHandler.isComparisonResult(content, reasoning)) {
         console.log(`[ResponseHandler] 检测到对比结果`);
         comparisonHandler.handleComparisonResult(reasoning!);
-        return;
+        return chunkProcessor.content;
       }
 
-      // 检查是否有推理内容
-      let isThinking = false;
-      let thinkingContent = '';
-      let thinkingTime = 0;
-
-      // 优先使用传入的推理内容
-      if (reasoning !== undefined && reasoning.trim()) {
-        isThinking = true;
-        thinkingContent = reasoning;
-        thinkingTime = 0;
-      } else {
-        // 尝试解析JSON，检查是否包含思考内容
-        try {
-          const parsedChunk = JSON.parse(chunk);
-          if (parsedChunk && parsedChunk.reasoning) {
-            isThinking = true;
-            thinkingContent = parsedChunk.reasoning;
-            thinkingTime = parsedChunk.reasoningTime || 0;
+      try {
+        // 处理推理内容
+        if (reasoning?.trim()) {
+          const thinkingChunk: ThinkingDeltaChunk = {
+            type: ChunkType.THINKING_DELTA,
+            text: reasoning,
+            thinking_millsec: 0
+          };
+          await this.handleChunk(thinkingChunk);
+        } else {
+          // 尝试解析JSON格式
+          let textContent = content;
+          try {
+            const parsed = JSON.parse(content);
+            if (parsed?.reasoning) {
+              const thinkingChunk: ThinkingDeltaChunk = {
+                type: ChunkType.THINKING_DELTA,
+                text: parsed.reasoning,
+                thinking_millsec: parsed.reasoningTime || 0
+              };
+              await this.handleChunk(thinkingChunk);
+              return chunkProcessor.content;
+            }
+            textContent = parsed?.text || content;
+          } catch {
+            // 不是JSON，按普通文本处理
           }
-        } catch (e) {
-          // 不是JSON，按普通文本处理
+
+          // 处理文本内容
+          const textChunk: TextDeltaChunk = {
+            type: ChunkType.TEXT_DELTA,
+            text: textContent
+          };
+          await this.handleChunk(textChunk);
         }
+      } catch (error) {
+        console.error('[ResponseHandler] 处理字符串内容失败:', error);
+        throw error;
       }
 
-      // 委托给回调处理
-      if (isThinking) {
-        callbacks.onThinkingChunk(thinkingContent, thinkingTime);
-      } else {
-        callbacks.onTextChunk(chunk);
-      }
-
-      // 返回当前累积的内容
       return chunkProcessor.content;
     },
 
     /**
-     * 响应完成处理
-     * @param finalContent 最终内容
-     * @returns 累计的响应内容
+     * 完成处理
      */
-    async complete(finalContent?: string) {
+    async complete(finalContent?: string): Promise<string> {
       return await completionHandler.complete(finalContent, chunkProcessor);
     },
 
     /**
-     * 响应被中断时的完成处理
-     * @returns 累计的响应内容
+     * 中断完成
      */
-    async completeWithInterruption() {
+    async completeWithInterruption(): Promise<string> {
       return await completionHandler.completeWithInterruption(chunkProcessor);
     },
 
     /**
-     * 响应失败处理
-     * @param error 错误对象
+     * 失败处理
      */
-    async fail(error: Error) {
+    async fail(error: Error): Promise<void> {
       return await errorHandler.fail(error);
+    },
+
+    /**
+     * 获取状态
+     */
+    getStatus() {
+      return {
+        textContent: chunkProcessor.content,
+        thinkingContent: chunkProcessor.thinking,
+        textBlockId: chunkProcessor.textBlockId,
+        thinkingBlockId: chunkProcessor.thinkingId
+      };
     },
 
     /**
@@ -209,22 +227,13 @@ export function createResponseHandler({ messageId, blockId, topicId }: ResponseH
 export default createResponseHandler;
 
 /**
- * 创建响应状态action creator - 向后兼容
+ * 设置响应状态 - 向后兼容
  */
 export const setResponseState = ({ topicId, status, loading }: { topicId: string; status: string; loading: boolean }) => {
-  // 设置流式响应状态
   const streaming = status === 'streaming';
 
-  // 使用新的action creator
-  store.dispatch(newMessagesActions.setTopicStreaming({
-    topicId,
-    streaming
-  }));
-
-  store.dispatch(newMessagesActions.setTopicLoading({
-    topicId,
-    loading
-  }));
+  store.dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming }));
+  store.dispatch(newMessagesActions.setTopicLoading({ topicId, loading }));
 
   console.log(`[ResponseHandler] 设置响应状态: topicId=${topicId}, status=${status}, loading=${loading}`);
 };

@@ -84,9 +84,9 @@ export class GeminiMessageContentService {
     // 处理文件块
     await this.processFileBlocks(message, parts);
 
-    // 确保至少有一个part
+    // 确保至少有一个part，且内容不为空
     if (parts.length === 0) {
-      parts.push({ text: '' });
+      parts.push({ text: '[消息内容为空]' });
     }
 
     return { role, parts };

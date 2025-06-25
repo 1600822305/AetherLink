@@ -541,37 +541,50 @@ export class MCPService {
     toolName: string,
     args: Record<string, any>
   ): Promise<MCPCallToolResponse> {
-    try {
-      console.log(`[MCP] 调用工具: ${server.name}.${toolName}`, args);
+    const maxRetries = 3;
+    let lastError: any;
 
-      const client = await this.initClient(server);
-      const result = await client.callTool(
-        { name: toolName, arguments: args },
-        undefined,
-        { timeout: (server.timeout || 60) * 1000 }
-      );
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`[MCP] 调用工具: ${server.name}.${toolName} (尝试 ${attempt + 1}/${maxRetries})`, args);
 
-      return {
-        content: result.content as Array<{
-          type: 'text' | 'image' | 'resource';
-          text?: string;
-          data?: string;
-          mimeType?: string;
-        }>,
-        isError: Boolean(result.isError)
-      };
-    } catch (error) {
-      console.error(`[MCP] 工具调用失败:`, error);
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `工具调用失败: ${error instanceof Error ? error.message : '未知错误'}`
-          }
-        ],
-        isError: true
-      };
+        const client = await this.initClient(server);
+        const result = await client.callTool(
+          { name: toolName, arguments: args },
+          undefined,
+          { timeout: (server.timeout || 60) * 1000 }
+        );
+
+        return {
+          content: result.content as Array<{
+            type: 'text' | 'image' | 'resource';
+            text?: string;
+            data?: string;
+            mimeType?: string;
+          }>,
+          isError: Boolean(result.isError)
+        };
+      } catch (error) {
+        lastError = error;
+        console.warn(`[MCP] 工具调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, error);
+
+        if (attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
+
+    console.error(`[MCP] 工具调用最终失败:`, lastError);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `工具调用失败: ${lastError instanceof Error ? lastError.message : '未知错误'}`
+        }
+      ],
+      isError: true
+    };
   }
 
   /**

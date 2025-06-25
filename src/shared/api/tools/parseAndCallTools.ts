@@ -128,18 +128,22 @@ export function toolResponseToMessage(
   _model: Model
 ): any {
   // 根据工具响应类型构建不同的消息
+  const contentText = resp.content && resp.content.length > 0
+    ? resp.content.map(c => c.text || '').join('\n')
+    : '工具调用完成，但没有返回内容';
+
   if ('toolUseId' in toolResponse && toolResponse.toolUseId) {
     // 工具使用响应
     return {
       role: 'tool',
-      content: resp.content.map(c => c.text).join('\n')
+      content: contentText || '工具调用完成'
     };
   } else if ('toolCallId' in toolResponse && toolResponse.toolCallId) {
     // 工具调用响应
     return {
       role: 'tool',
       tool_call_id: toolResponse.toolCallId,
-      content: resp.content.map(c => c.text).join('\n')
+      content: contentText || '工具调用完成'
     };
   }
 

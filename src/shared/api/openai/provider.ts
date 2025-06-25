@@ -526,11 +526,10 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
     // 工具调用循环处理（类似非流式响应）
     let currentMessages = [...params.messages];
-    let maxIterations = 5; // 防止无限循环
     let iteration = 0;
     let accumulatedContent = ''; // 累积的内容
 
-    while (iteration < maxIterations) {
+    while (true) {
       iteration++;
       console.log(`[OpenAIProvider] 流式工具调用迭代 ${iteration}`);
 
@@ -623,8 +622,8 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       return result;
     }
 
-    // 如果达到最大迭代次数，返回最后的结果
-    throw new Error('工具调用迭代次数超过限制');
+    // 正常情况下不会到达这里，因为循环中会有return语句
+    throw new Error('工具调用处理异常');
   }
 
   /**
@@ -649,11 +648,10 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
       // 工具调用循环处理
       let currentMessages = [...params.messages];
-      let maxIterations = 5; // 防止无限循环
       let iteration = 0;
       let accumulatedContent = ''; // 累积的内容
 
-      while (iteration < maxIterations) {
+      while (true) {
         iteration++;
         console.log(`[OpenAIProvider] 无回调流式工具调用迭代 ${iteration}`);
 
@@ -752,8 +750,8 @@ export class OpenAIProvider extends BaseOpenAIProvider {
         return result;
       }
 
-      // 如果达到最大迭代次数，抛出错误
-      throw new Error('工具调用迭代次数超过限制');
+      // 正常情况下不会到达这里，因为循环中会有return语句
+      throw new Error('工具调用处理异常');
     } catch (error) {
       console.error('OpenAI API流式请求失败:', error);
       // 不使用logApiError，直接记录错误

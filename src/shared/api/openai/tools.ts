@@ -230,17 +230,22 @@ export function mcpToolCallResponseToOpenAIMessage(
   resp: MCPCallToolResponse,
   _model: Model
 ): any {
+  // 确保内容不为空
+  const contentText = resp.content && resp.content.length > 0
+    ? JSON.stringify(resp.content)
+    : '工具调用完成，但没有返回内容';
+
   if ('toolCallId' in mcpToolResponse && mcpToolResponse.toolCallId) {
     return {
       role: 'tool',
       tool_call_id: mcpToolResponse.toolCallId,
-      content: `Here is the result of mcp tool use \`${mcpToolResponse.tool.name}\`:\n\n${JSON.stringify(resp.content)}`
+      content: `Here is the result of mcp tool use \`${mcpToolResponse.tool.name}\`:\n\n${contentText}`
     };
   }
 
   return {
     role: 'user',
-    content: `Here is the result of mcp tool use \`${mcpToolResponse.tool.name}\`:\n\n${JSON.stringify(resp.content)}`
+    content: `Here is the result of mcp tool use \`${mcpToolResponse.tool.name}\`:\n\n${contentText}`
   };
 }
 
