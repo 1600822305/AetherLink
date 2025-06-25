@@ -139,7 +139,7 @@ const ThinkingBlock: React.FC<Props> = ({ block }) => {
     if (!isThinking && block.thinking_millsec && block.thinking_millsec !== thinkingTime) {
       setThinkingTime(block.thinking_millsec);
     }
-  }, [isThinking, block.thinking_millsec]);
+  },  );
 
   // 自动折叠逻辑
   useEffect(() => {

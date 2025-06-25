@@ -4,18 +4,20 @@
  */
 import OpenAI from 'openai';
 import {
-  asyncGeneratorToReadableStream,
-  readableStreamAsyncIterable,
   openAIChunkToTextDelta
 } from '../../utils/streamUtils';
 import { EventEmitter, EVENT_NAMES } from '../../services/EventEmitter';
 import { getAppropriateTag } from '../../config/reasoningTags';
-import { extractReasoningMiddleware } from '../../middlewares/extractReasoningMiddleware';
 import { createAbortController, isAbortError } from '../../utils/abortController';
 import { ChunkType } from '../../types/chunk';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import type { Model } from '../../types';
 import type { Chunk } from '../../types/chunk';
+
+// 移除了未使用的导入:
+// - asyncGeneratorToReadableStream
+// - readableStreamAsyncIterable
+// - extractReasoningMiddleware
 
 /**
  * 统一流处理选项
@@ -79,6 +81,13 @@ export class UnifiedStreamProcessor {
   private abortController?: AbortController;
   private cleanup?: () => void;
 
+  // 在类定义开始处添加缓存
+  private static tagCache = new Map<string, any>();
+  private contentBuffer = '';
+  private reasoningBuffer = '';
+  private lastFlushTime = 0;
+  private readonly FLUSH_INTERVAL = 16; // 约60fps的更新频率
+
   constructor(options: UnifiedStreamOptions) {
     this.options = options;
 
@@ -129,33 +138,223 @@ export class UnifiedStreamProcessor {
       throw new DOMException('Operation aborted', 'AbortError');
     }
 
-    // 获取推理标签
-    const reasoningTag = getAppropriateTag(this.options.model);
-
-    // 使用中间件处理
-    const { stream: processedStream } = await extractReasoningMiddleware({
-      openingTag: reasoningTag.openingTag,
-      closingTag: reasoningTag.closingTag,
-      separator: reasoningTag.separator,
-      enableReasoning: this.options.enableReasoning ?? true
-    }).wrapStream({
-      doStream: async () => ({
-        stream: asyncGeneratorToReadableStream(openAIChunkToTextDelta(stream))
-      })
-    });
-
-    // 处理流
-    for await (const chunk of readableStreamAsyncIterable(processedStream)) {
-      if (this.options.abortSignal?.aborted || this.abortController?.signal.aborted) {
-        break;
-      }
-      await this.handleAdvancedChunk(chunk);
+    // 获取推理标签 - 使用缓存避免重复计算
+    const modelId = this.options.model.id;
+    let reasoningTag;
+    
+    if (UnifiedStreamProcessor.tagCache.has(modelId)) {
+      reasoningTag = UnifiedStreamProcessor.tagCache.get(modelId);
+    } else {
+      reasoningTag = getAppropriateTag(this.options.model);
+      UnifiedStreamProcessor.tagCache.set(modelId, reasoningTag);
     }
 
-    return this.buildResult();
+    try {
+      // 创建更高效的处理管道
+      const processedStream = this.createOptimizedStreamPipeline(stream, reasoningTag);
+      
+      // 使用批处理更新
+      for await (const chunk of processedStream) {
+        if (this.options.abortSignal?.aborted || this.abortController?.signal.aborted) {
+          break;
+        }
+        
+        // 将chunk添加到缓冲区
+        this.bufferChunk(chunk);
+        
+        // 定期刷新缓冲区
+        const now = performance.now();
+        if (now - this.lastFlushTime >= this.FLUSH_INTERVAL) {
+          await this.flushBuffers();
+          this.lastFlushTime = now;
+        }
+      }
+      
+      // 确保处理完所有剩余内容
+      await this.flushBuffers();
+      
+      // 处理完成事件
+      if (this.options.onChunk && this.state.content) {
+        this.options.onChunk({
+          type: ChunkType.TEXT_COMPLETE,
+          text: this.state.content,
+          messageId: this.options.messageId,
+          blockId: this.options.blockId,
+          topicId: this.options.topicId
+        } as Chunk);
+      }
+
+      // 发送思考完成事件
+      if (this.state.reasoning) {
+        EventEmitter.emit(EVENT_NAMES.STREAM_THINKING_COMPLETE, {
+          text: this.state.reasoning,
+          thinking_millsec: this.state.reasoningStartTime ? (Date.now() - this.state.reasoningStartTime) : 0,
+          messageId: this.options.messageId,
+          blockId: this.options.thinkingBlockId,
+          topicId: this.options.topicId
+        });
+      }
+
+      // 发送文本完成事件
+      EventEmitter.emit(EVENT_NAMES.STREAM_TEXT_COMPLETE, {
+        text: this.state.content,
+        messageId: this.options.messageId,
+        blockId: this.options.blockId,
+        topicId: this.options.topicId
+      });
+      
+      return this.buildResult();
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      console.error('[UnifiedStreamProcessor] 处理流时出错:', error);
+      throw error;
+    }
   }
 
+  /**
+   * 创建优化的流处理管道
+   */
+  private createOptimizedStreamPipeline(stream: AsyncIterable<any>, reasoningTag: any): AsyncIterable<any> {
+    // 直接使用转换流，减少中间步骤
+    return {
+      [Symbol.asyncIterator]: async function* () {
+        // 转换为文本增量
+        const textDeltaStream = openAIChunkToTextDelta(stream);
+        
+        // 提取推理内容
+        let isInThinkTag = false;
+        let buffer = '';
+        
+        for await (const chunk of textDeltaStream) {
+          if (chunk.type === 'text-delta') {
+            const text = chunk.textDelta;
+            buffer += text;
+            
+            // 检查开始标签
+            if (!isInThinkTag && buffer.includes(reasoningTag.openingTag)) {
+              const parts = buffer.split(reasoningTag.openingTag);
+              if (parts[0]) {
+                yield { type: 'text-delta', textDelta: parts[0] };
+              }
+              buffer = parts[1] || '';
+              isInThinkTag = true;
+              continue;
+            }
+            
+            // 检查结束标签
+            if (isInThinkTag && buffer.includes(reasoningTag.closingTag)) {
+              const parts = buffer.split(reasoningTag.closingTag);
+              if (parts[0]) {
+                yield { type: 'reasoning', textDelta: parts[0] };
+              }
+              buffer = parts[1] || '';
+              isInThinkTag = false;
+              continue;
+            }
+            
+            // 输出缓冲区内容
+            if (buffer.length > 0) {
+              if (isInThinkTag) {
+                yield { type: 'reasoning', textDelta: buffer };
+              } else {
+                yield { type: 'text-delta', textDelta: buffer };
+              }
+              buffer = '';
+            }
+          } else {
+            // 直接传递其他类型的chunk
+            yield chunk;
+          }
+        }
+        
+        // 处理剩余的缓冲区内容
+        if (buffer.length > 0) {
+          if (isInThinkTag) {
+            yield { type: 'reasoning', textDelta: buffer };
+          } else {
+            yield { type: 'text-delta', textDelta: buffer };
+          }
+        }
+      }
+    };
+  }
 
+  /**
+   * 将chunk添加到适当的缓冲区
+   */
+  private bufferChunk(chunk: any): void {
+    // 处理特殊类型的chunk
+    if (chunk.type === 'finish') {
+      // 直接使用原来的handleAdvancedChunk方法处理finish事件
+      this.handleAdvancedChunk(chunk);
+      return;
+    }
+    
+    // 处理常规文本和推理内容
+    if (chunk.type === 'text-delta') {
+      this.contentBuffer += chunk.textDelta;
+    } else if (chunk.type === 'reasoning') {
+      this.reasoningBuffer += chunk.textDelta;
+    }
+  }
+
+  /**
+   * 刷新缓冲区并更新UI
+   */
+  private async flushBuffers(): Promise<void> {
+    // 处理推理缓冲区
+    if (this.reasoningBuffer.length > 0) {
+      if (!this.state.reasoningStartTime) {
+        this.state.reasoningStartTime = Date.now();
+      }
+      
+      this.state.reasoning += this.reasoningBuffer;
+      
+      if (this.options.onChunk) {
+        this.options.onChunk({
+          type: ChunkType.THINKING_DELTA,
+          text: this.reasoningBuffer,
+          blockId: this.options.thinkingBlockId
+        } as Chunk);
+      } else if (this.options.onUpdate) {
+        this.options.onUpdate('', this.state.reasoning);
+      }
+      
+      this.reasoningBuffer = '';
+    }
+    
+    // 处理内容缓冲区
+    if (this.contentBuffer.length > 0) {
+      // 检查是否是推理阶段结束（第一次收到内容）
+      const isFirstContent = this.state.content === '' && this.state.reasoning !== '';
+      
+      this.state.content += this.contentBuffer;
+      
+      // 如果是推理阶段结束，先发送推理完成信号
+      if (isFirstContent && this.options.onUpdate) {
+        console.log('[UnifiedStreamProcessor] 推理阶段结束，开始内容阶段');
+        // 发送推理完成信号，让模型组合知道推理阶段结束
+        this.options.onUpdate(this.contentBuffer, '');
+      } else {
+        // 发送事件
+        if (this.options.onChunk) {
+          this.options.onChunk({
+            type: ChunkType.TEXT_DELTA,
+            text: this.contentBuffer,
+            messageId: this.options.messageId,
+            blockId: this.options.blockId,
+            topicId: this.options.topicId
+          });
+        } else if (this.options.onUpdate) {
+          this.options.onUpdate(this.state.content, '');
+        }
+      }
+      
+      this.contentBuffer = '';
+    }
+  }
 
   /**
    * DeepSeek重复内容检测
