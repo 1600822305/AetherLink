@@ -14,7 +14,23 @@ import {
 } from '../hooks/usePlatform';
 
 const PlatformTest: React.FC = () => {
-  const { platformInfo, isMobile, isDesktop, isWeb, isTauri, isCapacitor } = usePlatformInfo();
+  const {
+    platformInfo,
+    platformConfig,
+    isMobile,
+    isDesktop,
+    isWeb,
+    isTauri,
+    isCapacitor,
+    isWindows,
+    isMacOS,
+    isLinux,
+    isAndroid,
+    isIOS,
+    platformType,
+    runtimeType,
+    osType
+  } = usePlatformInfo();
   const { deviceInfo, batteryInfo, loading: deviceLoading } = useDeviceInfo();
   const { showNotification, permissionGranted } = useNotifications();
   const { writeText, readText } = useClipboard();
@@ -86,18 +102,66 @@ const PlatformTest: React.FC = () => {
       
       {/* 平台信息 */}
       <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-6">
-        <h2 className="text-lg font-semibold mb-3">平台信息</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <h2 className="text-lg font-semibold mb-3">详细平台信息</h2>
+        <div className="grid grid-cols-3 gap-4">
           <div>
-            <p><strong>平台类型:</strong> {platformInfo?.type}</p>
+            <h3 className="font-medium mb-2 text-blue-600">基本分类</h3>
             <p><strong>是否移动端:</strong> {isMobile ? '是' : '否'}</p>
             <p><strong>是否桌面端:</strong> {isDesktop ? '是' : '否'}</p>
             <p><strong>是否Web端:</strong> {isWeb ? '是' : '否'}</p>
           </div>
           <div>
+            <h3 className="font-medium mb-2 text-green-600">运行时环境</h3>
+            <p><strong>运行时:</strong> {runtimeType}</p>
             <p><strong>是否Tauri:</strong> {isTauri ? '是' : '否'}</p>
             <p><strong>是否Capacitor:</strong> {isCapacitor ? '是' : '否'}</p>
-            <p><strong>用户代理:</strong> {platformInfo?.userAgent.substring(0, 50)}...</p>
+          </div>
+          <div>
+            <h3 className="font-medium mb-2 text-purple-600">操作系统</h3>
+            <p><strong>操作系统:</strong> {osType}</p>
+            <p><strong>Windows:</strong> {isWindows ? '是' : '否'}</p>
+            <p><strong>macOS:</strong> {isMacOS ? '是' : '否'}</p>
+            <p><strong>Linux:</strong> {isLinux ? '是' : '否'}</p>
+            <p><strong>Android:</strong> {isAndroid ? '是' : '否'}</p>
+            <p><strong>iOS:</strong> {isIOS ? '是' : '否'}</p>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-gray-300 dark:border-gray-600">
+          <p><strong>详细平台类型:</strong> <span className="font-mono bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">{platformType}</span></p>
+          <p><strong>用户代理:</strong> <span className="text-sm">{platformInfo?.userAgent.substring(0, 80)}...</span></p>
+        </div>
+      </div>
+
+      {/* 平台配置 */}
+      <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-6">
+        <h2 className="text-lg font-semibold mb-3">平台配置</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-medium mb-2 text-blue-600">功能支持</h3>
+            <div className="space-y-1 text-sm">
+              <p>📁 文件系统: {platformConfig?.features?.fileSystem ? '✅' : '❌'}</p>
+              <p>🔔 通知: {platformConfig?.features?.notifications ? '✅' : '❌'}</p>
+              <p>📋 剪贴板: {platformConfig?.features?.clipboard ? '✅' : '❌'}</p>
+              <p>📷 相机: {platformConfig?.features?.camera ? '✅' : '❌'}</p>
+              <p>🎤 麦克风: {platformConfig?.features?.microphone ? '✅' : '❌'}</p>
+              <p>🖥️ 全屏: {platformConfig?.features?.fullscreen ? '✅' : '❌'}</p>
+              <p>🪟 窗口控制: {platformConfig?.features?.windowControls ? '✅' : '❌'}</p>
+              <p>📱 系统托盘: {platformConfig?.features?.systemTray ? '✅' : '❌'}</p>
+              <p>📋 菜单栏: {platformConfig?.features?.menuBar ? '✅' : '❌'}</p>
+            </div>
+          </div>
+          <div>
+            <h3 className="font-medium mb-2 text-green-600">UI 配置</h3>
+            <div className="space-y-1 text-sm">
+              <p>标题栏: {platformConfig?.ui?.showTitleBar ? '显示' : '隐藏'}</p>
+              <p>移动导航: {platformConfig?.ui?.showMobileNavigation ? '显示' : '隐藏'}</p>
+              <p>紧凑模式: {platformConfig?.ui?.compactMode ? '启用' : '禁用'}</p>
+              <p>侧边栏折叠: {platformConfig?.ui?.sidebarCollapsible ? '支持' : '不支持'}</p>
+              <p>原生滚动条: {platformConfig?.ui?.useNativeScrollbars ? '使用' : '不使用'}</p>
+              <p>圆角设计: {platformConfig?.ui?.roundedCorners ? '启用' : '禁用'}</p>
+              <p>Material Design: {platformConfig?.ui?.materialDesign ? '启用' : '禁用'}</p>
+              <p>Fluent Design: {platformConfig?.ui?.fluentDesign ? '启用' : '禁用'}</p>
+            </div>
           </div>
         </div>
       </div>

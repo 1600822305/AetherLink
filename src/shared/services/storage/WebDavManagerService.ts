@@ -1,6 +1,6 @@
 import type { WebDavConfig, WebDavConnectionResult, WebDavUploadResult, WebDavDownloadResult, WebDavBackupFile } from '../../types';
 import { corsService } from '../network/CORSBypassService';
-import { detectPlatform, PlatformType } from '../../utils/platformDetection';
+import { getPlatformInfo, RuntimeType } from '../../utils/platformDetection';
 
 /**
  * 基于 webdav-manager.js 的 WebDAV 服务
@@ -39,11 +39,11 @@ export class WebDavManagerService {
     headers?: Record<string, string>;
     data?: string | Blob;
   }) {
-    const platform = detectPlatform();
+    const platformInfo = getPlatformInfo();
 
     try {
-      // 移动端(Capacitor)使用 CORS 绕过服务
-      if (platform === PlatformType.CAPACITOR) {
+      // Capacitor环境使用 CORS 绕过服务
+      if (platformInfo.runtimeType === RuntimeType.CAPACITOR) {
         const headers = {
           'Authorization': this.authHeader,
           ...options.headers
@@ -66,24 +66,24 @@ export class WebDavManagerService {
           error: response.success ? undefined : `${response.status} ${response.statusText}`
         };
       }
-      // 桌面端(Tauri)直接使用原始URL
-      else if (platform === PlatformType.TAURI) {
+      // Tauri环境直接使用原始URL
+      else if (platformInfo.runtimeType === RuntimeType.TAURI) {
         return await this.tauriDirectFetch(options);
       }
-      // Web端使用代理
+      // Web环境使用代理
       else {
         return await this.fallbackFetch(options);
       }
     } catch (error: any) {
-      // 如果主要方法失败，尝试回退方案
-      if (platform === PlatformType.CAPACITOR) {
-        console.warn('CORS 服务失败，回退到直接请求:', error);
-        return await this.tauriDirectFetch(options);
-      } else if (platform === PlatformType.TAURI) {
-        console.warn('Tauri 直接请求失败:', error);
+      // 合理的回退策略：只在同类型环境内回退
+      if (platformInfo.runtimeType === RuntimeType.CAPACITOR) {
+        console.warn('🔄 [WebDAV] Capacitor CORS服务失败，尝试标准fetch回退:', error);
+        return await this.fallbackFetch(options);
+      } else if (platformInfo.runtimeType === RuntimeType.TAURI) {
+        console.error('❌ [WebDAV] Tauri HTTP请求失败，无可用回退方案:', error);
         throw error;
       } else {
-        console.warn('Web 代理失败:', error);
+        console.error('❌ [WebDAV] Web代理请求失败:', error);
         throw error;
       }
     }
@@ -98,8 +98,6 @@ export class WebDavManagerService {
     headers?: Record<string, string>;
     data?: string | Blob;
   }) {
-    console.log('🖥️ [WebDAV Manager] Tauri HTTP请求:', options.url);
-
     try {
       // 动态导入Tauri HTTP客户端
       const { fetch: tauriFetch } = await import('@tauri-apps/plugin-http');
@@ -119,17 +117,13 @@ export class WebDavManagerService {
       // Tauri的fetch返回标准的Response对象，需要调用text()方法获取内容
       const responseText = await response.text();
 
-      // 显示响应日志
-      console.log('🖥️ [WebDAV Manager] Tauri 响应:', {
-        status: response.status,
-        statusText: response.statusText || 'OK',
-        dataLength: responseText.length,
-        headers: response.headers
-      });
-
-      // 如果是XML相关的请求，显示响应内容的前200字符
-      if (options.method === 'PROPFIND' || responseText.includes('<?xml')) {
-        console.log('🖥️ [WebDAV Manager] XML响应前200字符:', responseText.substring(0, 200));
+      // 仅在出错时显示详细日志
+      if (!response.ok) {
+        console.error('🖥️ [WebDAV] Tauri请求失败:', {
+          status: response.status,
+          statusText: response.statusText || 'Unknown Error',
+          url: options.url
+        });
       }
 
       return {
@@ -140,7 +134,7 @@ export class WebDavManagerService {
         error: response.ok ? undefined : `${response.status} ${response.statusText || 'Request failed'}`
       };
     } catch (error) {
-      console.error('🖥️ [WebDAV Manager] Tauri HTTP请求失败:', error);
+      console.error('🖥️ [WebDAV] Tauri HTTP请求失败:', error);
       return {
         success: false,
         status: 0,
@@ -173,8 +167,7 @@ export class WebDavManagerService {
 
     // 仅在开发环境显示详细日志
     if (process.env.NODE_ENV === 'development') {
-      console.log('🌐 [WebDAV Manager] 原始 URL:', options.url);
-      console.log('🌐 [WebDAV Manager] 代理 URL:', proxyUrl);
+      console.log('🌐 [WebDAV] 代理请求:', proxyUrl);
     }
 
     const headers = {
@@ -190,19 +183,13 @@ export class WebDavManagerService {
 
     const responseText = await response.text();
 
-    // 仅在开发环境或出错时显示响应日志
-    if (process.env.NODE_ENV === 'development' || !response.ok) {
-      console.log('🌐 [WebDAV Manager] 代理响应:', {
+    // 仅在出错时显示响应日志
+    if (!response.ok) {
+      console.error('🌐 [WebDAV] 代理请求失败:', {
         status: response.status,
         statusText: response.statusText,
-        dataLength: responseText.length,
-        contentType: response.headers.get('content-type')
+        url: proxyUrl
       });
-
-      // 如果是XML相关的请求，显示响应内容的前200字符
-      if (options.method === 'PROPFIND' || responseText.includes('<?xml')) {
-        console.log('🌐 [WebDAV Manager] XML响应前200字符:', responseText.substring(0, 200));
-      }
     }
 
     return {
@@ -399,9 +386,6 @@ export class WebDavManagerService {
    */
   private parseWebDavResponse(xmlText: string): WebDavBackupFile[] {
     try {
-      // 添加调试日志，显示原始响应内容
-      console.log('🔍 [WebDAV Manager] 原始XML响应长度:', xmlText.length);
-      console.log('🔍 [WebDAV Manager] 原始XML响应前200字符:', xmlText.substring(0, 200));
 
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
@@ -409,8 +393,8 @@ export class WebDavManagerService {
       // 检查解析错误
       const parseError = xmlDoc.getElementsByTagName('parsererror')[0];
       if (parseError) {
-        console.error('🚫 [WebDAV Manager] XML 解析错误:', parseError.textContent);
-        console.error('🚫 [WebDAV Manager] 完整XML内容:', xmlText);
+        console.error('🚫 [WebDAV] XML 解析错误:', parseError.textContent);
+        console.error('🚫 [WebDAV] 完整XML内容:', xmlText);
         return [];
       }
 
@@ -461,7 +445,7 @@ export class WebDavManagerService {
       // 按修改时间降序排序
       return files.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
     } catch (error) {
-      console.error('🚫 [WebDAV Manager] 解析 WebDAV 响应失败:', error);
+      console.error('🚫 [WebDAV] 解析 WebDAV 响应失败:', error);
       return [];
     }
   }

@@ -25,19 +25,25 @@ export const EASING = {
 
 // 性能优化的CSS属性
 export const PERFORMANCE_CSS = {
-  // 硬件加速
+  // 硬件加速 - 动态管理，避免持续占用GPU内存
   HARDWARE_ACCELERATION: {
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden' as const,
+  },
+
+  // 动画时的硬件加速 - 只在动画期间使用
+  ANIMATION_HARDWARE_ACCELERATION: {
     willChange: 'transform',
     transform: 'translateZ(0)',
     backfaceVisibility: 'hidden' as const,
   },
-  
-  // 渲染优化
+
+  // 渲染优化 - 移除可能导致裁剪的paint
   RENDER_OPTIMIZATION: {
-    contain: 'layout style paint' as const,
+    contain: 'layout style' as const,
     isolation: 'isolate' as const,
   },
-  
+
   // 滚动优化
   SCROLL_OPTIMIZATION: {
     WebkitOverflowScrolling: 'touch' as const,
@@ -69,19 +75,17 @@ export const getDesktopDrawerStyles = (drawerWidth: number, isOpen: boolean) => 
     position: 'relative',
     height: '100%',
     border: 'none',
-    // 性能优化
+    // 性能优化 - 只在静态时使用基础优化
     ...PERFORMANCE_CSS.HARDWARE_ACCELERATION,
     ...PERFORMANCE_CSS.RENDER_OPTIMIZATION,
     // 当关闭时隐藏内容，避免渲染
     overflow: isOpen ? 'visible' : 'hidden',
-    // 优化过渡动画和隐藏逻辑
+    // 优化过渡动画和隐藏逻辑 - 精确指定属性，避免all
     visibility: isOpen ? 'visible' : 'hidden',
     opacity: isOpen ? 1 : 0,
-    transition: [
-      `all ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD}`,
-      `opacity ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD}`,
-      `visibility ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD}`
-    ].join(', '),
+    transition: `width ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD},
+                 opacity ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD},
+                 visibility ${ANIMATION_DURATION.NORMAL}ms ${EASING.STANDARD}`,
   },
 });
 
@@ -94,7 +98,7 @@ export const getDrawerContentStyles = () => ({
   overflow: 'auto',
   // 自定义滚动条样式，避免宽度变化
   '&::-webkit-scrollbar': {
-    width: '1px', /* 尝试更细的宽度，以确认样式是否生效 */
+    width: '1px', /* 故意设计为1px以隐藏滚动条 */
   },
   '&::-webkit-scrollbar-track': {
     background: 'transparent',
@@ -109,7 +113,7 @@ export const getDrawerContentStyles = () => ({
   // Firefox 滚动条样式
   scrollbarWidth: 'thin',
   scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent',
-  // 性能优化
+  // 性能优化 - 只使用基础优化，避免持续GPU占用
   ...PERFORMANCE_CSS.HARDWARE_ACCELERATION,
   ...PERFORMANCE_CSS.RENDER_OPTIMIZATION,
 });
@@ -150,35 +154,50 @@ export const getCloseButtonInteractionStyles = () => ({
 
 // 防抖配置
 export const DEBOUNCE_CONFIG = {
-  TOGGLE_DELAY: 50,     // 切换防抖延迟
+  TOGGLE_DELAY: 100,    // 切换防抖延迟 - 增加到100ms以适配低端设备
   ANIMATION_DELAY: 16,  // 动画帧延迟 (约60fps)
 } as const;
+
+// 动态willChange管理工具函数
+export const enableHardwareAcceleration = (element: HTMLElement) => {
+  element.style.willChange = 'transform';
+};
+
+export const disableHardwareAcceleration = (element: HTMLElement) => {
+  element.style.willChange = 'auto';
+};
 
 // 创建优化的切换处理函数
 export const createOptimizedToggleHandler = (
   callback: () => void,
-  isTogglingRef: React.MutableRefObject<boolean>,
-  animationFrameRef: React.MutableRefObject<number | undefined>
+  isTogglingRef: React.RefObject<boolean>,
+  animationFrameRef: React.RefObject<number | undefined>
 ) => {
   return () => {
     // 防止快速连续点击
     if (isTogglingRef.current) return;
-    
-    isTogglingRef.current = true;
-    
+
+    if (isTogglingRef.current !== null) {
+      isTogglingRef.current = true;
+    }
+
     // 使用 requestAnimationFrame 确保在下一帧执行，避免阻塞UI
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
-    
-    animationFrameRef.current = requestAnimationFrame(() => {
-      callback();
-      
-      // 重置防抖标志
-      setTimeout(() => {
-        isTogglingRef.current = false;
-      }, DEBOUNCE_CONFIG.TOGGLE_DELAY);
-    });
+
+    if (animationFrameRef.current !== undefined) {
+      animationFrameRef.current = requestAnimationFrame(() => {
+        callback();
+
+        // 重置防抖标志
+        setTimeout(() => {
+          if (isTogglingRef.current !== null) {
+            isTogglingRef.current = false;
+          }
+        }, DEBOUNCE_CONFIG.TOGGLE_DELAY);
+      });
+    }
   };
 };
 

@@ -22,8 +22,14 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.5.0", features = ["devtools"] }
+
 tauri-plugin-log = "2.0.0-rc"
 tauri-plugin-http = "2.0.0-rc"
+
+# 开发时的可选功能
+[features]
+default = []
+devtools = ["tauri/devtools"]
 
 # 构建速度优化配置
 [profile.dev]
@@ -35,3 +41,16 @@ codegen-units = 256
 [profile.dev.build-override]
 # 为构建脚本和过程宏启用优化
 opt-level = 3
+
+# 发布版本优化配置
+[profile.release]
+# 优化大小而不是速度
+opt-level = "s"
+# 启用链接时优化
+lto = true
+# 减少代码生成单元以优化大小
+codegen-units = 1
+# 启用 panic = abort 以减少大小
+panic = "abort"
+# 去除调试信息
+debug = false

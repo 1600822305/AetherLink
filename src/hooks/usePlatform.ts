@@ -4,42 +4,63 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  getPlatformInfo, 
-  getPlatformConfig, 
-  PlatformInfo, 
-  PlatformType 
+import {
+  getPlatformInfo,
+  getPlatformConfig,
+  DetailedPlatformInfo,
+  PlatformType,
+  RuntimeType,
+  OSType,
+  LegacyPlatformType
 } from '../shared/utils/platformDetection';
-import { 
-  platformAdapter, 
-  UnifiedPlatformAPI, 
-  DeviceInfo, 
-  BatteryInfo 
+import {
+  platformAdapter,
+  UnifiedPlatformAPI,
+  DeviceInfo,
+  BatteryInfo
 } from '../shared/adapters/PlatformAdapter';
 
 /**
- * 平台信息 Hook
+ * 平台信息 Hook (增强版)
  */
 export function usePlatformInfo() {
-  const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null);
+  const [platformInfo, setPlatformInfo] = useState<DetailedPlatformInfo | null>(null);
   const [platformConfig, setPlatformConfig] = useState<any>(null);
 
   useEffect(() => {
     const info = getPlatformInfo();
     const config = getPlatformConfig();
-    
+
     setPlatformInfo(info);
     setPlatformConfig(config);
   }, []);
 
   return {
+    // 详细平台信息
     platformInfo,
     platformConfig,
+
+    // 基本分类 (向后兼容)
     isMobile: platformInfo?.isMobile ?? false,
     isDesktop: platformInfo?.isDesktop ?? false,
     isWeb: platformInfo?.isWeb ?? false,
-    isTauri: platformInfo?.type === PlatformType.TAURI,
-    isCapacitor: platformInfo?.type === PlatformType.CAPACITOR,
+    isTauri: platformInfo?.isTauri ?? false,
+    isCapacitor: platformInfo?.isCapacitor ?? false,
+
+    // 新增：详细平台检测
+    isWindows: platformInfo?.isWindows ?? false,
+    isMacOS: platformInfo?.isMacOS ?? false,
+    isLinux: platformInfo?.isLinux ?? false,
+    isAndroid: platformInfo?.isAndroid ?? false,
+    isIOS: platformInfo?.isIOS ?? false,
+
+    // 新增：平台类型
+    platformType: platformInfo?.platformType,
+    runtimeType: platformInfo?.runtimeType,
+    osType: platformInfo?.osType,
+
+    // 向后兼容
+    legacyType: platformInfo?.type,
   };
 }
 

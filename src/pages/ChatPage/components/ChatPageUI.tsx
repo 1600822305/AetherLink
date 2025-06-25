@@ -493,15 +493,20 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
       display: 'flex',
       flexDirection: 'column',
       gap: 0,
-      justifyContent: 'center',
-      alignItems: 'center'
+      // 响应侧边栏状态，实现推动效果
+      ...(drawerOpen && !isMobile ? {
+        paddingLeft: '320px', // 与侧边栏宽度保持一致
+        transition: 'padding-left 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms' // 平滑过渡动画
+      } : {
+        transition: 'padding-left 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms' // 确保关闭时也有过渡动画
+      })
     }}>
       {shouldShowToolbar && (
         <Box sx={{
           width: '100%',
-          maxWidth: '800px',
           display: 'flex',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          px: 2 // 添加左右内边距
         }}>
           <ChatToolbar
             onClearTopic={handleClearTopic}
@@ -519,9 +524,9 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
 
       <Box sx={{
         width: '100%',
-        maxWidth: '800px',
         display: 'flex',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        px: 2 // 添加左右内边距
       }}>
         {inputComponent}
       </Box>

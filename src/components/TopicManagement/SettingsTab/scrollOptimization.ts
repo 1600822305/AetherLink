@@ -13,21 +13,20 @@ export const mobileScrollOptimization: SxProps<Theme> = {
   WebkitOverflowScrolling: 'touch',
   // 平滑滚动行为
   scrollBehavior: 'smooth',
-  // 性能优化
-  willChange: 'scroll-position',
+  // 性能优化 - 移除willChange，避免持续GPU占用
   transform: 'translateZ(0)', // 启用硬件加速
-  // 滚动条样式优化
+  // 滚动条样式优化 - 调整为6px提升可用性
   scrollbarWidth: 'thin', // Firefox 细滚动条
   '&::-webkit-scrollbar': {
-    width: '4px',
-    height: '4px',
+    width: '6px',
+    height: '6px',
   },
   '&::-webkit-scrollbar-track': {
     background: 'transparent',
   },
   '&::-webkit-scrollbar-thumb': {
     background: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: '2px',
+    borderRadius: '3px',
     '&:hover': {
       background: 'rgba(0, 0, 0, 0.3)',
     },
@@ -64,8 +63,8 @@ export const touchOptimization: SxProps<Theme> = {
  * 渲染性能优化样式
  */
 export const renderOptimization: SxProps<Theme> = {
-  // 优化渲染性能
-  contain: 'layout style paint',
+  // 优化渲染性能 - 移除paint避免裁剪问题
+  contain: 'layout style',
   // 防止不必要的重绘
   backfaceVisibility: 'hidden',
   // 启用硬件加速
@@ -86,13 +85,25 @@ export const animationOptimization = {
   // 动画容器优化样式
   sx: {
     '& .MuiCollapse-wrapper': {
-      willChange: 'height',
+      // 移除willChange，避免持续GPU占用
       transform: 'translateZ(0)',
     },
     '& .MuiCollapse-wrapperInner': {
-      contain: 'layout style paint',
+      // 移除paint避免裁剪问题
+      contain: 'layout style',
     },
   } as SxProps<Theme>,
+};
+
+/**
+ * 动态willChange管理工具函数
+ */
+export const enableAnimationAcceleration = (element: HTMLElement) => {
+  element.style.willChange = 'height, opacity';
+};
+
+export const disableAnimationAcceleration = (element: HTMLElement) => {
+  element.style.willChange = 'auto';
 };
 
 /**

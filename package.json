@@ -65,6 +65,10 @@
     "build:tauri-ios": "tauri ios build",
     "dev:tauri-android": "tauri android dev",
     "build:tauri-android": "tauri android build",
+    "build:tauri-android:release": "tauri android build",
+    "build:tauri-android:debug": "tauri android build --debug",
+    "build:tauri-android:arm64": "tauri android build --target aarch64",
+    "build:tauri-android:split": "tauri android build --split-per-abi",
     "build:tauri-debug": "tauri build --debug"
   },
   "overrides": {

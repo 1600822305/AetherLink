@@ -3,7 +3,10 @@
  * 提供跨平台的统一 API，自动适配 Web、Capacitor、Tauri 环境
  */
 
-import { detectPlatform, PlatformType } from '../utils/platformDetection';
+import {
+  detectDetailedPlatform,
+  RuntimeType
+} from '../utils/platformDetection';
 
 // 统一的接口定义
 export interface UnifiedPlatformAPI {
@@ -56,6 +59,7 @@ export interface DeviceInfo {
   osVersion: string;
   manufacturer: string;
   isVirtual: boolean;
+  architecture?: string; // 可选字段，用于 Tauri
 }
 
 export interface BatteryInfo {
@@ -64,30 +68,44 @@ export interface BatteryInfo {
 }
 
 /**
- * 平台适配器工厂
+ * 平台适配器工厂 (增强版)
  */
 export class PlatformAdapterFactory {
   private static instance: UnifiedPlatformAPI | null = null;
 
   static getInstance(): UnifiedPlatformAPI {
     if (!this.instance) {
-      const platform = detectPlatform();
-      
-      switch (platform) {
-        case PlatformType.TAURI:
+      const platformInfo = detectDetailedPlatform();
+
+      switch (platformInfo.runtimeType) {
+        case RuntimeType.TAURI:
           this.instance = new TauriAdapter();
           break;
-        case PlatformType.CAPACITOR:
+        case RuntimeType.CAPACITOR:
           this.instance = new CapacitorAdapter();
           break;
-        case PlatformType.WEB:
+        case RuntimeType.WEB:
         default:
           this.instance = new WebAdapter();
           break;
       }
     }
-    
+
     return this.instance;
+  }
+
+  /**
+   * 重置实例 (用于测试或强制重新检测)
+   */
+  static reset(): void {
+    this.instance = null;
+  }
+
+  /**
+   * 获取当前平台信息
+   */
+  static getPlatformInfo() {
+    return detectDetailedPlatform();
   }
 }
 
@@ -371,11 +389,12 @@ class TauriAdapter implements UnifiedPlatformAPI {
   device = {
     async getInfo(): Promise<DeviceInfo> {
       const { platform, arch, version } = await import('@tauri-apps/api/os');
-      
+
       return {
         platform: await platform(),
         model: 'Desktop',
         operatingSystem: await platform(),
+        architecture: await arch(),
         osVersion: await version(),
         manufacturer: 'Unknown',
         isVirtual: false,
@@ -410,8 +429,8 @@ class TauriAdapter implements UnifiedPlatformAPI {
     },
     
     async setSize(width: number, height: number): Promise<void> {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().setSize({ width, height });
+      const { getCurrentWindow, LogicalSize } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().setSize(new LogicalSize(width, height));
     },
   };
 }
