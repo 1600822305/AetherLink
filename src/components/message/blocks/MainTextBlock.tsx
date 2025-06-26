@@ -27,8 +27,25 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
   const isUserMessage = role === 'user';
   const isStreaming = block.status === MessageBlockStatus.STREAMING;
 
-  // 获取工具块
-  const blockEntities = useSelector((state: RootState) => messageBlocksSelectors.selectEntities(state));
+  // 获取当前消息的工具块，使用 useMemo 优化性能
+  const toolBlocks = useSelector((state: RootState) => {
+    if (!messageId) return [];
+    const entities = messageBlocksSelectors.selectEntities(state);
+    return Object.values(entities).filter(
+      (block): block is ToolMessageBlock =>
+        block?.type === MessageBlockType.TOOL &&
+        block.messageId === messageId
+    );
+  }, (left, right) => {
+    // 自定义比较函数，只有当工具块实际发生变化时才重新渲染
+    if (left.length !== right.length) return false;
+    return left.every((leftBlock, index) => {
+      const rightBlock = right[index];
+      return leftBlock?.id === rightBlock?.id &&
+             leftBlock?.status === rightBlock?.status &&
+             leftBlock?.content === rightBlock?.content;
+    });
+  });
 
   // 获取用户输入渲染设置
   const renderUserInputAsMarkdown = useSelector((state: RootState) => state.settings.renderUserInputAsMarkdown);
@@ -123,13 +140,7 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
       return <Markdown block={displayBlock} messageRole={role as 'user' | 'assistant' | 'system'} />;
     }
 
-    // 查找对应的工具块
-    const toolBlocks = Object.values(blockEntities).filter(
-      (block): block is ToolMessageBlock =>
-        block?.type === MessageBlockType.TOOL &&
-        !!messageId &&
-        block.messageId === messageId
-    );
+    // 使用已经获取的工具块
 
     //  使用修复后的内容进行工具标签处理（使用节流后的内容）
     const fixedContent = fixBrokenToolTags(displayContent);
@@ -169,6 +180,10 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
       // 添加工具块（如果存在）
       if (toolIndex < toolBlocks.length) {
         const toolBlock = toolBlocks[toolIndex];
+        // 只在开发环境输出调试信息
+        if (process.env.NODE_ENV === 'development' && toolIndex === 0) {
+          console.log(`[MainTextBlock] 渲染 ${toolBlocks.length} 个工具块，消息ID: ${messageId}`);
+        }
         parts.push(
           <div key={`tool-${toolBlock.id}`} style={{ margin: '16px 0' }}>
             <ToolBlock block={toolBlock} />
@@ -200,7 +215,7 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
     }
 
     return <>{parts}</>;
-  }, [displayContent, isUserMessage, blockEntities, messageId, renderUserInputAsMarkdown, block, role, highPerformanceRenderer]);
+  }, [displayContent, isUserMessage, toolBlocks, messageId, renderUserInputAsMarkdown, block, role, highPerformanceRenderer]);
 
   if (!displayContent.trim()) {
     return null;

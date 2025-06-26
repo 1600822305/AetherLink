@@ -218,7 +218,7 @@ export const processAssistantResponse = async (
             imageSize: '1024x1024',
             batchSize: 1
           });
-          responseHandler.handleChunk('Gemini 图像生成完成！');
+          responseHandler.handleStringContent('Gemini 图像生成完成！');
         } else {
           // 使用 OpenAI 兼容的图像生成API（支持 Grok、SiliconFlow 等）
           imageUrls = await generateOpenAIImage(model, {
@@ -226,7 +226,7 @@ export const processAssistantResponse = async (
             imageSize: '1024x1024',
             batchSize: 1
           });
-          responseHandler.handleChunk('图像生成完成！');
+          responseHandler.handleStringContent('图像生成完成！');
         }
 
         // 处理图像生成结果
@@ -390,15 +390,12 @@ export const processAssistantResponse = async (
 
       // 处理不同类型的响应
       let finalContent: string;
-      let reasoning: string | undefined;
       let isInterrupted = false;
 
       if (typeof response === 'string') {
         finalContent = response;
       } else if (response && typeof response === 'object' && 'content' in response) {
         finalContent = response.content;
-        // 提取思考过程
-        reasoning = response.reasoning || response.reasoning_content;
         // 检查是否被中断
         isInterrupted = response.interrupted === true;
       } else {
@@ -411,7 +408,8 @@ export const processAssistantResponse = async (
 
       // 对于非流式响应，onUpdate回调已经在Provider层正确处理了思考过程和普通文本
       // 不需要重复处理，避免重复调用导致的问题
-      console.log(`[processAssistantResponse] 非流式响应处理完成，内容长度: ${finalContent.length}, 思考过程长度: ${reasoning?.length || 0}, 是否被中断: ${isInterrupted}`);
+      const handlerStatus = responseHandler.getStatus();
+      console.log(`[processAssistantResponse] 非流式响应处理完成，内容长度: ${finalContent.length}, 思考过程长度: ${handlerStatus.thinkingContent?.length || 0}, 是否被中断: ${isInterrupted}`);
 
       // 如果响应被中断，使用中断处理方法
       if (isInterrupted) {

@@ -14,7 +14,7 @@ import { Link } from '@mui/material';
 import { isEmpty } from 'lodash';
 import type { MainTextMessageBlock, TranslationMessageBlock, ThinkingMessageBlock } from '../../shared/types/newMessage';
 import { escapeBrackets, removeSvgEmptyLines, convertMathFormula } from '../../utils/formats';
-import { getCodeBlockId } from '../../utils/markdown';
+import { getCodeBlockId, removeTrailingDoubleSpaces } from '../../utils/markdown';
 import { getAppSettings } from '../../shared/utils/settingsUtils';
 import MarkdownCodeBlock from './blocks/MarkdownCodeBlock';
 import AdvancedImagePreview from './blocks/AdvancedImagePreview';
@@ -91,10 +91,11 @@ const Markdown: React.FC<Props> = ({ block, content, allowHtml = false, messageR
       processedContent = empty && paused ? '消息已暂停' : block.content || '';
     }
 
-    // 应用所有转换：数学公式 -> 转义括号 -> 移除SVG空行
+    // 应用所有转换：数学公式 -> 转义括号 -> 移除SVG空行 -> 移除行尾双空格
     processedContent = convertMathFormula(processedContent);
     processedContent = escapeBrackets(processedContent);
     processedContent = removeSvgEmptyLines(processedContent);
+    processedContent = removeTrailingDoubleSpaces(processedContent);
 
     return processedContent;
   }, [block, content]);

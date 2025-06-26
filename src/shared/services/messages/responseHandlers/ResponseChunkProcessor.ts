@@ -64,21 +64,33 @@ interface BlockUpdater {
 
 class ThrottledBlockUpdater implements BlockUpdater {
   private throttledStorageUpdate: (blockId: string, changes: any) => void;
+  private throttledStateUpdate: (blockId: string, changes: any) => void;
 
   constructor(
     private stateService: StateService,
     private storageService: StorageService,
     throttleInterval: number
   ) {
+    console.log('[ThrottledBlockUpdater] 创建节流更新器，间隔:', throttleInterval + 'ms');
+
     this.throttledStorageUpdate = throttle(
       (blockId: string, changes: any) => storageService.updateBlock(blockId, changes),
+      throttleInterval
+    );
+
+    // 🚀 关键修复：Redux状态更新也使用节流
+    this.throttledStateUpdate = throttle(
+      (blockId: string, changes: any) => {
+        console.log('[ThrottledBlockUpdater] 节流更新Redux状态');
+        stateService.updateBlock(blockId, changes);
+      },
       throttleInterval
     );
   }
 
   async updateBlock(blockId: string, changes: any): Promise<void> {
-    // 状态更新不需要节流（用户体验）
-    this.stateService.updateBlock(blockId, changes);
+    // 🚀 修复：状态更新也使用节流，控制UI更新频率
+    this.throttledStateUpdate(blockId, changes);
     // 存储更新使用节流（性能优化）
     this.throttledStorageUpdate(blockId, changes);
   }
@@ -268,6 +280,20 @@ export class ResponseChunkProcessor {
   get textBlockId(): string | null { return this.blockStateManager.getTextBlockId(); }
   get thinkingId(): string | null { return this.blockStateManager.getThinkingBlockId(); }
   get currentBlockId(): string { return this.blockStateManager.getInitialBlockId(); }
+  get blockType(): string {
+    const state = this.blockStateManager.getCurrentState();
+    switch (state) {
+      case BlockState.THINKING_ONLY:
+        return MessageBlockType.THINKING;
+      case BlockState.TEXT_ONLY:
+        return MessageBlockType.MAIN_TEXT;
+      case BlockState.BOTH:
+        // 当有两种类型时，返回思考块类型，因为主要块是思考块
+        return MessageBlockType.THINKING;
+      default:
+        return MessageBlockType.MAIN_TEXT; // 默认为主文本块
+    }
+  }
 }
 
 // 7. 工厂函数，封装依赖注入的复杂性
