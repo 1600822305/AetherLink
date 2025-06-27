@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { debounce } from 'lodash';
 
 interface ExpandableContainerProps {
   // 基础状态
@@ -78,6 +79,19 @@ const useExpandableContainer = ({
     }
   }, [message, isMobile, isTablet, expanded]);
 
+  // 创建防抖的按钮可见性检测函数
+  const debouncedCheckButtonVisibility = useMemo(
+    () => debounce(checkButtonVisibility, 100),
+    [checkButtonVisibility]
+  );
+
+  // 清理防抖函数
+  useEffect(() => {
+    return () => {
+      debouncedCheckButtonVisibility.cancel();
+    };
+  }, [debouncedCheckButtonVisibility]);
+
   // 监听消息内容变化，检测按钮显示状态
   useEffect(() => {
     checkButtonVisibility();
@@ -85,17 +99,17 @@ const useExpandableContainer = ({
 
   // 监听展开状态变化
   useEffect(() => {
-    // 延迟检测，确保DOM更新完成
-    setTimeout(checkButtonVisibility, 100);
-  }, [expanded, checkButtonVisibility]);
+    // 使用防抖函数，确保DOM更新完成后检测
+    debouncedCheckButtonVisibility();
+  }, [expanded, debouncedCheckButtonVisibility]);
 
   // 优化的 handleChange - 移除URL检测，添加防抖机制
   const enhancedHandleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     // 调用 hook 提供的 handleChange
     handleChange(e);
     // 使用防抖延迟检测按钮显示状态，避免频繁计算
-    setTimeout(checkButtonVisibility, 100);
-  }, [handleChange, checkButtonVisibility]);
+    debouncedCheckButtonVisibility();
+  }, [handleChange, debouncedCheckButtonVisibility]);
 
   // 展开切换函数
   const handleExpandToggle = useCallback(() => {
@@ -167,9 +181,9 @@ const useExpandableContainer = ({
             }}
           >
             {expanded ? (
-              <ChevronDown size={14} />
-            ) : (
               <ChevronUp size={14} />
+            ) : (
+              <ChevronDown size={14} />
             )}
           </IconButton>
         </Tooltip>
@@ -202,7 +216,7 @@ const useExpandableContainer = ({
           display: 'flex',
           flexDirection: 'column',
           padding: isTablet ? '8px 12px' : isMobile ? '6px 8px' : '7px 10px',
-          borderRadius: '20px',
+          borderRadius: borderRadius,
           background: themeColors.paper,
           border: border,
           minHeight: isTablet ? '72px' : isMobile ? '64px' : '68px',
@@ -227,7 +241,7 @@ const useExpandableContainer = ({
     );
   }, [
     getResponsiveStyles, isKeyboardVisible, isMobile, isTablet, isIOS, themeColors.paper,
-    border, boxShadow, inputBoxStyle, renderExpandButton
+    border, borderRadius, boxShadow, inputBoxStyle, renderExpandButton
   ]);
 
   return {

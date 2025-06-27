@@ -10,6 +10,8 @@ import type { ChatTopic, Assistant } from '../shared/types/Assistant';
  * useActiveTopic Hook
  * 自动触发消息加载和事件发送，无需在Redux reducer中初始化
  */
+const MAX_CACHE_SIZE = 100; // 限制缓存大小，防止内存泄漏
+
 export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
   const dispatch = useDispatch();
   const [activeTopic, setActiveTopic] = useState<ChatTopic | null>(initialTopic || null);
@@ -41,6 +43,14 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
       return findTopicCacheRef.current.get(topicId) || null;
     }
 
+    // 限制缓存大小，使用 LRU 淘汰策略
+    if (findTopicCacheRef.current.size >= MAX_CACHE_SIZE) {
+      const firstKey = findTopicCacheRef.current.keys().next().value;
+      if (firstKey) {
+        findTopicCacheRef.current.delete(firstKey);
+      }
+    }
+
     // 优先从 Redux 中查找
     const topicFromRedux = reduxTopics.find(t => t.id === topicId);
     if (topicFromRedux) {
@@ -54,7 +64,6 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
       findTopicCacheRef.current.set(topicId, topic);
       return topic;
     } catch (error) {
-      console.error(`[useActiveTopic] 获取话题 ${topicId} 失败:`, error);
       return null;
     }
   }, [reduxTopics]);
@@ -88,7 +97,7 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
         })[0];
       }
     } catch (error) {
-      console.error(`[useActiveTopic] 查找助手话题失败:`, error);
+      // 静默处理错误，避免控制台混乱
     }
 
     return null;
@@ -106,23 +115,11 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
   useEffect(() => {
     if (!activeTopic) return;
 
-    const startTime = performance.now();
-    console.log(`[useActiveTopic] 话题变更开始: ${activeTopic.name} (${activeTopic.id})`);
-
     // 发送话题变更事件
-    const eventStartTime = performance.now();
     EventEmitter.emit(EVENT_NAMES.CHANGE_TOPIC, activeTopic);
-    const eventEndTime = performance.now();
-    console.log(`[useActiveTopic] 事件发送耗时: ${(eventEndTime - eventStartTime).toFixed(2)}ms`);
 
     // 加载话题消息
-    const dispatchStartTime = performance.now();
     dispatch(loadTopicMessagesThunk(activeTopic.id) as any);
-    const dispatchEndTime = performance.now();
-    console.log(`[useActiveTopic] dispatch耗时: ${(dispatchEndTime - dispatchStartTime).toFixed(2)}ms`);
-
-    const totalTime = performance.now() - startTime;
-    console.log(`[useActiveTopic] 话题变更总耗时: ${totalTime.toFixed(2)}ms`);
   }, [activeTopic, dispatch]); // 依赖整个对象，确保一致性
 
   // Effect 2: 助手变化时设置第一个话题
@@ -150,12 +147,11 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
         if (abortController.signal.aborted) return;
 
         if (firstTopic && isMountedRef.current) {
-          console.log(`[useActiveTopic] 设置助手的第一个话题: ${firstTopic.name}`);
           safeSetActiveTopic(firstTopic);
         }
       } catch (error) {
         if (!abortController.signal.aborted) {
-          console.error(`[useActiveTopic] 加载助手话题失败:`, error);
+          // 静默处理错误，避免控制台混乱
         }
       }
     };
@@ -175,38 +171,18 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
     // 如果已经是当前话题，跳过
     if (activeTopic?.id === currentTopicId) return;
 
-    console.log(`[useActiveTopic] Effect 3 触发，currentTopicId: ${currentTopicId}, activeTopic?.id: ${activeTopic?.id}`);
-
     // 使用 setTimeout 进行防抖，避免快速连续调用
     const timeoutId = setTimeout(async () => {
-      const startTime = performance.now();
-      console.log(`[useActiveTopic] 开始加载外部话题: ${currentTopicId}`);
-
       try {
-        const findStartTime = performance.now();
         const topic = await findTopicById(currentTopicId);
-        const findEndTime = performance.now();
-        console.log(`[useActiveTopic] findTopicById耗时: ${(findEndTime - findStartTime).toFixed(2)}ms`);
 
         if (!isMountedRef.current) return;
 
-        const setTopicStartTime = performance.now();
         if (topic && topic.assistantId === assistant.id) {
-          console.log(`[useActiveTopic] 切换到话题: ${topic.name}`);
           safeSetActiveTopic(topic);
-        } else if (topic) {
-          console.warn(`[useActiveTopic] 话题 ${currentTopicId} 不属于当前助手`);
-        } else {
-          console.warn(`[useActiveTopic] 找不到话题 ${currentTopicId}`);
         }
-        const setTopicEndTime = performance.now();
-        console.log(`[useActiveTopic] 设置话题耗时: ${(setTopicEndTime - setTopicStartTime).toFixed(2)}ms`);
-
-        const totalTime = performance.now() - startTime;
-        console.log(`[useActiveTopic] 外部话题加载总耗时: ${totalTime.toFixed(2)}ms`);
       } catch (error) {
-        const totalTime = performance.now() - startTime;
-        console.error(`[useActiveTopic] 加载话题失败，总耗时: ${totalTime.toFixed(2)}ms`, error);
+        // 静默处理错误，避免控制台混乱
       }
     }, 10); // 10ms 防抖
 
@@ -218,9 +194,18 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
 
   // 提供即时切换话题的方法
   const switchToTopic = useCallback((topic: ChatTopic) => {
-    console.log(`[useActiveTopic] 即时切换到话题: ${topic.name} (${topic.id})`);
     safeSetActiveTopic(topic);
   }, [safeSetActiveTopic]);
+
+  // 清理函数：组件卸载时清理缓存和设置标记
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // 清理缓存，防止内存泄漏
+      findTopicCacheRef.current.clear();
+    };
+  }, []);
 
   return {
     activeTopic,

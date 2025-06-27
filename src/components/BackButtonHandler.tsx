@@ -166,13 +166,6 @@ const BackButtonHandler: React.FC = () => {
     };
   }, [handleBackButton]); // 只依赖handleBackButton
 
-  // 组件卸载时设置标记
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
   // 这是一个纯逻辑组件，不渲染任何UI
   return null;
 };

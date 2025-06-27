@@ -113,15 +113,15 @@ export function useSidebarState() {
   const loadAssistants = useCallback(async (forceReload = false) => {
     if (forceReload) {
       console.log('[SidebarTabs] 强制重新加载助手列表...');
-      startTransitionLocal(async () => {
-        try {
-          const assistants = await AssistantService.getUserAssistants();
+      try {
+        const assistants = await AssistantService.getUserAssistants();
+        startTransitionLocal(() => {
           dispatch(setAssistants(assistants));
           console.log(`[SidebarTabs] 重新加载了 ${assistants.length} 个助手`);
-        } catch (error) {
-          console.error('[SidebarTabs] 重新加载助手列表失败:', error);
-        }
-      });
+        });
+      } catch (error) {
+        console.error('[SidebarTabs] 重新加载助手列表失败:', error);
+      }
     } else {
       // 正常情况下，数据已经在Redux中预加载，无需额外操作
       console.log('[SidebarTabs] 使用预加载的助手数据');

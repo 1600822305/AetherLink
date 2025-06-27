@@ -372,7 +372,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
     };
 
     loadMissingBlocks();
-  }, [messages, messageBlocks, dispatch]);
+  }, [messages, messageBlocks, dispatch, handleError]);
 
   // 直接使用有序消息，无需去重
   const filteredMessages = useMemo(() => {

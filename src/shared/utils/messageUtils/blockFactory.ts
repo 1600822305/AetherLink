@@ -5,6 +5,8 @@ import type {
   ImageMessageBlock,
   VideoMessageBlock,
   CodeMessageBlock,
+  FileMessageBlock,
+  ToolMessageBlock,
   TranslationMessageBlock,
   MultiModelMessageBlock,
   ChartMessageBlock,
@@ -20,11 +22,11 @@ import type { FileType } from '../../types';
 /**
  * 基础块创建函数
  */
-function createBaseBlock(
+function createBaseBlock<T extends MessageBlock>(
   messageId: string,
-  type: MessageBlockType,
-  additionalProps: any = {}
-): MessageBlock {
+  type: T['type'],
+  additionalProps: Partial<Omit<T, 'id' | 'messageId' | 'type' | 'createdAt'>> = {}
+): T {
   return {
     id: uuid(),
     messageId,
@@ -32,17 +34,17 @@ function createBaseBlock(
     createdAt: new Date().toISOString(),
     status: MessageBlockStatus.SUCCESS,
     ...additionalProps
-  } as MessageBlock;
+  } as T;
 }
 
 /**
  * 创建思考块
  */
 export function createThinkingBlock(messageId: string, content: string = ''): ThinkingMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.THINKING, {
+  return createBaseBlock<ThinkingMessageBlock>(messageId, MessageBlockType.THINKING, {
     content,
     status: MessageBlockStatus.PENDING
-  }) as ThinkingMessageBlock;
+  });
 }
 
 /**
@@ -57,7 +59,7 @@ export function createImageBlock(messageId: string, imageData: {
   size?: number;
   file?: FileType;
 }): ImageMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.IMAGE, {
+  return createBaseBlock<ImageMessageBlock>(messageId, MessageBlockType.IMAGE, {
     url: imageData.url,
     base64Data: imageData.base64Data,
     mimeType: imageData.mimeType,
@@ -73,7 +75,7 @@ export function createImageBlock(messageId: string, imageData: {
       base64Data: imageData.file.base64Data,
       type: imageData.file.type
     } : undefined
-  }) as ImageMessageBlock;
+  });
 }
 
 /**
@@ -90,7 +92,7 @@ export function createVideoBlock(messageId: string, videoData: {
   poster?: string;
   file?: FileType;
 }): VideoMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.VIDEO, {
+  return createBaseBlock<VideoMessageBlock>(messageId, MessageBlockType.VIDEO, {
     url: videoData.url,
     base64Data: videoData.base64Data,
     mimeType: videoData.mimeType,
@@ -108,14 +110,14 @@ export function createVideoBlock(messageId: string, videoData: {
       base64Data: videoData.file.base64Data,
       type: videoData.file.type
     } : undefined
-  }) as VideoMessageBlock;
+  });
 }
 
 /**
  * 创建文件块
  */
-export function createFileBlock(messageId: string, file: FileType): MessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.FILE, {
+export function createFileBlock(messageId: string, file: FileType): FileMessageBlock {
+  return createBaseBlock<FileMessageBlock>(messageId, MessageBlockType.FILE, {
     name: file.origin_name || file.name || '未知文件',
     url: file.path || '',
     mimeType: file.mimeType || 'application/octet-stream',
@@ -136,10 +138,10 @@ export function createFileBlock(messageId: string, file: FileType): MessageBlock
  * 创建代码块
  */
 export function createCodeBlock(messageId: string, content: string, language?: string): CodeMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.CODE, {
+  return createBaseBlock<CodeMessageBlock>(messageId, MessageBlockType.CODE, {
     content,
     language
-  }) as CodeMessageBlock;
+  });
 }
 
 /**
@@ -152,7 +154,7 @@ export function createToolBlock(messageId: string, toolId: string, overrides: {
   status?: MessageBlockStatus;
   metadata?: any;
   error?: any;
-} = {}): MessageBlock {
+} = {}): ToolMessageBlock {
   // 确定初始状态
   let initialStatus: MessageBlockStatus;
   if (overrides.content !== undefined || overrides.error !== undefined) {
@@ -163,7 +165,7 @@ export function createToolBlock(messageId: string, toolId: string, overrides: {
     initialStatus = MessageBlockStatus.PROCESSING;
   }
 
-  return createBaseBlock(messageId, MessageBlockType.TOOL, {
+  return createBaseBlock<ToolMessageBlock>(messageId, MessageBlockType.TOOL, {
     toolId,
     toolName: overrides.toolName,
     arguments: overrides.arguments,
@@ -185,13 +187,13 @@ export function createTranslationBlock(
   targetLanguage: string,
   sourceBlockId?: string
 ): TranslationMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.TRANSLATION, {
+  return createBaseBlock<TranslationMessageBlock>(messageId, MessageBlockType.TRANSLATION, {
     content,
     sourceContent,
     sourceLanguage,
     targetLanguage,
     sourceBlockId
-  }) as TranslationMessageBlock;
+  });
 }
 
 /**
@@ -207,10 +209,10 @@ export function createMultiModelBlock(
   }[],
   displayStyle: 'horizontal' | 'vertical' | 'fold' | 'grid' = 'vertical'
 ): MultiModelMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.MULTI_MODEL, {
+  return createBaseBlock<MultiModelMessageBlock>(messageId, MessageBlockType.MULTI_MODEL, {
     responses,
     displayStyle
-  }) as MultiModelMessageBlock;
+  });
 }
 
 /**
@@ -222,11 +224,11 @@ export function createChartBlock(
   data: any,
   options?: any
 ): ChartMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.CHART, {
+  return createBaseBlock<ChartMessageBlock>(messageId, MessageBlockType.CHART, {
     chartType,
     data,
     options
-  }) as ChartMessageBlock;
+  });
 }
 
 /**
@@ -237,10 +239,10 @@ export function createMathBlock(
   content: string,
   displayMode: boolean = true
 ): MathMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.MATH, {
+  return createBaseBlock<MathMessageBlock>(messageId, MessageBlockType.MATH, {
     content,
     displayMode
-  }) as MathMessageBlock;
+  });
 }
 
 /**
@@ -260,7 +262,7 @@ export function createKnowledgeReferenceBlock(
     metadata?: KnowledgeReferenceMessageBlock['metadata'];
   }
 ): KnowledgeReferenceMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.KNOWLEDGE_REFERENCE, {
+  return createBaseBlock<KnowledgeReferenceMessageBlock>(messageId, MessageBlockType.KNOWLEDGE_REFERENCE, {
     content,
     knowledgeBaseId,
     source: options?.source,
@@ -271,5 +273,5 @@ export function createKnowledgeReferenceBlock(
       knowledgeDocumentId: options?.knowledgeDocumentId,
       searchQuery: options?.searchQuery
     }
-  }) as KnowledgeReferenceMessageBlock;
+  });
 }

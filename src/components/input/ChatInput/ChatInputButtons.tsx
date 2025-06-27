@@ -1,8 +1,27 @@
 import React from 'react';
 import { IconButton, CircularProgress, Badge, Tooltip } from '@mui/material';
 import { Send, Plus, Square, Image, Search } from 'lucide-react';
+import type { ImageContent, FileContent } from '../../../shared/types';
 
-const ChatInputButtons: React.FC<any> = (props) => {
+interface ChatInputButtonsProps {
+  uploadingMedia: boolean;
+  isLoading: boolean;
+  allowConsecutiveMessages: boolean;
+  isStreaming: boolean;
+  imageGenerationMode: boolean;
+  webSearchActive: boolean;
+  images: ImageContent[];
+  files: FileContent[];
+  isDarkMode: boolean;
+  isTablet: boolean;
+  disabledColor: string;
+  handleOpenUploadMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  handleSubmit: () => void;
+  onStopResponse?: () => void;
+  canSendMessage: () => boolean;
+}
+
+const ChatInputButtons: React.FC<ChatInputButtonsProps> = (props) => {
   const {
     uploadingMedia, isLoading, allowConsecutiveMessages, isStreaming, imageGenerationMode, webSearchActive,
     images, files, isDarkMode, isTablet, disabledColor,
