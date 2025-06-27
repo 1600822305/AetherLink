@@ -199,9 +199,6 @@ const MessageBlockRenderer: React.FC<Props> = ({
               case MessageBlockType.TRANSLATION:
                 blockComponent = <TranslationBlock key={block.id} block={block} />;
                 break;
-              // case MessageBlockType.TABLE: // 已废弃，表格通过Markdown渲染
-              //   console.warn('TABLE block type is deprecated, tables should be rendered via Markdown');
-              //   break;
               case MessageBlockType.MATH:
                 blockComponent = <MathBlock key={block.id} block={block} />;
                 break;

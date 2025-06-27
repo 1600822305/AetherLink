@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Box, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import {
+  Box,
+  IconButton,
+  useMediaQuery,
+  useTheme,
+  Drawer,
+  SwipeableDrawer
+} from '@mui/material';
 import { X as CloseIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import SidebarTabs from './SidebarTabs';
 import { useDialogBackHandler } from '../../hooks/useDialogBackHandler';
 
@@ -19,66 +25,6 @@ interface MotionSidebarProps {
   desktopOpen?: boolean;
   onDesktopToggle?: () => void;
 }
-
-// Framer Motion 动画配置
-const sidebarVariants = {
-  open: {
-    width: 320,
-    opacity: 1,
-    visibility: 'visible' as const,
-    transition: {
-      type: 'tween' as const,
-      duration: 0.2,
-      ease: [0.25, 0.46, 0.45, 0.94] as const
-    }
-  },
-  closed: {
-    width: 0,
-    opacity: 0,
-    visibility: 'hidden' as const,
-    transition: {
-      type: 'tween' as const,
-      duration: 0.2,
-      ease: [0.55, 0.06, 0.68, 0.19] as const
-    }
-  }
-};
-
-const backdropVariants = {
-  open: {
-    opacity: 1,
-    visibility: 'visible' as const,
-    transition: {
-      duration: 0.2
-    }
-  },
-  closed: {
-    opacity: 0,
-    visibility: 'hidden' as const,
-    transition: {
-      duration: 0.2
-    }
-  }
-};
-
-const contentVariants = {
-  open: {
-    x: 0,
-    transition: {
-      type: 'tween' as const,
-      duration: 0.2,
-      ease: [0.25, 0.46, 0.45, 0.94] as const
-    }
-  },
-  closed: {
-    x: -320,
-    transition: {
-      type: 'tween' as const,
-      duration: 0.2,
-      ease: [0.55, 0.06, 0.68, 0.19] as const
-    }
-  }
-};
 
 // 使用 React.memo 优化组件，避免不必要的重新渲染
 const MotionSidebar = React.memo(function MotionSidebar({
@@ -152,11 +98,7 @@ const MotionSidebar = React.memo(function MotionSidebar({
     handleClose // 使用统一的关闭处理函数
   );
 
-  const handleBackdropClick = useCallback(() => {
-    if (isSmallScreen) {
-      handleClose();
-    }
-  }, [isSmallScreen, handleClose]);
+
 
   // 优化：减少 drawer 的依赖项，避免频繁重新渲染
   const drawer = useMemo(() => (
@@ -229,74 +171,62 @@ const MotionSidebar = React.memo(function MotionSidebar({
   ), [isSmallScreen, handleClose, mcpMode, toolsEnabled, onMCPModeChange, onToolsToggle, onDesktopToggle]);
 
   if (isSmallScreen) {
-    // 移动端：使用全屏覆盖模式
+    // 移动端：使用 SwipeableDrawer，支持右滑打开
     return (
-      <AnimatePresence>
-        {finalOpen && (
-          <>
-            {/* 背景遮罩 */}
-            <motion.div
-              initial="closed"
-              animate="open"
-              exit="closed"
-              variants={backdropVariants}
-              onClick={handleBackdropClick}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 1200,
-              }}
-            />
-            
-            {/* 侧边栏内容 */}
-            <motion.div
-              initial="closed"
-              animate="open"
-              exit="closed"
-              variants={contentVariants}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                bottom: 0,
-                width: drawerWidth,
-                backgroundColor: theme.palette.background.paper,
-                zIndex: 1300,
-                boxShadow: theme.shadows[16],
-                borderRadius: '0 16px 16px 0',
-              }}
-            >
-              {drawer}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <SwipeableDrawer
+        anchor="left"
+        open={finalOpen}
+        onClose={handleClose}
+        onOpen={() => {
+          // 滑动打开时的处理
+          if (onMobileToggleRef.current) {
+            onMobileToggleRef.current();
+          } else {
+            setShowSidebar(true);
+          }
+        }}
+        disableSwipeToOpen={false} // 启用滑动打开功能
+        swipeAreaWidth={30} // 设置滑动区域宽度为30px，更容易触发
+        disableBackdropTransition={false} // 启用背景过渡动画
+        disableDiscovery={false} // 启用发现模式，显示滑动提示
+        ModalProps={{
+          keepMounted: true, // 提升移动端性能
+        }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            borderRadius: '0 16px 16px 0',
+            boxShadow: theme.shadows[16],
+          },
+        }}
+      >
+        {drawer}
+      </SwipeableDrawer>
     );
   }
 
-  // 桌面端：使用绝对定位，不影响主内容布局
+  // 桌面端：使用持久化 Drawer
   return (
-    <motion.div
-      initial={false}
-      animate={finalOpen ? "open" : "closed"}
-      variants={sidebarVariants}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '100vh',
-        backgroundColor: theme.palette.background.paper,
-        borderRight: `1px solid ${theme.palette.divider}`,
-        overflow: 'hidden',
-        zIndex: 1200,
+    <Drawer
+      variant="persistent"
+      anchor="left"
+      open={finalOpen}
+      sx={{
+        width: finalOpen ? drawerWidth : 0,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: drawerWidth,
+          boxSizing: 'border-box',
+          borderRight: `1px solid ${theme.palette.divider}`,
+          transition: theme.transitions.create(['width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        },
       }}
     >
       {drawer}
-    </motion.div>
+    </Drawer>
   );
 });
 

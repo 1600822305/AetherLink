@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, startTransition, useDeferredValue, useTransition } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
 import { useAssistant } from '../../../shared/hooks';
@@ -16,6 +16,7 @@ export function useSidebarState() {
   const [value, setValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
+  const [isPending, startTransitionLocal] = useTransition();
 
   const dispatch = useDispatch();
 
@@ -39,6 +40,9 @@ export function useSidebarState() {
   // 直接从Redux获取数据，移除冗余的本地状态
   const { assistants: userAssistants, currentAssistant, currentTopicId } = useSelector(selectSidebarState);
 
+  // 使用 useDeferredValue 延迟非关键更新
+  const deferredUserAssistants = useDeferredValue(userAssistants);
+
   // 使用useAssistant钩子加载当前助手的话题
   const {
     assistant: assistantWithTopics,
@@ -50,51 +54,49 @@ export function useSidebarState() {
   // 从数据库获取当前话题 - 优化版本，支持立即响应新创建的话题
   const [currentTopic, setCurrentTopic] = useState<any>(null);
 
-  // 当话题ID变化时，从数据库获取话题信息
+  // 优化：合并相关的 Effects，减少更新次数
   useEffect(() => {
-    const loadTopic = async () => {
+    let cancelled = false;
+
+    const loadAndSyncTopic = async () => {
       if (!currentTopicId) {
         setCurrentTopic(null);
         return;
       }
 
-      try {
-        // 🌟 优先从assistantWithTopics中查找话题（立即响应新创建的话题）
-        if (assistantWithTopics?.topics) {
-          const topicFromAssistant = assistantWithTopics.topics.find(t => t.id === currentTopicId);
-          if (topicFromAssistant) {
-            console.log('[useSidebarState] 从助手话题中找到话题:', topicFromAssistant.name);
-            setCurrentTopic(topicFromAssistant);
-            return;
-          }
+      // 优先使用内存中的数据（立即响应）
+      if (assistantWithTopics?.topics) {
+        const topicFromMemory = assistantWithTopics.topics.find(t => t.id === currentTopicId);
+        if (topicFromMemory && !cancelled) {
+          console.log('[useSidebarState] 从助手话题中找到话题:', topicFromMemory.name);
+          setCurrentTopic(topicFromMemory);
+          return; // 找到了就不需要查询数据库
         }
-
-        // 🔄 兜底：从数据库加载话题
-        const topic = await dexieStorage.getTopic(currentTopicId);
-        if (topic) {
-          console.log('[useSidebarState] 从数据库加载话题:', topic.name);
-          setCurrentTopic(topic);
-        } else {
-          console.warn('[useSidebarState] 话题不存在:', currentTopicId);
-        }
-      } catch (error) {
-        console.error('加载话题信息失败:', error);
       }
+
+      // 使用 startTransition 降低数据库查询的优先级
+      startTransition(() => {
+        dexieStorage.getTopic(currentTopicId).then(topic => {
+          if (!cancelled && topic) {
+            console.log('[useSidebarState] 从数据库加载话题:', topic.name);
+            setCurrentTopic(topic);
+          } else if (!cancelled && !topic) {
+            console.warn('[useSidebarState] 话题不存在:', currentTopicId);
+          }
+        }).catch(error => {
+          if (!cancelled) {
+            console.error('加载话题信息失败:', error);
+          }
+        });
+      });
     };
 
-    loadTopic();
-  }, [currentTopicId]); // 🔧 移除assistantWithTopics.topics依赖，避免循环
+    loadAndSyncTopic();
 
-  // 🌟 单独监听assistantWithTopics变化，更新currentTopic
-  useEffect(() => {
-    if (currentTopicId && assistantWithTopics?.topics) {
-      const topicFromAssistant = assistantWithTopics.topics.find(t => t.id === currentTopicId);
-      if (topicFromAssistant) {
-        console.log('[useSidebarState] 助手话题更新，同步currentTopic:', topicFromAssistant.name);
-        setCurrentTopic(topicFromAssistant);
-      }
-    }
-  }, [assistantWithTopics?.topics?.length, currentTopicId]); // 使用topics.length避免数组引用变化
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTopicId, assistantWithTopics?.topics]); // 合并依赖项
 
   // 简化状态设置函数，直接使用Redux
   const setUserAssistants = useCallback((assistants: Assistant[]) => {
@@ -107,24 +109,24 @@ export function useSidebarState() {
 
   // 移除复杂的加载状态防护，数据已预加载
 
-  // 🔥 简化版本：数据已在AppInitializer中预加载，这里只处理强制重新加载
+  // 优化：使用 useTransition 处理重量级操作
   const loadAssistants = useCallback(async (forceReload = false) => {
-    // 如果需要强制重新加载，重新获取数据
     if (forceReload) {
       console.log('[SidebarTabs] 强制重新加载助手列表...');
       try {
         const assistants = await AssistantService.getUserAssistants();
-        dispatch(setAssistants(assistants));
-        console.log(`[SidebarTabs] 重新加载了 ${assistants.length} 个助手`);
+        startTransitionLocal(() => {
+          dispatch(setAssistants(assistants));
+          console.log(`[SidebarTabs] 重新加载了 ${assistants.length} 个助手`);
+        });
       } catch (error) {
         console.error('[SidebarTabs] 重新加载助手列表失败:', error);
-        throw error;
       }
     } else {
       // 正常情况下，数据已经在Redux中预加载，无需额外操作
       console.log('[SidebarTabs] 使用预加载的助手数据');
     }
-  }, [dispatch]);
+  }, [dispatch, startTransitionLocal]);
 
   // 🔥 简化初始化逻辑：数据已在AppInitializer中预加载，这里只需要设置loading状态
   useEffect(() => {
@@ -156,7 +158,7 @@ export function useSidebarState() {
     value,
     setValue,
     loading,
-    userAssistants,
+    userAssistants: deferredUserAssistants, // 使用延迟版本
     setUserAssistants,
     currentAssistant,
     setCurrentAssistant,

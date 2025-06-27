@@ -45,6 +45,8 @@ export const useChatInputLogic = ({
 
   // 获取设置中的 sendWithEnter 配置
   const sendWithEnter = useSelector((state: RootState) => state.settings.sendWithEnter);
+  // 获取移动端输入法Enter键行为设置
+  const mobileInputMethodEnterAsNewline = useSelector((state: RootState) => state.settings.mobileInputMethodEnterAsNewline);
 
   // 主题和响应式
   const theme = useTheme();
@@ -238,6 +240,13 @@ export const useChatInputLogic = ({
 
     // Enter键发送消息 - 检查设置中的 sendWithEnter 配置
     if (e.key === 'Enter' && !e.shiftKey && (!enableCompositionHandling || !isComposing)) {
+      // 移动端输入法Enter键行为控制
+      if (isMobile && mobileInputMethodEnterAsNewline) {
+        // 移动端开启换行模式时，Enter键不发送消息，允许换行
+        // 不阻止默认行为，让Enter键正常换行
+        return;
+      }
+
       if (sendWithEnter) {
         // 启用Enter发送时，Enter键发送消息
         e.preventDefault();
@@ -245,7 +254,7 @@ export const useChatInputLogic = ({
       }
       // 如果禁用Enter发送，则不阻止默认行为，允许换行
     }
-  }, [enableCompositionHandling, isComposing, handleSubmit, sendWithEnter]);
+  }, [enableCompositionHandling, isComposing, handleSubmit, sendWithEnter, isMobile, mobileInputMethodEnterAsNewline]);
 
   // 输入法组合开始（ChatInput 特有）- 使用useCallback优化性能
   const handleCompositionStart = useCallback(() => {

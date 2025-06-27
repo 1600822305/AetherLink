@@ -331,7 +331,7 @@ const ScrollPerformanceMonitor: React.FC<ScrollPerformanceMonitorProps> = ({
         left: position.x,
         top: position.y,
         zIndex: 10000, // 提高z-index确保在最顶层
-        minWidth: { xs: 180, sm: 200 },
+        minWidth: isExpanded ? { xs: 180, sm: 200 } : { xs: 120, sm: 140 }, // 未展开时宽度更小
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         color: 'white',
         borderRadius: 2,

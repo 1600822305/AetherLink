@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../shared/store';
 import { getThemeColors } from '../../../shared/utils/themeUtils';
@@ -107,17 +107,14 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
     addCustomScrollbarStyles(isDarkMode);
   }, [isDarkMode]);
 
-  // 增强的 handleKeyDown 以支持展开功能
-  const enhancedHandleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 调用原始的 handleKeyDown
+  // 增强的 handleKeyDown 以支持展开功能 - 使用 useCallback 避免重复创建
+  const enhancedHandleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     handleKeyDown(e);
-
-    // Ctrl/Cmd + Enter 切换展开模式
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       onExpandToggle();
     }
-  };
+  }, [handleKeyDown, onExpandToggle]);
 
   // 增强的焦点处理，适应iOS设备 - 添加初始化防护
   useEffect(() => {
@@ -214,16 +211,26 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
 
   const textColor = themeColors.textPrimary;
 
+  // 缓存样式对象避免重复创建
+  const containerStyle = useMemo(() => ({
+    flexGrow: 1,
+    margin: shouldHideVoiceButton
+      ? (isTablet ? '0 12px 0 4px' : '0 8px 0 2px')
+      : (isTablet ? '0 12px' : '0 8px'),
+    position: 'relative' as const,
+    transition: 'margin 0.25s ease-in-out'
+  }), [shouldHideVoiceButton, isTablet]);
+
+  // 缓存 placeholder 文本避免重复计算
+  const placeholderText = useMemo(() => {
+    if (imageGenerationMode) return "输入图像生成提示词... (Ctrl+Enter 展开)";
+    if (videoGenerationMode) return "输入视频生成提示词... (Ctrl+Enter 展开)";
+    if (webSearchActive) return "输入网络搜索内容... (Ctrl+Enter 展开)";
+    return "和ai助手说点什么... (Ctrl+Enter 展开)";
+  }, [imageGenerationMode, videoGenerationMode, webSearchActive]);
+
   return (
-    <div style={{
-      flexGrow: 1,
-      // 当语音按钮隐藏时，左边距减少，为文本区域让出更多空间
-      margin: shouldHideVoiceButton
-        ? (isTablet ? '0 12px 0 4px' : '0 8px 0 2px')  // 语音按钮隐藏时减少左边距
-        : (isTablet ? '0 12px' : '0 8px'),              // 正常状态
-      position: 'relative',
-      transition: 'margin 0.25s ease-in-out' // 平滑过渡动画
-    }}>
+    <div style={containerStyle}>
 
 
       <textarea
@@ -249,15 +256,7 @@ const InputTextArea: React.FC<InputTextAreaProps> = ({
           scrollbarWidth: 'thin',
           scrollbarColor: `${isDarkMode ? '#555' : '#ccc'} transparent`
         }}
-        placeholder={
-          imageGenerationMode
-            ? "输入图像生成提示词... (Ctrl+Enter 展开)"
-            : videoGenerationMode
-              ? "输入视频生成提示词... (Ctrl+Enter 展开)"
-              : webSearchActive
-                ? "输入网络搜索内容... (Ctrl+Enter 展开)"
-                : "和ai助手说点什么... (Ctrl+Enter 展开)"
-        }
+        placeholder={placeholderText}
         value={message}
         onChange={handleChange}
         onKeyDown={enhancedHandleKeyDown}

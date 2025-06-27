@@ -438,31 +438,70 @@ export const selectOrderedMessagesByTopicId = createSelector(
 export const loadTopicMessagesThunk = createAsyncThunk(
   'normalizedMessages/loadTopicMessages',
   async (topicId: string, { dispatch, getState }) => {
+    const startTime = performance.now();
+    console.log(`[loadTopicMessagesThunk] 开始加载话题消息: ${topicId}`);
+
     try {
+      const cacheCheckStartTime = performance.now();
       const state = getState() as any;
 
       // 优化缓存检查 - 确保有实际消息数据才跳过加载
       const existingMessageIds = state.messages.messageIdsByTopic[topicId] || [];
       const hasActualMessages = existingMessageIds.length > 0 &&
         existingMessageIds.some((id: string) => state.messages.entities[id]);
+      const cacheCheckEndTime = performance.now();
+      console.log(`[loadTopicMessagesThunk] 缓存检查耗时: ${(cacheCheckEndTime - cacheCheckStartTime).toFixed(2)}ms`);
 
+      const setTopicIdStartTime = performance.now();
       dispatch(newMessagesActions.setCurrentTopicId(topicId));
+      const setTopicIdEndTime = performance.now();
+      console.log(`[loadTopicMessagesThunk] 设置当前话题ID耗时: ${(setTopicIdEndTime - setTopicIdStartTime).toFixed(2)}ms`);
 
       if (hasActualMessages) {
-        console.log(`[loadTopicMessagesThunk] 话题 ${topicId} 消息已缓存，跳过加载`);
+        const totalTime = performance.now() - startTime;
+        console.log(`[loadTopicMessagesThunk] 话题 ${topicId} 消息已缓存，跳过加载，总耗时: ${totalTime.toFixed(2)}ms`);
         return []; // 直接返回，不重新加载
       }
 
       // 防止竞争条件：检查是否正在加载
       if (state.messages.loadingByTopic[topicId]) {
+        const totalTime = performance.now() - startTime;
+        console.log(`[loadTopicMessagesThunk] 话题 ${topicId} 正在加载中，跳过，总耗时: ${totalTime.toFixed(2)}ms`);
         return [];
       }
 
+      const setLoadingStartTime = performance.now();
       dispatch(newMessagesActions.setTopicLoading({ topicId, loading: true }));
+      const setLoadingEndTime = performance.now();
+      console.log(`[loadTopicMessagesThunk] 设置加载状态耗时: ${(setLoadingEndTime - setLoadingStartTime).toFixed(2)}ms`);
 
-      // 直接从topic获取消息
-      const topic = await dexieStorage.getTopic(topicId);
+      // 优化：尝试从当前状态获取话题信息，避免数据库查询
+      const getTopicStartTime = performance.now();
+      let topic = null;
+
+      // 先尝试从 Redux 状态中获取话题信息
+      const currentState = getState() as any;
+      const assistants = currentState.assistants?.assistants || [];
+      for (const assistant of assistants) {
+        if (assistant.topics) {
+          const foundTopic = assistant.topics.find((t: any) => t.id === topicId);
+          if (foundTopic) {
+            topic = foundTopic;
+            console.log(`[loadTopicMessagesThunk] 从Redux获取话题，耗时: 0.00ms`);
+            break;
+          }
+        }
+      }
+
+      // 如果 Redux 中没有，才查询数据库
       if (!topic) {
+        topic = await dexieStorage.getTopic(topicId);
+        const getTopicEndTime = performance.now();
+        console.log(`[loadTopicMessagesThunk] 从数据库获取话题耗时: ${(getTopicEndTime - getTopicStartTime).toFixed(2)}ms`);
+      }
+
+      if (!topic) {
+        const createTopicStartTime = performance.now();
         // 如果topic不存在就创建一个空的
         await dexieStorage.saveTopic({
           id: topicId,
@@ -473,6 +512,10 @@ export const loadTopicMessagesThunk = createAsyncThunk(
           updatedAt: new Date().toISOString()
         } as any);
         dispatch(newMessagesActions.messagesReceived({ topicId, messages: [] }));
+        const createTopicEndTime = performance.now();
+        const totalTime = performance.now() - startTime;
+        console.log(`[loadTopicMessagesThunk] 创建新话题耗时: ${(createTopicEndTime - createTopicStartTime).toFixed(2)}ms`);
+        console.log(`[loadTopicMessagesThunk] 创建新话题总耗时: ${totalTime.toFixed(2)}ms`);
         return [];
       }
 
@@ -480,15 +523,22 @@ export const loadTopicMessagesThunk = createAsyncThunk(
       let messagesFromTopic: Message[] = [];
 
       if (topic.messageIds && topic.messageIds.length > 0) {
+        const getMessagesStartTime = performance.now();
         // 使用批量查询从messages表获取消息
         messagesFromTopic = await dexieStorage.getMessagesByIds(topic.messageIds);
+        const getMessagesEndTime = performance.now();
+        console.log(`[loadTopicMessagesThunk] 获取 ${topic.messageIds.length} 条消息耗时: ${(getMessagesEndTime - getMessagesStartTime).toFixed(2)}ms`);
       }
 
       if (messagesFromTopic.length > 0) {
+        const getBlocksStartTime = performance.now();
         // 简单的块查询
         const messageIds = messagesFromTopic.map(m => m.id);
         const blocks = await dexieStorage.getMessageBlocksByMessageIds(messageIds);
+        const getBlocksEndTime = performance.now();
+        console.log(`[loadTopicMessagesThunk] 获取 ${blocks.length} 个消息块耗时: ${(getBlocksEndTime - getBlocksStartTime).toFixed(2)}ms`);
 
+        const processDataStartTime = performance.now();
         // 确保消息有正确的blocks字段
         const messagesWithBlockIds = messagesFromTopic.map(m => ({
           ...m,
@@ -499,10 +549,17 @@ export const loadTopicMessagesThunk = createAsyncThunk(
           dispatch(upsertManyBlocks(blocks));
         }
         dispatch(newMessagesActions.messagesReceived({ topicId, messages: messagesWithBlockIds }));
+        const processDataEndTime = performance.now();
+        console.log(`[loadTopicMessagesThunk] 处理数据和dispatch耗时: ${(processDataEndTime - processDataStartTime).toFixed(2)}ms`);
       } else {
+        const emptyDispatchStartTime = performance.now();
         dispatch(newMessagesActions.messagesReceived({ topicId, messages: [] }));
+        const emptyDispatchEndTime = performance.now();
+        console.log(`[loadTopicMessagesThunk] 空消息dispatch耗时: ${(emptyDispatchEndTime - emptyDispatchStartTime).toFixed(2)}ms`);
       }
 
+      const totalTime = performance.now() - startTime;
+      console.log(`[loadTopicMessagesThunk] 加载话题消息总耗时: ${totalTime.toFixed(2)}ms`);
       return messagesFromTopic;
     } catch (error) {
       console.error(`[loadTopicMessagesThunk] 加载话题 ${topicId} 消息失败:`, error);

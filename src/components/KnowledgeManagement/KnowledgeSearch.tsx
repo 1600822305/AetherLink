@@ -39,7 +39,7 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(0.7);
-  const [maxResults] = useState(5);
+  const [maxResults, setMaxResults] = useState(5); // 改为可变状态，从知识库配置获取
   const [useEnhancedRAG, setUseEnhancedRAG] = useState(true); // 新增：RAG模式开关
   const [searchTime, setSearchTime] = useState<number | null>(null); // 新增：搜索耗时
   const currentTopicId = useSelector((state: RootState) => state.messages.currentTopicId);
@@ -50,6 +50,8 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
         const kb = await MobileKnowledgeService.getInstance().getKnowledgeBase(knowledgeBaseId);
         if (kb) {
           setThreshold(kb.threshold || 0.7);
+          // 使用知识库配置的文档数量，而不是硬编码的5
+          setMaxResults(kb.documentCount || 5);
         }
       } catch (err) {
         console.error('Error fetching knowledge base details:', err);

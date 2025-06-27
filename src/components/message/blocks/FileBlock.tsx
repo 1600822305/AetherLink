@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, IconButton, Chip, useTheme } from '@mui/material';
+import { Box, Typography, IconButton, Chip, useTheme, useMediaQuery } from '@mui/material';
 import {
   File as FileIcon,
   FileText as DocumentIcon,
@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import type { FileMessageBlock } from '../../../shared/types/newMessage';
 import { FileTypes } from '../../../shared/utils/fileUtils';
-import { MobileFileViewer } from '../../MobileFileViewer';
+import { MobileFileViewer, DesktopFileViewer } from '../../MobileFileViewer';
+import { isEditableFile as checkIsEditableFile } from '../../MobileFileViewer/utils';
 import type { WorkspaceFile } from '../../MobileFileViewer/types';
 
 interface Props {
@@ -77,6 +78,7 @@ const createFileReaderService = (fileBlock: FileMessageBlock) => {
  */
 const FileBlock: React.FC<Props> = ({ block }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [viewerOpen, setViewerOpen] = useState(false);
   const [workspaceFile, setWorkspaceFile] = useState<WorkspaceFile | null>(null);
 
@@ -93,10 +95,7 @@ const FileBlock: React.FC<Props> = ({ block }) => {
   // 判断文件是否可以编辑（文本或代码文件）
   const isEditableFile = () => {
     const fileName = file.origin_name || file.name || '';
-    const ext = fileName.split('.').pop()?.toLowerCase() || '';
-    const textExts = ['txt', 'md', 'json', 'xml', 'csv', 'log', 'yaml', 'yml'];
-    const codeExts = ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'py', 'java', 'cpp', 'c', 'h'];
-    return textExts.includes(ext) || codeExts.includes(ext);
+    return checkIsEditableFile(fileName);
   };
 
   // 处理文件查看
@@ -316,14 +315,28 @@ const FileBlock: React.FC<Props> = ({ block }) => {
       </Box>
     </Box>
 
-    {/* 文件查看器 */}
-    <MobileFileViewer
-      open={viewerOpen}
-      file={workspaceFile}
-      onClose={handleCloseViewer}
-      onSave={handleSaveFile}
-      customFileReader={createFileReaderService(block)}
-    />
+    {/* 文件查看器 - 根据设备类型选择 */}
+    {isMobile ? (
+      <MobileFileViewer
+        open={viewerOpen}
+        file={workspaceFile}
+        onClose={handleCloseViewer}
+        onSave={handleSaveFile}
+        customFileReader={createFileReaderService(block)}
+      />
+    ) : (
+      <DesktopFileViewer
+        open={viewerOpen}
+        file={workspaceFile}
+        onClose={handleCloseViewer}
+        onSave={handleSaveFile}
+        customFileReader={createFileReaderService(block)}
+        width="95vw"
+        height="90vh"
+        maxWidth="95vw"
+        maxHeight="90vh"
+      />
+    )}
   </>
   );
 };

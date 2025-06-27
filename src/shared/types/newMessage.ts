@@ -15,7 +15,6 @@ export const MessageBlockType = {
   ERROR: 'error',
   CITATION: 'citation',
   TRANSLATION: 'translation',
-  // TABLE: 'table', // 已废弃，表格通过Markdown渲染
   MULTI_MODEL: 'multi_model',
   CHART: 'chart',
   MATH: 'math',
@@ -182,13 +181,7 @@ export interface TranslationMessageBlock extends BaseMessageBlock {
   sourceBlockId?: string;
 }
 
-// 表格块 - 已废弃，表格通过Markdown渲染
-// export interface TableMessageBlock extends BaseMessageBlock {
-//   type: typeof MessageBlockType.TABLE;
-//   headers: string[];
-//   rows: string[][];
-//   caption?: string;
-// }
+
 
 // 多模型响应块
 export interface MultiModelMessageBlock extends BaseMessageBlock {
@@ -272,7 +265,6 @@ export type MessageBlock =
   | ErrorMessageBlock
   | CitationMessageBlock
   | TranslationMessageBlock
-  // | TableMessageBlock // 已废弃，表格通过Markdown渲染
   | MultiModelMessageBlock
   | ModelComparisonMessageBlock
   | ChartMessageBlock

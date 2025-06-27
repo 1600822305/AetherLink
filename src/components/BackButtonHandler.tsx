@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { App } from '@capacitor/app';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../shared/hooks/useAppState';
 
 /**
@@ -74,67 +74,97 @@ const handleSettingsBack = (pathname: string, navigate: (path: string) => void) 
  */
 const BackButtonHandler: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { setShowExitConfirm, hasOpenDialogs, openDialogs, closeDialog } = useAppState();
 
+  // 防抖机制：防止短时间内重复处理返回键事件
+  const lastBackButtonTime = useRef<number>(0);
+  const DEBOUNCE_DELAY = 300; // 300ms 防抖延迟
+
+  // 用于追踪组件是否已卸载
+  const isMountedRef = useRef(true);
+
+  // 使用useCallback缓存处理函数，避免因为依赖变化导致监听器重复创建
+  const handleBackButton = useCallback(() => {
+    const now = Date.now();
+
+    // 防抖检查：如果距离上次处理时间太短，则忽略此次事件
+    if (now - lastBackButtonTime.current < DEBOUNCE_DELAY) {
+      console.log('[BackButtonHandler] 防抖：忽略重复的返回键事件');
+      return;
+    }
+
+    lastBackButtonTime.current = now;
+
+    // 获取当前路径（实时获取，避免闭包问题）
+    const currentPath = window.location.hash.replace('#', '') || '/';
+
+    // 优先处理对话框关闭
+    if (hasOpenDialogs()) {
+      // 关闭最后打开的对话框
+      const dialogsArray = Array.from(openDialogs);
+      const lastDialog = dialogsArray[dialogsArray.length - 1];
+      if (lastDialog) {
+        closeDialog(lastDialog);
+        // 触发对话框关闭事件
+        window.dispatchEvent(new CustomEvent('closeDialog', {
+          detail: { dialogId: lastDialog }
+        }));
+      }
+      return;
+    }
+
+    // 根据当前路径决定行为
+    if (currentPath === '/chat') {
+      // 在聊天页面，显示退出确认对话框
+      setShowExitConfirm(true);
+    } else if (currentPath === '/welcome') {
+      // 在欢迎页面，显示退出确认对话框
+      setShowExitConfirm(true);
+    } else if (currentPath.startsWith('/settings')) {
+      // 在设置页面，智能返回到上级页面
+      handleSettingsBack(currentPath, navigate);
+    } else {
+      // 在其他页面，返回到聊天页面
+      navigate('/chat');
+    }
+  }, [navigate, setShowExitConfirm, hasOpenDialogs, openDialogs, closeDialog]);
+
   useEffect(() => {
-    // 保存监听器引用
+    isMountedRef.current = true;
     let listenerCleanup: (() => void) | undefined;
 
     // 监听返回键事件
     const setupListener = async () => {
       try {
-        const listener = await App.addListener('backButton', () => {
-          // 优先处理对话框关闭
-          if (hasOpenDialogs()) {
-            // 关闭最后打开的对话框
-            const dialogsArray = Array.from(openDialogs);
-            const lastDialog = dialogsArray[dialogsArray.length - 1];
-            if (lastDialog) {
-              closeDialog(lastDialog);
-              // 触发对话框关闭事件
-              window.dispatchEvent(new CustomEvent('closeDialog', {
-                detail: { dialogId: lastDialog }
-              }));
-            }
-            return;
-          }
+        const listener = await App.addListener('backButton', handleBackButton);
 
-          // 根据当前路径决定行为
-          if (location.pathname === '/chat') {
-            // 在聊天页面，显示退出确认对话框
-            setShowExitConfirm(true);
-          } else if (location.pathname === '/welcome') {
-            // 在欢迎页面，显示退出确认对话框
-            setShowExitConfirm(true);
-          } else if (location.pathname.startsWith('/settings')) {
-            // 在设置页面，智能返回到上级页面
-            handleSettingsBack(location.pathname, navigate);
-          } else {
-            // 在其他页面，返回到聊天页面
-            navigate('/chat');
-          }
-        });
-
-        // 保存清理函数
-        listenerCleanup = () => {
+        // 确保组件仍然挂载
+        if (isMountedRef.current) {
+          listenerCleanup = () => {
+            listener.remove();
+          };
+        } else {
+          // 如果组件已卸载，立即清理
           listener.remove();
-        };
+        }
       } catch (error) {
         console.error('设置返回键监听器失败:', error);
       }
     };
 
-    // 设置监听器
-    setupListener();
+    // 设置监听器并处理Promise
+    setupListener().catch(error => {
+      console.error('BackButtonHandler setupListener error:', error);
+    });
 
     // 组件卸载时移除监听器
     return () => {
+      isMountedRef.current = false;
       if (listenerCleanup) {
         listenerCleanup();
       }
     };
-  }, [navigate, location.pathname, setShowExitConfirm, hasOpenDialogs, openDialogs, closeDialog]);
+  }, [handleBackButton]); // 只依赖handleBackButton
 
   // 这是一个纯逻辑组件，不渲染任何UI
   return null;

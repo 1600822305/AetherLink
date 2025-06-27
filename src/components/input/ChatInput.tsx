@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { IconButton, CircularProgress, Badge, Tooltip } from '@mui/material';
-import { Send, Plus, Square, Keyboard, Mic, ChevronDown, ChevronUp } from 'lucide-react';
+import { IconButton, Tooltip } from '@mui/material';
+import { Keyboard, Mic, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { useChatInputLogic } from '../../shared/hooks/useChatInputLogic';
 
@@ -8,12 +8,12 @@ import { useChatInputLogic } from '../../shared/hooks/useChatInputLogic';
 import { useInputStyles } from '../../shared/hooks/useInputStyles';
 import MultiModelSelector from './MultiModelSelector';
 import type { ImageContent, SiliconFlowImageFormat, FileContent } from '../../shared/types';
-import { Image, Search } from 'lucide-react';
 
 import type { FileStatus } from '../FilePreview';
 import UploadMenu from './UploadMenu';
 import FileUploadManager, { type FileUploadManagerRef } from './ChatInput/FileUploadManager';
 import InputTextArea from './ChatInput/InputTextArea';
+import ChatInputButtons from './ChatInput/ChatInputButtons';
 import EnhancedToast, { toastManager } from '../EnhancedToast';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import { useSelector } from 'react-redux';
@@ -506,8 +506,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 
 
-  // 显示正在加载的指示器，但不禁用输入框
-  const showLoadingIndicator = isLoading && !allowConsecutiveMessages;
 
   // 根据屏幕尺寸调整样式
   const getResponsiveStyles = () => {
@@ -723,73 +721,27 @@ const ChatInput: React.FC<ChatInputProps> = ({
           />
         )}
 
-        {/* 在非录音状态下显示其他按钮 */}
+        {/* 在非录音状态下显示右侧按钮 */}
         {voiceState !== 'recording' && (
-          <>
-            {/* 添加按钮，打开上传菜单 */}
-            <Tooltip title="添加图片或文件">
-              <span>
-                <IconButton
-                  size={isTablet ? "large" : "medium"}
-                  onClick={handleOpenUploadMenu}
-                  disabled={uploadingMedia || (isLoading && !allowConsecutiveMessages)}
-                  style={{
-                    color: uploadingMedia ? disabledColor : (isDarkMode ? '#ffffff' : '#000000'),
-                    padding: isTablet ? '10px' : '8px',
-                    position: 'relative',
-                    marginRight: isTablet ? '4px' : '0'
-                  }}
-                >
-                  {uploadingMedia ? (
-                    <CircularProgress size={isTablet ? 28 : 24} />
-                  ) : (
-                    <Badge badgeContent={images.length + files.length} color="primary" max={9} invisible={images.length + files.length === 0}>
-                      <Plus size={isTablet ? 28 : 24} />
-                    </Badge>
-                  )}
-                </IconButton>
-              </span>
-            </Tooltip>
-
-
-
-
-
-            {/* 发送按钮或停止按钮 */}
-            <Tooltip
-              title={
-                isStreaming ? "停止生成" :
-                imageGenerationMode ? "生成图像" :
-                webSearchActive ? "搜索网络" :
-                "发送消息"
-              }
-            >
-              <span>
-                <IconButton
-                  onClick={isStreaming && onStopResponse ? onStopResponse : handleSubmit}
-                  disabled={!isStreaming && (!canSendMessage() || (isLoading && !allowConsecutiveMessages))}
-                  size={isTablet ? "large" : "medium"}
-                  style={{
-                    color: isStreaming ? '#ff4d4f' : !canSendMessage() || (isLoading && !allowConsecutiveMessages) ? disabledColor : imageGenerationMode ? '#9C27B0' : webSearchActive ? '#3b82f6' : isDarkMode ? '#4CAF50' : '#09bb07',
-                    padding: isTablet ? '10px' : '8px'
-                  }}
-                >
-                  {isStreaming ? (
-                    <Square size={isTablet ? 20 : 18} />
-                  ) : showLoadingIndicator ? (
-                    <CircularProgress size={isTablet ? 28 : 24} color="inherit" />
-                  ) : imageGenerationMode ? (
-                    <Image size={isTablet ? 20 : 18} />
-                  ) : webSearchActive ? (
-                    <Search size={isTablet ? 20 : 18} />
-                  ) : (
-                    <Send size={isTablet ? 20 : 18} />
-                  )}
-                </IconButton>
-              </span>
-            </Tooltip>
-          </>
+          <ChatInputButtons
+            uploadingMedia={uploadingMedia}
+            isLoading={isLoading}
+            allowConsecutiveMessages={allowConsecutiveMessages}
+            isStreaming={isStreaming}
+            imageGenerationMode={imageGenerationMode}
+            webSearchActive={webSearchActive}
+            images={images}
+            files={files}
+            isDarkMode={isDarkMode}
+            isTablet={isTablet}
+            disabledColor={disabledColor}
+            handleOpenUploadMenu={handleOpenUploadMenu}
+            handleSubmit={handleSubmit}
+            onStopResponse={onStopResponse}
+            canSendMessage={canSendMessage}
+          />
         )}
+
       </div>
 
       {/* 上传选择菜单 */}

@@ -108,7 +108,6 @@ export type MessageBlock =
   | ErrorMessageBlock
   | CitationMessageBlock
   | TranslationMessageBlock
-  | TableMessageBlock
   | MultiModelMessageBlock
   | ChartMessageBlock
   | MathMessageBlock

@@ -91,11 +91,11 @@ const Markdown: React.FC<Props> = ({ block, content, allowHtml = false, messageR
       processedContent = empty && paused ? '消息已暂停' : block.content || '';
     }
 
-    // 应用所有转换：数学公式 -> 转义括号 -> 移除SVG空行 -> 移除行尾双空格
+    // 应用所有转换：移除行末双空格 -> 数学公式 -> 转义括号 -> 移除SVG空行
+    processedContent = removeTrailingDoubleSpaces(processedContent);
     processedContent = convertMathFormula(processedContent);
     processedContent = escapeBrackets(processedContent);
     processedContent = removeSvgEmptyLines(processedContent);
-    processedContent = removeTrailingDoubleSpaces(processedContent);
 
     return processedContent;
   }, [block, content]);

@@ -37,7 +37,7 @@ const MinimalStyleMessage: React.FC<BaseMessageStyleProps> = ({
       sx={{
         display: 'flex',
         flexDirection: 'row',
-        marginBottom: 0,
+        marginBottom: 1.5, // 修复：添加底部间距，防止输入框遮挡
         paddingX: 2,
         paddingY: 1.5,
         alignItems: 'flex-start',

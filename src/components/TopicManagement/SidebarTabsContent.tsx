@@ -87,10 +87,8 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
       // 助手数据已预加载，无需刷新
     }
 
-    // 使用startTransition标记为非紧急更新，提升性能
-    startTransition(() => {
-      setValue(newValue);
-    });
+    // 直接设置值，标签页切换应该立即响应
+    setValue(newValue);
   };
 
   return (

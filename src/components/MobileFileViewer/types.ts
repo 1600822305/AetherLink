@@ -18,6 +18,30 @@ export interface MobileFileViewerProps {
   };
 }
 
+export interface DesktopFileViewerProps {
+  open: boolean;
+  file: WorkspaceFile | null;
+  onClose: () => void;
+  onSave?: (content: string) => Promise<void>;
+  customFileReader?: {
+    readFile: (options: { path: string; encoding: string }) => Promise<{ content: string; encoding: string }>;
+  };
+  // 桌面端特有的props
+  width?: number | string;
+  height?: number | string;
+  maxWidth?: number | string;
+  maxHeight?: number | string;
+}
+
+export interface EditorSettings {
+  fontSize: number;
+  lineNumbers: boolean;
+  wordWrap: boolean;
+  theme: 'light' | 'dark';
+  minimap: boolean;
+  folding: boolean;
+}
+
 export type FileType = 'text' | 'image' | 'pdf' | 'code' | 'unknown';
 
 export interface ZoomState {

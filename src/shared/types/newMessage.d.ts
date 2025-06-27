@@ -135,13 +135,7 @@ export interface TranslationMessageBlock extends BaseMessageBlock {
   sourceBlockId?: string;
 }
 
-// 表格块 - 已废弃，表格通过Markdown渲染
-// export interface TableMessageBlock extends BaseMessageBlock {
-//   type: typeof MessageBlockType.TABLE;
-//   headers: string[];
-//   rows: string[][];
-//   caption?: string;
-// }
+
 
 // 多模型响应块
 export interface MultiModelMessageBlock extends BaseMessageBlock {

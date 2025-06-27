@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import Markdown from '../Markdown';
 import { formatThinkingTimeSeconds } from '../../../shared/utils/thinkingUtils';
+import { removeTrailingDoubleSpaces } from '../../../utils/markdown';
 import { getThinkingScrollbarStyles } from '../../../shared/utils/scrollbarStyles';
 
 interface AdvancedStylesProps {
@@ -54,6 +55,8 @@ interface StreamRendererProps {
   onCopy: (e: React.MouseEvent) => void;
   copied: boolean;
   theme: Theme;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }
 
 const StreamRenderer: React.FC<StreamRendererProps> = React.memo(({
@@ -65,67 +68,123 @@ const StreamRenderer: React.FC<StreamRendererProps> = React.memo(({
   onCopy,
   copied,
   theme,
+  expanded,
+  onToggleExpanded,
 }) => {
+  const currentIndexRef = useRef(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastContentRef = useRef('');
+
   useEffect(() => {
     if (isThinking && content) {
-      let index = 0;
-      const timer = setInterval(() => {
-        if (index < content.length) {
-          onSetStreamText(content.substring(0, index + 1));
-          index++;
-        } else {
-          clearInterval(timer);
+      // 如果内容完全不同（比如新的思考开始），重置索引
+      if (!content.startsWith(lastContentRef.current)) {
+        currentIndexRef.current = 0;
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
         }
-      }, 50);
-      return () => clearInterval(timer);
+      }
+
+      lastContentRef.current = content;
+
+      // 如果没有正在运行的定时器，启动新的定时器
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => {
+          if (currentIndexRef.current < content.length) {
+            onSetStreamText(removeTrailingDoubleSpaces(content.substring(0, currentIndexRef.current + 1)));
+            currentIndexRef.current++;
+          } else {
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+          }
+        }, 50);
+      }
+
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      };
     } else if (!isThinking) {
-      onSetStreamText(content);
+      // 思考完成，清除定时器并显示完整内容
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      currentIndexRef.current = 0;
+      lastContentRef.current = '';
+      onSetStreamText(removeTrailingDoubleSpaces(content));
     }
   }, [isThinking, content, onSetStreamText]);
 
   return (
     <Box sx={{ mb: 2, position: 'relative' }}>
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        mb: 1,
-        p: 1,
-        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-        borderRadius: 1,
-        border: `1px solid ${theme.palette.divider}`
-      }}>
+      <Box
+        onClick={onToggleExpanded}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          mb: 1,
+          p: 1,
+          backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+          borderRadius: 1,
+          border: `1px solid ${theme.palette.divider}`,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          }
+        }}>
         <Brain size={16} color={theme.palette.primary.main} style={{ marginRight: 8 }} />
         <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
           {isThinking ? '正在思考...' : '思考完成'} ({formattedThinkingTime}s)
         </Typography>
-        <Box sx={{ ml: 'auto' }}>
-          <IconButton size="small" onClick={onCopy} color={copied ? "success" : "default"}>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ChevronDown
+            size={14}
+            style={{
+              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s'
+            }}
+          />
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy(e);
+            }}
+            color={copied ? "success" : "default"}
+          >
             <Copy size={14} />
           </IconButton>
         </Box>
       </Box>
-      <Box sx={{
-        fontFamily: 'monospace',
-        fontSize: '0.9rem',
-        lineHeight: 1.6,
-        whiteSpace: 'pre-wrap',
-        p: 2,
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 1,
-        border: `1px solid ${theme.palette.divider}`,
-        minHeight: 100,
-        position: 'relative',
-        '&::after': isThinking ? {
-          content: '"▋"',
-          animation: 'blink 1s infinite',
-          '@keyframes blink': {
-            '0%, 50%': { opacity: 1 },
-            '51%, 100%': { opacity: 0 }
-          }
-        } : {}
-      }}>
-        <Markdown content={streamText} allowHtml={false} />
-      </Box>
+      <Collapse in={expanded}>
+        <Box sx={{
+          fontFamily: 'monospace',
+          fontSize: '0.9rem',
+          lineHeight: 1.6,
+          p: 2,
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 1,
+          border: `1px solid ${theme.palette.divider}`,
+          minHeight: 100,
+          position: 'relative',
+          '&::after': isThinking ? {
+            content: '"▋"',
+            animation: 'blink 1s infinite',
+            '@keyframes blink': {
+              '0%, 50%': { opacity: 1 },
+              '51%, 100%': { opacity: 0 }
+            }
+          } : {}
+        }}>
+          <Markdown content={removeTrailingDoubleSpaces(streamText)} allowHtml={false} />
+        </Box>
+      </Collapse>
     </Box>
   );
 });
@@ -1101,6 +1160,8 @@ const ThinkingAdvancedStyles: React.FC<AdvancedStylesProps> = ({
         onCopy={onCopy}
         copied={copied}
         theme={theme}
+        expanded={expanded}
+        onToggleExpanded={onToggleExpanded}
       />;
     case 'wave':
       return renderWaveStyle();
