@@ -1,5 +1,5 @@
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, startTransition, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { SidebarProvider } from './SidebarContext';
@@ -69,14 +69,14 @@ const SidebarTabs = React.memo(function SidebarTabs({
 
   // 本地话题管理功能 - Cherry Studio极简模式
   const handleSelectTopic = useCallback((topic: ChatTopic) => {
-    const startTime = performance.now();
     console.log('[SidebarTabs] handleSelectTopic被调用:', topic.id, topic.name);
 
-    // 🚀 Cherry Studio模式：直接设置Redux状态，不使用startTransition避免延迟
-    dispatch(newMessagesActions.setCurrentTopicId(topic.id));
+    // 🚀 Cherry Studio模式：只设置Redux状态，让useActiveTopic处理其余逻辑
+    startTransition(() => {
+      dispatch(newMessagesActions.setCurrentTopicId(topic.id));
+    });
 
-    const endTime = performance.now();
-    console.log(`[SidebarTabs] 话题切换完成，耗时: ${(endTime - startTime).toFixed(2)}ms`);
+    console.log('[SidebarTabs] 话题切换完成');
   }, [dispatch]);
 
   const handleDeleteTopic = useCallback(async (topicId: string, event: React.MouseEvent) => {
@@ -102,25 +102,29 @@ const SidebarTabs = React.memo(function SidebarTabs({
           : assistantWithTopics.topics[currentIndex - 1];
 
         console.log('[SidebarTabs] 删除当前话题，立即切换到:', nextTopic.name);
-        dispatch(newMessagesActions.setCurrentTopicId(nextTopic.id));
+        startTransition(() => {
+          dispatch(newMessagesActions.setCurrentTopicId(nextTopic.id));
+        });
       }
     }
 
     // 立即从Redux中移除话题，UI立即响应
-    // 🔥 关键修复：如果删除的是最后一个话题，先清空currentTopicId
-    // 这样TopicTab的自动选择逻辑就会生效
-    if (assistantWithTopics?.topics && assistantWithTopics.topics.length === 1) {
-      console.log('[SidebarTabs] 删除最后一个话题，先清空currentTopicId');
-      dispatch(newMessagesActions.setCurrentTopicId(''));
-    }
+    startTransition(() => {
+      // 🔥 关键修复：如果删除的是最后一个话题，先清空currentTopicId
+      // 这样TopicTab的自动选择逻辑就会生效
+      if (assistantWithTopics?.topics && assistantWithTopics.topics.length === 1) {
+        console.log('[SidebarTabs] 删除最后一个话题，先清空currentTopicId');
+        dispatch(newMessagesActions.setCurrentTopicId(''));
+      }
 
-    dispatch(removeTopic({
-      assistantId: currentAssistant.id,
-      topicId: topicId
-    }));
+      dispatch(removeTopic({
+        assistantId: currentAssistant.id,
+        topicId: topicId
+      }));
+    });
 
-    // 🔄 异步删除数据库数据，不阻塞UI - 使用 queueMicrotask 更高效
-    queueMicrotask(async () => {
+    // 🔄 异步删除数据库数据，不阻塞UI
+    Promise.resolve().then(async () => {
       try {
         await TopicService.deleteTopic(topicId);
         console.log('[SidebarTabs] 话题数据库删除完成:', topicId);
@@ -149,80 +153,78 @@ const SidebarTabs = React.memo(function SidebarTabs({
 
 
 
-  // 优化：使用 useRef 缓存稳定的函数，避免重复创建
-  const stableFunctionsRef = useRef({
-    handleSelectAssistant,
-    handleAddAssistant,
-    handleUpdateAssistant,
-    handleDeleteAssistant,
-    handleCreateTopic,
-    handleSelectTopic,
-    handleDeleteTopic,
-    handleUpdateTopic,
-    handleSettingChange,
-    handleContextLengthChange,
-    handleContextCountChange,
-    handleMathRendererChange,
-    handleThinkingEffortChange,
-    handleMCPModeChange: onMCPModeChange,
-    handleToolsToggle: onToolsToggle,
-  });
-
-  // 更新稳定函数引用
-  stableFunctionsRef.current = {
-    handleSelectAssistant,
-    handleAddAssistant,
-    handleUpdateAssistant,
-    handleDeleteAssistant,
-    handleCreateTopic,
-    handleSelectTopic,
-    handleDeleteTopic,
-    handleUpdateTopic,
-    handleSettingChange,
-    handleContextLengthChange,
-    handleContextCountChange,
-    handleMathRendererChange,
-    handleThinkingEffortChange,
-    handleMCPModeChange: onMCPModeChange,
-    handleToolsToggle: onToolsToggle,
-  };
-
-  // 简化的 context 值，减少计算开销
+  // 优化：使用 useMemo 避免每次都创建新的 contextValue 对象
   const contextValue = useMemo(() => ({
-    // 频繁变化的状态
+    // 状态
     loading,
     value,
-    currentAssistant,
     userAssistants,
-    currentTopic,
+    currentAssistant,
     assistantWithTopics,
-    settings,
-    settingsArray,
-    mcpMode,
-    toolsEnabled,
+    currentTopic,
 
-    // 稳定的函数引用
-    ...stableFunctionsRef.current,
-
-    // 少量的其他属性
+    // 设置状态的函数
     setValue,
     setCurrentAssistant,
-    refreshTopics,
+
+    // 助手管理函数
+    handleSelectAssistant,
+    handleAddAssistant,
+    handleUpdateAssistant,
+    handleDeleteAssistant,
+
+    // 话题管理函数
+    handleCreateTopic,
+    handleSelectTopic,
+    handleDeleteTopic,
+    handleUpdateTopic,
+
+    // 设置管理
+    settings,
+    settingsArray,
+    handleSettingChange,
+    handleContextLengthChange,
+    handleContextCountChange,
+    handleMathRendererChange,
+    handleThinkingEffortChange,
+
+    // MCP 相关状态和函数
+    mcpMode,
+    toolsEnabled,
+    handleMCPModeChange: onMCPModeChange,
+    handleToolsToggle: onToolsToggle,
+
+    // 刷新函数
+    refreshTopics
   }), [
-    // 只包含真正会变化的值
     loading,
     value,
-    currentAssistant,
     userAssistants,
-    currentTopic,
+    currentAssistant,
     assistantWithTopics,
-    settings,
-    settingsArray,
-    mcpMode,
-    toolsEnabled,
+    currentTopic,
     setValue,
     setCurrentAssistant,
-    refreshTopics,
+    handleSelectAssistant,
+    handleAddAssistant,
+    handleUpdateAssistant,
+    handleDeleteAssistant,
+    handleCreateTopic,
+    handleSelectTopic,
+    handleDeleteTopic,
+    handleUpdateTopic,
+    settings,
+    settingsArray,
+    handleSettingChange,
+    handleContextLengthChange,
+    handleContextCountChange,
+    handleMathRendererChange,
+    handleThinkingEffortChange,
+    mcpMode,
+    toolsEnabled,
+    onMCPModeChange,
+    onToolsToggle,
+    refreshTopics
   ]);
 
   return (

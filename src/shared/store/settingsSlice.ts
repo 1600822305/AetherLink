@@ -14,8 +14,6 @@ interface SettingsState {
   language: string;
   sendWithEnter: boolean;
   enableNotifications: boolean;
-  // 移动端输入法发送按钮控制
-  mobileInputMethodEnterAsNewline: boolean; // 移动端输入法的Enter键是否作为换行而非发送
   models: Model[];
   providers: ModelProvider[];
   defaultModelId?: string;
@@ -175,7 +173,6 @@ const getInitialState = (): SettingsState => {
     language: 'zh-CN',
     sendWithEnter: true,
     enableNotifications: true,
-    mobileInputMethodEnterAsNewline: false, // 默认移动端输入法Enter键仍然发送消息
     models: [],
     providers: initialProviders,
     enableTopicNaming: true, // 统一字段名称，与最佳实例保持一致
@@ -524,9 +521,6 @@ const settingsSlice = createSlice({
     setEnableNotifications: (state, action: PayloadAction<boolean>) => {
       state.enableNotifications = action.payload;
     },
-    setMobileInputMethodEnterAsNewline: (state, action: PayloadAction<boolean>) => {
-      state.mobileInputMethodEnterAsNewline = action.payload;
-    },
     addModel: (state, action: PayloadAction<Model>) => {
         state.models.push(action.payload);
     },
@@ -841,7 +835,6 @@ export const {
   setLanguage,
   setSendWithEnter,
   setEnableNotifications,
-  setMobileInputMethodEnterAsNewline,
   addModel,
   updateModel,
   deleteModel,

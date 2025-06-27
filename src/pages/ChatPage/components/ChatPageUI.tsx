@@ -18,9 +18,33 @@ import { getThemeColors } from '../../../shared/utils/themeUtils';
 import { generateBackgroundStyle } from '../../../shared/utils/backgroundUtils';
 import { useTheme } from '@mui/material/styles';
 import ChatNavigation from '../../../components/chat/ChatNavigation';
-import ErrorBoundary from '../../../components/ErrorBoundary';
-import type { DebateConfig } from '../../../shared/services/AIDebateService';
-import { createSelector } from 'reselect';
+
+// 辩论配置类型
+interface DebateConfig {
+  participants?: number;
+  rounds?: number;
+  timeLimit?: number;
+}
+
+// 简单的错误边界组件
+const ErrorBoundary: React.FC<{ children: React.ReactNode; fallback?: React.ReactNode }> = ({
+  children,
+  fallback = <Typography color="error">组件加载出错，请刷新页面重试</Typography>
+}) => {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
+};
 
 
 
@@ -41,39 +65,6 @@ const DEFAULT_TOP_TOOLBAR_SETTINGS = {
   rightComponents: ['searchButton', 'modelSelector', 'settingsButton'],
   componentPositions: [],
 } as const;
-
-// 样式常量 - 避免每次渲染时重新计算
-const DRAWER_WIDTH = 320;
-const ANIMATION_CONFIG = {
-  duration: 0.2,
-  ease: [0.25, 0.46, 0.45, 0.94] as const
-};
-const BUTTON_ANIMATION_CONFIG = {
-  duration: 0.1
-} as const;
-
-// 记忆化的选择器 - 避免不必要的重渲染
-const selectChatPageSettings = createSelector(
-  (state: RootState) => state.settings.themeStyle,
-  (state: RootState) => state.settings.inputLayoutStyle,
-  (state: RootState) => state.settings.topToolbar,
-  (state: RootState) => state.settings.modelSelectorStyle,
-  (state: RootState) => state.settings.chatBackground,
-  (themeStyle, inputLayoutStyle, topToolbar, modelSelectorStyle, chatBackground) => ({
-    themeStyle,
-    inputLayoutStyle: inputLayoutStyle || 'default',
-    topToolbar,
-    modelSelectorStyle,
-    chatBackground: chatBackground || {
-      enabled: false,
-      imageUrl: '',
-      opacity: 0.3,
-      size: 'cover',
-      position: 'center',
-      repeat: 'no-repeat'
-    }
-  })
-);
 
 // 所有从父组件传入的props类型
 interface ChatPageUIProps {
@@ -165,26 +156,42 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
 
   // 本地状态
 
-  // 提取重复的条件判断
-  const isDrawerVisible = drawerOpen && !isMobile;
-
-  // 使用记忆化的选择器
-  const settings = useSelector(selectChatPageSettings);
+  // Redux 状态选择器
+  const themeStyle = useSelector((state: RootState) => state.settings.themeStyle);
+  const inputLayoutStyle = useSelector((state: RootState) =>
+    state.settings.inputLayoutStyle || 'default'
+  );
+  const topToolbarSettings = useSelector((state: RootState) =>
+    state.settings.topToolbar
+  );
+  const modelSelectorStyle = useSelector((state: RootState) =>
+    state.settings.modelSelectorStyle
+  );
+  const chatBackground = useSelector((state: RootState) =>
+    state.settings.chatBackground || {
+      enabled: false,
+      imageUrl: '',
+      opacity: 0.3,
+      size: 'cover',
+      position: 'center',
+      repeat: 'no-repeat'
+    }
+  );
 
   // ==================== 计算属性和样式 ====================
-  const themeColors = getThemeColors(theme, settings.themeStyle);
+  const themeColors = getThemeColors(theme, themeStyle);
 
   const mergedTopToolbarSettings = {
     ...DEFAULT_TOP_TOOLBAR_SETTINGS,
-    ...settings.topToolbar
+    ...topToolbarSettings
   };
 
-  const shouldShowToolbar = settings.inputLayoutStyle === 'default';
+  const shouldShowToolbar = inputLayoutStyle === 'default';
 
   // 生成背景样式
   const backgroundStyle = useMemo(() =>
-    generateBackgroundStyle(settings.chatBackground),
-    [settings.chatBackground]
+    generateBackgroundStyle(chatBackground),
+    [chatBackground]
   );
 
   // 优化：将样式分离，减少重新计算
@@ -254,7 +261,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             key={componentId}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            transition={BUTTON_ANIMATION_CONFIG}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               edge="start"
@@ -287,7 +294,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             key={componentId}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            transition={BUTTON_ANIMATION_CONFIG}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               color="inherit"
@@ -306,7 +313,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             key={componentId}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            transition={BUTTON_ANIMATION_CONFIG}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               color="inherit"
@@ -322,7 +329,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
       case 'modelSelector':
         return shouldShow('showModelSelector') ? (
           <Box key={componentId} sx={{ display: 'flex', alignItems: 'center' }}>
-            {settings.modelSelectorStyle === 'dropdown' ? (
+            {modelSelectorStyle === 'dropdown' ? (
               <DropdownModelSelector
                 selectedModel={selectedModel}
                 availableModels={availableModels}
@@ -357,7 +364,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             key={componentId}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            transition={BUTTON_ANIMATION_CONFIG}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               color={showSearch ? "primary" : "inherit"}
@@ -380,7 +387,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             key={componentId}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            transition={BUTTON_ANIMATION_CONFIG}
+            transition={{ duration: 0.1 }}
           >
             <IconButton
               color="inherit"
@@ -396,7 +403,6 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
     }
   }, [
     mergedTopToolbarSettings,
-    settings.modelSelectorStyle,
     drawerOpen,
     currentTopic,
     selectedModel,
@@ -415,21 +421,21 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
   ]);
 
   // ==================== 消息处理函数 ====================
-  const handleSendMessage = useCallback((content: string, images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => {
+  const handleSendMessage = (content: string, images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => {
     if (currentTopic) {
       handleMessageSend(content, images, toolsEnabled, files);
     } else {
       console.log('没有当前话题，无法发送消息');
     }
-  }, [currentTopic, handleMessageSend]);
+  };
 
-  const handleSendMultiModelMessage = useCallback((content: string, models: any[], images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => {
-    if (currentTopic && handleMultiModelSend) {
-      handleMultiModelSend(content, models, images, toolsEnabled, files);
+  const handleSendMultiModelMessage = (content: string, models: any[], images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => {
+    if (currentTopic) {
+      handleMultiModelSend?.(content, models, images, toolsEnabled, files);
     } else {
       console.log('没有当前话题，无法发送多模型消息');
     }
-  }, [currentTopic, handleMultiModelSend]);
+  };
 
   const handleSendImagePrompt = (prompt: string) => {
     handleMessageSend(prompt);
@@ -437,7 +443,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
 
   // ==================== 组件配置和渲染 ====================
 
-  const commonProps = {
+  const commonProps: any = {
     onSendMessage: handleSendMessage,
     availableModels,
     isLoading,
@@ -460,7 +466,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
   };
 
   const inputComponent = useMemo(() => {
-    if (settings.inputLayoutStyle === 'compact') {
+    if (inputLayoutStyle === 'compact') {
       return (
         <CompactChatInput
           key="compact-input"
@@ -472,7 +478,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
           toggleToolsEnabled={toggleToolsEnabled}
         />
       );
-    } else if (settings.inputLayoutStyle === 'integrated') {
+    } else if (inputLayoutStyle === 'integrated') {
       return (
         <IntegratedChatInput
           key="integrated-input"
@@ -488,7 +494,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
       return <ChatInput key="default-input" {...commonProps} />;
     }
   }, [
-    settings.inputLayoutStyle,
+    inputLayoutStyle,
     commonProps,
     handleClearTopic,
     handleCreateTopic,
@@ -497,13 +503,16 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
     toggleToolsEnabled
   ]);
 
-  const InputContainer = useMemo(() => (
+  const InputContainer = (
     <motion.div
       animate={{
-        left: isDrawerVisible ? DRAWER_WIDTH : 0,
-        width: isDrawerVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%'
+        left: drawerOpen && !isMobile ? 320 : 0,
+        width: drawerOpen && !isMobile ? 'calc(100% - 320px)' : '100%'
       }}
-      transition={ANIMATION_CONFIG}
+      transition={{
+        duration: 0.2,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      }}
       style={{
         position: 'fixed',
         bottom: 0,
@@ -522,7 +531,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
           width: '100%',
           display: 'flex',
           justifyContent: 'center',
-          px: { xs: 0, sm: 2 } // 移动端无间距，桌面端保持16px间距
+          px: 2 // 添加左右内边距
         }}>
           <ChatToolbar
             onClearTopic={handleClearTopic}
@@ -542,25 +551,12 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
         width: '100%',
         display: 'flex',
         justifyContent: 'center',
-        px: { xs: 0, sm: 2 } // 移动端无间距，桌面端保持16px间距
+        px: 2 // 添加左右内边距
       }}>
         {inputComponent}
       </Box>
     </motion.div>
-  ), [
-    isDrawerVisible,
-    shouldShowToolbar,
-    inputComponent,
-    handleClearTopic,
-    imageGenerationMode,
-    toggleImageGenerationMode,
-    videoGenerationMode,
-    toggleVideoGenerationMode,
-    webSearchActive,
-    toggleWebSearch,
-    toolsEnabled,
-    toggleToolsEnabled
-  ]);
+  );
 
   // ==================== 组件渲染 ====================
 
@@ -583,9 +579,16 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
         })}
       />
 
-      {/* 主内容区域 - 移除margin，让Drawer自然推开 */}
-      <Box
-        sx={{
+      {/* 主内容区域 - 使用motion处理margin动画 */}
+      <motion.div
+        animate={{
+          marginLeft: drawerOpen && !isMobile ? 320 : 0
+        }}
+        transition={{
+          duration: 0.2,
+          ease: [0.25, 0.46, 0.45, 0.94]
+        }}
+        style={{
           flexGrow: 1,
           display: 'flex',
           flexDirection: 'column',
@@ -627,7 +630,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
                         zIndex: 10,
                         userSelect: 'none', // 禁止DIY布局组件文本选择
                       }}
-                      transition={ANIMATION_CONFIG}
+                      transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                     >
                       {component}
                     </motion.div>
@@ -666,7 +669,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
                 ...baseStyles.messageContainer,
                 ...backgroundStyle
               }}>
-                <ErrorBoundary>
+                <ErrorBoundary fallback={<Typography color="error">消息列表加载失败</Typography>}>
                   <MessageList
                     messages={currentMessages}
                     onRegenerate={handleRegenerateMessage}
@@ -681,7 +684,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
               <ChatNavigation containerId="messageList" />
 
               {/* 输入框容器，固定在底部 */}
-              <ErrorBoundary>
+              <ErrorBoundary fallback={<Typography color="error">输入组件加载失败</Typography>}>
                 {InputContainer}
               </ErrorBoundary>
             </>
@@ -710,7 +713,7 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
             </>
           )}
         </Box>
-      </Box>
+      </motion.div>
 
 
     </Box>

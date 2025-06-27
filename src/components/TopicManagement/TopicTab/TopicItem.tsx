@@ -37,8 +37,10 @@ const TopicItem = React.memo(function TopicItem({
   const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTopicClick = useCallback(() => {
-    // 🚀 直接调用，避免startTransition导致的延迟
-    onSelectTopic(topic);
+    // 🚀 使用startTransition优化话题切换性能
+    startTransition(() => {
+      onSelectTopic(topic);
+    });
   }, [topic, onSelectTopic]);
 
   const handleOpenMenu = (event: React.MouseEvent) => {
@@ -60,7 +62,9 @@ const TopicItem = React.memo(function TopicItem({
       console.log(`[TopicItem] 确认删除话题: ${topic.name} (${topic.id})`);
 
       // 🚀 Cherry Studio模式：立即执行删除，UI会立即响应（乐观更新）
-      onDeleteTopic(topic.id, event);
+      startTransition(() => {
+        onDeleteTopic(topic.id, event);
+      });
     } else {
       // 第一次点击，进入确认状态
       setPendingDelete(true);

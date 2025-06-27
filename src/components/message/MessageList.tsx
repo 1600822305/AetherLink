@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Box, useTheme } from '@mui/material';
 import type { Message } from '../../shared/types/newMessage.ts';
-import type { ChatTopic, Assistant } from '../../shared/types/Assistant';
 import MessageGroup from './MessageGroup';
 import SystemPromptBubble from '../SystemPromptBubble';
 import SystemPromptDialog from '../SystemPromptDialog';
@@ -12,28 +11,36 @@ import InfiniteScroll from 'react-infinite-scroll-component';
 
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import { upsertManyBlocks } from '../../shared/store/slices/messageBlocksSlice';
+import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
 import useScrollPosition from '../../hooks/useScrollPosition';
 import { getGroupedMessages, MessageGroupingType } from '../../shared/utils/messageGrouping';
 import { EventEmitter, EVENT_NAMES } from '../../shared/services/EventEmitter';
-import { scrollContainerStyles, scrollbarStyles, getOptimizedConfig } from '../../shared/config/scrollOptimization';
+import { generateBlockId } from '../../shared/utils';
+import { scrollContainerStyles, scrollbarStyles, getOptimizedConfig, debugScrollPerformance } from '../../shared/config/scrollOptimization';
 import ScrollPerformanceMonitor from '../debug/ScrollPerformanceMonitor';
 
 // 加载更多消息的数量
 const LOAD_MORE_COUNT = 20;
 
-// 优化：简化消息显示逻辑，移除性能日志
+// 修复：简化消息显示逻辑，支持正确的无限滚动
 const computeDisplayMessages = (messages: Message[], startIndex: number, displayCount: number) => {
+  console.log(`[computeDisplayMessages] 输入 ${messages.length} 条消息，从索引 ${startIndex} 开始，显示 ${displayCount} 条`);
+
   const totalMessages = messages.length;
 
   if (totalMessages === 0) {
     return [];
   }
 
-  // 使用正常的索引计算，配合 inverse=true 来实现正确的滚动方向
+  // 修复：使用正常的索引计算，配合 inverse=true 来实现正确的滚动方向
+  // 最新消息在数组末尾，显示时也在底部
   const actualStartIndex = Math.max(0, startIndex);
   const actualEndIndex = Math.min(totalMessages, startIndex + displayCount);
 
-  return messages.slice(actualStartIndex, actualEndIndex);
+  const displayMessages = messages.slice(actualStartIndex, actualEndIndex);
+
+  console.log(`[computeDisplayMessages] 返回 ${displayMessages.length} 条消息，索引范围: ${actualStartIndex}-${actualEndIndex}`);
+  return displayMessages;
 };
 
 interface MessageListProps {
@@ -85,7 +92,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
   // 🚀 获取优化配置
   const optimizedConfig = React.useMemo(() => getOptimizedConfig(), []);
 
-  // 移除性能调试，减少开销
+  // 🚀 调试性能配置（仅在开发环境）
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      debugScrollPerformance();
+    }
+  }, []);
 
   // 无限滚动相关状态
   const [displayMessages, setDisplayMessages] = useState<Message[]>([]);
@@ -112,8 +124,8 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
   const currentTopicId = useSelector((state: RootState) => state.messages.currentTopicId);
 
   // 从数据库获取当前话题和助手信息
-  const [currentTopic, setCurrentTopic] = useState<ChatTopic | null>(null);
-  const [currentAssistant, setCurrentAssistant] = useState<Assistant | null>(null);
+  const [currentTopic, setCurrentTopic] = useState<any>(null);
+  const [currentAssistant, setCurrentAssistant] = useState<any>(null);
 
   // 当话题ID变化时，从数据库获取话题和助手信息
   useEffect(() => {
@@ -260,25 +272,40 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
     unifiedScrollManagerRef.current = unifiedScrollManager;
   }, [unifiedScrollManager]);
 
-  // 简化的流式输出检查
+  // 修复：使用 ref 存储依赖项，避免节流函数频繁重建
+  const streamingCheckDepsRef = useRef({ messageBlocks, messages, autoScrollToBottom });
+  streamingCheckDepsRef.current = { messageBlocks, messages, autoScrollToBottom };
+
+  const throttledStreamingCheck = useMemo(
+    () => throttle(() => {
+      const { messageBlocks, messages, autoScrollToBottom } = streamingCheckDepsRef.current;
+
+      // 检查是否启用自动滚动
+      if (!autoScrollToBottom) return;
+
+      // 检查是否有正在流式输出的块
+      const hasStreamingBlock = Object.values(messageBlocks || {}).some(
+        block => block?.status === 'streaming'
+      );
+
+      // 检查是否有正在流式输出的消息
+      const hasStreamingMessage = messages.some(
+        message => message.status === 'streaming'
+      );
+
+      // 如果有正在流式输出的块或消息，滚动到底部
+      if (hasStreamingBlock || hasStreamingMessage) {
+        // 使用统一滚动管理器
+        unifiedScrollManagerRef.current.scrollToBottom('streamingCheck');
+      }
+    }, 100), // 100ms节流
+    [] // 空依赖数组，避免重建
+  );
+
+  // 监听消息块状态变化，但使用节流避免过度更新
   useEffect(() => {
-    if (!autoScrollToBottom) return;
-
-    // 检查是否有正在流式输出的块
-    const hasStreamingBlock = Object.values(messageBlocks || {}).some(
-      block => block?.status === 'streaming'
-    );
-
-    // 检查是否有正在流式输出的消息
-    const hasStreamingMessage = messages.some(
-      message => message.status === 'streaming'
-    );
-
-    // 如果有正在流式输出的块或消息，滚动到底部
-    if (hasStreamingBlock || hasStreamingMessage) {
-      unifiedScrollManagerRef.current.scrollToBottom('streamingCheck');
-    }
-  }, [messageBlocks, messages, autoScrollToBottom]);
+    throttledStreamingCheck();
+  }, [messageBlocks, messages, throttledStreamingCheck]);
 
   // 修复：优化流式输出事件监听，移除未使用的性能检测代码
   useEffect(() => {
@@ -343,39 +370,132 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
     setCurrentTopic(updatedTopic);
   }, []);
 
-  // 简化的块加载逻辑
-  useEffect(() => {
-    const loadMissingBlocks = async () => {
+  // 修复：使用 ref 存储依赖项，确保所有消息的块都已加载到Redux中
+  const loadBlocksDepsRef = useRef({ messages, messageBlocks, dispatch });
+  loadBlocksDepsRef.current = { messages, messageBlocks, dispatch };
+
+  const throttledLoadBlocks = useMemo(
+    () => throttle(async () => {
+      const { messages, messageBlocks, dispatch } = loadBlocksDepsRef.current;
+
+      // 创建一个集合来跟踪已加载的块ID，避免重复加载
+      const loadedBlockIds = new Set();
       const blocksToLoad = [];
 
       for (const message of messages) {
         if (message.blocks && message.blocks.length > 0) {
           for (const blockId of message.blocks) {
             // 如果这个块已经在Redux中，跳过
-            if (messageBlocks[blockId]) continue;
+            if (messageBlocks[blockId]) {
+              loadedBlockIds.add(blockId);
+              continue;
+            }
+
+            // 如果这个块已经在待加载列表中，跳过
+            if (loadedBlockIds.has(blockId)) {
+              continue;
+            }
 
             try {
               const block = await dexieStorage.getMessageBlock(blockId);
               if (block) {
                 blocksToLoad.push(block);
+                loadedBlockIds.add(blockId);
+              } else {
+                console.warn(`[MessageList] 数据库中找不到块: ${blockId}`);
+
+                // 修复：如果找不到块，创建一个临时块并保存到数据库
+                if (message.role === 'assistant' && message.status === 'success') {
+                  try {
+                    const tempBlock: any = {
+                      id: blockId,
+                      messageId: message.id,
+                      type: 'main_text',
+                      content: (message as any).content || '',
+                      createdAt: message.createdAt,
+                      status: 'success'
+                    };
+
+                    // 立即保存到数据库，避免内存泄漏
+                    await dexieStorage.saveMessageBlock(tempBlock);
+                    blocksToLoad.push(tempBlock);
+                    loadedBlockIds.add(blockId);
+
+                    console.log(`[MessageList] 成功创建并保存临时块: ${blockId}`);
+                  } catch (saveError) {
+                    handleError(saveError, `保存临时块失败: ${blockId}`, { showToUser: false });
+                    // 即使保存失败，也添加到内存中以避免渲染错误
+                    const tempBlock: any = {
+                      id: blockId,
+                      messageId: message.id,
+                      type: 'main_text',
+                      content: (message as any).content || '',
+                      createdAt: message.createdAt,
+                      status: 'success'
+                    };
+                    blocksToLoad.push(tempBlock);
+                    loadedBlockIds.add(blockId);
+                  }
+                }
               }
             } catch (error) {
               handleError(error, `加载块 ${blockId} 失败`, { showToUser: false });
             }
           }
+        } else if (message.role === 'assistant' && message.status === 'success' && (!message.blocks || message.blocks.length === 0)) {
+          try {
+            // 修复：如果助手消息没有块但有内容，创建一个新块并确保保存
+            const newBlockId = generateBlockId('block');
+            const newBlock: any = {
+              id: newBlockId,
+              messageId: message.id,
+              type: 'main_text',
+              content: (message as any).content || '',
+              createdAt: message.createdAt,
+              status: 'success'
+            };
+
+            // 先保存块到数据库
+            await dexieStorage.saveMessageBlock(newBlock);
+            blocksToLoad.push(newBlock);
+            loadedBlockIds.add(newBlockId);
+
+            // 然后更新消息的块引用
+            dispatch(newMessagesActions.updateMessage({
+              id: message.id,
+              changes: {
+                blocks: [newBlockId]
+              }
+            }));
+
+            // 同时更新数据库中的消息
+            await dexieStorage.updateMessage(message.id, {
+              blocks: [newBlockId]
+            });
+
+            console.log(`[MessageList] 成功创建新块并关联到消息: ${newBlockId}`);
+          } catch (error) {
+            handleError(error, '创建新块或更新消息失败', { showToUser: true, canRecover: true });
+          }
         }
       }
 
       if (blocksToLoad.length > 0) {
+        // 使用类型断言解决类型不匹配问题
         dispatch(upsertManyBlocks(blocksToLoad as any));
       }
-    };
+    }, 300), // 300ms节流，避免频繁加载
+    [] // 空依赖数组，避免重建
+  );
 
-    loadMissingBlocks();
-  }, [messages, messageBlocks, dispatch, handleError]);
+  useEffect(() => {
+    throttledLoadBlocks();
+  }, [messages, messageBlocks, throttledLoadBlocks]);
 
-  // 直接使用有序消息，无需去重
+  // 改造为：直接使用有序消息，无需去重
   const filteredMessages = useMemo(() => {
+    console.log(`[MessageList] 使用，直接使用 ${messages.length} 条有序消息，无需去重`);
+    // ：假设消息已经按时间顺序存储且无重复，直接使用
     return messages;
   }, [messages]);
 
@@ -441,11 +561,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onRegenerate, onDel
       // 取消所有节流函数，防止内存泄漏
       unifiedScrollManager.scrollToBottom.cancel();
       unifiedScrollManager.cleanup();
+      throttledStreamingCheck.cancel();
+      throttledLoadBlocks.cancel();
       throttledMessageLengthScroll.cancel();
 
       console.log('[MessageList] 组件卸载，已清理所有节流函数');
     };
-  }, [unifiedScrollManager, throttledMessageLengthScroll]);
+  }, [unifiedScrollManager, throttledStreamingCheck, throttledLoadBlocks, throttledMessageLengthScroll]);
 
   return (
     <Box

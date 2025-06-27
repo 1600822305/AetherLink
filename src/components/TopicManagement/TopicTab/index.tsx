@@ -150,7 +150,9 @@ export default function TopicTab({
     // 添加防护：如果当前话题存在于话题列表中，不要重新选择
     if (sortedTopics.length > 0 && !currentTopic) {
       console.log('[TopicTab] 初始化自动选择话题:', sortedTopics[0].name || sortedTopics[0].id);
-      onSelectTopic(sortedTopics[0]);
+      startTransition(() => {
+        onSelectTopic(sortedTopics[0]);
+      });
     }
   }, [sortedTopics.length, currentTopic?.id, onSelectTopic]); // 使用更稳定的依赖
 
@@ -179,9 +181,11 @@ export default function TopicTab({
   // 使用话题分组钩子
   const { topicGroups, topicGroupMap, ungroupedTopics } = useTopicGroups(filteredTopics, currentAssistant?.id);
 
-  // 优化的话题选择函数 - 直接调用避免延迟
+  // 优化的话题选择函数 - 使用React 18的startTransition
   const handleSelectTopic = useCallback((topic: ChatTopic) => {
-    onSelectTopic(topic);
+    startTransition(() => {
+      onSelectTopic(topic);
+    });
   }, [onSelectTopic]);
 
   // 搜索相关处理函数
