@@ -53,6 +53,7 @@ import { TopicManager } from '../../../shared/services/assistant/TopicManager';
 import { exportTopicAsMarkdown, exportTopicAsDocx, copyTopicAsMarkdown } from '../../../utils/exportUtils';
 import { exportTopicToNotion } from '../../../utils/notionExport';
 import { toastManager } from '../../EnhancedToast';
+import { useTranslation } from 'react-i18next';
 
 interface TopicTabProps {
   currentAssistant: ({
@@ -80,6 +81,7 @@ export default function TopicTab({
   onDeleteTopic,
   onUpdateTopic
 }: TopicTabProps) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
 
   // 简化的状态管理
@@ -575,7 +577,7 @@ export default function TopicTab({
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="subtitle1" fontWeight="medium">
-                {currentAssistant?.name || '所有话题'}
+                {currentAssistant?.name ? t('sidebar.topics.assistantTopics', { assistantName: currentAssistant.name }) : t('sidebar.topics.title')}
               </Typography>
               {loading && (
                 <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
@@ -585,7 +587,7 @@ export default function TopicTab({
               <IconButton size="small" onClick={() => setShowSearch(true)} sx={{ mr: 0.5 }}>
                 <Search size={18} />
               </IconButton>
-              <Tooltip title="创建话题分组">
+              <Tooltip title={t('sidebar.topics.createGroup', 'Create Topic Group')}>
                 <IconButton
                   size="small"
                   onClick={() => setDialogState(prev => ({ ...prev, group: { isOpen: true } }))}
@@ -603,7 +605,7 @@ export default function TopicTab({
                   <FolderPlus size={16} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="创建新话题">
+              <Tooltip title={t('sidebar.topics.newTopic')}>
                 <Button
                   variant="outlined"
                   size="small"
@@ -621,7 +623,7 @@ export default function TopicTab({
                     }
                   }}
                 >
-                  新建话题
+                  {t('sidebar.topics.newTopic')}
                 </Button>
               </Tooltip>
             </Box>
@@ -633,7 +635,7 @@ export default function TopicTab({
       {sortedTopics.length === 0 && (
         <Box sx={{ py: 2, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            此助手没有话题，点击上方的"+"按钮创建一个新话题。
+            {t('sidebar.topics.emptyMessage')}
           </Typography>
         </Box>
       )}
@@ -656,9 +658,9 @@ export default function TopicTab({
         onSelectTopic={handleSelectTopic}
         onOpenMenu={handleOpenMenu}
         onDeleteTopic={handleTopicDelete}
-        title="未分组话题"
+        title={t('sidebar.topics.ungroupedTitle')}
         height="calc(100vh - 400px)" // 动态计算高度
-        emptyMessage="暂无未分组话题"
+        emptyMessage={t('sidebar.topics.emptyUngrouped')}
         itemHeight={64} // 更新为64px以包含margin-bottom空间
         searchQuery={debouncedSearchQuery}
         getMainTextContent={getMainTextContent}
@@ -684,47 +686,47 @@ export default function TopicTab({
             handleCloseMenu();
           }}>
             <FolderPlus size={18} style={{ marginRight: 8 }} />
-            添加到分组...
+{t('sidebar.topics.menu.addToGroup')}
           </MenuItem>,
-          <MenuItem key="edit-topic" onClick={handleEditTopic}>
-            <Edit3 size={18} style={{ marginRight: 8 }} />
-            编辑话题
-          </MenuItem>,
-          <MenuItem key="auto-rename" onClick={handleAutoRenameTopic}>
-            <Sparkles size={18} style={{ marginRight: 8 }} />
-            自动命名话题
-          </MenuItem>,
-          <MenuItem key="toggle-pin" onClick={handleTogglePin}>
-            <Pin size={18} style={{ marginRight: 8 }} />
-            {menuState.main.topic?.pinned ? '取消固定' : '固定话题'}
-          </MenuItem>,
-          <MenuItem key="clear-messages" onClick={handleClearMessages}>
-            <Trash2 size={18} style={{ marginRight: 8 }} />
-            清空消息
-          </MenuItem>,
+                      <MenuItem key="edit-topic" onClick={handleEditTopic}>
+              <Edit3 size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.editTopic')}
+            </MenuItem>,
+            <MenuItem key="auto-rename" onClick={handleAutoRenameTopic}>
+              <Sparkles size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.autoRename')}
+            </MenuItem>,
+            <MenuItem key="toggle-pin" onClick={handleTogglePin}>
+              <Pin size={18} style={{ marginRight: 8 }} />
+              {menuState.main.topic?.pinned ? t('sidebar.topics.menu.toggleUnpin') : t('sidebar.topics.menu.togglePin')}
+            </MenuItem>,
+            <MenuItem key="clear-messages" onClick={handleClearMessages}>
+              <Trash2 size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.clearMessages')}
+            </MenuItem>,
           allAssistants.length > 1 && currentAssistant && (
-            <MenuItem key="move-to" onClick={handleOpenMoveToMenu}>
-              <ArrowRight size={18} style={{ marginRight: 8 }} />
-              移动到...
-            </MenuItem>
-          ),
-          <Divider key="divider-export" />,
-          <MenuItem key="copy-markdown" onClick={() => handleCopyTopicAsMarkdown(false)}>
-            <Copy size={18} style={{ marginRight: 8 }} />
-            复制为Markdown
-          </MenuItem>,
-          <MenuItem key="export-markdown" onClick={() => handleExportTopicAsMarkdown(false)}>
-            <Download size={18} style={{ marginRight: 8 }} />
-            导出为Markdown
-          </MenuItem>,
-          <MenuItem key="export-docx" onClick={() => handleExportTopicAsDocx(false)}>
-            <FileText size={18} style={{ marginRight: 8 }} />
-            导出为DOCX
-          </MenuItem>,
-          <MenuItem key="export-notion" onClick={() => handleExportTopicToNotion(false)}>
-            <Database size={18} style={{ marginRight: 8 }} />
-            导出到Notion
-          </MenuItem>,
+                          <MenuItem key="move-to" onClick={handleOpenMoveToMenu}>
+                <ArrowRight size={18} style={{ marginRight: 8 }} />
+                {t('sidebar.topics.menu.moveTo')}
+              </MenuItem>
+            ),
+            <Divider key="divider-export" />,
+            <MenuItem key="copy-markdown" onClick={() => handleCopyTopicAsMarkdown(false)}>
+              <Copy size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.copyMarkdown')}
+            </MenuItem>,
+            <MenuItem key="export-markdown" onClick={() => handleExportTopicAsMarkdown(false)}>
+              <Download size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.exportMarkdown')}
+            </MenuItem>,
+                      <MenuItem key="export-docx" onClick={() => handleExportTopicAsDocx(false)}>
+              <FileText size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.exportDocx', 'Export as DOCX')}
+            </MenuItem>,
+            <MenuItem key="export-notion" onClick={() => handleExportTopicToNotion(false)}>
+              <Database size={18} style={{ marginRight: 8 }} />
+              {t('sidebar.topics.menu.exportNotion', 'Export to Notion')}
+            </MenuItem>,
           <Divider key="divider-1" />,
           <MenuItem key="delete-topic" onClick={() => {
             const topic = menuState.main.topic;
@@ -733,8 +735,8 @@ export default function TopicTab({
                 ...prev,
                 confirm: {
                   isOpen: true,
-                  title: '删除话题',
-                  content: '确定要删除此话题吗？此操作不可撤销。',
+                  title: t('sidebar.topics.menu.deleteTopic'),
+                  content: t('sidebar.topics.confirmDelete', 'Are you sure you want to delete this topic? This action cannot be undone.'),
                   onConfirm: async () => {
                     // 立即关闭对话框，提升用户体验
                     setDialogState(prev => ({
@@ -762,7 +764,7 @@ export default function TopicTab({
             handleCloseMenu();
           }}>
             <Trash size={18} style={{ marginRight: 8 }} />
-            删除话题
+            {t('sidebar.topics.menu.deleteTopic')}
           </MenuItem>
         ].filter(Boolean)}
       </Menu>

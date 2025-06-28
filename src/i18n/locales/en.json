@@ -1,0 +1,758 @@
+{
+  "app": {
+    "loading": "Loading..."
+  },
+  "loadingScreen": {
+    "welcome": "Welcome to the AI Chat Assistant"
+  },
+  "settings": {
+    "appearance": {
+      "language": {
+        "label": "Language",
+        "helper": "Switch UI language, effective immediately",
+        "zh": "Chinese",
+        "en": "English"
+      },
+      "title": "Appearance Settings",
+      "themeFont": {
+        "title": "Theme & Font",
+        "subtitle": "Customize app theme and global font size settings"
+      },
+      "customization": {
+        "title": "Interface Customization",
+        "subtitle": "Customize chat interface, message bubbles and toolbar appearance",
+        "topToolbar": { "primary": "Top Toolbar", "secondary": "Customize components and layout of top toolbar with drag-n-drop" },
+        "chatInterface": { "primary": "Chat Interface", "secondary": "Customize chat layout and display options" },
+        "thinkingProcess": { "primary": "Thinking Process", "secondary": "Customize how AI thinking process is displayed and auto-collapse behavior" },
+        "messageBubble": { "primary": "Message Bubble", "secondary": "Adjust bubble style and width settings" },
+        "inputToolbar": { "primary": "Input Toolbar", "secondary": "Customize background style and appearance of input toolbar" },
+        "inputBox": { "primary": "Input Box", "secondary": "Customize input box style and layout" }
+      },
+      "devTools": {
+        "title": "Developer Tools",
+        "subtitle": "Settings for debugging and performance monitor",
+        "performanceMonitor": { "primary": "Show Performance Monitor", "secondary": "Display real-time FPS, scroll events, render time and memory usage in chat view" }
+      },
+      "theme": {
+        "label": "Theme",
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System",
+        "helper": "Select the app theme. System will follow your device's light/dark mode."
+      },
+      "fontSize": {
+        "label": "Global Font Size",
+        "preset": {
+          "tiny": "Tiny",
+          "small": "Small",
+          "normal": "Normal",
+          "large": "Large",
+          "xlarge": "Extra Large",
+          "huge": "Huge"
+        },
+        "custom": "Custom",
+        "helper": "Adjust the base font size of all texts in the app, affecting chat messages and interface texts"
+      },
+      "font": {
+        "label": "Global Font",
+        "inputLabel": "Font",
+        "system": "System Default",
+        "helper": "Select a global font for the app, affecting the appearance of all interface texts"
+      }
+    },
+    "behavior": {
+      "title": "Behavior Settings",
+      "section": {
+        "interaction": {
+          "title": "Interaction",
+          "subtitle": "Customize interaction style and notification settings"
+        }
+      },
+      "sendWithEnter": {
+        "primary": "Send messages with Enter key",
+        "secondary": "Press Enter to send quickly, use Shift+Enter for new line"
+      },
+      "notifications": {
+        "primary": "Enable notifications",
+        "secondary": "Show system notification when AI reply is complete"
+      }
+    },
+    "main": {
+      "title": "Settings",
+      "groups": {
+        "basic": "Basic",
+        "modelServices": "Model Services",
+        "shortcuts": "Shortcuts",
+        "others": "Other Settings"
+      },
+      "items": {
+        "appearance": { "title": "Appearance", "desc": "Theme, font size and language" },
+        "behavior": { "title": "Behavior", "desc": "Message sending and notifications" },
+        "default-model": { "title": "Model Config", "desc": "Manage AI models and API keys" },
+        "topic-naming-settings": { "title": "Topic Naming", "desc": "Configure auto topic naming" },
+        "agent-prompts": { "title": "Agent Prompt Library", "desc": "Browse rich prompt templates" },
+        "ai-debate": { "title": "AI Debate", "desc": "Configure AI debate feature" },
+        "model-combo": { "title": "Model Combo", "desc": "Create and manage model combos" },
+        "web-search": { "title": "Web Search", "desc": "Configure web search and related services" },
+        "mcp-server": { "title": "MCP Server", "desc": "Advanced server settings" },
+        "shortcuts": { "title": "Quick Assistant", "desc": "Custom keyboard shortcuts" },
+        "quick-phrases": { "title": "Quick Phrases", "desc": "Create reusable phrase templates" },
+        "workspace-settings": { "title": "Workspace", "desc": "Create and manage file workspaces" },
+        "knowledge-settings": { "title": "Knowledge Base", "desc": "Manage KB configs and embedding models" },
+        "data-settings": { "title": "Data Settings", "desc": "Manage storage and privacy" },
+        "notion-settings": { "title": "Notion Integration", "desc": "Configure Notion export settings" },
+        "voice-settings": { "title": "Voice", "desc": "Speech recognition & TTS" },
+        "features": { "title": "Feature Modules", "desc": "Enable or disable app features" },
+        "about": { "title": "About", "desc": "App info & support" }
+      }
+    },
+    "mcpServer": {
+      "title": "MCP Server Settings",
+      "list": {
+        "title": "Server List",
+        "subtitle": "Manage and configure your MCP servers",
+        "addServer": "Add Server",
+        "emptyTitle": "No servers added",
+        "emptyDesc": "You can manually add a new server or choose from built-in templates."
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "running": "Running",
+        "opFailed": "Operation failed",
+        "fillRequired": "Please fill in the required fields",
+        "urlRequired": "Please enter a valid URL",
+        "addSuccess": "Server added successfully",
+        "addFailed": "Failed to add server",
+        "alreadyExists": "{{name}} already exists",
+        "builtinAddSuccess": "Built-in server {{name}} added successfully",
+        "builtinAddFailed": "Failed to add built-in server",
+        "deleteSuccess": "Server {{name}} deleted successfully",
+        "deleteFailed": "Failed to delete server",
+        "jsonFormatError": "Invalid JSON format",
+        "importDesc": "Imported from {{serverName}}",
+        "importSuccess": "Successfully imported {{importCount}} servers. {{errorInfo}}",
+        "importFailed": "Import failed: {{error}}",
+        "importErrorCount": "{{errorCount}} servers failed to import.",
+        "alreadyAdded": "Added"
+      },
+      "serverType": {
+        "http": "HTTP",
+        "inMemory": "In-Memory"
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "subtitle": "Quickly import or add built-in servers",
+        "import": "Import from JSON",
+        "importDesc": "Bulk import server configurations from a JSON file",
+        "builtin": "Add Built-in Server",
+        "builtinDesc": "Browse and add pre-configured built-in servers"
+      },
+      "dialog": {
+        "addTitle": "Add New Server",
+        "importTitle": "Import Servers from JSON",
+        "importDesc": "Paste the JSON content that conforms to the format to bulk import servers. Here is an example format:",
+        "builtinTitle": "Add Built-in Server",
+        "builtinDesc": "Here are some pre-configured common MCP servers that you can add to your list with one click.",
+        "deleteTitle": "Confirm Deletion",
+        "deleteContent": "Are you sure you want to delete the server {{name}}? This action cannot be undone."
+      },
+      "form": {
+        "name": "Server Name",
+        "type": "Server Type",
+        "typeHttp": "HTTP (SSE)",
+        "typeMemory": "In-Memory",
+        "url": "Server URL",
+        "description": "Description",
+        "enableSSE": "Enable SSE",
+        "json": "JSON Content",
+        "jsonPlaceholder": "Please paste the JSON content here"
+      }
+    },
+    "quickPhrase": {
+      "title": "Quick Phrase Management",
+      "subtitle": "Manage your quick phrases to quickly insert frequently used content during chats.",
+      "add": "Add Quick Phrase",
+      "loading": "Loading...",
+      "confirmDelete": "Are you sure you want to delete this quick phrase?",
+      "displaySettings": {
+        "title": "Display Settings",
+        "label": "Show quick phrase button in the input box",
+        "caption": "Control whether to display the quick phrase button in the chat input box"
+      },
+      "empty": {
+        "title": "No quick phrases yet",
+        "subtitle": "Create your first quick phrase to make chatting more efficient"
+      },
+      "dialog": {
+        "addTitle": "Add Quick Phrase",
+        "editTitle": "Edit Quick Phrase",
+        "form": {
+          "title": "Title",
+          "content": "Content"
+        }
+      },
+      "log": {
+        "loadFailed": "Failed to load quick phrases:",
+        "deleteFailed": "Failed to delete quick phrase:",
+        "saveFailed": "Failed to save quick phrase:"
+      }
+    },
+    "workspace": {
+      "title": "Workspace Management",
+      "permissions": "Permissions",
+      "loading": "Loading...",
+      "listTitle": "Workspace List",
+      "lastAccessed": "Last accessed {{time}}",
+      "scope": {
+        "global": "Global",
+        "session": "Session"
+      },
+      "empty": {
+        "title": "No workspaces yet",
+        "description": "Create a workspace to manage your files and documents, helping the AI better understand your projects.",
+        "createButton": "Create First Workspace"
+      },
+      "deleteDialog": {
+        "title": "Delete Workspace",
+        "content": "Are you sure you want to delete the workspace \"{{name}}\"?",
+        "warning": "This will only delete the workspace configuration, not the actual files on your computer."
+      },
+      "notifications": {
+        "loadFailed": "Failed to load workspace list",
+        "deleteFailed": "Failed to delete workspace"
+      },
+      "log": {
+        "loadFailed": "Failed to load workspaces:",
+        "deleteFailed": "Failed to delete workspace:"
+      }
+    },
+    "modelConfig": {
+      "title": "Model Settings",
+      "addProvider": "Add",
+      "providerSection": {
+        "title": "Model Providers",
+        "subtitle": "Configure multiple model providers. Click to manage settings."
+      },
+      "providerStatus": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "modelsCount": "{{count}} models"
+      },
+      "recommendations": {
+        "title": "Recommendations",
+        "topicNaming": {
+          "primary": "Topic Naming Settings",
+          "secondary": "Configure model and options for auto topic naming"
+        },
+        "selectorStyle": {
+          "primary": "Model Selector Style",
+          "dialog": "Current: Dialog (Click to switch to dropdown)",
+          "dropdown": "Current: Dropdown (Click to switch to dialog)"
+        },
+        "addNewProvider": {
+          "primary": "Add New Provider",
+          "secondary": "Expand your AI model library"
+        }
+      },
+      "editDialog": {
+        "title": "Edit Provider",
+        "nameLabel": "Provider Name",
+        "typeLabel": "Provider Type",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
+    },
+    "topicNaming": {
+      "title": "Topic Naming Settings",
+      "modelSection": {
+        "title": "Topic Naming Model",
+        "subtitle": "Select the AI model used to automatically generate titles for topics"
+      },
+      "enableSwitch": {
+        "primary": "Enable Auto Topic Naming",
+        "secondary": "Automatically generate a suitable title for a new topic when the conversation starts"
+      },
+      "promptSection": {
+        "title": "Topic Naming Prompt",
+        "subtitle": "Custom prompt for topic naming. Leave blank for default.",
+        "placeholder": "e.g., Generate a concise title of no more than 5 words for the following conversation..."
+      },
+      "saveButton": "Save Prompt"
+    },
+    "agentPrompts": {
+      "title": "Agent Prompt Library",
+      "systemPromptVar": {
+        "title": "System Prompt Variable Injection",
+        "desc": "Automatically inject time, location and other dynamic variables into system prompts",
+        "chip": {
+          "time": "Time",
+          "location": "Location",
+          "os": "OS",
+          "none": "Disabled"
+        },
+        "info": "When enabled, the system will automatically append the corresponding variable information to the end of the system prompt when sending a message.",
+        "time": {
+          "title": "Time Variable",
+          "desc": "Automatically inject current time: {{time}}",
+          "tip": "Time info will be appended to the end of the system prompt"
+        },
+        "location": {
+          "title": "Location Variable",
+          "desc": "Inject location info: {{location}}",
+          "placeholder": "Enter custom location (e.g. Chaoyang, Beijing)",
+          "tip": "Location info will be appended to the end of the system prompt",
+          "tip2": "Leave blank to use system-detected location"
+        },
+        "os": {
+          "title": "OS Variable",
+          "desc": "Inject OS info: {{os}}",
+          "tip": "OS info will be appended to the end of the system prompt"
+        }
+      },
+      "searchTitle": "Search prompts",
+      "searchDesc": "Quickly find the template you need from the rich prompt library",
+      "searchResultTitle": "Search Results ({{count}})",
+      "searchResultDesc": "Found {{count}} matching prompts",
+      "noResult": "No matching prompts found",
+      "searchPlaceholder": "Search prompts...",
+      "copy": "Copy",
+      "copied": "Copied",
+      "promptsCount": "{{count}} prompts",
+      "groups": {
+        "general": { "title": "General Assistant", "desc": "Assistants for daily conversation and general tasks" },
+        "tech": { "title": "Tech Expert", "desc": "Professional assistants in technical fields" },
+        "technical": { "title": "Technical", "desc": "Technical assistants" },
+        "business": { "title": "Business", "desc": "Business & management assistants" },
+        "creative": { "title": "Creative", "desc": "Creative & content generation assistants" },
+        "lifestyle": { "title": "Lifestyle", "desc": "Lifestyle assistants" },
+        "education": { "title": "Education", "desc": "Education & learning assistants" },
+        "professional": { "title": "Professional", "desc": "Professional field assistants" },
+        "entertainment": { "title": "Entertainment", "desc": "Entertainment & leisure assistants" },
+        "breakthrough": { "title": "Breakthrough", "desc": "Innovation & breakthrough assistants" }
+      }
+    },
+    "aiDebate": {
+      "title": "AI Debate Settings",
+      "basic": {
+        "title": "Basic Settings",
+        "desc": "Configure basic parameters and options for AI debate feature",
+        "enable": "Enable AI Debate",
+        "showButton": "Show AI Debate button in input box",
+        "maxRounds": "Max Debate Rounds",
+        "maxRoundsTip": "Enter a number, recommended 1-20 rounds",
+        "maxTokens": "Max Tokens per Round",
+        "maxTokensTip": "Enter a number, recommended 100-4000",
+        "enableModerator": "Enable Moderator Role",
+        "enableSummary": "Auto-generate Debate Summary"
+      },
+      "quick": {
+        "title": "Quick Setup",
+        "desc": "One-click setup for new users, quickly create a complete debate scene",
+        "basic": { "title": "🎯 Basic Debate", "desc": "Pro + Con + Moderator (3 roles)" },
+        "professional": { "title": "🏛️ Professional Debate", "desc": "Pro + Con + Neutral Analyst + Moderator (4 roles)" },
+        "expert": { "title": "🎓 Expert Forum", "desc": "Legal Expert + Economist + Tech Expert + Moderator (4 roles)" },
+        "comprehensive": { "title": "🌟 Comprehensive Analysis", "desc": "6 different roles for a full debate" }
+      },
+      "group": {
+        "title": "Config Groups",
+        "desc": "Save different debate configurations into groups for quick switching",
+        "add": "Add Group",
+        "empty": "No groups yet",
+        "roleCount": "{{count}} roles • Updated {{date}}",
+        "load": "Load",
+        "edit": "Edit",
+        "save": "Save",
+        "copy": "Copy",
+        "delete": "Delete"
+      },
+      "role": {
+        "title": "Debate Role Management",
+        "desc": "Create and manage various roles in AI debate",
+        "add": "Add Role",
+        "empty": "No debate roles configured yet. Click 'Add Role' to start.",
+        "edit": "Edit Role",
+        "delete": "Delete Role",
+        "editTitle": "Edit Role",
+        "addTitle": "Add New Role",
+        "quickTemplate": "Quick Templates:",
+        "name": "Role Name",
+        "descLabel": "Role Description",
+        "stanceLabel": "Role Stance",
+        "stances": {
+          "pro": "Pro",
+          "con": "Con",
+          "neutral": "Neutral"
+        },
+        "modelLabel": "Use Model"
+      }
+    },
+    "modelCombo": {
+      "title": "Model Combo",
+      "templates": {
+        "title": "Template Combos",
+        "useTemplate": "Use this template"
+      },
+      "strategy": {
+        "routing": "Routing",
+        "ensemble": "Ensemble",
+        "comparison": "Comparison",
+        "cascade": "Cascade",
+        "sequential": "Sequential"
+      },
+      "myCombos": {
+        "title": "My Combos",
+        "emptyTitle": "No model combos yet",
+        "emptyDesc": "Create a model combo to orchestrate multiple models into one workflow.",
+        "createFirst": "Create First Combo"
+      },
+      "deleteDialog": {
+        "title": "Delete Model Combo",
+        "content": "Are you sure you want to delete model combo \"{{name}}\"?"
+      }
+    },
+    "webSearch": {
+      "title": "Web Search",
+      "basic": {
+        "title": "Basic Settings",
+        "enable": "Enable Search",
+        "enableTip": "When enabled, AI can fetch latest info via web search",
+        "provider": "Search Provider"
+      },
+      "providers": {
+        "bing": "Bing Free",
+        "tavily": "Tavily",
+        "exa": "Exa",
+        "bocha": "Bocha AI",
+        "firecrawl": "Firecrawl",
+        "custom": "Custom"
+      },
+      "searchEngine": "Search Engine",
+      "engines": {
+        "baidu": "Baidu",
+        "sogou": "Sogou"
+      },
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter {{provider}} API key",
+      "alert": {
+        "tavily": "Tavily offers free daily quota. Get your API key at app.tavily.com."
+      },
+      "options": {
+        "title": "Search Options",
+        "maxResults": "Max results",
+        "includeInContext": "Include results in context",
+        "showTimestamp": "Show timestamp",
+        "safeSearch": "Safe search filter",
+        "addDate": "Append current date"
+      },
+      "advanced": {
+        "title": "Advanced Filters",
+        "excludeLabel": "Exclude keywords",
+        "placeholder": "Enter keywords to exclude... (comma separated)",
+        "note": "Excluded keywords will be filtered out from results"
+      },
+      "customProvider": {
+        "enableThis": "Enable this provider",
+        "add": "Add custom provider",
+        "name": "Provider Name",
+        "baseUrl": "Base URL",
+        "apiKey": "API Key"
+      }
+    },
+    "knowledge": {
+      "title": "Knowledge Base Settings",
+      "stats": {
+        "title": "Knowledge Base Statistics",
+        "subtitle": "View usage and storage statistics of your knowledge base",
+        "bases": "KB Count",
+        "documents": "Document Count",
+        "vectors": "Vector Count",
+        "storage": "Storage Size"
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "subtitle": "Create and manage knowledge bases quickly",
+        "create": "Create KB",
+        "manage": "Manage KB",
+        "emptyTip": "You haven't created any knowledge base yet. Click \"Create KB\" to get started."
+      },
+      "config": {
+        "title": "KB Configuration Guide",
+        "subtitle": "Learn about KB parameters and usage",
+        "info": "Embedding model, chunk size, similarity threshold and other parameters are set when creating a KB. Each KB can have its own configuration.",
+        "details": {
+          "embeddingModel": "<0>Embedding Model</0>: Converts text into vectors. Different models have different effects and dimensions",
+          "chunkSize": "<0>Chunk Size</0>: Size of each document chunk, affecting search accuracy and context length",
+          "similarity": "<0>Similarity Threshold</0>: Minimum similarity score of search results. Higher is more precise",
+          "docCount": "<0>Document Count</0>: Number of document chunks returned during search, affecting answer detail"
+        }
+      },
+      "data": {
+        "title": "Data Management",
+        "subtitle": "Export backup and clear KB data",
+        "noData": "No knowledge base found. Please create one first before managing data.",
+        "warning": "Data management actions affect all KBs. Proceed with caution. It's recommended to export backup first.",
+        "createFirst": "Create First KB",
+        "export": "Export Data",
+        "clear": "Clear All Data"
+      },
+      "dialogs": {
+        "clear": {
+          "title": "Confirm clearing all KB data",
+          "content": "This will delete all knowledge bases, documents and vectors irreversibly. Continue?",
+          "cancel": "Cancel",
+          "confirm": "Clear"
+        },
+        "export": {
+          "title": "Export KB Data",
+          "content": "All KBs and documents will be exported as a JSON file for backup or migration.",
+          "cancel": "Cancel",
+          "confirm": "Export"
+        }
+      },
+      "createDialog": {
+        "createTitle": "Create KB",
+        "editTitle": "Edit KB",
+        "name": "KB Name",
+        "nameHelper": "Give your KB a descriptive name",
+        "embeddingModel": "Embedding Model",
+        "embeddingModelHelper": "Model used to convert text into vectors",
+        "noModels": "No embedding models found. Please configure them in settings first.",
+        "requestDocs": "Requested document chunks: {{count}}",
+        "advanced": "Advanced Settings",
+        "chunkSize": "Chunk Size",
+        "chunkSizeHelper": "Size of each chunk when splitting document (characters)",
+        "overlap": "Overlap Size",
+        "overlapHelper": "Number of overlapping characters between chunks",
+        "similarityThreshold": "Similarity Threshold",
+        "thresholdHelper": "Minimum similarity score of search results. Higher is more precise",
+        "cancel": "Cancel",
+        "create": "Create",
+        "update": "Update",
+        "saving": "Saving..."
+      }
+    },
+    "data": {
+      "title": "Data Management",
+      "backupHeader": {
+        "title": "Data Backup & Restore",
+        "subtitle": "Backup your conversations and assistant data so you can restore them after switching devices or reinstalling the app"
+      },
+      "buttons": {
+        "basicBackup": "Backup Chats & Assistants",
+        "fullBackup": "Full System Backup",
+        "selectiveBackup": "Selective Backup",
+        "restore": "Import Backup File & Restore",
+        "importExternal": "Import Backup from Other Assistant",
+        "clearAll": "Clear All Assistants & Topics",
+        "webdavSettings": "WebDAV Backup Settings",
+        "webdavBackup": "Backup to WebDAV",
+        "webdavRestore": "Restore from WebDAV",
+        "diagnoseDatabase": "Database Diagnose & Repair"
+      },
+      "status": {
+        "backingUp": "Backing up...",
+        "restoring": "Restoring..."
+      },
+      "localFiles": {
+        "title": "Local Backup Files",
+        "notFound": "No local backup files found",
+        "refresh": "Refresh",
+        "unknownDate": "Unknown date",
+        "dateFormatError": "Date format error",
+        "types": {
+          "full": "Full Backup",
+          "custom": "Custom Backup",
+          "basic": "Basic Backup"
+        }
+      },
+      "dialogs": {
+        "clearConfirm": {
+          "title": "Confirm clearing all assistants and topics",
+          "content": "This will delete all assistants and conversations and cannot be undone. Continue?",
+          "cancel": "Cancel",
+          "confirm": "Clear"
+        }
+      }
+    },
+    "notion": {
+      "title": "Notion Integration Settings",
+      "header": {
+        "title": "Notion Integration Configuration",
+        "desc": "Configure Notion integration to export conversations to your Notion database.",
+        "tutorial": "View Tutorial"
+      },
+      "toggle": {
+        "enable": "Enable Notion Export"
+      },
+      "form": {
+        "apiKey": "Notion API Key",
+        "apiKeyPlaceholder": "secret_xxxxxxxxxxxxxxxxxxxxx",
+        "apiKeyHelper": "Create an integration at https://www.notion.so/my-integrations and copy the API key",
+        "databaseId": "Database ID",
+        "databaseIdPlaceholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "databaseIdHelper": "Part of the ID extracted from the Notion database URL",
+        "pageTitle": "Page Title Field",
+        "pageTitlePlaceholder": "Name",
+        "pageTitleHelper": "The field used as title in database, usually 'Name' or '名称'",
+        "dateField": "Created Date Field (optional)",
+        "dateFieldPlaceholder": "Created Date",
+        "dateFieldHelper": "If the database has a date field, enter its name; leave blank to skip"
+      },
+      "buttons": {
+        "test": "Test Connection",
+        "testing": "Testing..."
+      },
+      "messages": {
+        "missingFields": "Please fill API key and Database ID first",
+        "connectionSuccess": "Connected! Database '{{db}}' is ready",
+        "connectionFailed": "Connection failed: {{msg}}",
+        "titleFieldMissing": "Title field '{{field}}' not found in database"
+      },
+      "corsInfo": "About CORS issue:",
+      "corsTips": [
+        "Web proxy is pre-configured for development, mobile app bundles CORS bypass plugin.",
+        "For production, consider:",
+        "1. Using mobile app (auto CORS bypass)",
+        "2. Configuring server-side proxy",
+        "3. Hosting in CORS-friendly environment",
+        "Note: restart dev server after proxy changes take effect."
+      ],
+      "setup": {
+        "title": "Setup Steps:",
+        "steps": [
+          "Visit Notion Integrations and create a new integration",
+          "Copy generated API key and paste into 'Notion API Key' field",
+          "Create a database in Notion and share it with the integration",
+          "Copy database ID from URL and paste into 'Database ID' field",
+          "Confirm the title field name in database, usually 'Name' or localized version",
+          "(Optional) Enter created date field name if needed",
+          "Click 'Test Connection' to verify settings"
+        ]
+      }
+    },
+    "voice": {
+      "title": "Voice Feature Settings",
+      "tabs": {
+        "tts": "Text to Speech (TTS)",
+        "asr": "Speech Recognition (ASR)"
+      },
+      "status": {
+        "recommended": "Recommended",
+        "premium": "Premium",
+        "enterprise": "Enterprise",
+        "free": "Free"
+      }
+    },
+    "about": {
+      "title": "About Us",
+      "appTitle": "About AetherLink",
+      "appDesc1": "AetherLink is a powerful AI assistant app that supports multiple large language models to help you work more efficiently.",
+      "appDesc2": "We are committed to providing users with the best AI assistance experience, bringing AI technology to everyone.",
+      "community": {
+        "title": "User Community",
+        "desc": "If you have questions or suggestions, feel free to join our QQ group for feedback",
+        "groupNumber": "Group No.: 930126592",
+        "join": "Join QQ Group"
+      },
+      "version": "Version: {{ver}}",
+      "buttons": {
+        "github": "GitHub",
+        "devTools": "Dev Tools"
+      }
+    },
+    "sidebar": {
+      "tabs": {
+        "assistants": "Assistants",
+        "topics": "Topics",
+        "settings": "Settings"
+      }
+    }
+     },
+   "sidebar": {
+     "tabs": {
+       "assistants": "Assistants",
+       "topics": "Topics", 
+       "settings": "Settings"
+     },
+     "assistants": {
+       "title": "Agents",
+       "searchPlaceholder": "Search assistants...",
+       "createGroup": "Group",
+       "addAssistant": "Assistant",
+       "ungroupedTitle": "Ungrouped Assistants",
+       "emptyUngrouped": "No ungrouped assistants",
+       "emptyGroup": "This group has no assistants, please add from ungrouped assistants",
+       "noGroups": "No assistant groups",
+       "menu": {
+         "addToGroup": "Add to Group...",
+         "editAssistant": "Edit Assistant",
+         "changeIcon": "Change Icon",
+         "copyAssistant": "Copy Assistant",
+         "clearTopics": "Clear Topics",
+         "sortPinyinAsc": "Sort by Pinyin Ascending",
+         "sortPinyinDesc": "Sort by Pinyin Descending",
+         "deleteAssistant": "Delete Assistant",
+         "createNewGroup": "Create New Group..."
+       }
+     },
+     "topics": {
+       "title": "All Topics",
+       "assistantTopics": "{{assistantName}}'s Topics",
+       "emptyMessage": "This assistant has no topics, click the \"+\" button above to create a new topic.",
+       "newTopic": "New Topic",
+       "ungroupedTitle": "Ungrouped Topics",
+       "emptyUngrouped": "No topics",
+       "emptyGroup": "This group has no topics, please add from ungrouped topics",
+       "menu": {
+         "addToGroup": "Add to Group...",
+         "editTopic": "Edit Topic",
+         "autoRename": "Auto Rename Topic",
+         "togglePin": "Pin Topic",
+         "toggleUnpin": "Unpin Topic",
+         "clearMessages": "Clear Messages",
+         "moveTo": "Move to...",
+         "copyMarkdown": "Copy as Markdown",
+         "exportMarkdown": "Export as Markdown",
+         "deleteTopic": "Delete Topic",
+         "createNewGroup": "Create New Group..."
+       }
+     }
+   },
+   "input": {
+     "placeholder": {
+       "default": "Say something to the AI assistant...",
+       "defaultExpanded": "Say something to the AI assistant... (Ctrl+Enter to expand)",
+       "imageGeneration": "Enter image generation prompt... (Ctrl+Enter to expand)",
+       "webSearch": "Enter web search content... (Ctrl+Enter to expand)"
+     },
+     "toolbar": {
+       "newTopic": "New Topic",
+       "clearTopic": "Clear Content",
+       "clearConfirm": "Confirm Clear",
+       "generateImage": "Generate Image",
+       "cancelGenerate": "Cancel Generation",
+       "generateVideo": "Generate Video",
+       "tools": "Tools",
+       "mcpTools": "MCP Tools",
+       "knowledge": "Knowledge Base",
+       "webSearch": "Web Search"
+     }
+   },
+   "message": {
+     "generating": "Generating response..."
+   },
+   "chat": {
+       "componentError": "Component failed to load, please refresh the page.",
+       "newConversation": "New conversation started, please enter your question"
+      },
+    "common": {
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "import": "Import",
+    "close": "Close",
+    "unknownError": "Unknown Error"
+  }
+} 

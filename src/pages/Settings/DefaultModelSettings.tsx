@@ -35,6 +35,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { reorderArray } from '../../shared/utils/dragUtils';
 import { Bot as SmartToyIcon, AlignLeft as FormattedAlignLeftIcon, List as ViewAgendaIcon, GripVertical as DragIndicatorIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 默认模型设置组件
@@ -45,6 +46,7 @@ const DefaultModelSettings: React.FC = () => {
   const providers = useAppSelector(state => state.settings.providers);
   const modelSelectorStyle = useAppSelector(state => state.settings.modelSelectorStyle);
   const [isDragging, setIsDragging] = useState(false);
+  const { t } = useTranslation();
 
   // 编辑供应商弹窗状态
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -183,7 +185,7 @@ const DefaultModelSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            模型设置
+            {t('settings.modelConfig.title')}
           </Typography>
           <Button
             startIcon={<AddIcon />}
@@ -197,7 +199,7 @@ const DefaultModelSettings: React.FC = () => {
               borderRadius: 2,
             }}
           >
-            添加
+            {t('settings.modelConfig.addProvider')}
           </Button>
         </Toolbar>
       </AppBar>
@@ -231,10 +233,10 @@ const DefaultModelSettings: React.FC = () => {
         >
           <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              模型服务商
+              {t('settings.modelConfig.providerSection.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              您可以配置多个模型服务商，点击对应的服务商进行设置和管理
+              {t('settings.modelConfig.providerSection.subtitle')}
             </Typography>
           </Box>
 
@@ -315,11 +317,11 @@ const DefaultModelSettings: React.FC = () => {
                                     fontWeight: 500
                                   }}
                                 >
-                                  {provider.isEnabled ? '已启用' : '已禁用'}
+                                  {provider.isEnabled ? t('settings.modelConfig.providerStatus.enabled') : t('settings.modelConfig.providerStatus.disabled')}
                                 </Typography>
                                 {provider.models.length > 0 && (
                                   <Typography component="span" variant="body2" color="text.secondary">
-                                    {provider.models.length} 个模型
+                                    {t('settings.modelConfig.providerStatus.modelsCount', { count: provider.models.length })}
                                   </Typography>
                                 )}
                               </Box>
@@ -374,7 +376,7 @@ const DefaultModelSettings: React.FC = () => {
                   color: 'text.primary'
                 }}
               >
-                推荐操作
+                {t('settings.modelConfig.recommendations.title')}
               </ListSubheader>
             }
           >
@@ -398,8 +400,8 @@ const DefaultModelSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>话题命名设置</Typography>}
-                  secondary="设置话题自动命名的模型和选项"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.modelConfig.recommendations.topicNaming.primary')}</Typography>}
+                  secondary={t('settings.modelConfig.recommendations.topicNaming.secondary')}
                 />
                 <ChevronRightIcon size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -427,8 +429,8 @@ const DefaultModelSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>模型选择器样式</Typography>}
-                  secondary={modelSelectorStyle === 'dialog' ? "当前：弹窗式选择器（点击切换为下拉式）" : "当前：下拉式选择器（点击切换为弹窗式）"}
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.modelConfig.recommendations.selectorStyle.primary')}</Typography>}
+                  secondary={t(modelSelectorStyle === 'dialog' ? 'settings.modelConfig.recommendations.selectorStyle.dialog' : 'settings.modelConfig.recommendations.selectorStyle.dropdown')}
                 />
               </ListItemButton>
             </ListItem>
@@ -455,8 +457,8 @@ const DefaultModelSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>添加模型服务商</Typography>}
-                  secondary="设置新的模型服务商"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.modelConfig.recommendations.addNewProvider.primary')}</Typography>}
+                  secondary={t('settings.modelConfig.recommendations.addNewProvider.secondary')}
                 />
                 <ChevronRightIcon size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -483,13 +485,13 @@ const DefaultModelSettings: React.FC = () => {
           backgroundClip: 'text',
           color: 'transparent',
         }}>
-          编辑供应商
+          {t('settings.modelConfig.editDialog.title')}
         </DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <TextField
             autoFocus
             margin="dense"
-            label="供应商名称"
+            label={t('settings.modelConfig.editDialog.nameLabel')}
             placeholder="例如: 我的智谱AI"
             type="text"
             fullWidth
@@ -499,7 +501,7 @@ const DefaultModelSettings: React.FC = () => {
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth variant="outlined">
-            <InputLabel>供应商类型</InputLabel>
+            <InputLabel id="provider-type-label">{t('settings.modelConfig.editDialog.typeLabel')}</InputLabel>
             <Select
               value={editProviderType}
               onChange={(e) => setEditProviderType(e.target.value)}
@@ -514,7 +516,7 @@ const DefaultModelSettings: React.FC = () => {
           </FormControl>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseEditDialog}>取消</Button>
+          <Button onClick={handleCloseEditDialog}>{t('settings.modelConfig.editDialog.cancel')}</Button>
           <Button
             onClick={handleSaveProvider}
             disabled={!editProviderName.trim()}
@@ -527,7 +529,7 @@ const DefaultModelSettings: React.FC = () => {
               borderRadius: 2,
             }}
           >
-            保存
+            {t('settings.modelConfig.editDialog.save')}
           </Button>
         </DialogActions>
       </Dialog>

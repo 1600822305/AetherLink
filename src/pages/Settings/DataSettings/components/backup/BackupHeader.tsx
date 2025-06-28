@@ -1,11 +1,14 @@
 import React from 'react';
 import { Box, Typography, Avatar, Divider } from '@mui/material';
 import { Cloud } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 备份头部组件
  */
 const BackupHeader: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -31,10 +34,10 @@ const BackupHeader: React.FC = () => {
               color: 'transparent',
             }}
           >
-            数据备份与恢复
+            {t('settings.data.backupHeader.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            备份您的对话和助手数据，以便在更换设备或重新安装应用后恢复
+            {t('settings.data.backupHeader.subtitle')}
           </Typography>
         </Box>
       </Box>

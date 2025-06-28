@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -27,15 +27,18 @@ import {
 import { ArrowLeft, ChevronRight, MessageSquare, MessageCircle, Wrench, Brain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../../shared/store';
-import { setTheme, setFontSize, setFontFamily, setShowPerformanceMonitor } from '../../shared/store/settingsSlice';
+import { setTheme, setFontSize, setFontFamily, setShowPerformanceMonitor, setLanguage } from '../../shared/store/settingsSlice';
 import ThemeStyleSelector from '../../components/settings/ThemeStyleSelector';
 import { fontOptions, fontCategoryLabels, getFontById } from '../../shared/config/fonts';
 import useScrollPosition from '../../hooks/useScrollPosition';
+import i18n from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 const AppearanceSettings: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const settings = useAppSelector((state) => state.settings);
+  const { t } = useTranslation();
 
   // 使用滚动位置保存功能
   const {
@@ -60,26 +63,26 @@ const AppearanceSettings: React.FC = () => {
     dispatch(setFontFamily(event.target.value));
   };
 
-  // 字体大小预设值
-  const fontSizePresets = [
-    { value: 12, label: '极小' },
-    { value: 14, label: '小' },
-    { value: 16, label: '标准' },
-    { value: 18, label: '大' },
-    { value: 20, label: '极大' },
-    { value: 24, label: '超大' }
-  ];
+  // 字体大小预设值（根据当前语言动态生成）
+  const fontSizePresets = useMemo(() => ([
+    { value: 12, label: t('settings.appearance.fontSize.preset.tiny') },
+    { value: 14, label: t('settings.appearance.fontSize.preset.small') },
+    { value: 16, label: t('settings.appearance.fontSize.preset.normal') },
+    { value: 18, label: t('settings.appearance.fontSize.preset.large') },
+    { value: 20, label: t('settings.appearance.fontSize.preset.xlarge') },
+    { value: 24, label: t('settings.appearance.fontSize.preset.huge') },
+  ]), [t]);
 
   // 获取当前字体大小的描述
   const getCurrentFontSizeLabel = (fontSize: number) => {
     const preset = fontSizePresets.find(p => p.value === fontSize);
-    return preset ? preset.label : '自定义';
+    return preset ? preset.label : t('settings.appearance.fontSize.custom');
   };
 
   // 获取当前字体的描述
   const getCurrentFontLabel = (fontId: string) => {
     const font = getFontById(fontId);
-    return font ? font.name : '系统默认';
+    return font ? font.name : t('settings.appearance.font.system');
   };
 
   const handleNavigateToChatInterface = () => {
@@ -109,6 +112,12 @@ const AppearanceSettings: React.FC = () => {
   // 性能监控开关处理函数
   const handlePerformanceMonitorChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setShowPerformanceMonitor(event.target.checked));
+  };
+
+  const handleLanguageChange = (event: any) => {
+    const lang = event.target.value;
+    i18n.changeLanguage(lang);
+    dispatch(setLanguage(lang));
   };
 
   return (
@@ -156,7 +165,7 @@ const AppearanceSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            外观设置
+            {t('settings.appearance.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -193,10 +202,10 @@ const AppearanceSettings: React.FC = () => {
         >
           <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              主题和字体
+              {t('settings.appearance.themeFont.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              自定义应用的外观主题和全局字体大小设置
+              {t('settings.appearance.themeFont.subtitle')}
             </Typography>
           </Box>
 
@@ -205,11 +214,11 @@ const AppearanceSettings: React.FC = () => {
           <Box sx={{ p: 2 }}>
             {/* 主题选择 */}
             <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
-              <InputLabel>主题</InputLabel>
+              <InputLabel>{t('settings.appearance.theme.label')}</InputLabel>
               <Select
                 value={settings.theme}
                 onChange={(e) => dispatch(setTheme(e.target.value as 'light' | 'dark' | 'system'))}
-                label="主题"
+                label={t('settings.appearance.theme.label')}
                 MenuProps={{
                   disableAutoFocus: true,
                   disableRestoreFocus: true
@@ -223,12 +232,12 @@ const AppearanceSettings: React.FC = () => {
                   },
                 }}
               >
-                <MenuItem value="light">浅色</MenuItem>
-                <MenuItem value="dark">深色</MenuItem>
-                <MenuItem value="system">跟随系统</MenuItem>
+                <MenuItem value="light">{t('settings.appearance.theme.light')}</MenuItem>
+                <MenuItem value="dark">{t('settings.appearance.theme.dark')}</MenuItem>
+                <MenuItem value="system">{t('settings.appearance.theme.system')}</MenuItem>
               </Select>
               <FormHelperText>
-                选择应用的外观主题，跟随系统将自动适配设备的深色/浅色模式
+                {t('settings.appearance.theme.helper')}
               </FormHelperText>
             </FormControl>
 
@@ -236,6 +245,34 @@ const AppearanceSettings: React.FC = () => {
             <Box sx={{ mb: 3 }}>
               <ThemeStyleSelector compact />
             </Box>
+
+            {/* 语言选择 */}
+            <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
+              <InputLabel>{t('settings.appearance.language.label')}</InputLabel>
+              <Select
+                value={settings.language || 'zh'}
+                onChange={handleLanguageChange}
+                label={t('settings.appearance.language.label')}
+                MenuProps={{
+                  disableAutoFocus: true,
+                  disableRestoreFocus: true
+                }}
+                sx={{
+                  '& .MuiSelect-select': {
+                    fontSize: { xs: '0.9rem', sm: '1rem' },
+                  },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderRadius: 2,
+                  },
+                }}
+              >
+                <MenuItem value="zh">{t('settings.appearance.language.zh')}</MenuItem>
+                <MenuItem value="en">{t('settings.appearance.language.en')}</MenuItem>
+              </Select>
+              <FormHelperText>
+                {t('settings.appearance.language.helper')}
+              </FormHelperText>
+            </FormControl>
 
           {/* 全局字体大小控制 */}
           <Box sx={{ mb: 2 }}>
@@ -252,7 +289,7 @@ const AppearanceSettings: React.FC = () => {
                   fontSize: { xs: '0.9rem', sm: '1rem' },
                 }}
               >
-                全局字体大小
+                {t('settings.appearance.fontSize.label')}
               </Typography>
               <Chip
                 label={`${settings.fontSize}px (${getCurrentFontSizeLabel(settings.fontSize)})`}
@@ -315,7 +352,7 @@ const AppearanceSettings: React.FC = () => {
             />
 
             <FormHelperText sx={{ mt: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-              调整应用中所有文本的基础字体大小，影响聊天消息、界面文字等全局显示效果
+              {t('settings.appearance.fontSize.helper')}
             </FormHelperText>
           </Box>
 
@@ -334,7 +371,7 @@ const AppearanceSettings: React.FC = () => {
                   fontSize: { xs: '0.9rem', sm: '1rem' },
                 }}
               >
-                全局字体
+                {t('settings.appearance.font.label')}
               </Typography>
               <Chip
                 label={getCurrentFontLabel(settings.fontFamily || 'system')}
@@ -349,11 +386,11 @@ const AppearanceSettings: React.FC = () => {
             </Box>
 
             <FormControl fullWidth variant="outlined">
-              <InputLabel>字体</InputLabel>
+              <InputLabel>{t('settings.appearance.font.inputLabel')}</InputLabel>
               <Select
                 value={settings.fontFamily || 'system'}
                 onChange={handleFontFamilyChange}
-                label="字体"
+                label={t('settings.appearance.font.inputLabel')}
                 MenuProps={{
                   disableAutoFocus: true,
                   disableRestoreFocus: true,
@@ -416,7 +453,7 @@ const AppearanceSettings: React.FC = () => {
                 ]).flat()}
               </Select>
               <FormHelperText sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                选择应用的全局字体，将影响所有界面文字的显示效果
+                {t('settings.appearance.font.helper')}
               </FormHelperText>
             </FormControl>
           </Box>
@@ -438,10 +475,10 @@ const AppearanceSettings: React.FC = () => {
         >
           <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              界面定制
+              {t('settings.appearance.customization.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              自定义聊天界面、消息气泡和工具栏的外观设置
+              {t('settings.appearance.customization.subtitle')}
             </Typography>
           </Box>
 
@@ -469,8 +506,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>顶部工具栏设置</Typography>}
-                  secondary="自定义顶部工具栏的组件和布局，支持拖拽DIY布局"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.topToolbar.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.topToolbar.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -499,8 +536,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>聊天界面设置</Typography>}
-                  secondary="自定义聊天界面布局和显示选项"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.chatInterface.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.chatInterface.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -529,8 +566,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>思考过程设置</Typography>}
-                  secondary="自定义AI思考过程的显示方式和自动折叠行为"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.thinkingProcess.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.thinkingProcess.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -559,8 +596,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>信息气泡管理</Typography>}
-                  secondary="调整消息气泡的样式和宽度设置"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.messageBubble.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.messageBubble.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -589,8 +626,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>输入框工具栏设置</Typography>}
-                  secondary="自定义输入框工具栏的背景样式和外观效果"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.inputToolbar.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.inputToolbar.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -619,8 +656,8 @@ const AppearanceSettings: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>输入框管理设置</Typography>}
-                  secondary="自定义输入框的风格和布局样式"
+                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{t('settings.appearance.customization.inputBox.primary')}</Typography>}
+                  secondary={t('settings.appearance.customization.inputBox.secondary')}
                 />
                 <ChevronRight size={20} style={{ color: 'var(--mui-palette-text-secondary)' }} />
               </ListItemButton>
@@ -643,10 +680,10 @@ const AppearanceSettings: React.FC = () => {
         >
           <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              开发者工具
+              {t('settings.appearance.devTools.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              用于调试和性能监控的开发者工具设置
+              {t('settings.appearance.devTools.subtitle')}
             </Typography>
           </Box>
 
@@ -664,10 +701,10 @@ const AppearanceSettings: React.FC = () => {
               label={
                 <Box>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    显示性能监控
+                    {t('settings.appearance.devTools.performanceMonitor.primary')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    在聊天界面显示实时性能监控面板，包括FPS、滚动事件、渲染时间和内存使用情况
+                    {t('settings.appearance.devTools.performanceMonitor.secondary')}
                   </Typography>
                 </Box>
               }

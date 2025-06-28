@@ -22,6 +22,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { updateSettings } from '../../shared/store/settingsSlice';
 import { notionApiRequest, NotionApiError } from '../../utils/notionApiUtils';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Notion设置页面
@@ -47,6 +48,8 @@ const NotionSettingsPage: React.FC = () => {
 
 
   const [localSettings, setLocalSettings] = useState(notionSettings);
+
+  const { t } = useTranslation();
 
   // 监听Redux状态变化并同步到本地状态
   useEffect(() => {
@@ -74,7 +77,7 @@ const NotionSettingsPage: React.FC = () => {
     if (!localSettings.apiKey || !localSettings.databaseId) {
       setTestResult({
         success: false,
-        message: '请先填写API密钥和数据库ID'
+        message: t('settings.notion.messages.missingFields')
       });
       return;
     }
@@ -98,12 +101,12 @@ const NotionSettingsPage: React.FC = () => {
       if (!titleFieldExists) {
         setTestResult({
           success: false,
-          message: `数据库中未找到标题字段"${localSettings.pageTitleField}"，请检查字段名称是否正确`
+          message: t('settings.notion.messages.titleFieldMissing', { field: localSettings.pageTitleField })
         });
       } else {
         setTestResult({
           success: true,
-          message: `连接成功！数据库"${data.title?.[0]?.plain_text || '未命名'}"已就绪`
+          message: t('settings.notion.messages.connectionSuccess', { db: data.title?.[0]?.plain_text || t('common.unknownError') })
         });
       }
     } catch (error) {
@@ -114,7 +117,7 @@ const NotionSettingsPage: React.FC = () => {
 
       setTestResult({
         success: false,
-        message: `连接失败: ${message}`
+        message: t('settings.notion.messages.connectionFailed', { msg: message })
       });
     } finally {
       setTesting(false);
@@ -168,7 +171,7 @@ const NotionSettingsPage: React.FC = () => {
               color: 'transparent',
             }}
           >
-            Notion 集成设置
+            {t('settings.notion.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -201,18 +204,18 @@ const NotionSettingsPage: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Database size={20} style={{ marginRight: 8 }} />
             <Typography variant="h6" component="h3">
-              Notion 集成配置
+              {t('settings.notion.header.title')}
             </Typography>
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            配置Notion集成，将对话导出到您的Notion数据库。
+            {t('settings.notion.header.desc')}
             <Link 
               href="https://docs.cherry-ai.com/data-settings/notion" 
               target="_blank" 
               sx={{ ml: 1, display: 'inline-flex', alignItems: 'center' }}
             >
-              查看配置教程
+              {t('settings.notion.header.tutorial')}
               <ExternalLink size={14} style={{ marginLeft: 4 }} />
             </Link>
           </Typography>
@@ -225,20 +228,20 @@ const NotionSettingsPage: React.FC = () => {
                 onChange={(e) => handleSettingChange('enabled', e.target.checked)}
               />
             }
-            label="启用Notion导出"
+            label={t('settings.notion.toggle.enable')}
             sx={{ mb: 3 }}
           />
 
           {/* 配置表单 */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, opacity: localSettings.enabled ? 1 : 0.5 }}>
             <TextField
-              label="Notion API 密钥"
+              label={t('settings.notion.form.apiKey')}
               type="password"
               value={localSettings.apiKey}
               onChange={(e) => handleSettingChange('apiKey', e.target.value)}
               disabled={!localSettings.enabled}
-              placeholder="secret_xxxxxxxxxxxxxxxxxxxxx"
-              helperText="在 https://www.notion.so/my-integrations 创建集成并获取API密钥"
+              placeholder={t('settings.notion.form.apiKeyPlaceholder')}
+              helperText={t('settings.notion.form.apiKeyHelper')}
               InputProps={{
                 startAdornment: <Key size={16} style={{ marginRight: 8, color: '#666' }} />
               }}
@@ -246,32 +249,32 @@ const NotionSettingsPage: React.FC = () => {
             />
 
             <TextField
-              label="数据库 ID"
+              label={t('settings.notion.form.databaseId')}
               value={localSettings.databaseId}
               onChange={(e) => handleSettingChange('databaseId', e.target.value)}
               disabled={!localSettings.enabled}
-              placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              helperText="从Notion数据库URL中提取的ID部分"
+              placeholder={t('settings.notion.form.databaseIdPlaceholder')}
+              helperText={t('settings.notion.form.databaseIdHelper')}
               fullWidth
             />
 
             <TextField
-              label="页面标题字段名"
+              label={t('settings.notion.form.pageTitle')}
               value={localSettings.pageTitleField}
               onChange={(e) => handleSettingChange('pageTitleField', e.target.value)}
               disabled={!localSettings.enabled}
-              placeholder="Name"
-              helperText="数据库中用作标题的字段名称，通常是 'Name' 或 '名称'"
+              placeholder={t('settings.notion.form.pageTitlePlaceholder')}
+              helperText={t('settings.notion.form.pageTitleHelper')}
               fullWidth
             />
 
             <TextField
-              label="创建日期字段名（可选）"
+              label={t('settings.notion.form.dateField')}
               value={localSettings.dateField || ''}
               onChange={(e) => handleSettingChange('dateField', e.target.value)}
               disabled={!localSettings.enabled}
-              placeholder="创建日期"
-              helperText="如果数据库中有日期字段，填入字段名称；留空则不添加日期信息"
+              placeholder={t('settings.notion.form.dateFieldPlaceholder')}
+              helperText={t('settings.notion.form.dateFieldHelper')}
               fullWidth
             />
 
@@ -283,7 +286,7 @@ const NotionSettingsPage: React.FC = () => {
               startIcon={testing ? <CircularProgress size={16} /> : <CheckCircle size={16} />}
               sx={{ alignSelf: 'flex-start', mt: 1 }}
             >
-              {testing ? '测试中...' : '测试连接'}
+              {testing ? t('settings.notion.buttons.testing') : t('settings.notion.buttons.test')}
             </Button>
 
             {/* 测试结果 */}
@@ -301,19 +304,19 @@ const NotionSettingsPage: React.FC = () => {
             {/* CORS 说明 */}
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="body2">
-                <strong>关于跨域问题：</strong>
+                <strong>{t('settings.notion.corsInfo')}</strong>
                 <br />
-                Web端开发环境下已配置代理，可直接使用。移动端应用已配置 CORS 绕过插件。
+                {t('settings.notion.corsTips.0')}
                 <br />
-                生产环境下如遇到跨域错误，建议：
+                {t('settings.notion.corsTips.1')}
                 <br />
-                1. 使用移动应用版本（自动绕过CORS）
+                {t('settings.notion.corsTips.2')}
                 <br />
-                2. 部署时配置服务器代理
+                {t('settings.notion.corsTips.3')}
                 <br />
-                3. 使用支持CORS的环境
+                {t('settings.notion.corsTips.4')}
                 <br />
-                <strong>注意：</strong>请重启开发服务器以使代理配置生效。
+                <strong>{t('settings.notion.corsTips.5')}</strong>
               </Typography>
             </Alert>
           </Box>
@@ -323,42 +326,42 @@ const NotionSettingsPage: React.FC = () => {
           {/* 配置说明 */}
           <Box>
             <Typography variant="subtitle2" gutterBottom>
-              配置步骤：
+              {t('settings.notion.setup.title')}
             </Typography>
             <Box component="ol" sx={{ pl: 2, '& li': { mb: 1 } }}>
               <li>
                 <Typography variant="body2">
-                  访问 <Link href="https://www.notion.so/my-integrations" target="_blank">Notion Integrations</Link> 创建一个新的集成
+                  {t('settings.notion.setup.steps.0')} <Link href="https://www.notion.so/my-integrations" target="_blank">Notion Integrations</Link>
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  复制生成的API密钥并填入上方的"Notion API 密钥"字段
+                  {t('settings.notion.setup.steps.1')}
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  在Notion中创建一个数据库，并将集成连接到该数据库
+                  {t('settings.notion.setup.steps.2')}
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  从数据库URL中复制数据库ID并填入"数据库 ID"字段
+                  {t('settings.notion.setup.steps.3')}
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  确认数据库中标题字段的名称，通常是"Name"或"名称"
+                  {t('settings.notion.setup.steps.4')}
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  （可选）如果需要添加创建日期，请填入数据库中日期字段的名称
+                  {t('settings.notion.setup.steps.5')}
                 </Typography>
               </li>
               <li>
                 <Typography variant="body2">
-                  点击"测试连接"按钮验证配置是否正确
+                  {t('settings.notion.setup.steps.6')}
                 </Typography>
               </li>
             </Box>

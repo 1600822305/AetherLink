@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../hooks/useTheme';
+import { useTranslation } from 'react-i18next';
 
 interface LoadingScreenProps {
   progress: number;
@@ -13,6 +14,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
   isFirstInstall 
 }) => {
   const { mode } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <div style={{
@@ -62,7 +64,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
             fontSize: '14px',
             marginBottom: '10px',
             fontWeight: '500'
-          }}>欢迎使用智能对话助手</div>
+          }}>{t('loadingScreen.welcome')}</div>
         )}
 
         {/* 初始化步骤 */}

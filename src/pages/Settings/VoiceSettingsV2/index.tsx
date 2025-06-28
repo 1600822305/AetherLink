@@ -15,12 +15,12 @@ import {
 import {
   ArrowLeft,
   Volume2,
-  Mic,
-  Settings as SettingsIcon
+  Mic
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { alpha } from '@mui/material/styles';
 import { getStorageItem } from '../../../shared/utils/storage';
+import { useTranslation } from 'react-i18next';
 
 // TTS服务配置
 const TTS_SERVICES = [
@@ -80,19 +80,19 @@ const ASR_SERVICES = [
   }
 ];
 
-// 状态标签配置
-const STATUS_CONFIG = {
-  recommended: { label: '推荐', color: 'primary' as const },
-  premium: { label: '付费', color: 'warning' as const },
-  enterprise: { label: '企业级', color: 'info' as const },
-  free: { label: '免费', color: 'success' as const }
-};
-
 const VoiceSettingsV2: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0); // 0: TTS, 1: ASR
   const [currentTTSService, setCurrentTTSService] = useState<string>('siliconflow');
   const [currentASRService, setCurrentASRService] = useState<string>('capacitor');
+  const { t } = useTranslation();
+
+  const STATUS_CONFIG = {
+    recommended: { label: t('settings.voice.status.recommended'), color: 'primary' as const },
+    premium: { label: t('settings.voice.status.premium'), color: 'warning' as const },
+    enterprise: { label: t('settings.voice.status.enterprise'), color: 'info' as const },
+    free: { label: t('settings.voice.status.free'), color: 'success' as const },
+  };
 
   // 提取 loadCurrentServices 到 useEffect 外部
   const loadCurrentServices = useCallback(async () => {
@@ -201,7 +201,7 @@ const VoiceSettingsV2: React.FC = () => {
               color: 'transparent',
             }}
           >
-            语音功能设置
+            {t('settings.voice.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -261,8 +261,8 @@ const VoiceSettingsV2: React.FC = () => {
               },
             }}
           >
-            <Tab label="文本转语音 (TTS)" icon={<Volume2 size={20} />} iconPosition="start" />
-            <Tab label="语音识别 (ASR)" icon={<Mic size={20} />} iconPosition="start" />
+            <Tab label={t('settings.voice.tabs.tts')} icon={<Volume2 size={16} />} iconPosition="start" />
+            <Tab label={t('settings.voice.tabs.asr')} icon={<Mic size={16} />} iconPosition="start" />
           </Tabs>
 
           {/* 服务卡片网格 */}

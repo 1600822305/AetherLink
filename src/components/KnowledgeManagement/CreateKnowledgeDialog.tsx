@@ -33,6 +33,7 @@ import {
 } from '../../shared/constants/knowledge';
 import type { KnowledgeBase } from '../../shared/types/KnowledgeBase';
 import type { Model } from '../../shared/types';
+import { useTranslation } from 'react-i18next';
 
 interface CreateKnowledgeDialogProps {
   open: boolean;
@@ -67,6 +68,9 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
 
   // 用于取消异步操作的引用
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // i18n
+  const { t } = useTranslation();
 
   // 加载可用的嵌入模型
   useEffect(() => {
@@ -201,8 +205,6 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
       newErrors.model = '请选择嵌入模型';
     }
 
-
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -225,7 +227,7 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>{isEditing ? '编辑知识库' : '创建知识库'}</DialogTitle>
+      <DialogTitle>{isEditing ? t('settings.knowledge.createDialog.editTitle') : t('settings.knowledge.createDialog.createTitle')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={3}>
           {/* 错误提示 */}
@@ -238,23 +240,23 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
           <TextField
             autoFocus
             name="name"
-            label="知识库名称"
+            label={t('settings.knowledge.createDialog.name')}
             fullWidth
             required
             value={formData.name}
             onChange={handleInputChange}
             error={!!errors.name}
-            helperText={errors.name || '给知识库起一个描述性的名称'}
+            helperText={errors.name || t('settings.knowledge.createDialog.nameHelper')}
           />
 
           {/* 嵌入模型 */}
           <FormControl fullWidth error={!!errors.model}>
-            <InputLabel>嵌入模型 *</InputLabel>
+            <InputLabel>{`${t('settings.knowledge.createDialog.embeddingModel')} *`}</InputLabel>
             <Select
               name="model"
               value={formData.model || ''}
               onChange={handleModelChange}
-              label="嵌入模型 *"
+              label={`${t('settings.knowledge.createDialog.embeddingModel')} *`}
               MenuProps={{
                 disableAutoFocus: true,
                 disableRestoreFocus: true
@@ -268,19 +270,19 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
                 ))
               ) : (
                 <MenuItem disabled value="">
-                  未找到可用的嵌入模型，请先在设置中配置
+                  {t('settings.knowledge.createDialog.noModels')}
                 </MenuItem>
               )}
             </Select>
             <FormHelperText>
-              {errors.model || '用于将文本转换为向量的模型'}
+              {errors.model || t('settings.knowledge.createDialog.embeddingModelHelper')}
             </FormHelperText>
           </FormControl>
 
           {/* 文档数量限制 */}
           <Box>
             <Typography gutterBottom>
-              请求文档段数量: {formData.documentCount}
+              {t('settings.knowledge.createDialog.requestDocs', { count: formData.documentCount })}
             </Typography>
             <Slider
               name="documentCount"
@@ -307,7 +309,7 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="subtitle1" fontWeight="bold">
-              高级设置
+              {t('settings.knowledge.createDialog.advanced')}
             </Typography>
             <IconButton
               onClick={() => setShowAdvanced(!showAdvanced)}
@@ -322,12 +324,12 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
               {/* 分块大小 */}
               <TextField
                 name="chunkSize"
-                label="分块大小"
+                label={t('settings.knowledge.createDialog.chunkSize')}
                 type="number"
                 fullWidth
                 value={formData.chunkSize}
                 onChange={handleInputChange}
-                helperText="将文档分割成的块的大小（字符数）"
+                helperText={t('settings.knowledge.createDialog.chunkSizeHelper')}
                 slotProps={{
                   htmlInput: { min: 100, max: 5000, step: 100 }
                 }}
@@ -336,12 +338,12 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
               {/* 重叠大小 */}
               <TextField
                 name="chunkOverlap"
-                label="重叠大小"
+                label={t('settings.knowledge.createDialog.overlap')}
                 type="number"
                 fullWidth
                 value={formData.chunkOverlap}
                 onChange={handleInputChange}
-                helperText="每个块之间重叠的字符数"
+                helperText={t('settings.knowledge.createDialog.overlapHelper')}
                 slotProps={{
                   htmlInput: { min: 0, max: 1000, step: 50 }
                 }}
@@ -350,7 +352,7 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
               {/* 相似度阈值 */}
               <Box>
                 <Typography gutterBottom>
-                  相似度阈值: {formData.threshold}
+                  {t('settings.knowledge.createDialog.similarityThreshold')}: {formData.threshold}
                 </Typography>
                 <Slider
                   name="threshold"
@@ -365,10 +367,10 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
                     { value: 1, label: '1' },
                   ]}
                   valueLabelDisplay="auto"
-                  aria-label="相似度阈值"
+                  aria-label={t('settings.knowledge.createDialog.similarityThreshold')}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  搜索结果的最低相似度分数，值越高结果越精确
+                  {t('settings.knowledge.createDialog.thresholdHelper')}
                 </Typography>
               </Box>
             </Stack>
@@ -377,7 +379,7 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={isSubmitting}>
-          取消
+          {t('settings.knowledge.createDialog.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -385,7 +387,7 @@ const CreateKnowledgeDialog: React.FC<CreateKnowledgeDialogProps> = ({
           color="primary"
           disabled={isSubmitting}
         >
-          {isSubmitting ? '保存中...' : isEditing ? '更新' : '创建'}
+          {isSubmitting ? t('settings.knowledge.createDialog.saving') : isEditing ? t('settings.knowledge.createDialog.update') : t('settings.knowledge.createDialog.create')}
         </Button>
       </DialogActions>
     </Dialog>

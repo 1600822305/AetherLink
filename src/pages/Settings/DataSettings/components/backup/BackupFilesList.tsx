@@ -22,6 +22,7 @@ import {
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capacitor-community/file-opener';
 import { performFullRestore } from '../../utils/restoreUtils';
+import { useTranslation } from 'react-i18next';
 
 // 备份文件接口
 interface BackupFile {
@@ -57,13 +58,15 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
     progress: 0
   });
 
+  const { t } = useTranslation();
+
   // 需要搜索的目录列表
   const directories = [
-    { path: 'Download', directory: Directory.External, label: '下载目录' },
-    { path: '', directory: Directory.External, label: '存储根目录' },
-    { path: 'AetherLink/backups', directory: Directory.External, label: '应用备份目录' },
-    { path: 'data/bin.mt.plus/temp/CleanOnExit', directory: Directory.External, label: '清理缓存目录' },
-    { path: '', directory: Directory.Documents, label: '文档目录' }
+    { path: 'Download', directory: Directory.External, label: 'Download' },
+    { path: '', directory: Directory.External, label: 'Root' },
+    { path: 'AetherLink/backups', directory: Directory.External, label: 'App Backup' },
+    { path: 'data/bin.mt.plus/temp/CleanOnExit', directory: Directory.External, label: 'Temp' },
+    { path: '', directory: Directory.Documents, label: 'Documents' }
   ];
 
   // 加载备份文件列表 - 使用useCallback以便可以在外部调用
@@ -126,7 +129,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
 
   // 格式化日期
   const formatDate = (timestamp: number) => {
-    if (!timestamp) return '未知日期';
+    if (!timestamp) return t('settings.data.localFiles.unknownDate');
 
     try {
       const date = new Date(timestamp);
@@ -138,15 +141,15 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         minute: '2-digit'
       });
     } catch (e) {
-      return '日期格式错误';
+      return t('settings.data.localFiles.dateFormatError');
     }
   };
 
   // 从文件路径提取备份类型
   const getBackupType = (fileName: string) => {
-    if (fileName.includes('_Full_')) return '完整备份';
-    if (fileName.includes('_Custom_')) return '自定义备份';
-    return '基本备份';
+    if (fileName.includes('_Full_')) return t('settings.data.localFiles.types.full');
+    if (fileName.includes('_Custom_')) return t('settings.data.localFiles.types.custom');
+    return t('settings.data.localFiles.types.basic');
   };
 
   // 打开文件
@@ -284,7 +287,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-          本地备份文件
+          {t('settings.data.localFiles.title')}
         </Typography>
 
         <Button
@@ -300,7 +303,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
             }
           }}
         >
-          刷新
+          {t('settings.data.localFiles.refresh')}
         </Button>
       </Box>
 
@@ -339,7 +342,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
       ) : backupFiles.length === 0 ? (
         <Box sx={{ py: 3, textAlign: 'center' }}>
           <Typography color="text.secondary">
-            未找到本地备份文件
+            {t('settings.data.localFiles.notFound')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.75rem' }}>
             备份文件可能保存在您设备的Download文件夹、应用备份目录或其他位置

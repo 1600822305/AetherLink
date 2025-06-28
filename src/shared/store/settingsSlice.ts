@@ -172,7 +172,7 @@ const getInitialState = (): SettingsState => {
     themeStyle: 'default' as 'default' | 'claude' | 'minimal' | 'vibrant' | 'nature' | 'ocean' | 'sunset' | 'monochrome' | 'cyberpunk',
     fontSize: 16,
     fontFamily: 'system', // 默认使用系统字体
-    language: 'zh-CN',
+    language: 'zh',
     sendWithEnter: true,
     enableNotifications: true,
     mobileInputMethodEnterAsNewline: false, // 默认移动端输入法Enter键仍然发送消息

@@ -32,6 +32,7 @@ import {
   GitBranch,
   ArrowRight
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { modelComboService } from '../../shared/services/ModelComboService';
 import type { ModelComboConfig, ModelComboTemplate, ModelComboStrategy } from '../../shared/types/ModelCombo';
@@ -43,6 +44,7 @@ const ModelComboSettings: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // 小于960px为移动端
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm')); // 小于600px为小屏手机
+  const { t } = useTranslation();
 
   const [combos, setCombos] = useState<ModelComboConfig[]>([]);
   const [templates, setTemplates] = useState<ModelComboTemplate[]>([]);
@@ -151,11 +153,11 @@ const ModelComboSettings: React.FC = () => {
 
   const getStrategyLabel = (strategy: ModelComboStrategy) => {
     switch (strategy) {
-      case 'routing': return '智能路由 (开发中)';
-      case 'ensemble': return '模型集成 (开发中)';
-      case 'comparison': return '对比分析';
-      case 'cascade': return '级联调用 (开发中)';
-      case 'sequential': return '顺序执行';
+      case 'routing': return t('settings.modelCombo.strategy.routing');
+      case 'ensemble': return t('settings.modelCombo.strategy.ensemble');
+      case 'comparison': return t('settings.modelCombo.strategy.comparison');
+      case 'cascade': return t('settings.modelCombo.strategy.cascade');
+      case 'sequential': return t('settings.modelCombo.strategy.sequential');
       default: return strategy;
     }
   };
@@ -213,7 +215,7 @@ const ModelComboSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            模型组合
+            {t('settings.modelCombo.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -238,7 +240,7 @@ const ModelComboSettings: React.FC = () => {
                 fontSize: isMobile ? '1.1rem' : undefined
               }}
             >
-              预设模板
+              {t('settings.modelCombo.templates.title')}
             </Typography>
             <Box sx={{
               display: 'grid',
@@ -330,7 +332,7 @@ const ModelComboSettings: React.FC = () => {
                           px: isMobile ? 1 : undefined
                         }}
                       >
-                        使用模板
+                        {t('settings.modelCombo.templates.useTemplate')}
                       </Button>
                     </CardActions>
                   </Card>
@@ -350,7 +352,7 @@ const ModelComboSettings: React.FC = () => {
               fontSize: isMobile ? '1.1rem' : undefined
             }}
           >
-            我的组合
+            {t('settings.modelCombo.myCombos.title')}
           </Typography>
 
           {combos.length === 0 ? (
@@ -376,7 +378,7 @@ const ModelComboSettings: React.FC = () => {
                 gutterBottom
                 sx={{ fontSize: isMobile ? '1rem' : undefined }}
               >
-                还没有创建任何模型组合
+                {t('settings.modelCombo.myCombos.emptyTitle')}
               </Typography>
               <Typography
                 variant="body2"
@@ -386,7 +388,7 @@ const ModelComboSettings: React.FC = () => {
                   fontSize: isMobile ? '0.8rem' : undefined
                 }}
               >
-                创建模型组合来实现智能路由、模型集成等高级功能
+                {t('settings.modelCombo.myCombos.emptyDesc')}
               </Typography>
               <Button
                 variant="contained"
@@ -395,7 +397,7 @@ const ModelComboSettings: React.FC = () => {
                 size={isMobile ? "small" : "medium"}
                 sx={{ fontSize: isMobile ? '0.8rem' : undefined }}
               >
-                创建第一个组合
+                {t('settings.modelCombo.myCombos.createFirst')}
               </Button>
             </Paper>
           ) : (
@@ -534,16 +536,16 @@ const ModelComboSettings: React.FC = () => {
 
       {/* 删除确认对话框 */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>确认删除</DialogTitle>
+        <DialogTitle>{t('settings.modelCombo.deleteDialog.title')}</DialogTitle>
         <DialogContent>
           <Typography>
-            确定要删除模型组合 "{comboToDelete?.name}" 吗？此操作无法撤销。
+            {t('settings.modelCombo.deleteDialog.content', { name: comboToDelete?.name })}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button onClick={confirmDelete} color="error" variant="contained">
-            删除
+            {t('common.delete')}
           </Button>
         </DialogActions>
       </Dialog>

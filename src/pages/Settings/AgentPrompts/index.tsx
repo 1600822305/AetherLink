@@ -19,12 +19,14 @@ import { useNavigate } from 'react-router-dom';
 import { getAgentPromptCategories, searchAgentPrompts } from '../../../shared/config/agentPrompts';
 import type { AgentPrompt, AgentPromptCategory } from '../../../shared/types/AgentPrompt';
 import SystemPromptVariablesPanel from '../../../components/SystemPromptVariablesPanel';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 智能体提示词集合 - 主页面组件
  * 展示内置的丰富提示词集合，按类别组织
  */
 const AgentPromptsSettings: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['general']));
@@ -103,7 +105,7 @@ const AgentPromptsSettings: React.FC = () => {
               height: '24px'
             }}
           >
-            {copiedPromptId === prompt.id ? '已复制' : '复制'}
+            {copiedPromptId === prompt.id ? t('settings.agentPrompts.copied') : t('settings.agentPrompts.copy')}
           </Button>
         </Box>
 
@@ -164,10 +166,10 @@ const AgentPromptsSettings: React.FC = () => {
           onClick={() => toggleCategory(category.id)}
         >
           <Typography variant="subtitle1" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {category.emoji} {category.name}
+            {category.emoji} {t(`settings.agentPrompts.groups.${category.id}.title`)}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-            {category.prompts.length} 个提示词
+            {t('settings.agentPrompts.promptsCount', { count: category.prompts.length })}
           </Typography>
           {isExpanded ? <ExpandLessIcon size={20} /> : <ExpandMoreIcon size={20} />}
         </Box>
@@ -176,7 +178,7 @@ const AgentPromptsSettings: React.FC = () => {
           <Divider />
           <Box sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {category.description}
+              {t(`settings.agentPrompts.groups.${category.id}.desc`)}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {category.prompts.map(renderPromptCard)}
@@ -233,7 +235,7 @@ const AgentPromptsSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            智能体提示词集合
+            {t('settings.agentPrompts.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -254,8 +256,28 @@ const AgentPromptsSettings: React.FC = () => {
           },
         }}
       >
-        {/* 系统提示词变量注入面板 */}
-        <SystemPromptVariablesPanel />
+        {/* 系统提示词变量注入 */}
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+            bgcolor: 'background.paper',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+          }}
+        >
+          <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {t('settings.agentPrompts.systemPromptVar.title')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('settings.agentPrompts.systemPromptVar.desc')}
+            </Typography>
+          </Box>
+        </Paper>
 
         {/* 搜索框 */}
         <Paper
@@ -272,10 +294,10 @@ const AgentPromptsSettings: React.FC = () => {
         >
           <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              搜索提示词
+              {t('settings.agentPrompts.searchTitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              在丰富的提示词库中快速找到您需要的模板
+              {t('settings.agentPrompts.searchDesc')}
             </Typography>
           </Box>
 
@@ -284,7 +306,7 @@ const AgentPromptsSettings: React.FC = () => {
           <Box sx={{ p: 2 }}>
             <TextField
               fullWidth
-              placeholder="输入关键词搜索提示词..."
+              placeholder={t('settings.agentPrompts.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               slotProps={{
@@ -322,10 +344,10 @@ const AgentPromptsSettings: React.FC = () => {
           >
             <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                搜索结果 ({searchResults.length})
+                {t('settings.agentPrompts.searchResultTitle', { count: searchResults.length })}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                找到 {searchResults.length} 个匹配的提示词
+                {t('settings.agentPrompts.searchResultDesc', { count: searchResults.length })}
               </Typography>
             </Box>
 
@@ -355,7 +377,7 @@ const AgentPromptsSettings: React.FC = () => {
           >
             <Box sx={{ p: 3, textAlign: 'center' }}>
               <Typography color="text.secondary">
-                没有找到匹配的提示词
+                {t('settings.agentPrompts.noResult')}
               </Typography>
             </Box>
           </Paper>

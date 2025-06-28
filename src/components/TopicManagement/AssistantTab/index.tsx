@@ -36,6 +36,7 @@ import VirtualizedAssistantGroups from './VirtualizedAssistantGroups';
 import VirtualizedAssistantList from './VirtualizedAssistantList';
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import PresetAssistantItem from './PresetAssistantItem';
 import GroupDialog from '../GroupDialog';
 import AssistantIconPicker from './AssistantIconPicker';
@@ -68,6 +69,8 @@ const AssistantTab = React.memo(function AssistantTab({
   onUpdateAssistant,
   onDeleteAssistant
 }: AssistantTabProps) {
+  const { t } = useTranslation();
+  
   // 使用自定义hook获取所有逻辑和状态
   const {
     // 状态
@@ -152,7 +155,7 @@ const AssistantTab = React.memo(function AssistantTab({
           <TextField
             fullWidth
             size="small"
-            placeholder="搜索助手..."
+            placeholder={t('sidebar.assistants.searchPlaceholder')}
             value={searchQuery}
             onChange={handleSearchChange}
             autoFocus
@@ -175,12 +178,12 @@ const AssistantTab = React.memo(function AssistantTab({
           />
         ) : (
           <>
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ flexShrink: 0 }}>所有助手</Typography>
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ flexShrink: 0 }}>{t('sidebar.assistants.title')}</Typography>
             <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
               <IconButton size="small" onClick={handleSearchClick} sx={{ mr: 0.5 }}>
                 <Search size={18} />
               </IconButton>
-              <Tooltip title="创建分组">
+              <Tooltip title={t('sidebar.assistants.createGroup')}>
                 <Button
                   variant="outlined"
                   size="small"
@@ -198,10 +201,10 @@ const AssistantTab = React.memo(function AssistantTab({
                     }
                   }}
                 >
-                  创建分组
+                  {t('sidebar.assistants.createGroup')}
                 </Button>
               </Tooltip>
-              <Tooltip title="创建新助手">
+              <Tooltip title={t('sidebar.assistants.addAssistant')}>
                 <Button
                   variant="outlined"
                   size="small"
@@ -219,7 +222,7 @@ const AssistantTab = React.memo(function AssistantTab({
                     }
                   }}
                 >
-                  添加助手
+                  {t('sidebar.assistants.addAssistant')}
                 </Button>
               </Tooltip>
             </Box>
@@ -247,9 +250,9 @@ const AssistantTab = React.memo(function AssistantTab({
         onSelectAssistant={handleSelectAssistantFromList}
         onOpenMenu={handleOpenMenu}
         onDeleteAssistant={handleDeleteAssistantAction}
-        title="未分组助手"
+        title={t('sidebar.assistants.ungroupedTitle')}
         height="calc(100vh - 400px)" // 动态计算高度
-        emptyMessage="暂无未分组助手"
+        emptyMessage={t('sidebar.assistants.emptyUngrouped')}
         itemHeight={72}
       />
 
@@ -258,7 +261,7 @@ const AssistantTab = React.memo(function AssistantTab({
         <DialogTitle>选择助手</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            选择一个预设助手来添加到你的助手列表中
+            {t('sidebar.assistants.selectPresetAssistant', 'Select a preset assistant to add to your assistant list')}
           </DialogContentText>
           <List sx={{ pt: 1 }}>
             {predefinedAssistantsData.map((assistant: Assistant) => (
@@ -272,9 +275,9 @@ const AssistantTab = React.memo(function AssistantTab({
           </List>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseAssistantDialog}>取消</Button>
+          <Button onClick={handleCloseAssistantDialog}>{t('common.cancel')}</Button>
           <Button onClick={handleAddAssistant} color="primary">
-            添加
+            {t('common.add')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -295,39 +298,39 @@ const AssistantTab = React.memo(function AssistantTab({
         {[
           <MenuItem key="add-to-group" onClick={handleOpenAddToGroupMenu}>
             <FolderPlus size={18} style={{ marginRight: 8 }} />
-            添加到分组...
+            {t('sidebar.assistants.menu.addToGroup')}
           </MenuItem>,
           <MenuItem key="edit-assistant" onClick={handleOpenEditDialog}>
             <Edit3 size={18} style={{ marginRight: 8 }} />
-            编辑助手
+            {t('sidebar.assistants.menu.editAssistant')}
           </MenuItem>,
           <MenuItem key="change-icon" onClick={handleOpenIconPicker}>
             <Image size={18} style={{ marginRight: 8 }} />
-            修改图标
+            {t('sidebar.assistants.menu.changeIcon')}
           </MenuItem>,
           <MenuItem key="copy-assistant" onClick={handleCopyAssistant}>
             <Copy size={18} style={{ marginRight: 8 }} />
-            复制助手
+            {t('sidebar.assistants.menu.copyAssistant')}
           </MenuItem>,
           <MenuItem key="clear-topics" onClick={handleClearTopics}>
             <Trash2 size={18} style={{ marginRight: 8 }} />
-            清空话题
+            {t('sidebar.assistants.menu.clearTopics')}
           </MenuItem>,
           <Divider key="divider-1" />,
           <MenuItem key="sort-pinyin-asc" onClick={handleSortByPinyinAsc}>
             <ArrowUpAZ size={18} style={{ marginRight: 8 }} />
-            按拼音升序排列
+            {t('sidebar.assistants.menu.sortPinyinAsc')}
           </MenuItem>,
           <MenuItem key="sort-pinyin-desc" onClick={handleSortByPinyinDesc}>
             <ArrowDownAZ size={18} style={{ marginRight: 8 }} />
-            按拼音降序排列
+            {t('sidebar.assistants.menu.sortPinyinDesc')}
           </MenuItem>,
           <Divider key="divider-2" />,
           <MenuItem key="delete-assistant" onClick={() => {
             if (selectedMenuAssistant) handleDeleteAssistantAction(selectedMenuAssistant.id);
           }}>
             <Trash size={18} style={{ marginRight: 8 }} />
-            删除助手
+            {t('sidebar.assistants.menu.deleteAssistant')}
           </MenuItem>
         ].filter(Boolean)}
       </Menu>
@@ -347,7 +350,7 @@ const AssistantTab = React.memo(function AssistantTab({
               {group.name}
             </MenuItem>
           )),
-          <MenuItem key="create-new-group" onClick={handleAddToNewGroup}>创建新分组...</MenuItem>
+          <MenuItem key="create-new-group" onClick={handleAddToNewGroup}>{t('sidebar.assistants.menu.createNewGroup')}</MenuItem>
         ].filter(Boolean)}
       </Menu>
 

@@ -27,9 +27,11 @@ import { Settings as SettingsApplicationsIcon, Sliders as TuneIcon, Wand2 as Aut
 import { Code as CodeIcon, MessageSquare as ForumIcon, BookOpen as MenuBookIcon, Folder as WorkspaceIcon, Database as DatabaseIcon } from 'lucide-react';
 import useScrollPosition from '../../hooks/useScrollPosition';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
+import { useTranslation } from 'react-i18next';
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // 使用滚动位置保存功能
   const {
@@ -87,44 +89,44 @@ const SettingsPage: React.FC = () => {
     navigate(path);
   };
 
-  // 定义设置菜单组
+  // 定义设置菜单组（使用多语言）
   const settingsGroups = [
     {
-      title: '基本设置',
+      id: 'basic',
       items: [
-        { id: 'appearance', title: '外观', description: '主题、字体大小和语言设置', icon: <FormatColorFillIcon size={18} />, path: '/settings/appearance', color: '#6366f1' },
-        { id: 'behavior', title: '行为', description: '消息发送和通知设置', icon: <SettingsApplicationsIcon size={18} />, path: '/settings/behavior', color: '#8b5cf6' },
+        { id: 'appearance', icon: <FormatColorFillIcon size={18} />, path: '/settings/appearance', color: '#6366f1' },
+        { id: 'behavior', icon: <SettingsApplicationsIcon size={18} />, path: '/settings/behavior', color: '#8b5cf6' },
       ]
     },
     {
-      title: '模型服务',
+      id: 'modelServices',
       items: [
-        { id: 'default-model', title: '配置模型', description: '管理AI模型和API密钥', icon: <SmartToyIcon size={18} />, path: '/settings/default-model', color: '#ec4899' },
-        { id: 'topic-naming-settings', title: '话题命名设置', description: '配置话题自动命名功能', icon: <TuneIcon size={18} />, path: '/settings/topic-naming-settings', color: '#4f46e5' },
-        { id: 'agent-prompts', title: '智能体提示词集合', description: '浏览和使用内置的丰富提示词模板', icon: <AutoFixHighIcon size={18} />, path: '/settings/agent-prompts', color: '#0ea5e9' },
-        { id: 'ai-debate', title: 'AI辩论设置', description: '配置AI互相辩论讨论功能', icon: <ForumIcon size={18} />, path: '/settings/ai-debate', color: '#e11d48' },
-        { id: 'model-combo', title: '模型组合', description: '创建和管理多模型组合', icon: <GitBranch size={18} />, path: '/settings/model-combo', color: '#f43f5e' },
-        { id: 'web-search', title: '网络搜索', description: '配置网络搜索和相关服务', icon: <LanguageIcon size={18} />, path: '/settings/web-search', color: '#3b82f6' },
-        { id: 'mcp-server', title: 'MCP 服务器', description: '高级服务器配置', icon: <SettingsIcon size={18} />, path: '/settings/mcp-server', color: '#10b981' },
+        { id: 'default-model', icon: <SmartToyIcon size={18} />, path: '/settings/default-model', color: '#ec4899' },
+        { id: 'topic-naming-settings', icon: <TuneIcon size={18} />, path: '/settings/topic-naming-settings', color: '#4f46e5' },
+        { id: 'agent-prompts', icon: <AutoFixHighIcon size={18} />, path: '/settings/agent-prompts', color: '#0ea5e9' },
+        { id: 'ai-debate', icon: <ForumIcon size={18} />, path: '/settings/ai-debate', color: '#e11d48' },
+        { id: 'model-combo', icon: <GitBranch size={18} />, path: '/settings/model-combo', color: '#f43f5e' },
+        { id: 'web-search', icon: <LanguageIcon size={18} />, path: '/settings/web-search', color: '#3b82f6' },
+        { id: 'mcp-server', icon: <SettingsIcon size={18} />, path: '/settings/mcp-server', color: '#10b981' },
       ]
     },
     {
-      title: '快捷方式',
+      id: 'shortcuts',
       items: [
-        { id: 'shortcuts', title: '快捷助手', description: '自定义键盘快捷键', icon: <KeyboardIcon size={18} />, path: '/settings/shortcuts', color: '#f59e0b' },
-        { id: 'quick-phrases', title: '快捷短语', description: '创建常用短语模板', icon: <KeyboardIcon size={18} />, path: '/settings/quick-phrases', color: '#f97316' },
+        { id: 'shortcuts', icon: <KeyboardIcon size={18} />, path: '/settings/shortcuts', color: '#f59e0b' },
+        { id: 'quick-phrases', icon: <KeyboardIcon size={18} />, path: '/settings/quick-phrases', color: '#f97316' },
       ]
     },
     {
-      title: '其他设置',
+      id: 'others',
       items: [
-        { id: 'workspace-settings', title: '工作区管理', description: '创建和管理文件工作区', icon: <WorkspaceIcon size={18} />, path: '/settings/workspace', color: '#f59e0b' },
-        { id: 'knowledge-settings', title: '知识库设置', description: '管理知识库配置和嵌入模型', icon: <MenuBookIcon size={18} />, path: '/settings/knowledge', color: '#059669' },
-        { id: 'data-settings', title: '数据设置', description: '管理数据存储和隐私选项', icon: <StorageIcon size={18} />, path: '/settings/data', color: '#0ea5e9' },
-        { id: 'notion-settings', title: 'Notion 集成', description: '配置Notion数据库导出设置', icon: <DatabaseIcon size={18} />, path: '/settings/notion', color: '#6366f1' },
-        { id: 'voice-settings', title: '语音功能', description: '语音识别和文本转语音设置', icon: <RecordVoiceOverIcon size={18} />, path: '/settings/voice', color: '#8b5cf6' },
-        { id: 'features', title: '功能模块', description: '启用或禁用应用功能', icon: <ExtensionIcon size={18} />, path: '/settings/features', color: '#22c55e' },
-        { id: 'about', title: '关于我们', description: '应用信息和技术支持', icon: <InfoIcon size={18} />, path: '/settings/about', color: '#64748b' },
+        { id: 'workspace-settings', icon: <WorkspaceIcon size={18} />, path: '/settings/workspace', color: '#f59e0b' },
+        { id: 'knowledge-settings', icon: <MenuBookIcon size={18} />, path: '/settings/knowledge', color: '#059669' },
+        { id: 'data-settings', icon: <StorageIcon size={18} />, path: '/settings/data', color: '#0ea5e9' },
+        { id: 'notion-settings', icon: <DatabaseIcon size={18} />, path: '/settings/notion', color: '#6366f1' },
+        { id: 'voice-settings', icon: <RecordVoiceOverIcon size={18} />, path: '/settings/voice', color: '#8b5cf6' },
+        { id: 'features', icon: <ExtensionIcon size={18} />, path: '/settings/features', color: '#22c55e' },
+        { id: 'about', icon: <InfoIcon size={18} />, path: '/settings/about', color: '#64748b' },
       ]
     }
   ];
@@ -175,7 +177,7 @@ const SettingsPage: React.FC = () => {
               color: 'transparent',
             }}
           >
-            设置
+            {t('settings.main.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -212,7 +214,7 @@ const SettingsPage: React.FC = () => {
                 textTransform: 'uppercase'
               }}
             >
-              {group.title}
+              {t(`settings.main.groups.${group.id}`)}
             </Typography>
 
             <Box
@@ -285,7 +287,7 @@ const SettingsPage: React.FC = () => {
                             fontSize: '0.9rem'
                           }}
                         >
-                          {item.title}
+                          {t(`settings.main.items.${item.id}.title`)}
                         </Typography>
                         <Typography
                           variant="body2"
@@ -298,7 +300,7 @@ const SettingsPage: React.FC = () => {
                             overflow: 'hidden'
                           }}
                         >
-                          {item.description}
+                          {t(`settings.main.items.${item.id}.desc`)}
                         </Typography>
                       </Box>
                       <ChevronRightIcon size={16} style={{ color: '#1976d2', opacity: 0.5, marginLeft: 6 }} />

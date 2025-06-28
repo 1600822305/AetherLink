@@ -12,6 +12,7 @@ import {
   Cloud as CloudIcon
 } from 'lucide-react';
 import { alpha } from '@mui/material/styles';
+import { useTranslation } from 'react-i18next';
 
 interface BackupButtonsProps {
   isLoading: boolean;
@@ -43,6 +44,8 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
   onWebDavRestore,
   onWebDavSettings
 }) => {
+  const { t } = useTranslation();
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 1 }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
@@ -62,7 +65,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          {isLoading ? '备份中...' : '备份聊天和助手'}
+          {isLoading ? t('settings.data.status.backingUp') : t('settings.data.buttons.basicBackup')}
         </Button>
 
         <Button
@@ -81,7 +84,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          {isLoading ? '备份中...' : '完整系统备份'}
+          {isLoading ? t('settings.data.status.backingUp') : t('settings.data.buttons.fullBackup')}
         </Button>
       </Box>
 
@@ -103,7 +106,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          选择性备份
+          {t('settings.data.buttons.selectiveBackup')}
         </Button>
 
         <Button
@@ -122,7 +125,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          导入备份文件并恢复
+          {t('settings.data.buttons.restore')}
         </Button>
       </Box>
 
@@ -144,7 +147,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          导入其他AI助手备份
+          {t('settings.data.buttons.importExternal')}
         </Button>
 
         <Button
@@ -165,7 +168,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
             },
           }}
         >
-          清理全部助手和话题
+          {t('settings.data.buttons.clearAll')}
         </Button>
       </Box>
 
@@ -190,7 +193,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
                 },
               }}
             >
-              WebDAV 云备份设置
+              {t('settings.data.buttons.webdavSettings')}
             </Button>
           )}
 
@@ -212,7 +215,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
                 },
               }}
             >
-              备份到 WebDAV
+              {t('settings.data.buttons.webdavBackup')}
             </Button>
           )}
 
@@ -234,7 +237,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
                 },
               }}
             >
-              从 WebDAV 恢复
+              {t('settings.data.buttons.webdavRestore')}
             </Button>
           )}
         </Box>
@@ -260,7 +263,7 @@ const BackupButtons: React.FC<BackupButtonsProps> = ({
               },
             }}
           >
-            数据库诊断与修复
+            {t('settings.data.buttons.diagnoseDatabase')}
           </Button>
         </Box>
       )}

@@ -25,6 +25,7 @@ import { dexieStorage } from '../../shared/services/storage/DexieStorageService'
 import CreateKnowledgeDialog from '../../components/KnowledgeManagement/CreateKnowledgeDialog';
 import type { KnowledgeBase } from '../../shared/types/KnowledgeBase';
 import { toastManager } from '../../components/EnhancedToast';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface KnowledgeStats {
   totalKnowledgeBases: number;
@@ -35,6 +36,7 @@ interface KnowledgeStats {
 
 const KnowledgeSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<KnowledgeStats>({
     totalKnowledgeBases: 0,
@@ -42,8 +44,6 @@ const KnowledgeSettings: React.FC = () => {
     totalVectors: 0,
     storageSize: '0 MB'
   });
-
-
 
   // 对话框状态
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
@@ -229,7 +229,7 @@ const KnowledgeSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            知识库设置
+            {t('settings.knowledge.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -274,14 +274,14 @@ const KnowledgeSettings: React.FC = () => {
               }}
             >
               <StorageIcon size={20} color="#059669" />
-              知识库统计
+              {t('settings.knowledge.stats.title')}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
             >
-              查看知识库的使用情况和存储统计
+              {t('settings.knowledge.stats.subtitle')}
             </Typography>
           </Box>
 
@@ -302,7 +302,7 @@ const KnowledgeSettings: React.FC = () => {
                       {stats.totalKnowledgeBases}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      知识库数量
+                      {t('settings.knowledge.stats.bases')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -314,7 +314,7 @@ const KnowledgeSettings: React.FC = () => {
                       {stats.totalDocuments}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      文档数量
+                      {t('settings.knowledge.stats.documents')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -326,7 +326,7 @@ const KnowledgeSettings: React.FC = () => {
                       {stats.totalVectors}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      向量数量
+                      {t('settings.knowledge.stats.vectors')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -338,7 +338,7 @@ const KnowledgeSettings: React.FC = () => {
                       {stats.storageSize}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      存储大小
+                      {t('settings.knowledge.stats.storage')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -369,14 +369,14 @@ const KnowledgeSettings: React.FC = () => {
                 fontSize: { xs: '1rem', sm: '1.1rem' }
               }}
             >
-              快速操作
+              {t('settings.knowledge.quickActions.title')}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
             >
-              创建和管理知识库的快捷操作
+              {t('settings.knowledge.quickActions.subtitle')}
             </Typography>
           </Box>
 
@@ -400,7 +400,7 @@ const KnowledgeSettings: React.FC = () => {
                   }
                 }}
               >
-                创建知识库
+                {t('settings.knowledge.quickActions.create')}
               </Button>
             </Box>
 
@@ -412,14 +412,14 @@ const KnowledgeSettings: React.FC = () => {
                 onClick={() => navigate('/knowledge')}
                 sx={{ py: 1.5 }}
               >
-                管理知识库
+                {t('settings.knowledge.quickActions.manage')}
               </Button>
             </Box>
           </Box>
 
           {stats.totalKnowledgeBases === 0 && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              您还没有创建任何知识库。点击"创建知识库"开始使用知识库功能。
+              {t('settings.knowledge.quickActions.emptyTip')}
             </Alert>
           )}
           </Box>
@@ -446,14 +446,14 @@ const KnowledgeSettings: React.FC = () => {
                 fontSize: { xs: '1rem', sm: '1.1rem' }
               }}
             >
-              知识库配置说明
+              {t('settings.knowledge.config.title')}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
             >
-              了解知识库的各项配置参数和使用说明
+              {t('settings.knowledge.config.subtitle')}
             </Typography>
           </Box>
 
@@ -462,14 +462,17 @@ const KnowledgeSettings: React.FC = () => {
           <Box sx={{ p: { xs: 1.5, sm: 2 } }}>
 
           <Alert severity="info" sx={{ mb: 2 }}>
-            知识库的嵌入模型、分块大小、相似度阈值等参数在创建知识库时设置，每个知识库可以有不同的配置。
+            {t('settings.knowledge.config.info')}
           </Alert>
 
           <Typography variant="body2" color="text.secondary">
-            • <strong>嵌入模型</strong>：用于将文本转换为向量，不同模型有不同的效果和维度<br/>
-            • <strong>分块大小</strong>：文档分割的块大小，影响搜索精度和上下文长度<br/>
-            • <strong>相似度阈值</strong>：搜索结果的最低相似度，越高结果越精确<br/>
-            • <strong>文档数量</strong>：搜索时返回的文档段数量，影响回答的详细程度
+            <Trans i18nKey="settings.knowledge.config.details.embeddingModel" components={{0: <strong/>}} />
+            <br/>
+            <Trans i18nKey="settings.knowledge.config.details.chunkSize" components={{0: <strong/>}} />
+            <br/>
+            <Trans i18nKey="settings.knowledge.config.details.similarity" components={{0: <strong/>}} />
+            <br/>
+            <Trans i18nKey="settings.knowledge.config.details.docCount" components={{0: <strong/>}} />
           </Typography>
           </Box>
         </Paper>
@@ -495,14 +498,14 @@ const KnowledgeSettings: React.FC = () => {
                 fontSize: { xs: '1rem', sm: '1.1rem' }
               }}
             >
-              数据管理
+              {t('settings.knowledge.data.title')}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
             >
-              导出备份和清理知识库数据
+              {t('settings.knowledge.data.subtitle')}
             </Typography>
           </Box>
 
@@ -512,11 +515,11 @@ const KnowledgeSettings: React.FC = () => {
 
           {stats.totalKnowledgeBases === 0 ? (
             <Alert severity="warning" sx={{ mb: 3 }}>
-              您还没有创建任何知识库。请先创建知识库后再进行数据管理操作。
+              {t('settings.knowledge.data.noData')}
             </Alert>
           ) : (
             <Alert severity="info" sx={{ mb: 3 }}>
-              数据管理操作会影响所有知识库，请谨慎操作。建议在操作前先导出备份。
+              {t('settings.knowledge.data.warning')}
             </Alert>
           )}
 
@@ -534,7 +537,7 @@ const KnowledgeSettings: React.FC = () => {
                   }
                 }}
               >
-                创建第一个知识库
+                {t('settings.knowledge.data.createFirst')}
               </Button>
             ) : (
               <>
@@ -544,7 +547,7 @@ const KnowledgeSettings: React.FC = () => {
                   onClick={() => setExportDialogOpen(true)}
                   disabled={loading}
                 >
-                  导出数据
+                  {t('settings.knowledge.data.export')}
                 </Button>
 
                 <Button
@@ -554,7 +557,7 @@ const KnowledgeSettings: React.FC = () => {
                   onClick={() => setClearDialogOpen(true)}
                   disabled={loading}
                 >
-                  清理所有数据
+                  {t('settings.knowledge.data.clear')}
                 </Button>
               </>
             )}
@@ -565,32 +568,28 @@ const KnowledgeSettings: React.FC = () => {
 
       {/* 清理确认对话框 */}
       <Dialog open={clearDialogOpen} onClose={() => setClearDialogOpen(false)}>
-        <DialogTitle>确认清理所有知识库数据</DialogTitle>
+        <DialogTitle>{t('settings.knowledge.dialogs.clear.title')}</DialogTitle>
         <DialogContent>
-          <Typography>
-            此操作将删除所有知识库、文档和向量数据，且无法恢复。确定要继续吗？
-          </Typography>
+          <Typography>{t('settings.knowledge.dialogs.clear.content')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setClearDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setClearDialogOpen(false)}>{t('settings.knowledge.dialogs.clear.cancel')}</Button>
           <Button onClick={handleClearAllData} color="error" disabled={loading}>
-            {loading ? <CircularProgress size={20} /> : '确认清理'}
+            {loading ? <CircularProgress size={20} /> : t('settings.knowledge.dialogs.clear.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 导出确认对话框 */}
       <Dialog open={exportDialogOpen} onClose={() => setExportDialogOpen(false)}>
-        <DialogTitle>导出知识库数据</DialogTitle>
+        <DialogTitle>{t('settings.knowledge.dialogs.export.title')}</DialogTitle>
         <DialogContent>
-          <Typography>
-            将导出所有知识库和文档数据为JSON文件，可用于备份或迁移。
-          </Typography>
+          <Typography>{t('settings.knowledge.dialogs.export.content')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setExportDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setExportDialogOpen(false)}>{t('settings.knowledge.dialogs.export.cancel')}</Button>
           <Button onClick={handleExportData} disabled={loading}>
-            {loading ? <CircularProgress size={20} /> : '确认导出'}
+            {loading ? <CircularProgress size={20} /> : t('settings.knowledge.dialogs.export.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

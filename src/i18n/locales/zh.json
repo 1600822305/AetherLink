@@ -1,0 +1,751 @@
+{
+  "app": {
+    "loading": "正在加载..."
+  },
+  "loadingScreen": {
+    "welcome": "欢迎使用智能对话助手"
+  },
+  "settings": {
+    "appearance": {
+      "language": {
+        "label": "语言",
+        "helper": "切换界面语言，将立即生效",
+        "zh": "中文",
+        "en": "英文"
+      },
+      "title": "外观设置",
+      "themeFont": {
+        "title": "主题和字体",
+        "subtitle": "自定义应用的外观主题和全局字体大小设置"
+      },
+      "customization": {
+        "title": "界面定制",
+        "subtitle": "自定义聊天界面、消息气泡和工具栏的外观设置",
+        "topToolbar": { "primary": "顶部工具栏设置", "secondary": "自定义顶部工具栏的组件和布局，支持拖拽DIY布局" },
+        "chatInterface": { "primary": "聊天界面设置", "secondary": "自定义聊天界面布局和显示选项" },
+        "thinkingProcess": { "primary": "思考过程设置", "secondary": "自定义AI思考过程的显示方式和自动折叠行为" },
+        "messageBubble": { "primary": "信息气泡管理", "secondary": "调整消息气泡的样式和宽度设置" },
+        "inputToolbar": { "primary": "输入框工具栏设置", "secondary": "自定义输入框工具栏的背景样式和外观效果" },
+        "inputBox": { "primary": "输入框管理设置", "secondary": "自定义输入框的风格和布局样式" }
+      },
+      "devTools": {
+        "title": "开发者工具",
+        "subtitle": "用于调试和性能监控的开发者工具设置",
+        "performanceMonitor": { "primary": "显示性能监控", "secondary": "在聊天界面显示实时性能监控面板，包括FPS、滚动事件、渲染时间和内存使用情况" }
+      },
+      "theme": {
+        "label": "主题",
+        "light": "浅色",
+        "dark": "深色",
+        "system": "跟随系统",
+        "helper": "选择应用的外观主题，跟随系统将自动适配设备的深色/浅色模式"
+      },
+      "fontSize": {
+        "label": "全局字体大小",
+        "preset": {
+          "tiny": "极小",
+          "small": "小",
+          "normal": "标准",
+          "large": "大",
+          "xlarge": "极大",
+          "huge": "超大"
+        },
+        "custom": "自定义",
+        "helper": "调整应用中所有文本的基础字体大小，影响聊天消息、界面文字等全局显示效果"
+      },
+      "font": {
+        "label": "全局字体",
+        "inputLabel": "字体",
+        "system": "系统默认",
+        "helper": "选择应用的全局字体，将影响所有界面文字的显示效果"
+      }
+    },
+    "behavior": {
+      "title": "行为设置",
+      "section": {
+        "interaction": {
+          "title": "交互行为",
+          "subtitle": "自定义应用的交互方式和通知设置"
+        }
+      },
+      "sendWithEnter": {
+        "primary": "使用Enter键发送消息",
+        "secondary": "按Enter键快速发送消息，使用Shift+Enter添加换行"
+      },
+      "notifications": {
+        "primary": "启用通知",
+        "secondary": "当AI助手回复完成时，显示系统通知"
+      }
+    },
+    "main": {
+      "title": "设置",
+      "groups": {
+        "basic": "基本设置",
+        "modelServices": "模型服务",
+        "shortcuts": "快捷方式",
+        "others": "其他设置"
+      },
+      "items": {
+        "appearance": { "title": "外观", "desc": "主题、字体大小和语言设置" },
+        "behavior": { "title": "行为", "desc": "消息发送和通知设置" },
+        "default-model": { "title": "配置模型", "desc": "管理AI模型和API密钥" },
+        "topic-naming-settings": { "title": "话题命名设置", "desc": "配置话题自动命名功能" },
+        "agent-prompts": { "title": "智能体提示词集合", "desc": "浏览和使用内置的丰富提示词模板" },
+        "ai-debate": { "title": "AI辩论设置", "desc": "配置AI互相辩论讨论功能" },
+        "model-combo": { "title": "模型组合", "desc": "创建和管理多模型组合" },
+        "web-search": { "title": "网络搜索", "desc": "配置网络搜索和相关服务" },
+        "mcp-server": { "title": "MCP 服务器", "desc": "高级服务器配置" },
+        "shortcuts": { "title": "快捷助手", "desc": "自定义键盘快捷键" },
+        "quick-phrases": { "title": "快捷短语", "desc": "创建常用短语模板" },
+        "workspace-settings": { "title": "工作区管理", "desc": "创建和管理文件工作区" },
+        "knowledge-settings": { "title": "知识库设置", "desc": "管理知识库配置和嵌入模型" },
+        "data-settings": { "title": "数据设置", "desc": "管理数据存储和隐私选项" },
+        "notion-settings": { "title": "Notion 集成", "desc": "配置Notion数据库导出设置" },
+        "voice-settings": { "title": "语音功能", "desc": "语音识别和文本转语音设置" },
+        "features": { "title": "功能模块", "desc": "启用或禁用应用功能" },
+        "about": { "title": "关于我们", "desc": "应用信息和技术支持" }
+      }
+    },
+    "mcpServer": {
+      "title": "MCP 服务器设置",
+      "list": {
+        "title": "服务器列表",
+        "subtitle": "管理和配置您的 MCP 服务器",
+        "addServer": "添加服务器",
+        "emptyTitle": "未添加任何服务器",
+        "emptyDesc": "您可以手动添加一个新的服务器，或从内置模板中选择。"
+      },
+      "status": {
+        "enabled": "已启用",
+        "disabled": "已禁用",
+        "running": "运行中",
+        "opFailed": "操作失败",
+        "fillRequired": "请填写必填项",
+        "urlRequired": "请输入有效的 URL",
+        "addSuccess": "服务器添加成功",
+        "addFailed": "添加服务器失败",
+        "alreadyExists": "{{name}} 已存在",
+        "builtinAddSuccess": "内置服务器 {{name}} 添加成功",
+        "builtinAddFailed": "添加内置服务器失败",
+        "deleteSuccess": "服务器 {{name}} 删除成功",
+        "deleteFailed": "删除服务器失败",
+        "jsonFormatError": "无效的 JSON 格式",
+        "importDesc": "从 {{serverName}} 导入",
+        "importSuccess": "成功导入 {{importCount}} 个服务器。{{errorInfo}}",
+        "importFailed": "导入失败: {{error}}",
+        "importErrorCount": "{{errorCount}} 个服务器导入失败。",
+        "alreadyAdded": "已添加"
+      },
+      "serverType": {
+        "http": "HTTP",
+        "inMemory": "内存"
+      },
+      "quickActions": {
+        "title": "快捷操作",
+        "subtitle": "快速导入或添加内置服务器",
+        "import": "从 JSON 导入",
+        "importDesc": "从 JSON 文件批量导入服务器配置",
+        "builtin": "添加内置服务器",
+        "builtinDesc": "浏览并添加预配置的内置服务器"
+      },
+      "dialog": {
+        "addTitle": "添加新服务器",
+        "importTitle": "从 JSON 导入服务器",
+        "importDesc": "粘贴符合格式的 JSON 内容以批量导入服务器。示例格式如下：",
+        "builtinTitle": "添加内置服务器",
+        "builtinDesc": "这里是一些预配置的常用 MCP 服务器，您可以一键添加至您的列表。",
+        "deleteTitle": "确认删除",
+        "deleteContent": "您确定要删除服务器 \"{{name}}\" 吗？"
+      },
+      "form": {
+        "name": "服务器名称",
+        "type": "服务器类型",
+        "typeHttp": "HTTP (SSE)",
+        "typeMemory": "内存",
+        "url": "服务器 URL",
+        "description": "描述",
+        "enableSSE": "启用 SSE",
+        "json": "JSON 内容",
+        "jsonPlaceholder": "请在此处粘贴 JSON 内容"
+      }
+    },
+    "quickPhrase": {
+      "title": "快捷短语管理",
+      "subtitle": "管理您的快捷短语，在聊天时快速插入常用内容。",
+      "add": "添加快捷短语",
+      "loading": "加载中...",
+      "confirmDelete": "确定要删除这个快捷短语吗？",
+      "displaySettings": {
+        "title": "显示设置",
+        "label": "在输入框显示快捷短语按钮",
+        "caption": "控制是否在聊天输入框中显示快捷短语按钮"
+      },
+      "empty": {
+        "title": "还没有快捷短语",
+        "subtitle": "创建您的第一个快捷短语，让聊天更高效"
+      },
+      "dialog": {
+        "addTitle": "添加快捷短语",
+        "editTitle": "编辑快捷短语",
+        "form": {
+          "title": "标题",
+          "content": "内容"
+        }
+      },
+      "log": {
+        "loadFailed": "加载快捷短语失败:",
+        "deleteFailed": "删除快捷短语失败:",
+        "saveFailed": "保存快捷短语失败:"
+      }
+    },
+    "workspace": {
+      "title": "工作区管理",
+      "permissions": "权限管理",
+      "loading": "加载中...",
+      "listTitle": "工作区列表",
+      "lastAccessed": "最后访问于 {{time}}",
+      "scope": {
+        "global": "全局",
+        "session": "会话"
+      },
+      "empty": {
+        "title": "还没有工作区",
+        "description": "创建工作区来管理您的文件和文档，让人工智能更了解您的项目。",
+        "createButton": "创建第一个工作区"
+      },
+      "deleteDialog": {
+        "title": "删除工作区",
+        "content": "确定要删除工作区 \"{{name}}\" 吗？",
+        "warning": "这只会删除工作区配置，不会删除您计算机上的实际文件。"
+      },
+      "notifications": {
+        "loadFailed": "加载工作区列表失败",
+        "deleteFailed": "删除工作区失败"
+      },
+      "log": {
+        "loadFailed": "加载工作区失败:",
+        "deleteFailed": "删除工作区失败:"
+      }
+    },
+    "modelConfig": {
+      "title": "模型设置",
+      "addProvider": "添加",
+      "providerSection": {
+        "title": "模型服务商",
+        "subtitle": "您可以配置多个模型服务商，点击对应的服务商进行设置和管理"
+      },
+      "providerStatus": {
+        "enabled": "已启用",
+        "disabled": "已禁用",
+        "modelsCount": "{{count}} 个模型"
+      },
+      "recommendations": {
+        "title": "推荐操作",
+        "topicNaming": {
+          "primary": "话题命名设置",
+          "secondary": "设置话题自动命名的模型和选项"
+        },
+        "selectorStyle": {
+          "primary": "模型选择器样式",
+          "dialog": "当前：弹窗式选择器（点击切换为下拉式）",
+          "dropdown": "当前：下拉式选择器（点击切换为弹窗式）"
+        },
+        "addNewProvider": {
+          "primary": "添加新的服务商",
+          "secondary": "扩展您的AI模型库"
+        }
+      },
+      "editDialog": {
+        "title": "编辑服务商",
+        "nameLabel": "服务商名称",
+        "typeLabel": "服务商类型",
+        "cancel": "取消",
+        "save": "保存"
+      }
+    },
+    "topicNaming": {
+      "title": "话题命名设置",
+      "modelSection": {
+        "title": "话题命名模型",
+        "subtitle": "选择用于自动为话题生成标题的AI模型"
+      },
+      "enableSwitch": {
+        "primary": "启用话题自动命名",
+        "secondary": "在对话开始时，自动为新话题生成一个合适的标题"
+      },
+      "promptSection": {
+        "title": "话题命名提示词",
+        "subtitle": "自定义话题命名时使用的提示词，留空则使用默认提示词",
+        "placeholder": "例如：请为以下对话生成一个简洁的、不超过5个单词的标题..."
+      },
+      "saveButton": "保存提示词"
+    },
+    "agentPrompts": {
+      "title": "智能体提示词集合",
+      "systemPromptVar": {
+        "title": "系统提示词变量注入",
+        "desc": "为系统提示词自动注入时间、位置等动态变量",
+        "chip": {
+          "time": "时间",
+          "location": "位置",
+          "os": "系统",
+          "none": "未启用"
+        },
+        "info": "启用后，系统会在发送消息时自动在系统提示词末尾追加相应的变量信息。",
+        "time": {
+          "title": "时间变量",
+          "desc": "自动注入当前时间：{{time}}",
+          "tip": "将在系统提示词末尾自动追加时间信息"
+        },
+        "location": {
+          "title": "位置变量",
+          "desc": "注入位置信息：{{location}}",
+          "placeholder": "输入自定义位置（如：北京市朝阳区）",
+          "tip": "将在系统提示词末尾自动追加位置信息",
+          "tip2": "留空将使用系统检测的位置信息"
+        },
+        "os": {
+          "title": "操作系统变量",
+          "desc": "注入操作系统信息：{{os}}",
+          "tip": "将在系统提示词末尾自动追加操作系统信息"
+        }
+      },
+      "searchTitle": "搜索提示词",
+      "searchDesc": "在丰富的提示词库中快速找到您需要的模板",
+      "searchResultTitle": "搜索结果 ({{count}})",
+      "searchResultDesc": "找到 {{count}} 个匹配的提示词",
+      "noResult": "没有找到匹配的提示词",
+      "searchPlaceholder": "搜索提示词...",
+      "copy": "复制",
+      "copied": "已复制",
+      "promptsCount": "{{count}} 个提示词",
+      "groups": {
+        "general": { "title": "通用助手", "desc": "适用于日常对话和通用任务的助手" },
+        "tech": { "title": "技术专家", "desc": "技术领域的专业助手" },
+        "technical": { "title": "技术", "desc": "技术相关助手" },
+        "business": { "title": "商业", "desc": "商业与管理助手" },
+        "creative": { "title": "创意", "desc": "创意与内容生成助手" },
+        "lifestyle": { "title": "生活方式", "desc": "生活相关助手" },
+        "education": { "title": "教育", "desc": "教育与学习助手" },
+        "professional": { "title": "专业", "desc": "专业领域助手" },
+        "entertainment": { "title": "娱乐", "desc": "娱乐与休闲助手" },
+        "breakthrough": { "title": "突破", "desc": "创新与突破助手" }
+      }
+    },
+    "aiDebate": {
+      "title": "AI辩论设置",
+      "basic": {
+        "title": "基本设置",
+        "desc": "配置AI辩论功能的基础参数和选项",
+        "enable": "启用AI辩论功能",
+        "showButton": "在输入框显示AI辩论按钮",
+        "maxRounds": "最大辩论轮数",
+        "maxRoundsTip": "输入数字，建议1-20轮",
+        "maxTokens": "每轮最大Token数",
+        "maxTokensTip": "输入数字，建议100-4000",
+        "enableModerator": "启用主持人角色",
+        "enableSummary": "自动生成辩论总结"
+      },
+      "quick": {
+        "title": "快速配置",
+        "desc": "为新手用户提供一键配置，快速创建完整的辩论场景",
+        "basic": { "title": "🎯 基础辩论", "desc": "正方 + 反方 + 主持人（3角色）" },
+        "professional": { "title": "🏛️ 专业辩论", "desc": "正方 + 反方 + 中立分析师 + 主持人（4角色）" },
+        "expert": { "title": "🎓 专家论坛", "desc": "法律专家 + 经济学家 + 技术专家 + 主持人（4角色）" },
+        "comprehensive": { "title": "🌟 全面分析", "desc": "6个不同角色的全方位辩论" }
+      },
+      "group": {
+        "title": "配置分组管理",
+        "desc": "将不同的辩论配置保存为分组，方便快速切换",
+        "add": "新建分组",
+        "empty": "还没有任何分组",
+        "roleCount": "{{count}} 个角色 • 更新于 {{date}}",
+        "load": "加载",
+        "edit": "编辑",
+        "save": "保存",
+        "copy": "复制",
+        "delete": "删除"
+      },
+      "role": {
+        "title": "辩论角色管理",
+        "desc": "创建和管理AI辩论中的各种角色",
+        "add": "添加角色",
+        "empty": "还没有配置任何辩论角色。点击\"添加角色\"开始配置。",
+        "edit": "编辑角色",
+        "delete": "删除角色",
+        "editTitle": "编辑角色",
+        "addTitle": "添加新角色",
+        "quickTemplate": "快速模板：",
+        "name": "角色名称",
+        "descLabel": "角色描述",
+        "stanceLabel": "角色立场",
+        "stances": {
+          "pro": "正方",
+          "con": "反方",
+          "neutral": "中立"
+        },
+        "modelLabel": "使用模型"
+      }
+    },
+    "modelCombo": {
+      "title": "模型组合",
+      "templates": {
+        "title": "模板组合",
+        "useTemplate": "使用此模板"
+      },
+      "strategy": {
+        "routing": "路由",
+        "ensemble": "集成",
+        "comparison": "对比",
+        "cascade": "级联",
+        "sequential": "顺序"
+      },
+      "myCombos": {
+        "title": "我的组合",
+        "emptyTitle": "还没有模型组合",
+        "emptyDesc": "创建模型组合，将多个模型编排为一个工作流。",
+        "createFirst": "创建第一个模型组合"
+      },
+      "deleteDialog": {
+        "title": "删除模型组合",
+        "content": "确定要删除模型组合 \"{{name}}\" 吗？"
+      }
+    },
+    "webSearch": {
+      "title": "网络搜索",
+      "basic": {
+        "title": "基础设置",
+        "enable": "启用搜索",
+        "enableTip": "启用后，AI 可通过网络搜索获取最新信息",
+        "provider": "搜索服务商"
+      },
+      "providers": {
+        "bing": "Bing 免费版",
+        "tavily": "Tavily",
+        "exa": "Exa",
+        "bocha": "Bocha AI",
+        "firecrawl": "Firecrawl",
+        "custom": "自定义"
+      },
+      "searchEngine": "搜索引擎",
+      "engines": {
+        "baidu": "百度",
+        "sogou": "搜狗"
+      },
+      "apiKey": "API 密钥",
+      "apiKeyPlaceholder": "输入 {{provider}} 的 API 密钥",
+      "alert": {
+        "tavily": "Tavily 每日有免费配额，注册后可获取 API 密钥。"
+      },
+      "options": {
+        "title": "搜索选项",
+        "maxResults": "最大结果数",
+        "includeInContext": "将搜索结果插入上下文",
+        "showTimestamp": "显示时间戳",
+        "safeSearch": "安全搜索过滤",
+        "addDate": "附加当前日期"
+      },
+      "advanced": {
+        "title": "高级过滤",
+        "excludeLabel": "排除关键字",
+        "placeholder": "输入要排除的关键字...(用逗号分隔)",
+        "note": "排除的关键字将不会出现在搜索结果中"
+      },
+      "customProvider": {
+        "enableThis": "启用此服务",
+        "add": "添加自定义服务",
+        "name": "服务名称",
+        "baseUrl": "基础 URL",
+        "apiKey": "API 密钥"
+      }
+    },
+    "knowledge": {
+      "title": "知识库设置",
+      "stats": {
+        "title": "知识库统计",
+        "subtitle": "查看知识库的使用情况和存储统计",
+        "bases": "知识库数量",
+        "documents": "文档数量",
+        "vectors": "向量数量",
+        "storage": "存储大小"
+      },
+      "quickActions": {
+        "title": "快速操作",
+        "subtitle": "创建和管理知识库的快捷操作",
+        "create": "创建知识库",
+        "manage": "管理知识库",
+        "emptyTip": "您还没有创建任何知识库。点击\"创建知识库\"开始使用知识库功能。"
+      },
+      "config": {
+        "title": "知识库配置说明",
+        "subtitle": "了解知识库的各项配置参数和使用说明",
+        "info": "知识库的嵌入模型、分块大小、相似度阈值等参数在创建知识库时设置，每个知识库可以有不同的配置。",
+        "details": {
+          "embeddingModel": "<0>嵌入模型</0>：用于将文本转换为向量，不同模型有不同的效果和维度",
+          "chunkSize": "<0>分块大小</0>：文档分割的块大小，影响搜索精度和上下文长度",
+          "similarity": "<0>相似度阈值</0>：搜索结果的最低相似度，越高结果越精确",
+          "docCount": "<0>文档数量</0>：搜索时返回的文档段数量，影响回答的详细程度"
+        }
+      },
+      "data": {
+        "title": "数据管理",
+        "subtitle": "导出备份和清理知识库数据",
+        "noData": "您还没有创建任何知识库。请先创建知识库后再进行数据管理操作。",
+        "warning": "数据管理操作会影响所有知识库，请谨慎操作。建议在操作前先导出备份。",
+        "createFirst": "创建第一个知识库",
+        "export": "导出数据",
+        "clear": "清理所有数据"
+      },
+      "dialogs": {
+        "clear": {
+          "title": "确认清理所有知识库数据",
+          "content": "此操作将删除所有知识库、文档和向量数据，且无法恢复。确定要继续吗？",
+          "cancel": "取消",
+          "confirm": "确认清理"
+        },
+        "export": {
+          "title": "导出知识库数据",
+          "content": "将导出所有知识库和文档数据为JSON文件，可用于备份或迁移。",
+          "cancel": "取消",
+          "confirm": "确认导出"
+        }
+      },
+      "createDialog": {
+        "createTitle": "创建知识库",
+        "editTitle": "编辑知识库",
+        "name": "知识库名称",
+        "nameHelper": "给知识库起一个描述性的名称",
+        "embeddingModel": "嵌入模型",
+        "embeddingModelHelper": "用于将文本转换为向量的模型",
+        "noModels": "未找到可用的嵌入模型，请先在设置中配置",
+        "requestDocs": "请求文档段数量: {{count}}",
+        "advanced": "高级设置",
+        "chunkSize": "分块大小",
+        "chunkSizeHelper": "将文档分割成的块的大小（字符数）",
+        "overlap": "重叠大小",
+        "overlapHelper": "每个块之间重叠的字符数",
+        "similarityThreshold": "相似度阈值",
+        "thresholdHelper": "搜索结果的最低相似度分数，值越高结果越精确",
+        "cancel": "取消",
+        "create": "创建",
+        "update": "更新",
+        "saving": "保存中..."
+      }
+    },
+    "data": {
+      "title": "数据管理",
+      "backupHeader": {
+        "title": "数据备份与恢复",
+        "subtitle": "备份您的对话和助手数据，以便在更换设备或重新安装应用后恢复"
+      },
+      "buttons": {
+        "basicBackup": "备份聊天和助手",
+        "fullBackup": "完整系统备份",
+        "selectiveBackup": "选择性备份",
+        "restore": "导入备份文件并恢复",
+        "importExternal": "导入其他AI助手备份",
+        "clearAll": "清理全部助手和话题",
+        "webdavSettings": "WebDAV 云备份设置",
+        "webdavBackup": "备份到 WebDAV",
+        "webdavRestore": "从 WebDAV 恢复",
+        "diagnoseDatabase": "数据库诊断与修复"
+      },
+      "status": {
+        "backingUp": "备份中...",
+        "restoring": "恢复中..."
+      },
+      "localFiles": {
+        "title": "本地备份文件",
+        "notFound": "未找到本地备份文件",
+        "refresh": "刷新",
+        "unknownDate": "未知日期",
+        "dateFormatError": "日期格式错误",
+        "types": {
+          "full": "完整备份",
+          "custom": "自定义备份",
+          "basic": "基本备份"
+        }
+      },
+      "dialogs": {
+        "clearConfirm": {
+          "title": "确认清理所有助手和话题",
+          "content": "此操作将删除全部助手和话题，且无法恢复。是否继续？",
+          "cancel": "取消",
+          "confirm": "清理"
+        }
+      }
+    },
+    "notion": {
+      "title": "Notion 集成设置",
+      "header": {
+        "title": "Notion 集成配置",
+        "desc": "配置 Notion 集成，将对话导出到您的 Notion 数据库。",
+        "tutorial": "查看配置教程"
+      },
+      "toggle": {
+        "enable": "启用 Notion 导出"
+      },
+      "form": {
+        "apiKey": "Notion API 密钥",
+        "apiKeyPlaceholder": "secret_xxxxxxxxxxxxxxxxxxxxx",
+        "apiKeyHelper": "在 https://www.notion.so/my-integrations 创建集成并复制 API 密钥",
+        "databaseId": "数据库 ID",
+        "databaseIdPlaceholder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "databaseIdHelper": "从 Notion 数据库 URL 中提取的 ID 部分",
+        "pageTitle": "页面标题字段名",
+        "pageTitlePlaceholder": "Name",
+        "pageTitleHelper": "数据库中用作标题的字段，通常为 'Name' 或 '名称'",
+        "dateField": "创建日期字段名（可选）",
+        "dateFieldPlaceholder": "创建日期",
+        "dateFieldHelper": "如果数据库中有日期字段，请填入字段名称；留空则不添加日期信息"
+      },
+      "buttons": {
+        "test": "测试连接",
+        "testing": "测试中..."
+      },
+      "messages": {
+        "missingFields": "请先填写 API 密钥和数据库 ID",
+        "connectionSuccess": "连接成功！数据库 '{{db}}' 已就绪",
+        "connectionFailed": "连接失败: {{msg}}",
+        "titleFieldMissing": "数据库中未找到标题字段 '{{field}}'，请检查字段名称是否正确"
+      },
+      "corsInfo": "关于跨域问题：",
+      "corsTips": [
+        "Web 端开发环境已配置代理，可直接使用；移动端应用已配置 CORS 绕过插件。",
+        "生产环境如遇跨域错误，建议：",
+        "1. 使用移动应用版本（自动绕过 CORS）",
+        "2. 配置服务器代理",
+        "3. 部署到支持 CORS 的环境",
+        "注意：修改代理配置后请重启开发服务器以生效。"
+      ],
+      "setup": {
+        "title": "配置步骤：",
+        "steps": [
+          "访问 Notion Integrations 创建一个新的集成",
+          "复制生成的 API 密钥并填入上方 \"Notion API 密钥\" 字段",
+          "在 Notion 中创建一个数据库，并将集成连接到该数据库",
+          "从数据库 URL 中复制数据库 ID 并填入 \"数据库 ID\" 字段",
+          "确认数据库中标题字段的名称，通常为 \"Name\" 或 \"名称\"",
+          "（可选）如果需要添加创建日期，请填入数据库中日期字段的名称",
+          "点击 \"测试连接\" 按钮验证配置是否正确"
+        ]
+      }
+    },
+    "voice": {
+      "title": "语音功能设置",
+      "tabs": {
+        "tts": "语音合成 (TTS)",
+        "asr": "语音识别 (ASR)"
+      },
+      "status": {
+        "recommended": "推荐",
+        "premium": "付费",
+        "enterprise": "企业级",
+        "free": "免费"
+      }
+    },
+    "about": {
+      "title": "关于我们",
+      "appTitle": "关于AetherLink",
+      "appDesc1": "AetherLink是一个强大的AI助手应用，支持多种大语言模型，帮助您更高效地完成工作。",
+      "appDesc2": "我们致力于为用户提供最佳的AI辅助体验，让人工智能技术真正帮助到每一个人。",
+      "community": {
+        "title": "用户交流群",
+        "desc": "如有问题或建议，欢迎加入我们的QQ群进行反馈",
+        "groupNumber": "群号: 930126592",
+        "join": "加入QQ群"
+      },
+      "version": "版本: {{ver}}",
+      "buttons": {
+        "github": "GitHub",
+        "devTools": "开发者工具"
+      }
+    },
+    "input": {
+      "placeholder": {
+        "default": "和ai助手说点什么...",
+        "defaultExpanded": "和ai助手说点什么... (Ctrl+Enter 全展开)",
+        "imageGeneration": "输入图像生成提示词... (Ctrl+Enter 全展开)",
+        "webSearch": "输入网络搜索内容... (Ctrl+Enter 全展开)"
+      },
+      "toolbar": {
+        "newTopic": "新建话题",
+        "clearTopic": "清空内容",
+        "clearConfirm": "确认清空",
+        "generateImage": "生成图片",
+        "cancelGenerate": "取消生成",
+        "generateVideo": "生成视频",
+        "tools": "工具",
+        "mcpTools": "MCP工具",
+        "knowledge": "知识库",
+        "webSearch": "网络搜索"
+      }
+    },
+    "message": {
+      "generating": "正在生成回复..."
+    },
+    "chat": {
+      "componentError": "组件加载出错，请刷新页面重试",
+      "newConversation": "新的对话开始了，请输入您的问题"
+    },
+    "common": {
+      "add": "添加",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "import": "导入",
+      "close": "关闭",
+      "unknownError": "未知错误"
+    }
+  },
+  "sidebar": {
+      "tabs": {
+        "assistants": "助手",
+        "topics": "话题",
+        "settings": "设置"
+      },
+      "assistants": {
+        "title": "所有助手",
+        "searchPlaceholder": "搜索助手...",
+        "createGroup": "创建分组",
+        "addAssistant": "添加助手",
+        "ungroupedTitle": "未分组助手",
+        "emptyUngrouped": "暂无未分组助手",
+        "emptyGroup": "此分组暂无助手，请从未分组助手中添加",
+        "noGroups": "没有助手分组",
+        "menu": {
+          "addToGroup": "添加到分组...",
+          "editAssistant": "编辑助手",
+          "changeIcon": "修改图标",
+          "copyAssistant": "复制助手",
+          "clearTopics": "清空话题",
+          "sortPinyinAsc": "按拼音升序排列",
+          "sortPinyinDesc": "按拼音降序排列",
+          "deleteAssistant": "删除助手",
+          "createNewGroup": "创建新分组..."
+        }
+      },
+      "topics": {
+        "title": "所有话题",
+        "assistantTopics": "{{assistantName}}的话题",
+        "emptyMessage": "此助手没有话题，点击上方的\"+\"按钮创建一个新话题。",
+        "newTopic": "新建话题",
+        "ungroupedTitle": "未分组话题",
+        "emptyUngrouped": "暂无话题",
+        "emptyGroup": "此分组暂无话题，请从未分组话题中添加",
+        "menu": {
+          "addToGroup": "添加到分组...",
+          "editTopic": "编辑话题",
+          "autoRename": "自动命名话题",
+          "togglePin": "固定话题",
+          "toggleUnpin": "取消固定",
+          "clearMessages": "清空消息",
+          "moveTo": "移动到...",
+          "copyMarkdown": "复制为Markdown",
+          "exportMarkdown": "导出为Markdown",
+          "deleteTopic": "删除话题",
+          "createNewGroup": "创建新分组..."
+        }
+      }
+    }
+}

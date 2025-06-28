@@ -10,6 +10,7 @@ import {
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BackupRestoreSection from './BackupRestoreSection';
+import { useTranslation } from 'react-i18next';
 
 
 /**
@@ -18,6 +19,7 @@ import BackupRestoreSection from './BackupRestoreSection';
  */
 const DataSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleBack = () => {
     navigate('/settings');
@@ -68,7 +70,7 @@ const DataSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            数据管理
+            {t('settings.data.title')}
           </Typography>
         </Toolbar>
       </AppBar>

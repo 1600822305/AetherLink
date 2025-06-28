@@ -9,6 +9,7 @@ import { getThemeColors } from '../../shared/utils/themeUtils';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { Bot, MessageSquare, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 侧边栏标签页内容组件 - 使用memo优化性能
@@ -47,6 +48,7 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
 
   // 获取主题和主题工具 - 使用useMemo优化性能
   const theme = useTheme();
+  const { t } = useTranslation();
   // 使用更精确的选择器，避免不必要的重新渲染
   const themeStyle = useSelector((state: RootState) => state.settings.themeStyle, (prev, next) => prev === next);
   const themeColors = useMemo(() => getThemeColors(theme, themeStyle), [theme, themeStyle]);
@@ -129,8 +131,8 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
               }}
             >
               <Tab
+                label={t('sidebar.tabs.assistants')}
                 icon={<Bot size={18} />}
-                label="助手"
                 {...a11yProps(0)}
                 sx={{
                   minHeight: '32px',
@@ -148,8 +150,8 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
                 }}
               />
               <Tab
+                label={t('sidebar.tabs.topics')}
                 icon={<MessageSquare size={18} />}
-                label="话题"
                 {...a11yProps(1)}
                 sx={{
                   minHeight: '32px',
@@ -167,8 +169,8 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
                 }}
               />
               <Tab
+                label={t('sidebar.tabs.settings')}
                 icon={<Settings size={18} />}
-                label="设置"
                 {...a11yProps(2)}
                 sx={{
                   minHeight: '32px',
@@ -217,14 +219,6 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
             <SettingsTab
               settings={settingsArray}
               onSettingChange={handleSettingChange}
-              initialContextLength={settings.contextLength}
-              onContextLengthChange={handleContextLengthChange}
-              initialContextCount={settings.contextCount}
-              onContextCountChange={handleContextCountChange}
-              initialMathRenderer={settings.mathRenderer}
-              onMathRendererChange={handleMathRendererChange}
-              initialThinkingEffort={settings.defaultThinkingEffort}
-              onThinkingEffortChange={handleThinkingEffortChange}
               mcpMode={mcpMode}
               toolsEnabled={toolsEnabled}
               onMCPModeChange={handleMCPModeChange}

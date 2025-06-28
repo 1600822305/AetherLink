@@ -6,6 +6,7 @@ import { Plus, Trash2, AlertTriangle, ChevronLeft, BookOpen, Video } from 'lucid
 import { CustomIcon } from '../icons';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
+import { useTranslation } from 'react-i18next';
 import { useTopicManagement } from '../../shared/hooks/useTopicManagement';
 import { updateSettings } from '../../shared/store/settingsSlice';
 import WebSearchProviderSelector from '../WebSearchProviderSelector';
@@ -206,6 +207,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
   toolsEnabled = true,
   onToolsEnabledChange
 }) => {
+  const { t } = useTranslation();
   // ==================== 状态定义区域 ====================
   const scrollRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -526,7 +528,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
         size={16}
         color={isDarkMode ? 'rgba(76, 175, 80, 0.8)' : 'rgba(76, 175, 80, 0.7)'}
       />,
-      label: '新建话题',
+      label: t('input.toolbar.newTopic'),
       onClick: handleCreateTopic,
       isActive: false
     },
@@ -541,7 +543,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
             size={16}
             color={isDarkMode ? 'rgba(33, 150, 243, 0.8)' : 'rgba(33, 150, 243, 0.7)'}
           />,
-      label: clearConfirmMode ? '确认清空' : '清空内容',
+      label: clearConfirmMode ? t('input.toolbar.clearConfirm') : t('input.toolbar.clearTopic'),
       onClick: handleClearTopic,
       isActive: clearConfirmMode
     },
@@ -555,7 +557,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
           : (isDarkMode ? 'rgba(156, 39, 176, 0.6)' : 'rgba(156, 39, 176, 0.5)')
         }
       />,
-      label: imageGenerationMode ? '取消生成' : '生成图片',
+      label: imageGenerationMode ? t('input.toolbar.cancelGenerate') : t('input.toolbar.generateImage'),
       onClick: toggleImageGenerationMode,
       isActive: imageGenerationMode
     },
@@ -568,7 +570,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
           : (isDarkMode ? 'rgba(233, 30, 99, 0.6)' : 'rgba(233, 30, 99, 0.5)')
         }
       />,
-      label: videoGenerationMode ? '取消生成' : '生成视频',
+      label: videoGenerationMode ? t('input.toolbar.cancelGenerate') : t('input.toolbar.generateVideo'),
       onClick: toggleVideoGenerationMode,
       isActive: videoGenerationMode
     },
@@ -578,7 +580,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
         size={16}
         color={isDarkMode ? 'rgba(5, 150, 105, 0.8)' : 'rgba(5, 150, 105, 0.7)'}
       />,
-      label: '知识库',
+      label: t('input.toolbar.knowledge'),
       onClick: handleKnowledgeClick,
       isActive: false
     },
@@ -592,7 +594,7 @@ const ChatToolbar: React.FC<ChatToolbarProps> = ({
           : (isDarkMode ? 'rgba(59, 130, 246, 0.6)' : 'rgba(59, 130, 246, 0.5)')
         }
       />,
-      label: webSearchActive ? '关闭搜索' : (webSearchSettings?.providers?.find(p => p.id === currentProvider)?.name || '搜索'),
+      label: webSearchActive ? t('input.toolbar.closeSearch', 'Close Search') : (webSearchSettings?.providers?.find(p => p.id === currentProvider)?.name || t('input.toolbar.webSearch')),
       onClick: handleWebSearchClick,
       isActive: webSearchActive
     } : null

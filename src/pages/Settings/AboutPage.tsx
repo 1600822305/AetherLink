@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 // QQ群链接
 const QQ_GROUP_URL = 'http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=V-b46WoBNLIM4oc34JMULwoyJ3hyrKac&authKey=q%2FSwCcxda4e55ygtwp3h9adQXhqBLZ9wJdvM0QxTjXQkbxAa2tHoraOGy2fiibyY&noverify=0&group_code=930126592';
@@ -23,6 +24,7 @@ const QQ_GROUP_URL = 'http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=V-b46WoBNLIM4oc3
 const AboutPage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const handleBack = () => {
     navigate('/settings');
@@ -88,7 +90,7 @@ const AboutPage: React.FC = () => {
               textShadow: '0 2px 8px rgba(147,51,234,0.08)',
             }}
           >
-            关于我们
+            {t('settings.about.title')}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -119,7 +121,7 @@ const AboutPage: React.FC = () => {
             <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 6, background: 'linear-gradient(90deg,#a18cd1,#fbc2eb,#9333ea)', opacity: 0.18, borderTopLeftRadius: 20, borderTopRightRadius: 20 }} />
 
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, letterSpacing: 1.1, color: '#9333ea' }}>
-              关于AetherLink
+              {t('settings.about.appTitle')}
             </Typography>
             <Divider sx={{ mb: 3, background: 'linear-gradient(90deg,#a18cd1,#fbc2eb,#9333ea)', height: 3, borderRadius: 2, opacity: 0.25 }} />
 
@@ -160,11 +162,11 @@ const AboutPage: React.FC = () => {
             </Box>
 
             <Typography variant="body1" paragraph sx={{ fontSize: 18, fontWeight: 500, color: '#3b0764', mb: 1 }}>
-              AetherLink是一个强大的AI助手应用，支持多种大语言模型，帮助您更高效地完成工作。
+              {t('settings.about.appDesc1')}
             </Typography>
 
             <Typography variant="body1" paragraph sx={{ fontSize: 17, color: '#5b21b6', mb: 2 }}>
-              我们致力于为用户提供最佳的AI辅助体验，让人工智能技术真正帮助到每一个人。
+              {t('settings.about.appDesc2')}
             </Typography>
 
             {/* 用户交流群卡片 */}
@@ -187,14 +189,14 @@ const AboutPage: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <MessageCircle size={22} style={{ marginRight: 8, color: '#9333ea' }} />
                   <Typography variant="subtitle1" fontWeight="medium" sx={{ color: '#7c3aed', fontWeight: 700 }}>
-                    用户交流群
+                    {t('settings.about.community.title')}
                   </Typography>
                 </Box>
                 <Typography variant="body2" sx={{ mb: 1.5, color: '#6d28d9', fontWeight: 500 }}>
-                  如有问题或建议，欢迎加入我们的QQ群进行反馈
+                  {t('settings.about.community.desc')}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label="群号: 930126592" variant="outlined" size="small" sx={{ borderColor: '#a18cd1', color: '#7c3aed', fontWeight: 700, fontSize: 15 }} />
+                  <Chip label={t('settings.about.community.groupNumber')} variant="outlined" size="small" sx={{ borderColor: '#a18cd1', color: '#7c3aed', fontWeight: 700, fontSize: 15 }} />
                   <Button
                     variant="contained"
                     size="small"
@@ -213,14 +215,14 @@ const AboutPage: React.FC = () => {
                       },
                     }}
                   >
-                    加入QQ群
+                    {t('settings.about.community.join')}
                   </Button>
                 </Box>
               </Box>
             </Slide>
 
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontWeight: 600, fontSize: 15, letterSpacing: 1 }}>
-              版本: <span style={{ color: '#9333ea', fontWeight: 700 }}>0.5.0</span>
+              {t('settings.about.version', { ver: '0.5.0' })}
             </Typography>
 
             {/* 底部按钮组 */}
@@ -244,7 +246,7 @@ const AboutPage: React.FC = () => {
                   },
                 }}
               >
-                GitHub
+                {t('settings.about.buttons.github')}
               </Button>
               <Button
                 variant="outlined"

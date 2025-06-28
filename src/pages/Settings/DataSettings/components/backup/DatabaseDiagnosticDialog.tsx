@@ -35,6 +35,7 @@ import { TopicStatsService } from '../../../../../shared/services/topics/TopicSt
 import { AssistantService } from '../../../../../shared/services';
 import Dexie from 'dexie';
 import { toastManager } from '../../../../../components/EnhancedToast';
+import { useTranslation } from 'react-i18next';
 
 interface DatabaseDiagnosticDialogProps {
   open: boolean;
@@ -68,6 +69,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
     totalRemoved: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   // 执行数据库诊断
   const runDiagnostic = async () => {
@@ -223,7 +225,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
         pb: 2
       }}>
         <StorageIcon color="#10B981" />
-        <Typography variant="h6">数据库诊断与修复</Typography>
+        <Typography variant="h6">{t('settings.data.buttons.diagnoseDatabase')}</Typography>
       </DialogTitle>
 
       <DialogContent sx={{ py: 3 }}>

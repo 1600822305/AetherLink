@@ -40,6 +40,7 @@ import {
   Globe as HttpIcon,
   Trash2 as DeleteIcon
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type { MCPServer, MCPServerType } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
@@ -58,25 +59,22 @@ const MCPServerSettings: React.FC = () => {
     severity: 'success'
   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { t, i18n } = useTranslation();
 
-
-
-
-
-  // 新服务器表单状态
+  // New server form state
   const [newServer, setNewServer] = useState<Partial<MCPServer>>({
     name: '',
     type: 'httpStream',
     description: '',
     baseUrl: '',
     isActive: false,
-    enableSSE: false // 默认禁用SSE，避免不必要的错误
+    enableSSE: false 
   });
 
   useEffect(() => {
     loadServers();
     loadBuiltinServers();
-  }, []);
+  }, [i18n.language]);
 
   const loadServers = () => {
     const serverList = mcpService.getServers();
@@ -88,7 +86,7 @@ const MCPServerSettings: React.FC = () => {
       const builtinList = mcpService.getBuiltinServers();
       setBuiltinServers(builtinList);
     } catch (error) {
-      console.error('加载内置服务器失败:', error);
+      console.error(`[MCPSettings] ${t('settings.mcpServer.status.builtinLoadFailed')}:`, error);
     }
   };
 
@@ -102,13 +100,13 @@ const MCPServerSettings: React.FC = () => {
       loadServers();
       setSnackbar({
         open: true,
-        message: isActive ? '服务器已启用' : '服务器已停用',
+        message: isActive ? t('settings.mcpServer.status.enabled') : t('settings.mcpServer.status.disabled'),
         severity: 'success'
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: '操作失败',
+        message: t('settings.mcpServer.status.opFailed'),
         severity: 'error'
       });
     }
@@ -118,7 +116,7 @@ const MCPServerSettings: React.FC = () => {
     if (!newServer.name || !newServer.type) {
       setSnackbar({
         open: true,
-        message: '请填写必要信息',
+        message: t('settings.mcpServer.status.fillRequired'),
         severity: 'error'
       });
       return;
@@ -127,7 +125,7 @@ const MCPServerSettings: React.FC = () => {
     if (newServer.type === 'httpStream' && !newServer.baseUrl) {
       setSnackbar({
         open: true,
-        message: 'HTTP Stream 服务器需要提供 URL',
+        message: t('settings.mcpServer.status.urlRequired'),
         severity: 'error'
       });
       return;
@@ -155,33 +153,31 @@ const MCPServerSettings: React.FC = () => {
         description: '',
         baseUrl: '',
         isActive: false,
-        enableSSE: false // 默认禁用SSE，避免不必要的错误
+        enableSSE: false
       });
       setSnackbar({
         open: true,
-        message: '服务器添加成功',
+        message: t('settings.mcpServer.status.addSuccess'),
         severity: 'success'
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: '添加失败',
+        message: t('settings.mcpServer.status.addFailed'),
         severity: 'error'
       });
     }
   };
 
-  // 检查内置服务器是否已添加
   const isBuiltinServerAdded = (builtinServerName: string): boolean => {
     return servers.some(server => server.name === builtinServerName);
   };
 
   const handleAddBuiltinServer = async (builtinServer: MCPServer) => {
-    // 检查是否已添加
     if (isBuiltinServerAdded(builtinServer.name)) {
       setSnackbar({
         open: true,
-        message: `服务器 ${builtinServer.name} 已存在`,
+        message: t('settings.mcpServer.status.alreadyExists', { name: builtinServer.name }),
         severity: 'warning'
       });
       return;
@@ -199,13 +195,13 @@ const MCPServerSettings: React.FC = () => {
       loadServers();
       setSnackbar({
         open: true,
-        message: `内置服务器 ${builtinServer.name} 添加成功`,
+        message: t('settings.mcpServer.status.builtinAddSuccess', { name: builtinServer.name }),
         severity: 'success'
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: '添加内置服务器失败',
+        message: t('settings.mcpServer.status.builtinAddFailed'),
         severity: 'error'
       });
     }
@@ -215,38 +211,35 @@ const MCPServerSettings: React.FC = () => {
     navigate(`/settings/mcp-server/${server.id}`, { state: { server } });
   };
 
-  // 处理删除服务器
   const handleDeleteServer = async (server: MCPServer) => {
-    if (deletingId) return; // 防止重复进入
-    setDeletingId(server.id); // 标记为忙碌
+    if (deletingId) return;
+    setDeletingId(server.id);
 
     try {
       await mcpService.removeServer(server.id);
       loadServers();
       setSnackbar({
         open: true,
-        message: `服务器 "${server.name}" 已删除`,
+        message: t('settings.mcpServer.status.deleteSuccess', { name: server.name }),
         severity: 'success'
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: '删除失败',
+        message: t('settings.mcpServer.status.deleteFailed'),
         severity: 'error'
       });
     } finally {
-      setDeletingId(null); // 重置
+      setDeletingId(null);
     }
   };
-
-
 
   const handleImportJson = async () => {
     try {
       const config = JSON.parse(importJson);
 
       if (!config.mcpServers || typeof config.mcpServers !== 'object') {
-        throw new Error('JSON 格式不正确：缺少 mcpServers 字段');
+        throw new Error(t('settings.mcpServer.status.jsonFormatError'));
       }
 
       let importCount = 0;
@@ -259,7 +252,7 @@ const MCPServerSettings: React.FC = () => {
             name: serverName,
             type: (serverConfig as any).type || 'sse',
             baseUrl: (serverConfig as any).url,
-            description: `从 JSON 导入的服务器: ${serverName}`,
+            description: t('settings.mcpServer.status.importDesc', { serverName }),
             isActive: false,
             headers: {},
             env: {},
@@ -269,7 +262,7 @@ const MCPServerSettings: React.FC = () => {
           await mcpService.addServer(server);
           importCount++;
         } catch (error) {
-          errors.push(`${serverName}: ${error instanceof Error ? error.message : '未知错误'}`);
+          errors.push(`${serverName}: ${error instanceof Error ? error.message : t('common.unknownError')}`);
         }
       }
 
@@ -277,23 +270,16 @@ const MCPServerSettings: React.FC = () => {
       setImportDialogOpen(false);
       setImportJson('');
 
-      if (importCount > 0) {
-        setSnackbar({
-          open: true,
-          message: `成功导入 ${importCount} 个服务器${errors.length > 0 ? `，${errors.length} 个失败` : ''}`,
-          severity: errors.length > 0 ? 'error' : 'success'
-        });
-      } else {
-        setSnackbar({
-          open: true,
-          message: '导入失败：' + errors.join('; '),
-          severity: 'error'
-        });
-      }
+      const errorInfo = errors.length > 0 ? t('settings.mcpServer.status.importErrorCount', { errorCount: errors.length }) : '';
+      setSnackbar({
+        open: true,
+        message: t('settings.mcpServer.status.importSuccess', { importCount: importCount, errorInfo: errorInfo }),
+        severity: errors.length > 0 ? 'warning' : 'success'
+      });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: `JSON 解析失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        message: t('settings.mcpServer.status.importFailed', { error: error instanceof Error ? error.message : t('common.unknownError') }),
         severity: 'error'
       });
     }
@@ -311,14 +297,9 @@ const MCPServerSettings: React.FC = () => {
   };
 
   const getServerTypeLabel = (type: MCPServerType) => {
-    switch (type) {
-      case 'httpStream':
-        return 'HTTP Stream';
-      case 'inMemory':
-        return '内存';
-      default:
-        return '未知';
-    }
+    const key = `settings.mcpServer.serverType.${type.replace('Stream', '')}`;
+    const translated = t(key);
+    return translated === key ? type : translated;
   };
 
   const getServerTypeColor = (type: MCPServerType) => {
@@ -377,7 +358,7 @@ const MCPServerSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            MCP 服务器
+            {t('settings.mcpServer.title')}
           </Typography>
           <Button
             startIcon={<AddIcon />}
@@ -391,7 +372,7 @@ const MCPServerSettings: React.FC = () => {
               borderRadius: 2,
             }}
           >
-            添加
+            {t('settings.mcpServer.list.addServer')}
           </Button>
         </Toolbar>
       </AppBar>
@@ -436,7 +417,7 @@ const MCPServerSettings: React.FC = () => {
                   fontSize: { xs: '1.1rem', sm: '1.25rem' }
                 }}
               >
-                还没有配置 MCP 服务器
+                {t('settings.mcpServer.list.emptyTitle')}
               </Typography>
               <Typography
                 variant="body2"
@@ -446,7 +427,7 @@ const MCPServerSettings: React.FC = () => {
                   fontSize: { xs: '0.875rem', sm: '0.875rem' }
                 }}
               >
-                MCP 服务器可以为 AI 提供额外的工具和功能
+                {t('settings.mcpServer.list.emptyDesc')}
               </Typography>
               <Box sx={{
                 display: 'flex',
@@ -468,7 +449,7 @@ const MCPServerSettings: React.FC = () => {
                     fontSize: { xs: '0.9rem', sm: '0.875rem' }
                   }}
                 >
-                  添加服务器
+                  {t('settings.mcpServer.list.addServer')}
                 </Button>
                 <Button
                   variant="outlined"
@@ -482,7 +463,7 @@ const MCPServerSettings: React.FC = () => {
                     fontSize: { xs: '0.9rem', sm: '0.875rem' }
                   }}
                 >
-                  导入配置
+                  {t('settings.mcpServer.quickActions.import')}
                 </Button>
                 <Button
                   variant="outlined"
@@ -496,7 +477,7 @@ const MCPServerSettings: React.FC = () => {
                     fontSize: { xs: '0.9rem', sm: '0.875rem' }
                   }}
                 >
-                  内置服务器
+                  {t('settings.mcpServer.quickActions.builtin')}
                 </Button>
               </Box>
             </Box>
@@ -522,14 +503,14 @@ const MCPServerSettings: React.FC = () => {
                   fontSize: { xs: '1rem', sm: '1.1rem' }
                 }}
               >
-                MCP 服务器列表
+                {t('settings.mcpServer.list.title')}
               </Typography>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
               >
-                管理您的 MCP 服务器配置和状态
+                {t('settings.mcpServer.list.subtitle')}
               </Typography>
             </Box>
 
@@ -590,7 +571,7 @@ const MCPServerSettings: React.FC = () => {
                             />
                             {server.isActive && (
                               <Chip
-                                label="运行中"
+                                label={t('settings.mcpServer.status.running')}
                                 size="small"
                                 color="success"
                                 variant="outlined"
@@ -700,14 +681,14 @@ const MCPServerSettings: React.FC = () => {
                 fontSize: { xs: '1rem', sm: '1.1rem' }
               }}
             >
-              快捷操作
+              {t('settings.mcpServer.quickActions.title')}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}
             >
-              快速添加和管理 MCP 服务器
+              {t('settings.mcpServer.quickActions.subtitle')}
             </Typography>
           </Box>
 
@@ -740,12 +721,12 @@ const MCPServerSettings: React.FC = () => {
                       color: 'text.primary',
                       fontSize: { xs: '0.9rem', sm: '1rem' }
                     }}>
-                      导入配置
+                      {t('settings.mcpServer.quickActions.import')}
                     </Typography>
                   }
                   secondary={
                     <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-                      从 JSON 文件导入 MCP 服务器配置
+                      {t('settings.mcpServer.quickActions.importDesc')}
                     </Typography>
                   }
                 />
@@ -780,12 +761,12 @@ const MCPServerSettings: React.FC = () => {
                       color: 'text.primary',
                       fontSize: { xs: '0.9rem', sm: '1rem' }
                     }}>
-                      内置服务器
+                      {t('settings.mcpServer.quickActions.builtin')}
                     </Typography>
                   }
                   secondary={
                     <Typography sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-                      添加预配置的内置 MCP 服务器
+                      {t('settings.mcpServer.quickActions.builtinDesc')}
                     </Typography>
                   }
                 />
@@ -802,12 +783,12 @@ const MCPServerSettings: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>添加 MCP 服务器</DialogTitle>
+        <DialogTitle>{t('settings.mcpServer.dialog.addTitle')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="服务器名称"
+            label={t('settings.mcpServer.form.name')}
             fullWidth
             variant="outlined"
             value={newServer.name}
@@ -815,20 +796,20 @@ const MCPServerSettings: React.FC = () => {
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>服务器类型</InputLabel>
+            <InputLabel>{t('settings.mcpServer.form.type')}</InputLabel>
             <Select
               value={newServer.type}
-              label="服务器类型"
+              label={t('settings.mcpServer.form.type')}
               onChange={(e) => setNewServer({ ...newServer, type: e.target.value as MCPServerType })}
             >
-              <MenuItem value="httpStream">HTTP Stream (支持SSE+HTTP)</MenuItem>
-              <MenuItem value="inMemory">内存服务器</MenuItem>
+              <MenuItem value="httpStream">{t('settings.mcpServer.form.typeHttp')}</MenuItem>
+              <MenuItem value="inMemory">{t('settings.mcpServer.form.typeMemory')}</MenuItem>
             </Select>
           </FormControl>
           {newServer.type === 'httpStream' && (
             <TextField
               margin="dense"
-              label="服务器 URL"
+              label={t('settings.mcpServer.form.url')}
               fullWidth
               variant="outlined"
               value={newServer.baseUrl}
@@ -839,7 +820,7 @@ const MCPServerSettings: React.FC = () => {
           )}
           <TextField
             margin="dense"
-            label="描述（可选）"
+            label={t('settings.mcpServer.form.description')}
             fullWidth
             variant="outlined"
             multiline
@@ -855,14 +836,14 @@ const MCPServerSettings: React.FC = () => {
                   onChange={(e) => setNewServer({ ...newServer, enableSSE: e.target.checked })}
                 />
               }
-              label="启用SSE流（Server-Sent Events）"
+              label={t('settings.mcpServer.form.enableSSE')}
               sx={{ mt: 1 }}
             />
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>取消</Button>
-          <Button onClick={handleAddServer} variant="contained">添加</Button>
+          <Button onClick={() => setAddDialogOpen(false)}>{t('common.cancel')}</Button>
+          <Button onClick={handleAddServer} variant="contained">{t('common.add')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -873,10 +854,10 @@ const MCPServerSettings: React.FC = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>导入 MCP 服务器配置</DialogTitle>
+        <DialogTitle>{t('settings.mcpServer.dialog.importTitle')}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            粘贴包含 MCP 服务器配置的 JSON 文件内容。支持的格式示例：
+            {t('settings.mcpServer.dialog.importDesc')}
           </Typography>
           <Box
             sx={{
@@ -904,24 +885,24 @@ const MCPServerSettings: React.FC = () => {
           <TextField
             autoFocus
             margin="dense"
-            label="JSON 配置"
+            label={t('settings.mcpServer.form.json')}
             fullWidth
             multiline
             rows={10}
             variant="outlined"
             value={importJson}
             onChange={(e) => setImportJson(e.target.value)}
-            placeholder="在此粘贴 JSON 配置..."
+            placeholder={t('settings.mcpServer.form.jsonPlaceholder')}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setImportDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setImportDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button
             onClick={handleImportJson}
             variant="contained"
             disabled={!importJson.trim()}
           >
-            导入
+            {t('common.import')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -949,7 +930,7 @@ const MCPServerSettings: React.FC = () => {
           borderBottom: '1px solid',
           borderColor: 'divider'
         }}>
-          添加内置 MCP 服务器
+          {t('settings.mcpServer.dialog.builtinTitle')}
         </DialogTitle>
         <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 3 } }}>
           <Typography
@@ -961,7 +942,7 @@ const MCPServerSettings: React.FC = () => {
               lineHeight: 1.5
             }}
           >
-            选择要添加的内置 MCP 服务器。这些服务器由 Cherry Studio 提供，无需额外配置即可使用。
+            {t('settings.mcpServer.dialog.builtinDesc')}
           </Typography>
           <Box sx={{
             display: 'flex',
@@ -1124,7 +1105,7 @@ const MCPServerSettings: React.FC = () => {
                           cursor: 'default'
                         }}
                       >
-                        已添加
+                        {t('settings.mcpServer.status.alreadyAdded')}
                       </Button>
                     ) : (
                       <Button
@@ -1151,7 +1132,7 @@ const MCPServerSettings: React.FC = () => {
                           }
                         }}
                       >
-                        添加
+                        {t('common.add')}
                       </Button>
                     )}
                   </Box>
@@ -1177,12 +1158,29 @@ const MCPServerSettings: React.FC = () => {
               fontSize: { xs: '1rem', sm: '0.875rem' }
             }}
           >
-            关闭
+            {t('common.close')}
           </Button>
         </DialogActions>
       </Dialog>
 
-
+      {/* Delete Dialog */}
+      <Dialog
+        open={!!deletingId}
+        onClose={() => setDeletingId(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t('settings.mcpServer.dialog.deleteTitle')}</DialogTitle>
+        <DialogContent>
+          <Typography>{t('settings.mcpServer.dialog.deleteContent', { name: servers.find(s => s.id === deletingId)?.name })}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletingId(null)}>{t('common.cancel')}</Button>
+          <Button onClick={() => handleDeleteServer(servers.find(s => s.id === deletingId) as MCPServer)} variant="contained" color="error">
+            {t('common.delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

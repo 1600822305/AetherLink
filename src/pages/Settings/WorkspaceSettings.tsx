@@ -38,24 +38,31 @@ import {
   FolderOpen as FolderOpenIcon,
   Shield as ShieldIcon
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { workspaceService } from '../../shared/services/WorkspaceService';
 import { WorkspaceCreateDialog } from '../../components/WorkspaceCreateDialog';
 import type { Workspace } from '../../shared/types/workspace';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/zh-cn';
-
-dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
 
 const WorkspaceSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null);
+
+  useEffect(() => {
+    // dayjs 本地化
+    const dayjsLocale = i18n.language === 'zh' ? 'zh-cn' : 'en';
+    dayjs.locale(dayjsLocale);
+    import(`dayjs/locale/${dayjsLocale}`).catch((err) => {
+      console.warn(`Failed to load dayjs locale: ${dayjsLocale}`, err);
+    });
+  }, [i18n.language]);
 
   // 加载工作区列表
   const loadWorkspaces = async () => {
@@ -65,8 +72,8 @@ const WorkspaceSettings: React.FC = () => {
       const result = await workspaceService.getWorkspaces();
       setWorkspaces(result.workspaces);
     } catch (err) {
-      setError('加载工作区列表失败');
-      console.error('加载工作区失败:', err);
+      setError(t('settings.workspace.notifications.loadFailed'));
+      console.error(t('settings.workspace.log.loadFailed'), err);
     } finally {
       setLoading(false);
     }
@@ -74,7 +81,7 @@ const WorkspaceSettings: React.FC = () => {
 
   useEffect(() => {
     loadWorkspaces();
-  }, []);
+  }, [t]);
 
   // 处理返回
   const handleBack = () => {
@@ -98,11 +105,11 @@ const WorkspaceSettings: React.FC = () => {
         setWorkspaceToDelete(null);
         loadWorkspaces();
       } else {
-        setError(result.error || '删除工作区失败');
+        setError(result.error || t('settings.workspace.notifications.deleteFailed'));
       }
     } catch (err) {
-      setError('删除工作区失败');
-      console.error('删除工作区失败:', err);
+      setError(t('settings.workspace.notifications.deleteFailed'));
+      console.error(t('settings.workspace.log.deleteFailed'), err);
     }
   };
 
@@ -175,7 +182,7 @@ const WorkspaceSettings: React.FC = () => {
               color: 'transparent',
             }}
           >
-            工作区管理
+            {t('settings.workspace.title')}
           </Typography>
           <Button
             startIcon={<ShieldIcon />}
@@ -190,7 +197,7 @@ const WorkspaceSettings: React.FC = () => {
               mr: 1,
             }}
           >
-            权限管理
+            {t('settings.workspace.permissions')}
           </Button>
           <Button
             startIcon={<AddIcon />}
@@ -204,7 +211,7 @@ const WorkspaceSettings: React.FC = () => {
               borderRadius: 2,
             }}
           >
-            添加
+            {t('common.add')}
           </Button>
         </Toolbar>
       </AppBar>
@@ -233,7 +240,7 @@ const WorkspaceSettings: React.FC = () => {
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <Typography>加载中...</Typography>
+            <Typography>{t('settings.workspace.loading')}</Typography>
           </Box>
         ) : workspaces.length === 0 ? (
           <Paper
@@ -250,224 +257,67 @@ const WorkspaceSettings: React.FC = () => {
               p: 6,
             }}
           >
-            <FolderOpenIcon size={64} style={{ color: '#666', marginBottom: 16 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              还没有工作区
+            <FolderOpenIcon sx={{ fontSize: 60, color: 'primary.main', opacity: 0.6 }} />
+            <Typography variant="h5" sx={{ mt: 2, fontWeight: 600 }}>
+              {t('settings.workspace.empty.title')}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              创建工作区来管理您的文件和文档
+            <Typography variant="body1" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+              {t('settings.workspace.empty.description')}
             </Typography>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setCreateDialogOpen(true)}
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                fontWeight: 600,
-                borderRadius: 2,
-                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                  boxShadow: '0 6px 16px rgba(79, 70, 229, 0.4)',
-                },
-              }}
+              size="large"
             >
-              创建第一个工作区
+              {t('settings.workspace.empty.createButton')}
             </Button>
           </Paper>
         ) : (
-          <Paper
-            elevation={0}
-            sx={{
-              mb: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'hidden',
-              bgcolor: 'background.paper',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            }}
-          >
-            <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.01)' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                工作区列表
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                管理您的工作区，点击对应的工作区进行访问和管理
-              </Typography>
-            </Box>
-
-            <Divider />
-
-            <List disablePadding>
-              {workspaces.map((workspace, index) => (
-                <React.Fragment key={workspace.id}>
-                  <ListItemButton
-                    onClick={() => enterWorkspace(workspace)}
-                    sx={{
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-                      },
-                      py: 2,
-                    }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar
-                        sx={{
-                          bgcolor: '#1976d2',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
-                        }}
-                      >
-                        <FolderIcon />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Typography sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <List>
+            <ListSubheader sx={{ bgcolor: 'transparent', fontWeight: 600 }}>
+              {t('settings.workspace.listTitle')}
+            </ListSubheader>
+            {workspaces.map((workspace) => (
+              <Paper key={workspace.id} sx={{ mb: 2, borderRadius: 2, overflow: 'hidden' }}>
+                <ListItemButton onClick={() => enterWorkspace(workspace)}>
+                  <ListItemAvatar>
+                    <Avatar sx={{ bgcolor: 'primary.main' }}>
+                      <FolderIcon size={20} />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, mr: 1.5 }}>
                           {workspace.name}
                         </Typography>
-                      }
-                      secondary={
-                        <Box>
-                          {workspace.description && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                              {workspace.description}
-                            </Typography>
-                          )}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                            <Chip
-                              label={formatPath(workspace.path)}
-                              size="small"
-                              sx={{
-                                backgroundColor: '#333333',
-                                color: '#cccccc',
-                                height: '20px',
-                                '& .MuiChip-label': { fontSize: '0.65rem', px: 0.5 }
-                              }}
-                            />
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <AccessTimeIcon size={14} style={{ marginRight: 4, color: '#666' }} />
-                            <Typography variant="caption" color="text.secondary">
-                              {workspace.lastAccessedAt
-                                ? `最后访问 ${dayjs(workspace.lastAccessedAt).fromNow()}`
-                                : `创建于 ${dayjs(workspace.createdAt).fromNow()}`
-                              }
-                            </Typography>
-                          </Box>
-                        </Box>
-                      }
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDeleteDialog(workspace);
-                      }}
-                      sx={{
-                        mr: 1,
-                        color: 'text.secondary',
-                        '&:hover': {
-                          color: 'error.main',
-                          bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
-                        },
-                      }}
-                    >
-                      <DeleteIcon size={16} />
-                    </IconButton>
-                  </ListItemButton>
-                  {index < workspaces.length - 1 && <Divider variant="inset" component="li" sx={{ ml: 0 }} />}
-                </React.Fragment>
-              ))}
-            </List>
-          </Paper>
-        )}
-
-        {/* 推荐操作 */}
-        <Paper
-          elevation={0}
-          sx={{
-            mb: 2,
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            overflow: 'hidden',
-            bgcolor: 'background.paper',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-          }}
-        >
-          <List
-            subheader={
-              <ListSubheader
-                component="div"
-                sx={{
-                  bgcolor: 'rgba(0,0,0,0.01)',
-                  py: 1,
-                  fontWeight: 600,
-                  color: 'text.primary'
-                }}
-              >
-                推荐操作
-              </ListSubheader>
-            }
-          >
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={() => setCreateDialogOpen(true)}
-                sx={{
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-                  }
-                }}
-              >
-                <ListItemAvatar>
-                  <Avatar sx={{
-                    bgcolor: alpha('#4f46e5', 0.12),
-                    color: '#4f46e5',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+                        <Chip
+                          label={t(`settings.workspace.scope.${workspace.scope}`)}
+                          color={workspace.scope === 'global' ? 'secondary' : 'default'}
+                          size="small"
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                        <Typography variant="body2">{formatPath(workspace.path)}</Typography>
+                        <AccessTimeIcon sx={{ fontSize: 14, ml: 2, mr: 0.5 }} />
+                        <Typography variant="caption">{t('settings.workspace.lastAccessed', { time: dayjs(workspace.lastAccessed).fromNow() })}</Typography>
+                      </Box>
+                    }
+                  />
+                  <IconButton edge="end" aria-label="delete" onClick={(e) => {
+                    e.stopPropagation();
+                    openDeleteDialog(workspace);
                   }}>
-                    <AddIcon />
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>创建新工作区</Typography>}
-                  secondary="添加新的工作区来管理您的文件和文档"
-                />
-              </ListItemButton>
-            </ListItem>
-
-            <Divider variant="inset" component="li" sx={{ ml: 0 }} />
-
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={goToPermissionPage}
-                sx={{
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-                  }
-                }}
-              >
-                <ListItemAvatar>
-                  <Avatar sx={{
-                    bgcolor: alpha('#06b6d4', 0.12),
-                    color: '#06b6d4',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
-                  }}>
-                    <ShieldIcon />
-                  </Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={<Typography sx={{ fontWeight: 600, color: 'text.primary' }}>文件权限管理</Typography>}
-                  secondary="管理文件访问权限和安全设置"
-                />
-              </ListItemButton>
-            </ListItem>
+                    <DeleteIcon />
+                  </IconButton>
+                </ListItemButton>
+              </Paper>
+            ))}
           </List>
-        </Paper>
+        )}
       </Box>
 
       {/* 创建工作区对话框 */}
@@ -478,45 +328,19 @@ const WorkspaceSettings: React.FC = () => {
       />
 
       {/* 删除确认对话框 */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-          }
-        }}
-      >
-        <DialogTitle sx={{
-          fontWeight: 600,
-          backgroundImage: 'linear-gradient(90deg, #9333EA, #754AB4)',
-          backgroundClip: 'text',
-          color: 'transparent',
-        }}>
-          删除工作区
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>{t('settings.workspace.deleteDialog.title')}</DialogTitle>
+        <DialogContent>
           <Typography>
-            确定要删除工作区 "{workspaceToDelete?.name}" 吗？
+            {t('settings.workspace.deleteDialog.content', { name: workspaceToDelete?.name })}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            这只会删除工作区配置，不会删除实际的文件。
-          </Typography>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            {t('settings.workspace.deleteDialog.warning')}
+          </Alert>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
-          <Button
-            onClick={handleDeleteWorkspace}
-            color="error"
-            variant="contained"
-            sx={{
-              borderRadius: 2,
-            }}
-          >
-            删除
-          </Button>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{t('common.cancel')}</Button>
+          <Button onClick={handleDeleteWorkspace} color="error">{t('common.delete')}</Button>
         </DialogActions>
       </Dialog>
     </Box>

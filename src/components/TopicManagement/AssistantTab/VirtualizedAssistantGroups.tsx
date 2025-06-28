@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { ChevronDown, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { updateGroup, deleteGroup } from '../../../shared/store/slices/groupsSlice';
 import VirtualScroller from '../../common/VirtualScroller';
 import AssistantItem from './AssistantItem';
@@ -47,6 +48,7 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
   onOpenMenu,
   onDeleteAssistant
 }: VirtualizedAssistantGroupsProps) {
+  const { t } = useTranslation();
   
   // 使用 useMemo 缓存分组助手的计算结果
   const groupedAssistants = useMemo(() => {
@@ -132,7 +134,7 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
               fontSize: '0.85rem'
             }}
           >
-            此分组暂无助手，请从未分组助手中添加
+{t('sidebar.assistants.emptyGroup')}
           </Typography>
         )}
       </AssistantGroupAccordion>
@@ -143,7 +145,7 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
   if (groupedAssistants.length === 0) {
     return (
       <Typography variant="body2" color="textSecondary" sx={{ py: 2, textAlign: 'center' }}>
-        没有助手分组
+{t('sidebar.assistants.noGroups')}
       </Typography>
     );
   }
@@ -169,6 +171,7 @@ const AssistantGroupAccordion = memo(function AssistantGroupAccordion({
   shouldVirtualize,
   children
 }: AssistantGroupAccordionProps) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -291,22 +294,22 @@ const AssistantGroupAccordion = memo(function AssistantGroupAccordion({
       >
         <MenuItem onClick={handleEditClick}>
           <Edit size={16} style={{ marginRight: 8 }} />
-          编辑分组名称
+          {t('sidebar.assistants.editGroupName', 'Edit Group Name')}
         </MenuItem>
         <MenuItem onClick={handleDeleteClick}>
           <Trash2 size={16} style={{ marginRight: 8 }} />
-          删除分组
+          {t('sidebar.assistants.deleteGroup', 'Delete Group')}
         </MenuItem>
       </Menu>
 
       {/* 编辑分组名称对话框 */}
       <Dialog open={editDialogOpen} onClose={handleEditCancel} maxWidth="xs" fullWidth>
-        <DialogTitle>编辑分组名称</DialogTitle>
+        <DialogTitle>{t('sidebar.assistants.editGroupName', 'Edit Group Name')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="分组名称"
+            label={t('sidebar.assistants.groupName', 'Group Name')}
             type="text"
             fullWidth
             variant="outlined"
@@ -322,8 +325,8 @@ const AssistantGroupAccordion = memo(function AssistantGroupAccordion({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleEditCancel}>取消</Button>
-          <Button onClick={handleEditSave} variant="contained">保存</Button>
+          <Button onClick={handleEditCancel}>{t('common.cancel')}</Button>
+          <Button onClick={handleEditSave} variant="contained">{t('common.save')}</Button>
         </DialogActions>
       </Dialog>
 
