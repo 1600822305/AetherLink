@@ -347,6 +347,16 @@ export const useChatFeatures = (
     await TopicService.saveMessageAndBlocks(userMessage, userBlocks);
 
     try {
+      // 🚀 设置流式状态，让输入框显示正确的状态
+      store.dispatch({
+        type: 'normalizedMessages/setTopicStreaming',
+        payload: { topicId: currentTopic.id, streaming: true }
+      });
+      store.dispatch({
+        type: 'normalizedMessages/setTopicLoading',
+        payload: { topicId: currentTopic.id, loading: true }
+      });
+
       // 创建助手消息和块
       const { message: searchingMessage, blocks: searchingBlocks } = createAssistantMessage({
         assistantId: currentTopic.assistantId,
@@ -499,6 +509,16 @@ export const useChatFeatures = (
         }
       });
 
+      // 🚀 清除流式状态
+      store.dispatch({
+        type: 'normalizedMessages/setTopicStreaming',
+        payload: { topicId: currentTopic.id, streaming: false }
+      });
+      store.dispatch({
+        type: 'normalizedMessages/setTopicLoading',
+        payload: { topicId: currentTopic.id, loading: false }
+      });
+
       // 关闭网络搜索模式
       setWebSearchActive(false);
     }
@@ -542,6 +562,16 @@ export const useChatFeatures = (
       await TopicService.updateMessageBlockFields(existingMainTextBlockId, {
         content: contentWithHeader,
         status: MessageBlockStatus.PROCESSING
+      });
+
+      // 🚀 设置流式状态，让输入框显示AI分析进行中
+      store.dispatch({
+        type: 'normalizedMessages/setTopicStreaming',
+        payload: { topicId: topic.id, streaming: true }
+      });
+      store.dispatch({
+        type: 'normalizedMessages/setTopicLoading',
+        payload: { topicId: topic.id, loading: true }
       });
 
       // 构建消息数组
@@ -594,8 +624,9 @@ export const useChatFeatures = (
         messages,
         modelId: model.id,
         onChunk: async (content: string) => {
-          // 累积内容而不是替换
+          // 只累积新的AI分析内容
           accumulatedContent += content;
+          // 组合完整内容：前缀（搜索结果+标题）+ 累积的AI分析内容
           const fullContent = contentPrefix + accumulatedContent;
 
           // 更新块内容
@@ -640,8 +671,29 @@ export const useChatFeatures = (
         }
       }));
 
+      // 🚀 清除流式状态，让输入框恢复正常
+      store.dispatch({
+        type: 'normalizedMessages/setTopicStreaming',
+        payload: { topicId: currentTopic.id, streaming: false }
+      });
+      store.dispatch({
+        type: 'normalizedMessages/setTopicLoading',
+        payload: { topicId: currentTopic.id, loading: false }
+      });
+
     } catch (error) {
       console.error('[handleAIAnalysisWithNativeCallbacks] 处理失败:', error);
+
+      // 🚀 错误时也要清除流式状态
+      store.dispatch({
+        type: 'normalizedMessages/setTopicStreaming',
+        payload: { topicId: currentTopic.id, streaming: false }
+      });
+      store.dispatch({
+        type: 'normalizedMessages/setTopicLoading',
+        payload: { topicId: currentTopic.id, loading: false }
+      });
+
       throw error;
     }
   };

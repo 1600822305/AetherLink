@@ -305,7 +305,7 @@ const DefaultModelSettings: React.FC = () => {
                               </Typography>
                             }
                             secondary={
-                              <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span style={{ display: 'flex', alignItems: 'center' }}>
                                 <Typography
                                   component="span"
                                   variant="body2"
@@ -322,7 +322,7 @@ const DefaultModelSettings: React.FC = () => {
                                     {provider.models.length} 个模型
                                   </Typography>
                                 )}
-                              </Box>
+                              </span>
                             }
                           />
                           <IconButton

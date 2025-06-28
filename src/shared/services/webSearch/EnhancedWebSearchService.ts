@@ -382,14 +382,16 @@ class EnhancedWebSearchService {
 
         // CorsBypass 返回的数据结构
         const data = response.data;
-        const results: WebSearchResult[] = data.results?.map((result: any) => ({
+        // 博查API返回的数据结构：data.data.webPages.value
+        const webPages = data.data?.webPages?.value || [];
+        const results: WebSearchResult[] = webPages.map((result: any) => ({
           id: uuidv4(),
-          title: result.title || '',
+          title: result.name || '',
           url: result.url || '',
           snippet: result.snippet || '',
           timestamp: new Date().toISOString(),
           provider: 'bocha'
-        })) || [];
+        }));
 
         console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
         return { results };
@@ -411,14 +413,16 @@ class EnhancedWebSearchService {
         }
 
         const data = await response.json();
-        const results: WebSearchResult[] = data.results?.map((result: any) => ({
+        // 博查API返回的数据结构：data.data.webPages.value
+        const webPages = data.data?.webPages?.value || [];
+        const results: WebSearchResult[] = webPages.map((result: any) => ({
           id: uuidv4(),
-          title: result.title || '',
+          title: result.name || '',
           url: result.url || '',
           snippet: result.snippet || '',
           timestamp: new Date().toISOString(),
           provider: 'bocha'
-        })) || [];
+        }));
 
         console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
         return { results };

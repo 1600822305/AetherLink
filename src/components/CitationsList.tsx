@@ -285,7 +285,7 @@ const CitationsList: React.FC<CitationsListProps> = ({ citations }) => {
                       </Typography>
                     }
                     secondary={
-                      <Box component="span" sx={{ display: 'block' }}>
+                      <span style={{ display: 'block' }}>
                         <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
                           {getHostname(citation.url)}
                         </Typography>
@@ -294,7 +294,7 @@ const CitationsList: React.FC<CitationsListProps> = ({ citations }) => {
                             {truncateText(citation.content, 80)}
                           </Typography>
                         )}
-                      </Box>
+                      </span>
                     }
                   />
 

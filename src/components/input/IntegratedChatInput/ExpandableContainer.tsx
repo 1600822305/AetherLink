@@ -227,7 +227,7 @@ const useExpandableContainer = ({
     );
   }, [
     getResponsiveStyles, isKeyboardVisible, isMobile, isTablet, isIOS, themeColors.paper,
-    border, borderRadius, boxShadow, inputBoxStyle, renderExpandButton
+    border, boxShadow, inputBoxStyle, renderExpandButton
   ]);
 
   return {

@@ -200,7 +200,7 @@ const MotionSidebar = React.memo(function MotionSidebar({
     // 🚀 移动端：高性能Drawer + 简化手势支持
     return (
       <>
-        {/* � 高性能边缘滑动区域 - 替代SwipeableDrawer */}
+        {/* 🚀 高性能边缘滑动区域 - 替代SwipeableDrawer */}
         {!finalOpen && (
           <Box
             sx={{
@@ -285,30 +285,29 @@ const MotionSidebar = React.memo(function MotionSidebar({
     );
   }
 
-  // 🚀 桌面端：回到persistent模式，但使用我们的预计算布局避免性能问题
+  // 🚀 桌面端：直接用Box，完全避免Modal层阻挡点击
   return (
-    <Drawer
-      variant="persistent"
-      anchor="left"
-      open={finalOpen}
+    <Box
       sx={{
-        width: 0, // 🔧 关键：设置为0，不占用布局空间，避免推开内容
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          borderRight: `1px solid ${theme.palette.divider}`,
-          // 🚀 关键优化：使用transform而不是width变化
-          transform: finalOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
-          transition: theme.transitions.create(['transform'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-        },
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        width: drawerWidth,
+        height: '100vh',
+        zIndex: 0,
+        boxSizing: 'border-box',
+        borderRight: `1px solid ${theme.palette.divider}`,
+        backgroundColor: theme.palette.background.paper,
+        // 🚀 关键优化：使用transform而不是width变化
+        transform: finalOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
+        transition: theme.transitions.create(['transform'], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
       }}
     >
       {drawer}
-    </Drawer>
+    </Box>
   );
 }, areMotionSidebarPropsEqual);
 

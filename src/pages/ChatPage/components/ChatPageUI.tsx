@@ -143,36 +143,10 @@ interface ChatPageUIProps {
   onSearchToggle?: () => void;
 }
 
-// 🔧 修复：移除过度优化的React.memo比较函数，恢复默认行为
-// 只针对侧边栏相关的props进行优化，不影响聊天功能
-const arePropsEqual = (prevProps: ChatPageUIProps, nextProps: ChatPageUIProps) => {
-  // 🚨 重要：对于聊天相关的props，使用默认比较（浅比较）
-  // 只优化侧边栏相关的props，确保聊天流式输出正常工作
 
-  // 如果是流式输出状态变化，立即重新渲染
-  if (prevProps.isStreaming !== nextProps.isStreaming) {
-    return false;
-  }
 
-  // 如果消息数组引用变化（包括内容更新），立即重新渲染
-  if (prevProps.currentMessages !== nextProps.currentMessages) {
-    return false;
-  }
-
-  // 如果话题变化，立即重新渲染
-  if (prevProps.currentTopic !== nextProps.currentTopic) {
-    return false;
-  }
-
-  // 只对侧边栏相关的props进行优化
-  return (
-    prevProps.drawerOpen === nextProps.drawerOpen &&
-    prevProps.isMobile === nextProps.isMobile
-  );
-};
-
-// 使用 React.memo 优化组件，避免不必要的重新渲染
-export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
+// 🔧 暂时移除memo优化，确保所有功能正常工作
+export const ChatPageUI: React.FC<ChatPageUIProps> = ({
   currentTopic,
   currentMessages,
   isStreaming,
@@ -792,4 +766,4 @@ export const ChatPageUI: React.FC<ChatPageUIProps> = React.memo(({
 
     </Box>
   );
-}, arePropsEqual);
+};

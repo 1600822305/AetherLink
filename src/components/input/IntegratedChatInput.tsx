@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { useChatInputLogic } from '../../shared/hooks/useChatInputLogic';
 import { useInputStyles } from '../../shared/hooks/useInputStyles';
@@ -11,8 +9,9 @@ import FileUploadManager, { type FileUploadManagerRef } from './ChatInput/FileUp
 import InputTextArea from './ChatInput/InputTextArea';
 import EnhancedToast, { toastManager } from '../EnhancedToast';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
+import { toggleWebSearchEnabled, setWebSearchProvider } from '../../shared/store/slices/webSearchSlice';
 import type { DebateConfig } from '../../shared/services/AIDebateService';
 import { useKeyboardManager } from '../../shared/hooks/useKeyboardManager';
 import useVoiceInputManager from './IntegratedChatInput/VoiceInputManager';
@@ -93,6 +92,9 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
 
   // 获取当前助手状态
   const currentAssistant = useSelector((state: RootState) => state.assistants.currentAssistant);
+
+  // Redux dispatch
+  const dispatch = useDispatch();
 
   // 获取网络搜索设置
   const webSearchSettings = useSelector((state: RootState) => state.webSearch);
@@ -263,6 +265,36 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
     }
   };
 
+  // 处理快速网络搜索切换
+  const handleQuickWebSearchToggle = useCallback(() => {
+    if (webSearchActive) {
+      // 如果当前网络搜索处于激活状态，则关闭它
+      toggleWebSearch?.();
+    } else {
+      // 如果当前网络搜索未激活，检查是否有可用的搜索提供商
+      const enabled = webSearchSettings?.enabled || false;
+      const currentProvider = webSearchSettings?.provider;
+
+      if (enabled && currentProvider && currentProvider !== 'custom') {
+        // 如果网络搜索已启用且有有效的提供商，直接激活
+        toggleWebSearch?.();
+      } else {
+        // 如果没有配置或未启用，需要先启用网络搜索和设置默认提供商
+        const actions: any[] = [];
+        if (!enabled) {
+          actions.push(toggleWebSearchEnabled());
+        }
+        if (!currentProvider || currentProvider === 'custom') {
+          actions.push(setWebSearchProvider('bing-free'));
+        }
+
+        // 批量dispatch并设置等待标记
+        actions.forEach(action => dispatch(action));
+        setPendingWebSearchToggle(true);
+      }
+    }
+  }, [webSearchActive, webSearchSettings, toggleWebSearch, dispatch, setPendingWebSearchToggle]);
+
   // 快捷短语插入处理函数
   const handleInsertPhrase = useCallback((content: string) => {
     if (!textareaRef.current) return;
@@ -357,6 +389,7 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
     handleFileUploadLocal,
     onClearTopic,
     onToolsEnabledChange,
+    handleQuickWebSearchToggle,
     menuManager,
     voiceInputManager,
     canSendMessage: canSendMessage as () => boolean,

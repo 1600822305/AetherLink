@@ -211,7 +211,8 @@ export class UnifiedStreamProcessor {
           topicId: this.options.topicId
         });
       } else if (this.options.onUpdate) {
-        this.options.onUpdate(this.state.content, '');
+        // 传递增量内容而不是累积内容，避免重复显示
+        this.options.onUpdate(chunk.textDelta, '');
       }
     } else if (chunk.type === 'reasoning') {
       if (!this.state.reasoningStartTime) {

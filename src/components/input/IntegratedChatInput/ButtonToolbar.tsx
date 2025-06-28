@@ -30,6 +30,7 @@ interface ButtonToolbarProps {
   handleFileUploadLocal: () => Promise<void>;
   onClearTopic?: () => void;
   onToolsEnabledChange?: (enabled: boolean) => void;
+  handleQuickWebSearchToggle?: () => void;
   
   // 菜单管理器方法
   menuManager: {
@@ -75,6 +76,7 @@ const useButtonToolbar = ({
   handleFileUploadLocal,
   onClearTopic,
   onToolsEnabledChange,
+  handleQuickWebSearchToggle,
   menuManager,
   voiceInputManager,
   canSendMessage,
@@ -169,9 +171,9 @@ const useButtonToolbar = ({
     },
     search: {
       id: 'search',
-      icon: <CustomIcon name="webSearch" size={20} />,
+      icon: <CustomIcon name="search" size={20} />,
       tooltip: webSearchActive ? '退出网络搜索模式' : '网络搜索',
-      onClick: () => console.log('网络搜索功能'),
+      onClick: handleQuickWebSearchToggle || (() => console.log('网络搜索功能')),
       color: webSearchActive ? '#3b82f6' : iconColor,
       disabled: false,
       isActive: webSearchActive

@@ -149,7 +149,7 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
       title={tooltipContent}
       placement="top"
       arrow
-      open={isMobile ? tooltipOpen : undefined}
+      open={isMobile ? tooltipOpen : false}
       onClose={handleTooltipClose}
       disableHoverListener={isMobile}
       disableFocusListener={isMobile}
