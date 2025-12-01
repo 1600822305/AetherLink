@@ -5,6 +5,10 @@ import { createAssistantMessage } from '../../../shared/utils/messageUtils';
 import { newMessagesActions } from '../../../shared/store/slices/newMessagesSlice';
 import { upsertManyBlocks } from '../../../shared/store/slices/messageBlocksSlice';
 import { AssistantMessageStatus, MessageBlockStatus, MessageBlockType } from '../../../shared/types/newMessage';
+import store from '../../../shared/store';
+import { findModelInProviders } from '../../../shared/utils/modelUtils';
+import { ChunkType, type Chunk } from '../../../shared/types/chunk';
+import type { Model } from '../../../shared/types';
 
 interface UseAIDebateProps {
   onSendMessage: (message: string, images?: any[], toolsEnabled?: boolean, files?: any[]) => void;
@@ -254,45 +258,75 @@ export const useAIDebate = ({ onSendMessage, currentTopic }: UseAIDebateProps) =
         return fallback();
       }
 
+      // 根据 modelId 获取完整的 Model 对象
+      const state = store.getState();
+      const providers = state.settings.providers || [];
+      const modelResult = findModelInProviders(providers, role.modelId, { includeDisabled: true });
+
+      if (!modelResult) {
+        console.warn(`角色 ${role.name} 的模型 ${role.modelId} 未找到，使用模拟响应`);
+        return fallback();
+      }
+
+      const model: Model = {
+        ...modelResult.model,
+        provider: modelResult.provider.id
+      };
+
       // 导入API服务
-      const { sendChatRequest } = await import('../../../shared/api');
+      const { sendChatMessage } = await import('../../../shared/aiCore/legacy/clients/openai/chat');
 
       let accumulated = '';
 
       // 调用真实的AI API
-      const response = await sendChatRequest({
-        messages: [{
+      const response = await sendChatMessage(
+        [{
+          id: `debate-${Date.now()}`,
           role: 'user' as const,
-          content: context
-        }],
-        modelId: role.modelId,
-        systemPrompt: role.systemPrompt,
-        onChunk: (chunk: string) => {
-          if (!chunk) return;
+          content: context,
+          assistantId: '',
+          topicId: currentTopic?.id || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'success',
+          blocks: []
+        } as any],
+        model,
+        {
+          systemPrompt: role.systemPrompt,
+          onChunk: (chunk: Chunk) => {
+            // 提取文本内容
+            let text = '';
+            if (chunk.type === ChunkType.TEXT_DELTA && 'text' in chunk) {
+              text = chunk.text;
+            } else if (chunk.type === ChunkType.TEXT_COMPLETE && 'text' in chunk) {
+              text = chunk.text;
+            }
 
-          if (accumulated && chunk.startsWith(accumulated)) {
-            accumulated = chunk;
-          } else {
-            accumulated += chunk;
+            if (!text) return;
+
+            accumulated += text;
+            emitDelta(text);
           }
-
-          emitDelta(chunk);
         }
-      });
+      );
 
-      const responseContent = response.content ?? '';
-      const finalContent = accumulated || responseContent;
-
-      if (!accumulated && response.success && responseContent) {
-        emitDelta(responseContent);
+      // 处理返回值 - 可能是 string 或 ChatResponse
+      let responseContent = '';
+      if (typeof response === 'string') {
+        responseContent = response;
+      } else if (response && typeof response === 'object' && 'content' in response) {
+        responseContent = response.content ?? '';
       }
 
-      if (response.success && finalContent) {
+      const finalContent = accumulated || responseContent;
+
+      if (finalContent) {
         console.log(`✅ ${role.name} AI响应成功`);
         return finalContent;
       }
 
-      console.error(`❌ ${role.name} AI响应失败:`, response.error || 'content为空');
+      console.error(`❌ ${role.name} AI响应失败: content为空`);
       console.log(`[DEBUG] 完整响应对象:`, response);
       return fallback();
     } catch (error) {
@@ -476,9 +510,6 @@ ${history.join('\n\n')}
 
 请保持客观中立，避免偏向任何一方，重点分析论证过程和思维逻辑。`;
 
-      // 导入API服务
-      const { sendChatRequest } = await import('../../../shared/api');
-
       // 优先找总结角色，如果没有则找其他配置了模型的角色
       let summaryRole = currentDebateConfig?.roles?.find(role => role.stance === 'summary' && role.modelId);
 
@@ -491,23 +522,57 @@ ${history.join('\n\n')}
         throw new Error('没有找到配置了模型的角色来生成总结');
       }
 
+      // 根据 modelId 获取完整的 Model 对象
+      const state = store.getState();
+      const providers = state.settings.providers || [];
+      const modelResult = findModelInProviders(providers, summaryRole.modelId, { includeDisabled: true });
+
+      if (!modelResult) {
+        throw new Error(`模型 ${summaryRole.modelId} 未找到`);
+      }
+
+      const model: Model = {
+        ...modelResult.model,
+        provider: modelResult.provider.id
+      };
+
       console.log(`🤖 使用${summaryRole.stance === 'summary' ? '专门的总结角色' : '辩论角色'} ${summaryRole.modelId} (${summaryRole.name}) 生成总结`);
 
-      // 调用AI生成总结
-      const response = await sendChatRequest({
-        messages: [{
-          role: 'user' as const,
-          content: summaryPrompt
-        }],
-        modelId: summaryRole.modelId,
-        systemPrompt: '你是一位专业的辩论分析师，擅长客观分析和总结辩论内容。请提供深入、平衡的分析。'
-      });
+      // 导入API服务
+      const { sendChatMessage } = await import('../../../shared/aiCore/legacy/clients/openai/chat');
 
-      if (response.success && response.content) {
+      // 调用AI生成总结
+      const response = await sendChatMessage(
+        [{
+          id: `summary-${Date.now()}`,
+          role: 'user' as const,
+          content: summaryPrompt,
+          assistantId: '',
+          topicId: currentTopic?.id || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'success',
+          blocks: []
+        } as any],
+        model,
+        {
+          systemPrompt: '你是一位专业的辩论分析师，擅长客观分析和总结辩论内容。请提供深入、平衡的分析。'
+        }
+      );
+
+      // 处理返回值 - 可能是 string 或 ChatResponse
+      let responseContent = '';
+      if (typeof response === 'string') {
+        responseContent = response;
+      } else if (response && typeof response === 'object' && 'content' in response) {
+        responseContent = response.content ?? '';
+      }
+
+      if (responseContent) {
         console.log('✅ AI总结生成成功');
-        return response.content;
+        return responseContent;
       } else {
-        console.error('❌ AI总结生成失败:', response.error);
+        console.error('❌ AI总结生成失败: content为空');
         throw new Error('AI总结生成失败');
       }
     } catch (error) {

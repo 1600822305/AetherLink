@@ -1,4 +1,4 @@
-import { sendChatRequest } from '../../api';
+import { sendChatRequest } from "../../aiCore/legacy/clients";
 import store from '../../store';
 import type { ChatTopic } from '../../types';
 import { getStorageItem, setStorageItem } from '../../utils/storage';

@@ -4,7 +4,7 @@ import { BaseOpenAIResponseProvider } from './BaseAIProvider';
 import type { Chunk } from '../types/chunk';
 import { ChunkType } from '../types/chunk';
 import { parseAndCallTools } from '../utils/mcpToolParser';
-import { getParameterManager } from '../api/openai/parameterManager';
+import { getParameterManager } from '../aiCore/legacy/clients/openai/parameterManager';
 import { Capacitor } from '@capacitor/core';
 
 /**

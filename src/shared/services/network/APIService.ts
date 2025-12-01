@@ -4,10 +4,10 @@ import { handleError } from '../../utils/error';
 import type { ImageGenerationParams, GeneratedImage } from '../../types';
 import { ModelType } from '../../types';
 import { log } from '../LoggerService';
-import { generateImage as openaiGenerateImage, generateVideo as openaiGenerateVideo } from '../../api/openai';
-import { generateVideoWithVeo } from '../../api/google/veo';
-import type { VideoGenerationParams } from '../../api/openai/video';
-import type { GoogleVeoParams } from '../../api/google/veo';
+import { generateImage as openaiGenerateImage, generateVideo as openaiGenerateVideo } from '../../aiCore/legacy/clients/openai';
+import { generateVideoWithVeo } from '../../aiCore/legacy/clients/google/veo';
+import type { VideoGenerationParams } from '../../aiCore/legacy/clients/openai/video';
+import type { GoogleVeoParams } from '../../aiCore/legacy/clients/google/veo';
 import { fetchModels as factoryFetchModels } from '../ProviderFactory';
 import { getModelIdentityKey } from '../../utils/modelUtils';
 

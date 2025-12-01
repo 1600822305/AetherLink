@@ -1,9 +1,10 @@
 import { v4 as uuid } from 'uuid';
 import { MessageBlockStatus, MessageBlockType, AssistantMessageStatus } from '../../../types/newMessage';
-import { createResponseHandler } from '../../../services/messages/ResponseHandler';
+// 新架构
+import { createStreamProcessor, createCallbacks, StreamingBlockManager } from '../../../services/streaming';
 import { ApiProviderRegistry } from '../../../services/messages/ApiProvider';
-import { generateImage as generateOpenAIImage } from '../../../api/openai/image';
-import { generateImage as generateGeminiImage } from '../../../api/gemini/image';
+import { generateImage as generateOpenAIImage } from '../../../aiCore/legacy/clients/openai/image';
+import { generateImage as generateGeminiImage } from '../../../aiCore/legacy/clients/gemini/image';
 import { createImageBlock } from '../../../utils/messageUtils';
 import { createAbortController } from '../../../utils/abortController';
 import { mcpService } from '../../../services/mcp';
@@ -148,14 +149,118 @@ export const processAssistantResponse = async (
 
 
 
-// 7. 创建响应处理器，使用占位符块ID
-    const responseHandler = createResponseHandler({
+// 7. 创建新架构的流处理器 - 使用统一的 updateMessageAndBlocks 方法
+    const saveUpdatesToDB = async (
+      msgId: string,
+      tId: string,
+      messageUpdates: Partial<Message>,
+      blocksToUpdate: MessageBlock[]
+    ) => {
+      // 过滤无效块
+      const validBlocks = blocksToUpdate.filter(block => {
+        const blockType = (block as any).type;
+        if (!blockType) {
+          console.warn(`[DB保存] ⚠️ 块 ${block.id.substring(0, 8)}... 类型为空！跳过保存`);
+          return false;
+        }
+        console.log(`[DB保存] 块 ${block.id.substring(0, 8)}... 类型=${blockType} 状态=${(block as any).status} 内容=${(block as any).content?.length || 0}字符`);
+        return true;
+      });
+
+      // 🔧 使用统一的 updateMessageAndBlocks 方法
+      // 在单个事务中同时更新消息和块，保证数据一致性
+      await dexieStorage.updateMessageAndBlocks(
+        tId,
+        { id: msgId, ...messageUpdates },
+        validBlocks
+      );
+    };
+
+    const blockManager = new StreamingBlockManager({
+      dispatch,
+      getState: _getState,
       messageId: assistantMessage.id,
-      blockId: placeholderBlock.id,
       topicId,
-      toolNames: mcpTools.map(t => t.name || t.id).filter((n): n is string => !!n),
-      mcpTools: mcpTools
+      initialBlockId: placeholderBlock.id,
+      saveUpdatesToDB,
+      throttleInterval: 100
     });
+
+    const callbacks = createCallbacks({
+      dispatch,
+      getState: _getState,
+      messageId: assistantMessage.id,
+      topicId,
+      blockManager,
+      mcpTools,
+      saveUpdatesToDB
+    });
+
+    const processChunk = createStreamProcessor(callbacks);
+
+    // 兼容旧接口的包装器
+    const responseHandler = {
+      handleChunk: processChunk,
+      handleStringContent: async (content: string) => {
+        await callbacks.onTextChunk?.(content);
+      },
+      complete: async (_content?: string, _reasoning?: string) => {
+        blockManager.flushThrottle();
+        await callbacks.onComplete?.(AssistantMessageStatus.SUCCESS);
+        
+        // 🔧 关键修复：确保最终的消息块列表保存到数据库
+        const finalState = _getState();
+        const finalMessage = finalState.messages?.entities?.[assistantMessage.id];
+        const allBlocks = finalState.messageBlocks?.entities || {};
+        const blockIds = finalMessage?.blocks || [];
+        
+        // 保存消息的 blocks 数组到数据库
+        if (blockIds.length > 0) {
+          await dexieStorage.updateMessage(assistantMessage.id, { 
+            blocks: blockIds,
+            status: AssistantMessageStatus.SUCCESS
+          });
+          
+          // 同时确保每个块都保存到数据库
+          for (const blockId of blockIds) {
+            const block = allBlocks[blockId];
+            if (block) {
+              await dexieStorage.updateMessageBlock(blockId, block);
+            }
+          }
+        }
+        
+        // 📝 日志：输出最终保存的块信息
+        console.log(`[📋 响应完成] 消息 ${assistantMessage.id.substring(0, 8)}... 共 ${blockIds.length} 个块:`);
+        blockIds.forEach((blockId: string, idx: number) => {
+          const block = allBlocks[blockId];
+          if (block) {
+            console.log(`  块${idx + 1}: [${block.type}] ${block.status} - "${(block as any).content?.substring?.(0, 40) || ''}..." (${(block as any).content?.length || 0}字符)`);
+          } else {
+            console.log(`  块${idx + 1}: [缺失] ${blockId}`);
+          }
+        });
+        
+        dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
+        dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
+      },
+      completeWithInterruption: async () => {
+        blockManager.flushThrottle();
+        await callbacks.onComplete?.(AssistantMessageStatus.SUCCESS);
+        dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
+        dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
+      },
+      fail: async (error: Error) => {
+        blockManager.cancelThrottle();
+        await callbacks.onError?.(error);
+        dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
+        dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
+      },
+      cleanup: () => {
+        blockManager.cleanup();
+        callbacks.cleanup?.();
+      }
+    };
 
     // 7.1. 现在ResponseHandler已创建，可以进行知识库搜索了
     await performKnowledgeSearchIfNeeded(topicId, assistantMessage.id);

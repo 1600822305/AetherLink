@@ -60,6 +60,12 @@ export interface PlaceholderMessageBlock extends BaseMessageBlock {
 export interface MainTextMessageBlock extends BaseMessageBlock {
   type: typeof MessageBlockType.MAIN_TEXT
   content: string
+  knowledgeBaseIds?: string[]
+  // 引用引用（与 Cherry Studio 保持一致）
+  citationReferences?: {
+    citationBlockId?: string
+    citationBlockSource?: string
+  }[]
 }
 
 // 思考过程消息块

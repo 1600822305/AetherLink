@@ -152,7 +152,7 @@ export class VideoTaskManager {
 
     if (isGoogleVeoTask) {
       // 使用Google Veo轮询
-      const { pollVeoOperation } = await import('../api/google/veo');
+      const { pollVeoOperation } = await import('../aiCore/legacy/clients/google/veo');
       return await pollVeoOperation(apiKey, task.requestId);
     }
 

@@ -1,8 +1,16 @@
-// 导出所有消息服务相关内容
+/**
+ * 消息服务模块
+ * 重构后的精简导出
+ */
+
+// 核心消息服务
 export * from './messageService';
+
+// 消息上下文
 export { default as MessageContext } from './MessageContext';
-export { default as BlockManager } from './BlockManager';
+
+// API Provider
 export { default as ApiProviderRegistry } from './ApiProvider';
-export { default as createResponseHandler, setResponseState, ApiError } from './ResponseHandler';
-export { OpenAIResponseService, createOpenAIResponseService, isOpenAIResponsesAPISupported } from './OpenAIResponseService';
-export { OpenAIResponseHandler } from './OpenAIResponseHandler';
+
+// 新架构组件从 streaming 模块导出
+// import { StreamingBlockManager, createStreamProcessor, createCallbacks } from '../streaming';

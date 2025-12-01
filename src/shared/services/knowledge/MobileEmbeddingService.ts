@@ -8,7 +8,7 @@ import { isEmbeddingModel } from '../../config/models';
 import { getEmbeddingDimensions } from '../../config/embeddingModels';
 import { universalFetch } from '../../utils/universalFetch';
 import store from '../../store';
-import { createGeminiEmbeddingService } from '../../api/gemini/embeddingService';
+import { createGeminiEmbeddingService } from '../../aiCore/legacy/clients/gemini/embeddingService';
 
 /**
  * 获取模型的维度

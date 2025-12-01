@@ -10,8 +10,20 @@ interface WebSearchResponse {
 }
 
 interface Response {
-  id: string;
-  content: string;
+  id?: string;
+  content?: string;
+  text?: string;
+  reasoning_content?: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  metrics?: {
+    completion_tokens: number;
+    time_first_token_millsec: number;
+    time_completion_millsec: number;
+  };
 }
 
 interface ResponseError {
@@ -30,11 +42,13 @@ export enum ChunkType {
   KNOWLEDGE_SEARCH_IN_PROGRESS = 'knowledge_search_in_progress',
   KNOWLEDGE_SEARCH_COMPLETE = 'knowledge_search_complete',
   MCP_TOOL_CREATED = 'mcp_tool_created',
+  MCP_TOOL_PENDING = 'mcp_tool_pending',
   MCP_TOOL_IN_PROGRESS = 'mcp_tool_in_progress',
   MCP_TOOL_COMPLETE = 'mcp_tool_complete',
   EXTERNEL_TOOL_COMPLETE = 'externel_tool_complete',
   LLM_RESPONSE_CREATED = 'llm_response_created',
   LLM_RESPONSE_IN_PROGRESS = 'llm_response_in_progress',
+  TEXT_START = 'text.start',
   TEXT_DELTA = 'text.delta',
   TEXT_COMPLETE = 'text.complete',
   AUDIO_DELTA = 'audio.delta',
@@ -42,6 +56,7 @@ export enum ChunkType {
   IMAGE_CREATED = 'image.created',
   IMAGE_DELTA = 'image.delta',
   IMAGE_COMPLETE = 'image.complete',
+  THINKING_START = 'thinking.start',
   THINKING_DELTA = 'thinking.delta',
   THINKING_COMPLETE = 'thinking.complete',
   LLM_WEB_SEARCH_IN_PROGRESS = 'llm_websearch_in_progress',
@@ -51,7 +66,13 @@ export enum ChunkType {
   ERROR = 'error',
   SEARCH_IN_PROGRESS_UNION = 'search_in_progress_union',
   SEARCH_COMPLETE_UNION = 'search_complete_union',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
+  // Phase 4 新增类型
+  RAW = 'raw',
+  VIDEO_SEARCHED = 'video.searched',
+  IMAGE_SEARCHED = 'image.searched',
+  CITATION_DELTA = 'citation.delta',
+  CITATION_COMPLETE = 'citation.complete'
 }
 
 export interface LLMResponseCreatedChunk {
@@ -72,6 +93,18 @@ export interface LLMResponseInProgressChunk {
    */
   response?: Response
   type: ChunkType.LLM_RESPONSE_IN_PROGRESS
+}
+
+export interface TextStartChunk {
+  /**
+   * 数据块类型
+   */
+  type: ChunkType.TEXT_START
+
+  /**
+   * 数据块ID
+   */
+  chunk_id?: number
 }
 
 export interface TextDeltaChunk {
@@ -176,6 +209,13 @@ export interface ImageCompleteChunk {
    * 图片内容
    */
   image: { type: 'base64'; images: string[] }
+}
+
+export interface ThinkingStartChunk {
+  /**
+   * 数据块类型
+   */
+  type: ChunkType.THINKING_START
 }
 
 export interface ThinkingDeltaChunk {
@@ -383,6 +423,101 @@ export interface MCPToolCompleteChunk {
   responses: any[]
 }
 
+// ===== Phase 4 新增接口 =====
+
+/**
+ * MCP 工具等待 Chunk
+ */
+export interface MCPToolPendingChunk {
+  type: ChunkType.MCP_TOOL_PENDING
+  responses: MCPToolResponse[]
+}
+
+/**
+ * 原始数据 Chunk
+ * 用于透传 SDK 原始数据
+ */
+export interface RawChunk {
+  type: ChunkType.RAW
+  content: unknown
+  metadata?: Record<string, any>
+}
+
+/**
+ * 视频搜索结果 Chunk
+ */
+export interface VideoSearchedChunk {
+  type: ChunkType.VIDEO_SEARCHED
+  videos: Array<{
+    id: string
+    title: string
+    url: string
+    thumbnail?: string
+    duration?: number
+  }>
+}
+
+/**
+ * 图像搜索结果 Chunk
+ */
+export interface ImageSearchedChunk {
+  type: ChunkType.IMAGE_SEARCHED
+  images: Array<{
+    id: string
+    url: string
+    alt?: string
+    source?: string
+  }>
+}
+
+/**
+ * 引用增量 Chunk
+ */
+export interface CitationDeltaChunk {
+  type: ChunkType.CITATION_DELTA
+  citations: Array<{
+    index: number
+    url: string
+    title?: string
+    snippet?: string
+  }>
+}
+
+/**
+ * 引用完成 Chunk
+ */
+export interface CitationCompleteChunk {
+  type: ChunkType.CITATION_COMPLETE
+  citations: Array<{
+    index: number
+    url: string
+    title?: string
+    snippet?: string
+  }>
+}
+
+/**
+ * 知识库搜索进行中 Chunk
+ */
+export interface KnowledgeSearchInProgressChunk {
+  type: ChunkType.KNOWLEDGE_SEARCH_IN_PROGRESS
+  query?: string
+}
+
+/**
+ * 知识库搜索完成 Chunk
+ */
+export interface KnowledgeSearchCompleteChunk {
+  type: ChunkType.KNOWLEDGE_SEARCH_COMPLETE
+  references: Array<{
+    id: string
+    content: string
+    source: string
+    similarity: number
+    metadata?: Record<string, any>
+  }>
+}
+
 export type Chunk =
   | BlockCreatedChunk
   | BlockInProgressChunk
@@ -392,6 +527,7 @@ export type Chunk =
   | ExternalToolCompleteChunk
   | LLMResponseCreatedChunk
   | LLMResponseInProgressChunk
+  | TextStartChunk
   | TextDeltaChunk
   | TextCompleteChunk
   | AudioDeltaChunk
@@ -399,6 +535,7 @@ export type Chunk =
   | ImageCreatedChunk
   | ImageDeltaChunk
   | ImageCompleteChunk
+  | ThinkingStartChunk
   | ThinkingDeltaChunk
   | ThinkingCompleteChunk
   | LLMWebSearchInProgressChunk
@@ -406,6 +543,14 @@ export type Chunk =
   | LLMResponseCompleteChunk
   | BlockCompleteChunk
   | MCPToolCreatedChunk
+  | MCPToolPendingChunk
   | MCPToolInProgressChunk
   | MCPToolCompleteChunk
+  | RawChunk
+  | VideoSearchedChunk
+  | ImageSearchedChunk
+  | CitationDeltaChunk
+  | CitationCompleteChunk
+  | KnowledgeSearchInProgressChunk
+  | KnowledgeSearchCompleteChunk
   | ErrorChunk

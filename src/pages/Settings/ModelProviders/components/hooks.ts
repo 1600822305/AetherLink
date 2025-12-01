@@ -6,7 +6,7 @@ import type { Model } from '../../../../shared/types';
 import type { ApiKeyConfig, LoadBalanceStrategy } from '../../../../shared/config/defaultModels';
 import { isValidUrl } from '../../../../shared/utils';
 import ApiKeyManager from '../../../../shared/services/ApiKeyManager';
-import { testApiConnection } from '../../../../shared/api';
+import { testApiConnection } from '../../../../shared/aiCore/legacy/clients';
 import { modelMatchesIdentity } from '../../../../shared/utils/modelUtils';
 import { CONSTANTS, STYLES, useDebounce } from './constants';
 import { 

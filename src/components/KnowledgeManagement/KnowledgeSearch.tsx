@@ -21,9 +21,14 @@ import { Search, X, Copy, Sparkles, Zap } from 'lucide-react';
 import CustomSwitch from '../CustomSwitch';
 import { MobileKnowledgeService } from '../../shared/services/knowledge/MobileKnowledgeService';
 import type { KnowledgeSearchResult } from '../../shared/types/KnowledgeBase';
-import { BlockManager } from '../../shared/services/messages/BlockManager';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../shared/store';
+import { v4 as uuid } from 'uuid';
+import { useDispatch, useSelector } from 'react-redux';
+import { upsertOneBlock } from '../../shared/store/slices/messageBlocksSlice';
+import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
+import { MessageBlockType, MessageBlockStatus } from '../../shared/types/newMessage';
+import type { MessageBlock } from '../../shared/types/newMessage';
+import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
+import type { AppDispatch, RootState } from '../../shared/store';
 
 interface KnowledgeSearchProps {
   knowledgeBaseId: string;
@@ -110,6 +115,8 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
     }
   };
 
+  const dispatch = useDispatch<AppDispatch>();
+
   const handleInsertReference = async (result: KnowledgeSearchResult) => {
     try {
       if (!currentTopicId) {
@@ -117,13 +124,43 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
         return;
       }
 
-      // 使用BlockManager创建引用块
-      await BlockManager.createKnowledgeReferenceBlockFromSearchResult(
-        currentTopicId,
-        result,
+      // 获取当前主题的最后一条助手消息
+      const topic = await dexieStorage.getTopic(currentTopicId);
+      if (!topic || !topic.messages || topic.messages.length === 0) {
+        setError('找不到当前会话');
+        return;
+      }
+
+      const lastAssistantMessage = [...topic.messages]
+        .reverse()
+        .find(msg => msg.role === 'assistant');
+      
+      if (!lastAssistantMessage) {
+        setError('找不到助手消息');
+        return;
+      }
+
+      // 创建知识库引用块
+      const block: MessageBlock = {
+        id: uuid(),
+        messageId: lastAssistantMessage.id,
+        type: MessageBlockType.KNOWLEDGE_REFERENCE,
+        content: result.content,
+        createdAt: new Date().toISOString(),
+        status: MessageBlockStatus.SUCCESS,
         knowledgeBaseId,
-        query
-      );
+        knowledgeDocumentId: result.documentId,
+        similarity: result.similarity,
+        metadata: result.metadata
+      } as MessageBlock;
+
+      // 添加到 Redux
+      dispatch(upsertOneBlock(block));
+      dispatch(newMessagesActions.upsertBlockReference({
+        messageId: lastAssistantMessage.id,
+        blockId: block.id,
+        status: MessageBlockStatus.SUCCESS
+      }));
 
       // 如果传入了回调函数，调用它
       if (onInsertReference) {

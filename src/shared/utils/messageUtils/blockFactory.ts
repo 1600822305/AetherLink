@@ -1,6 +1,8 @@
 import { v4 as uuid } from 'uuid';
 import type {
   MessageBlock,
+  BaseMessageBlock,
+  MainTextMessageBlock,
   ThinkingMessageBlock,
   ImageMessageBlock,
   VideoMessageBlock,
@@ -9,7 +11,10 @@ import type {
   MultiModelMessageBlock,
   ChartMessageBlock,
   MathMessageBlock,
-  KnowledgeReferenceMessageBlock
+  KnowledgeReferenceMessageBlock,
+  ErrorMessageBlock,
+  CitationMessageBlock,
+  PlaceholderMessageBlock
 } from '../../types/newMessage';
 import {
   MessageBlockType,
@@ -17,29 +22,115 @@ import {
 } from '../../types/newMessage';
 import type { FileType } from '../../types';
 
+type MessageBlockTypeValue = typeof MessageBlockType[keyof typeof MessageBlockType];
+
 /**
- * 基础块创建函数
+ * 泛型基础块创建函数
+ * 参考 Cherry Studio 的 createBaseMessageBlock 设计
+ * 
+ * @param messageId 消息 ID
+ * @param type 块类型
+ * @param overrides 可选的覆盖属性（包含特定块类型的额外字段）
+ * @returns 基础消息块
  */
-function createBaseBlock(
+export function createBaseMessageBlock<T extends MessageBlockTypeValue>(
   messageId: string,
-  type: MessageBlockType,
-  additionalProps: any = {}
-): MessageBlock {
+  type: T,
+  overrides: Record<string, any> = {}
+): BaseMessageBlock & { type: T } & Record<string, any> {
+  const now = new Date().toISOString();
   return {
     id: uuid(),
     messageId,
     type,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    status: MessageBlockStatus.PROCESSING,
+    error: undefined,
+    ...overrides
+  };
+}
+
+/**
+ * 创建主文本块
+ */
+export function createMainTextBlock(
+  messageId: string,
+  content: string,
+  overrides: Partial<Omit<MainTextMessageBlock, 'id' | 'messageId' | 'type' | 'content'>> = {}
+): MainTextMessageBlock {
+  const baseBlock = createBaseMessageBlock(messageId, MessageBlockType.MAIN_TEXT, overrides);
+  return {
+    ...baseBlock,
+    content,
+    knowledgeBaseIds: overrides.knowledgeBaseIds
+  };
+}
+
+/**
+ * 创建占位符块
+ */
+export function createPlaceholderBlock(
+  messageId: string,
+  overrides: Partial<Omit<PlaceholderMessageBlock, 'id' | 'messageId' | 'type'>> = {}
+): PlaceholderMessageBlock {
+  const baseBlock = createBaseMessageBlock(messageId, MessageBlockType.UNKNOWN, {
+    status: MessageBlockStatus.PENDING,
+    ...overrides
+  });
+  return {
+    ...baseBlock,
+    content: overrides.content || ''
+  };
+}
+
+/**
+ * 创建错误块
+ */
+export function createErrorBlock(
+  messageId: string,
+  errorData: { message?: string; details?: string; code?: string },
+  overrides: Partial<Omit<ErrorMessageBlock, 'id' | 'messageId' | 'type' | 'error'>> = {}
+): ErrorMessageBlock {
+  const baseBlock = createBaseMessageBlock(messageId, MessageBlockType.ERROR, {
+    status: MessageBlockStatus.ERROR,
+    error: errorData as Record<string, any>,
+    ...overrides
+  });
+  return {
+    ...baseBlock,
+    content: errorData.message || 'Unknown error',
+    message: errorData.message,
+    details: errorData.details,
+    code: errorData.code
+  };
+}
+
+/**
+ * 创建引用块
+ */
+export function createCitationBlock(
+  messageId: string,
+  citationData: Omit<CitationMessageBlock, keyof BaseMessageBlock | 'type'>,
+  overrides: Partial<Omit<CitationMessageBlock, 'id' | 'messageId' | 'type'>> = {}
+): CitationMessageBlock {
+  const baseBlock = createBaseMessageBlock(messageId, MessageBlockType.CITATION, {
     status: MessageBlockStatus.SUCCESS,
-    ...additionalProps
-  } as MessageBlock;
+    ...overrides
+  });
+  return {
+    ...baseBlock,
+    content: citationData.content || '',
+    response: citationData.response,
+    knowledge: citationData.knowledge,
+    sources: citationData.sources
+  };
 }
 
 /**
  * 创建思考块
  */
 export function createThinkingBlock(messageId: string, content: string = ''): ThinkingMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.THINKING, {
+  return createBaseMessageBlock(messageId, MessageBlockType.THINKING, {
     content,
     status: MessageBlockStatus.PENDING
   }) as ThinkingMessageBlock;
@@ -57,7 +148,7 @@ export function createImageBlock(messageId: string, imageData: {
   size?: number;
   file?: FileType;
 }): ImageMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.IMAGE, {
+  return createBaseMessageBlock(messageId, MessageBlockType.IMAGE, {
     url: imageData.url,
     base64Data: imageData.base64Data,
     mimeType: imageData.mimeType,
@@ -90,7 +181,7 @@ export function createVideoBlock(messageId: string, videoData: {
   poster?: string;
   file?: FileType;
 }): VideoMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.VIDEO, {
+  return createBaseMessageBlock(messageId, MessageBlockType.VIDEO, {
     url: videoData.url,
     base64Data: videoData.base64Data,
     mimeType: videoData.mimeType,
@@ -115,7 +206,7 @@ export function createVideoBlock(messageId: string, videoData: {
  * 创建文件块
  */
 export function createFileBlock(messageId: string, file: FileType): MessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.FILE, {
+  return createBaseMessageBlock(messageId, MessageBlockType.FILE, {
     name: file.origin_name || file.name || '未知文件',
     url: file.path || '',
     mimeType: file.mimeType || 'application/octet-stream',
@@ -129,14 +220,14 @@ export function createFileBlock(messageId: string, file: FileType): MessageBlock
       base64Data: file.base64Data,
       type: file.type
     }
-  });
+  }) as MessageBlock;
 }
 
 /**
  * 创建代码块
  */
 export function createCodeBlock(messageId: string, content: string, language?: string): CodeMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.CODE, {
+  return createBaseMessageBlock(messageId, MessageBlockType.CODE, {
     content,
     language
   }) as CodeMessageBlock;
@@ -163,7 +254,7 @@ export function createToolBlock(messageId: string, toolId: string, overrides: {
     initialStatus = MessageBlockStatus.PROCESSING;
   }
 
-  return createBaseBlock(messageId, MessageBlockType.TOOL, {
+  return createBaseMessageBlock(messageId, MessageBlockType.TOOL, {
     toolId,
     toolName: overrides.toolName,
     arguments: overrides.arguments,
@@ -171,7 +262,7 @@ export function createToolBlock(messageId: string, toolId: string, overrides: {
     status: overrides.status || initialStatus,
     metadata: overrides.metadata,
     error: overrides.error
-  });
+  }) as MessageBlock;
 }
 
 /**
@@ -185,7 +276,7 @@ export function createTranslationBlock(
   targetLanguage: string,
   sourceBlockId?: string
 ): TranslationMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.TRANSLATION, {
+  return createBaseMessageBlock(messageId, MessageBlockType.TRANSLATION, {
     content,
     sourceContent,
     sourceLanguage,
@@ -207,7 +298,7 @@ export function createMultiModelBlock(
   }[],
   displayStyle: 'horizontal' | 'vertical' | 'fold' | 'grid' = 'vertical'
 ): MultiModelMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.MULTI_MODEL, {
+  return createBaseMessageBlock(messageId, MessageBlockType.MULTI_MODEL, {
     responses,
     displayStyle
   }) as MultiModelMessageBlock;
@@ -222,7 +313,7 @@ export function createChartBlock(
   data: any,
   options?: any
 ): ChartMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.CHART, {
+  return createBaseMessageBlock(messageId, MessageBlockType.CHART, {
     chartType,
     data,
     options
@@ -237,7 +328,7 @@ export function createMathBlock(
   content: string,
   displayMode: boolean = true
 ): MathMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.MATH, {
+  return createBaseMessageBlock(messageId, MessageBlockType.MATH, {
     content,
     displayMode
   }) as MathMessageBlock;
@@ -260,7 +351,7 @@ export function createKnowledgeReferenceBlock(
     metadata?: KnowledgeReferenceMessageBlock['metadata'];
   }
 ): KnowledgeReferenceMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.KNOWLEDGE_REFERENCE, {
+  return createBaseMessageBlock(messageId, MessageBlockType.KNOWLEDGE_REFERENCE, {
     content,
     knowledgeBaseId,
     source: options?.source,

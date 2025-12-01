@@ -173,7 +173,7 @@ export const useChatFeatures = (
         // 检查是否是Google Veo模型
         if (selectedModel.id === 'veo-2.0-generate-001' || selectedModel.provider === 'google') {
           // 使用Google Veo API - 分离提交和轮询以支持任务恢复
-          const { submitVeoGeneration, pollVeoOperation } = await import('../../../shared/api/google/veo');
+          const { submitVeoGeneration, pollVeoOperation } = await import('../../../shared/aiCore/legacy/clients/google/veo');
 
           if (!selectedModel.apiKey) {
             throw new Error('Google API密钥未设置');
@@ -216,7 +216,7 @@ export const useChatFeatures = (
           return { url: videoUrl };
         } else {
           // 使用硅基流动等OpenAI兼容API
-          const { submitVideoGeneration, pollVideoStatusInternal } = await import('../../../shared/api/openai/video');
+          const { submitVideoGeneration, pollVideoStatusInternal } = await import('../../../shared/aiCore/legacy/clients/openai/video');
 
           // 先提交视频生成请求获取requestId
           const requestId = await submitVideoGeneration(
@@ -617,7 +617,7 @@ export const useChatFeatures = (
   ) => {
     try {
       // 直接调用API并手动处理响应，使用累积方式而不是替换
-      const { sendChatRequest } = await import('../../../shared/api');
+      const { sendChatRequest } = await import('../../../shared/aiCore/legacy/clients');
 
       let accumulatedContent = '';
 

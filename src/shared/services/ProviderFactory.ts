@@ -1,16 +1,22 @@
 /**
- * 供应商工厂模块 - 参考最佳实例架构
+ * 供应商工厂模块 - 已迁移到新架构
  * 负责根据供应商类型返回适当的API处理模块
  */
 import type { Model } from '../types';
-import * as openaiApi from '../api/openai';
-import * as anthropicApi from '../api/anthropic';
-import * as geminiApi from '../api/gemini';
 import { modelComboService } from './ModelComboService';
-import { OpenAIAISDKProvider } from '../api/openai-aisdk';
-import { OpenAIResponseProvider } from '../providers/OpenAIResponseProvider';
 import { getDefaultGroupName } from '../utils/modelUtils';
 import ApiKeyManager from './ApiKeyManager';
+
+// 新架构导入
+import { ApiClientFactory, initializeDefaultClients } from '../aiCore/clients';
+import type { Provider } from '../aiCore/types';
+
+// Legacy API (迁移到 aiCore/legacy/clients)
+import * as openaiApi from '../aiCore/legacy/clients/openai';
+import * as anthropicApi from '../aiCore/legacy/clients/anthropic';
+import * as geminiApi from '../aiCore/legacy/clients/gemini';
+import { OpenAIAISDKProvider } from '../aiCore/legacy/clients/openai-aisdk';
+import { OpenAIResponseProvider } from '../providers/OpenAIResponseProvider';
 
 
 /**
@@ -142,16 +148,31 @@ export function getProviderApi(model: Model): any {
 }
 
 /**
- * 测试API连接
+ * 测试API连接 - 使用新架构
  * @param model 模型配置
  * @returns 连接是否成功
  */
 export async function testConnection(model: Model): Promise<boolean> {
   try {
-    const api = getProviderApi(model);
-    return await api.testConnection(model);
+    console.log('[ProviderFactory.testConnection] 使用新架构测试连接');
+
+    await initializeDefaultClients();
+
+    const provider: Provider = {
+      id: model.provider || 'custom',
+      type: (model.providerType || model.provider || 'openai') as any,
+      name: model.name || model.id,
+      apiKey: model.apiKey || '',
+      apiHost: model.baseUrl || '',
+      models: [],
+      enabled: true,
+    };
+
+    const client = ApiClientFactory.create(provider);
+    const models = await client.listModels();
+    return models.length > 0;
   } catch (error) {
-    console.error('API连接测试失败:', error);
+    console.error('[ProviderFactory.testConnection] 测试失败:', error);
     return false;
   }
 }
@@ -178,7 +199,7 @@ function isVideoGenerationModel(model: Model): boolean {
 }
 
 /**
- * 发送聊天请求
+ * 发送聊天请求 - 使用新架构
  * @param messages 消息数组
  * @param model 模型配置
  * @returns 响应内容
@@ -187,60 +208,94 @@ export async function sendChatRequest(
   messages: any[],
   model: Model
 ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
+  const startTime = Date.now();
+  
   try {
-    console.log(`[ProviderFactory.sendChatRequest] 开始处理请求 - 模型ID: ${model.id}, 提供商: ${model.provider}`);
+    console.log(`[ProviderFactory.sendChatRequest] 使用新架构 - 模型ID: ${model.id}, 提供商: ${model.provider}`);
 
     // 🎬 检查是否为视频生成模型
     if (isVideoGenerationModel(model)) {
-      console.log(`[ProviderFactory.sendChatRequest] 检测到视频生成模型: ${model.id}`);
-      throw new Error(`模型 ${model.name || model.id} 是视频生成模型，不支持聊天对话。请使用专门的视频生成功能。`);
+      throw new Error(`模型 ${model.name || model.id} 是视频生成模型，不支持聊天对话。`);
     }
 
-    // 检查模型是否有API密钥
-    if (!model.apiKey && model.provider !== 'auto') {
-      console.warn(`[ProviderFactory.sendChatRequest] 警告: 模型 ${model.id} 没有API密钥`);
+    // 检查是否为模型组合
+    const providerType = getActualProviderType(model);
+    if (providerType === 'model-combo') {
+      return await handleModelComboRequest(messages, model);
     }
 
-    // 强制检查：确保消息数组不为空
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('[ProviderFactory.sendChatRequest] 严重错误: 消息数组为空或无效，添加默认消息');
+    // 初始化新架构客户端
+    await initializeDefaultClients();
 
-      // 添加一个默认的用户消息
-      messages = [{
-        id: 'default-' + Date.now(),
-        role: 'user',
-        content: '您好，请问有什么可以帮助您的？', // 使用更友好的默认消息
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        blocks: []
-      }];
+    // 构建 Provider
+    const provider: Provider = {
+      id: model.provider || 'custom',
+      type: (model.providerType || model.provider || 'openai') as any,
+      name: model.name || model.id,
+      apiKey: model.apiKey || '',
+      apiHost: model.baseUrl || '',
+      models: [],
+      enabled: true,
+    };
 
-      console.log('[ProviderFactory.sendChatRequest] 添加默认用户消息: 您好，请问有什么可以帮助您的？');
+    // 创建客户端
+    const client = ApiClientFactory.create(provider);
+
+    // 确保消息数组不为空
+    if (!messages || messages.length === 0) {
+      messages = [{ id: '1', role: 'user', content: '你好' }];
     }
 
-    // 记录消息数组
-    console.log(`[ProviderFactory.sendChatRequest] 消息数组:`, JSON.stringify(messages.map(msg => ({
-      id: msg.id,
-      role: msg.role,
-      content: typeof msg.content === 'string' ?
-        (msg.content.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content) :
-        '[复杂内容]'
-    }))));
+    // 获取转换器
+    const transformer = client.getRequestTransformer();
+    const params = {
+      messages: messages.map((m, i) => ({
+        id: m.id || `msg-${i}`,
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content : '',
+      })),
+      assistant: {
+        model: {
+          id: model.id,
+          name: model.name,
+          provider: model.provider || 'custom',
+        },
+      },
+    };
+    const sdkPayload = transformer.transform(params as any);
 
-    // 获取合适的API实现
-    const api = getProviderApi(model);
-    console.log(`[ProviderFactory.sendChatRequest] 获取API实现 - 提供商: ${model.provider}`);
+    // 执行请求
+    let content = '';
+    let reasoning = '';
+    const rawStream = await client.createCompletions(sdkPayload as any, {});
 
-    // 确保API有sendChatRequest方法
-    if (!api.sendChatRequest) {
-      console.error(`[ProviderFactory.sendChatRequest] 错误: API没有sendChatRequest方法`);
-      throw new Error(`提供商 ${model.provider} 的API没有sendChatRequest方法`);
+    // 处理流式响应
+    for await (const rawChunk of rawStream as AsyncIterable<any>) {
+      // OpenAI 格式
+      if (rawChunk.choices?.[0]?.delta?.content) {
+        content += rawChunk.choices[0].delta.content;
+      }
+      // Gemini 格式
+      else if (rawChunk.candidates?.[0]?.content?.parts) {
+        for (const part of rawChunk.candidates[0].content.parts) {
+          if (part.thought && part.text) {
+            reasoning += part.text;
+          } else if (part.text) {
+            content += part.text;
+          }
+        }
+      }
     }
 
-    console.log(`[ProviderFactory.sendChatRequest] 调用API的sendChatRequest方法`);
-    return await api.sendChatRequest(messages, model);
+    const reasoningTime = reasoning ? Date.now() - startTime : undefined;
+
+    return {
+      content,
+      reasoning: reasoning || undefined,
+      reasoningTime,
+    };
   } catch (error) {
-    console.error('[ProviderFactory.sendChatRequest] 发送聊天请求失败:', error);
+    console.error('[ProviderFactory.sendChatRequest] 请求失败:', error);
     throw error;
   }
 }

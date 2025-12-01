@@ -6,11 +6,15 @@ import type {
   RoutingCondition
 } from '../types/ModelCombo';
 import type { Model } from '../types';
+import type { Chunk } from '../types/chunk';
 import { dexieStorage } from './storage/DexieStorageService';
 import { EventEmitter, EVENT_NAMES } from './EventEmitter';
-import { sendChatRequest } from '../api';
+import { sendChatRequest } from "../aiCore/legacy/clients";
 import store from '../store';
 import { modelMatchesIdentity, parseModelIdentityKey } from '../utils/modelUtils';
+
+// 新架构导入（可选使用）
+import { ComboExecutor, type ComboExecutionResult, initializeDefaultClients } from '../aiCore/clients';
 
 /**
  * 模型组合服务
@@ -109,9 +113,64 @@ export class ModelComboService {
   }
 
   /**
-   * 执行模型组合
+   * 执行模型组合 - 使用新架构
    */
   async executeCombo(
+    comboId: string,
+    prompt: string,
+    onChunk?: (chunk: Chunk) => void | Promise<void>
+  ): Promise<ModelComboResult> {
+    try {
+      // 使用新架构执行
+      const result = await this.executeComboV2(comboId, prompt, onChunk);
+      
+      // 转换结果格式为旧格式（保持兼容）
+      return this.convertToLegacyResult(result);
+    } catch (error) {
+      console.error('[ModelComboService] 执行模型组合失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 将新架构结果转换为旧格式
+   */
+  private convertToLegacyResult(result: ComboExecutionResult): ModelComboResult {
+    return {
+      comboId: result.comboId,
+      strategy: result.strategy,
+      modelResults: result.modelResults.map(r => ({
+        modelId: r.modelId,
+        role: r.role as any,
+        content: r.content,
+        reasoning: r.reasoning,
+        confidence: r.confidence,
+        cost: r.cost,
+        latency: r.latency,
+        status: r.status === 'skipped' ? 'error' : r.status, // skipped 映射为 error
+        error: r.error,
+      })) as ModelComboResult['modelResults'],
+      finalResult: {
+        content: result.finalResult.content,
+        reasoning: result.finalResult.reasoning,
+        confidence: result.finalResult.confidence,
+        explanation: result.finalResult.explanation,
+      },
+      stats: {
+        totalCost: result.stats.totalCost,
+        totalLatency: result.stats.totalLatency,
+        modelsUsed: result.stats.modelsUsed,
+        strategy: result.stats.strategy,
+      },
+      timestamp: result.timestamp,
+    };
+  }
+
+  /**
+   * 执行模型组合 - 旧架构（已废弃，保留以防回退）
+   * @deprecated 使用 executeCombo 替代
+   */
+  async executeComboLegacy(
     comboId: string,
     prompt: string
   ): Promise<ModelComboResult> {
@@ -121,7 +180,7 @@ export class ModelComboService {
         throw new Error(`模型组合 ${comboId} 不存在`);
       }
 
-      console.log(`[ModelComboService] 执行模型组合: ${combo.name} (${combo.strategy})`);
+      console.log(`[ModelComboService] [LEGACY] 执行模型组合: ${combo.name} (${combo.strategy})`);
 
       switch (combo.strategy) {
         case 'routing':
@@ -138,7 +197,7 @@ export class ModelComboService {
           throw new Error(`不支持的策略: ${combo.strategy}`);
       }
     } catch (error) {
-      console.error('[ModelComboService] 执行模型组合失败:', error);
+      console.error('[ModelComboService] [LEGACY] 执行模型组合失败:', error);
       throw error;
     }
   }
@@ -722,6 +781,94 @@ ${reasoningContent}
         ]
       }
     ];
+  }
+
+  // ==================== 新架构方法 ====================
+
+  /** ComboExecutor 实例（懒加载）*/
+  private comboExecutor: ComboExecutor | null = null;
+
+  /**
+   * 获取 ComboExecutor 实例
+   */
+  private async getComboExecutor(): Promise<ComboExecutor> {
+    if (!this.comboExecutor) {
+      await initializeDefaultClients();
+      this.comboExecutor = new ComboExecutor((modelId: string) => {
+        return this.resolveProviderForModel(modelId);
+      });
+    }
+    return this.comboExecutor;
+  }
+
+  /**
+   * 根据模型ID解析Provider
+   */
+  private resolveProviderForModel(modelId: string): any | undefined {
+    const state = store.getState();
+    const identity = parseModelIdentityKey(modelId);
+
+    if (!identity) return undefined;
+
+    for (const provider of state.settings.providers) {
+      if (identity.provider && provider.id !== identity.provider) {
+        continue;
+      }
+      const model = provider.models.find((m: any) => modelMatchesIdentity(m, identity, provider.id));
+      if (model) {
+        return {
+          id: provider.id,
+          type: provider.providerType || provider.id,
+          name: provider.name,
+          apiKey: provider.apiKey,
+          apiHost: provider.baseUrl,
+          models: provider.models,
+          enabled: true,
+        };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * 使用新架构执行模型组合
+   * @experimental 实验性功能，可能会变化
+   */
+  async executeComboV2(
+    comboId: string,
+    prompt: string,
+    onChunk?: (chunk: Chunk) => void | Promise<void>
+  ): Promise<ComboExecutionResult> {
+    const combo = await dexieStorage.getModelCombo(comboId);
+    if (!combo) {
+      throw new Error(`模型组合 ${comboId} 不存在`);
+    }
+
+    console.log(`[ModelComboService] 使用新架构执行: ${combo.name} (${combo.strategy})`);
+
+    const executor = await this.getComboExecutor();
+
+    // 转换配置格式
+    const config = {
+      id: combo.id,
+      name: combo.name,
+      description: combo.description,
+      strategy: combo.strategy as any,
+      enabled: combo.enabled,
+      models: combo.models.map((m: any) => ({
+        id: m.id,
+        modelId: m.modelId,
+        role: m.role as any,
+        priority: m.priority || 0,
+      })),
+      routingRules: combo.routingRules,
+      sequentialConfig: combo.sequentialConfig,
+      displayConfig: combo.displayConfig,
+      createdAt: combo.createdAt,
+      updatedAt: combo.updatedAt,
+    };
+
+    return executor.execute(config, prompt, onChunk);
   }
 }
 

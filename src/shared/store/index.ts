@@ -19,6 +19,7 @@ import messageBlocksReducer from './slices/messageBlocksSlice';
 import uiReducer from './slices/uiSlice';
 import runtimeReducer from './slices/runtimeSlice';
 import networkProxyReducer, { loadNetworkProxySettings } from './slices/networkProxySlice';
+import providersReducer from './slices/providersSlice';
 import { eventMiddleware } from './middleware/eventMiddleware';
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
@@ -35,6 +36,7 @@ const rootReducer = combineReducers({
   ui: uiReducer,
   runtime: runtimeReducer,
   networkProxy: networkProxyReducer,
+  providers: providersReducer,
 });
 
 // 配置Redux持久化

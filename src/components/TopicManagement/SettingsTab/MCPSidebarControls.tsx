@@ -81,6 +81,9 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
 
   const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const mode = event.target.value as 'prompt' | 'function';
+    // 🔧 直接保存到 localStorage，确保生效
+    localStorage.setItem('mcp_mode', mode);
+    console.log(`[MCPSidebarControls] 保存 MCP 模式到 localStorage: ${mode}`);
     onMCPModeChange?.(mode);
   };
 

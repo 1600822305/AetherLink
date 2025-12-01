@@ -165,77 +165,19 @@ const MessageBlockRenderer: React.FC<Props> = ({
   // 对块进行分组（图片分组、视频去重）
   const groupedBlocks = useMemo(() => groupSimilarBlocks(renderedBlocks), [renderedBlocks]);
 
-  // 渲染占位符块
-  const renderPlaceholder = () => {
-    // 检查是否有任何块正在流式输出
-    const hasStreamingBlock = renderedBlocks.some(block => block.status === MessageBlockStatus.STREAMING);
-
-    // 如果有流式输出的块，不显示占位符
-    if (hasStreamingBlock) {
-      return null;
-    }
-
-    return (
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 1,
-        color: 'text.secondary'
-      }}>
-        正在生成回复...
-      </Box>
-    );
-  };
-
-  // 渲染空内容提示 - 更友好的提示，不再显示为错误
-  const renderEmptyContentMessage = () => {
-    return (
-      <Box sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 1,
-        color: 'text.secondary', // 使用次要文本颜色而不是错误颜色
-        fontStyle: 'italic'
-      }}>
-        正在加载内容...
-      </Box>
-    );
-  };
-
-  // 检查是否有空内容的成功状态块
-  const hasEmptySuccessBlock = useMemo(() => {
-    if (renderedBlocks.length === 0) return false;
-
-    // 如果消息状态是 streaming、processing 或 success，不显示错误
-    if (message.status === 'streaming' || message.status === 'processing' || message.status === 'success') {
-      return false;
-    }
-
-    // 如果消息有版本历史，不显示错误
-    if (message.versions && message.versions.length > 0) {
-      return false;
-    }
-
-    return renderedBlocks.some(block =>
-      block.type === MessageBlockType.MAIN_TEXT &&
-      block.status === MessageBlockStatus.SUCCESS &&
-      (!('content' in block) || !(block as any).content || (block as any).content.trim() === '')
-    );
-  }, [renderedBlocks, message.status, message.versions]);
+  // 检查消息是否正在处理中（参考 Cherry Studio 的 isMessageProcessing）
+  const isProcessing = useMemo(() => {
+    return message.status === 'streaming' || 
+           message.status === 'processing' || 
+           message.status === 'pending';
+  }, [message.status]);
 
   // 是否启用动画
   const enableAnimation = message.status.includes('ing');
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* 只有在没有渲染块且消息状态为streaming时才显示占位符 */}
-      {renderedBlocks.length === 0 && message.status === 'streaming' ? (
-        renderPlaceholder()
-      ) : hasEmptySuccessBlock ? (
-        renderEmptyContentMessage()
-      ) : (
+      {(
         <>
           {/* 渲染所有块（支持分组） */}
           {groupedBlocks.map((blockOrGroup) => {
@@ -272,17 +214,6 @@ const MessageBlockRenderer: React.FC<Props> = ({
             // 处理单个块
             const block = blockOrGroup;
             let blockComponent: React.ReactNode = null;
-
-            // 处理空内容的成功状态块
-            if (block.type === MessageBlockType.MAIN_TEXT &&
-                block.status === MessageBlockStatus.SUCCESS &&
-                (!('content' in block) || !(block as any).content || (block as any).content.trim() === '') &&
-                message.status !== 'streaming' &&
-                message.status !== 'processing' &&
-                message.status !== 'success' &&
-                (!message.versions || message.versions.length === 0)) {
-              return renderEmptyContentMessage();
-            }
 
             switch (block.type) {
               case MessageBlockType.UNKNOWN:
@@ -382,6 +313,24 @@ const MessageBlockRenderer: React.FC<Props> = ({
               </AnimatedBlockWrapper>
             );
           })}
+          {/* 
+            处理中占位符（参考 Cherry Studio）
+            只在消息没有任何块（或没有 PROCESSING 状态的块）时显示
+            避免与实际的占位符块重复渲染
+          */}
+          {isProcessing && renderedBlocks.length === 0 && (
+            <AnimatedBlockWrapper key="message-loading-placeholder" enableAnimation={true}>
+              <PlaceholderBlock
+                block={{
+                  id: `loading-${message.id}`,
+                  messageId: message.id,
+                  type: MessageBlockType.UNKNOWN,
+                  status: MessageBlockStatus.PROCESSING,
+                  createdAt: new Date().toISOString()
+                }}
+              />
+            </AnimatedBlockWrapper>
+          )}
         </>
       )}
     </Box>

@@ -801,30 +801,37 @@ export class DexieStorageService extends Dexie {
 
   /**
    * 获取话题的所有消息
-   * 使用新消息系统：从messageIds加载消息
+   * 🔧 改造：优先从 topics.messages 读取（主存储）
+   * 如果 topics.messages 为空，尝试从旧的 messages 表读取（兼容旧数据）
    */
   async getTopicMessages(topicId: string): Promise<Message[]> {
     try {
-      // 获取话题
       const topic = await this.topics.get(topicId);
       if (!topic) return [];
 
-      // 从messageIds加载消息
+      // 1. 优先从 topics.messages 读取（Cherry Studio 设计）
+      if (topic.messages && Array.isArray(topic.messages) && topic.messages.length > 0) {
+        return topic.messages;
+      }
+
+      // 2. 兼容旧数据：从 messageIds + messages 表读取
       if (topic.messageIds && Array.isArray(topic.messageIds) && topic.messageIds.length > 0) {
-        console.log(`[DexieStorageService] 从messageIds加载 ${topic.messageIds.length} 条消息`);
-
+        console.log(`[DexieStorageService] 兼容模式：从 messages 表加载 ${topic.messageIds.length} 条旧消息`);
         const messages: Message[] = [];
-
-        // 从messages表加载消息
         for (const messageId of topic.messageIds) {
           const message = await this.messages.get(messageId);
           if (message) messages.push(message);
         }
-
+        
+        // 🔧 自动迁移：将旧数据写入 topics.messages
+        if (messages.length > 0) {
+          console.log(`[DexieStorageService] 自动迁移 ${messages.length} 条消息到 topics.messages`);
+          await this.topics.update(topicId, { messages });
+        }
+        
         return messages;
       }
 
-      console.log(`[DexieStorageService] 话题 ${topicId} 没有消息`);
       return [];
     } catch (error) {
       console.error(`[DexieStorageService] 获取话题消息失败: ${error instanceof Error ? error.message : String(error)}`);
@@ -834,7 +841,7 @@ export class DexieStorageService extends Dexie {
 
   /**
    * 保存消息
-   * 最佳实例原版方式：将消息直接存储在topics表中
+   * 🔧 改造：只写入 topics.messages（主存储），不再写入 messages 表
    */
   async saveMessage(message: Message): Promise<void> {
     if (!message.id) {
@@ -842,30 +849,20 @@ export class DexieStorageService extends Dexie {
     }
 
     try {
-      // 使用事务保证原子性
-      await this.transaction('rw', [this.topics, this.messages, this.message_blocks], async () => {
-        // 1. 保存消息到messages表（保持兼容性）
-        await this.messages.put(message);
-
-        // 2. 更新topics表中的messages数组
+      await this.transaction('rw', [this.topics], async () => {
         const topic = await this.topics.get(message.topicId);
         if (topic) {
-          // 确保messages数组存在
           if (!topic.messages) {
             topic.messages = [];
           }
 
-          // 查找消息在数组中的位置
           const messageIndex = topic.messages.findIndex(m => m.id === message.id);
-
-          // 更新或添加消息
           if (messageIndex >= 0) {
             topic.messages[messageIndex] = message;
           } else {
             topic.messages.push(message);
           }
 
-          // 保存更新后的话题
           await this.topics.put(topic);
         }
       });
@@ -875,80 +872,278 @@ export class DexieStorageService extends Dexie {
     }
   }
 
+  /**
+   * 🔧 改造：批量保存消息到 topics.messages
+   */
   async bulkSaveMessages(messages: Message[]): Promise<void> {
+    // 按 topicId 分组
+    const messagesByTopic = new Map<string, Message[]>();
     for (const message of messages) {
-      if (!message.id) {
-        message.id = uuid();
+      if (!message.id) message.id = uuid();
+      const existing = messagesByTopic.get(message.topicId) || [];
+      existing.push(message);
+      messagesByTopic.set(message.topicId, existing);
+    }
+
+    // 批量更新每个 topic
+    for (const [topicId, topicMessages] of messagesByTopic) {
+      const topic = await this.topics.get(topicId);
+      if (topic) {
+        if (!topic.messages) topic.messages = [];
+        for (const msg of topicMessages) {
+          const idx = topic.messages.findIndex(m => m.id === msg.id);
+          if (idx >= 0) {
+            topic.messages[idx] = msg;
+          } else {
+            topic.messages.push(msg);
+          }
+        }
+        await this.topics.put(topic);
       }
     }
-    await this.messages.bulkPut(messages);
   }
 
+  /**
+   * 🔧 改造：优先从 topics.messages 获取，兼容从 messages 表读取
+   */
   async getMessage(id: string): Promise<Message | null> {
+    // 优先从 topics.messages 查找
+    const allTopics = await this.topics.toArray();
+    for (const topic of allTopics) {
+      const message = topic.messages?.find(m => m.id === id);
+      if (message) return message;
+    }
+    // 兼容：从 messages 表读取
     return await this.messages.get(id) || null;
   }
 
-  // 🚀 批量获取消息，优化性能
+  /**
+   * � 改造：优先从 topics.messages 获取
+   */
   async getMessagesByIds(messageIds: string[]): Promise<Message[]> {
     if (messageIds.length === 0) return [];
 
-    // 使用 bulkGet 进行批量查询，比多次单独查询更高效
-    const messages = await this.messages.bulkGet(messageIds);
-    return messages.filter(message => message !== undefined) as Message[];
+    const result: Message[] = [];
+    const idSet = new Set(messageIds);
+    
+    // 优先从 topics.messages 查找
+    const allTopics = await this.topics.toArray();
+    for (const topic of allTopics) {
+      if (topic.messages) {
+        for (const msg of topic.messages) {
+          if (idSet.has(msg.id)) {
+            result.push(msg);
+            idSet.delete(msg.id);
+          }
+        }
+      }
+    }
+    
+    // 兼容：从 messages 表读取未找到的
+    if (idSet.size > 0) {
+      const remainingMessages = await this.messages.bulkGet([...idSet]);
+      result.push(...remainingMessages.filter(m => m !== undefined) as Message[]);
+    }
+    
+    return result;
   }
 
+  /**
+   * 🔧 改造：优先从 topics.messages 获取
+   */
   async getMessagesByTopicId(topicId: string): Promise<Message[]> {
+    const topic = await this.topics.get(topicId);
+    if (topic?.messages && topic.messages.length > 0) {
+      return topic.messages;
+    }
+    // 兼容：从 messages 表读取
     return await this.messages.where('topicId').equals(topicId).toArray();
   }
 
   /**
-   * 获取所有消息
-   * @returns 所有消息的数组
+   * 🔧 改造：从 topics.messages 获取所有消息
    */
   async getAllMessages(): Promise<Message[]> {
     try {
-      console.log('[DexieStorageService] 获取所有消息');
-      return await this.messages.toArray();
+      const allTopics = await this.topics.toArray();
+      const allMessages: Message[] = [];
+      for (const topic of allTopics) {
+        if (topic.messages) {
+          allMessages.push(...topic.messages);
+        }
+      }
+      return allMessages;
     } catch (error) {
       console.error(`[DexieStorageService] 获取所有消息失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
 
+  /**
+   * 🔧 改造：从 topics.messages 删除消息
+   */
   async deleteMessage(id: string): Promise<void> {
-    const message = await this.getMessage(id);
-    if (!message) return;
-
-    if (message.blocks && message.blocks.length > 0) {
-      await this.deleteMessageBlocksByIds(message.blocks);
+    // 从 topics.messages 查找并删除
+    const allTopics = await this.topics.toArray();
+    for (const topic of allTopics) {
+      if (topic.messages) {
+        const messageIndex = topic.messages.findIndex(m => m.id === id);
+        if (messageIndex !== -1) {
+          const message = topic.messages[messageIndex];
+          // 删除关联的块
+          if (message.blocks && message.blocks.length > 0) {
+            await this.deleteMessageBlocksByIds(message.blocks);
+          }
+          // 从数组中移除
+          topic.messages.splice(messageIndex, 1);
+          await this.topics.put(topic);
+          return;
+        }
+      }
     }
-
-    await this.messages.delete(id);
+    
+    // 兼容：从 messages 表删除旧数据
+    const message = await this.messages.get(id);
+    if (message) {
+      if (message.blocks && message.blocks.length > 0) {
+        await this.deleteMessageBlocksByIds(message.blocks);
+      }
+      await this.messages.delete(id);
+    }
   }
 
+  /**
+   * 🔧 改造：从 topics.messages 删除消息
+   */
   async deleteMessagesByTopicId(topicId: string): Promise<void> {
-    const messages = await this.getMessagesByTopicId(topicId);
-
-    for (const message of messages) {
+    const topic = await this.topics.get(topicId);
+    if (topic?.messages) {
+      // 删除所有关联的块
+      for (const message of topic.messages) {
+        if (message.blocks && message.blocks.length > 0) {
+          await this.deleteMessageBlocksByIds(message.blocks);
+        }
+      }
+      // 清空消息数组
+      topic.messages = [];
+      await this.topics.put(topic);
+    }
+    
+    // 兼容：删除 messages 表中的旧数据
+    const oldMessages = await this.messages.where('topicId').equals(topicId).toArray();
+    for (const message of oldMessages) {
       if (message.blocks && message.blocks.length > 0) {
         await this.deleteMessageBlocksByIds(message.blocks);
       }
     }
-
     await this.messages.where('topicId').equals(topicId).delete();
   }
 
+  /**
+   * 🔧 改造：只更新 topics.messages，不再写入 messages 表
+   */
   async updateMessage(id: string, updates: Partial<Message>): Promise<void> {
-    const message = await this.getMessage(id);
-    if (!message) return;
+    // 从 topics.messages 中查找消息的 topicId
+    const allTopics = await this.topics.toArray();
+    let topicId: string | null = null;
+    
+    for (const topic of allTopics) {
+      if (topic.messages?.some(m => m.id === id)) {
+        topicId = topic.id;
+        break;
+      }
+    }
+    
+    // 兼容：如果 topics.messages 中没找到，尝试从 messages 表获取 topicId
+    if (!topicId) {
+      const message = await this.messages.get(id);
+      if (message) topicId = message.topicId;
+    }
+    
+    if (!topicId) return;
 
-    const updatedMessage = {
-      ...message,
+    const updatedAt = new Date().toISOString();
+
+    await this.topics
+      .where('id')
+      .equals(topicId)
+      .modify((topic) => {
+        if (!topic || !topic.messages) return;
+        const messageIndex = topic.messages.findIndex((m: Message) => m.id === id);
+        if (messageIndex !== -1) {
+          Object.assign(topic.messages[messageIndex], updates);
+          topic.messages[messageIndex].updatedAt = updatedAt;
+        }
+      });
+  }
+
+  /**
+   * 🔧 统一的消息和块更新方法
+   * 参考 Cherry Studio 的 updateMessageAndBlocks 设计
+   * 在单个事务中同时更新消息和块，保证数据一致性
+   * 
+   * 🔧 改造：只写入 topics.messages，不再写入 messages 表
+   */
+  async updateMessageAndBlocks(
+    topicId: string,
+    messageUpdates: Partial<Message> & { id: string },
+    blocksToUpdate: MessageBlock[]
+  ): Promise<void> {
+    try {
+      await this.transaction('rw', [this.topics, this.message_blocks], async () => {
+        // 1. 更新块（使用 bulkPut 进行 upsert）
+        if (blocksToUpdate.length > 0) {
+          await this.message_blocks.bulkPut(blocksToUpdate);
+        }
+
+        // 2. 更新消息（如果有除 id 和 topicId 之外的更新）
+        const keysToUpdate = Object.keys(messageUpdates).filter(
+          key => key !== 'id' && key !== 'topicId'
+        );
+
+        if (keysToUpdate.length > 0) {
+          // 只更新 topics.messages 数组（主存储）
+          await this.topics
+            .where('id')
+            .equals(topicId)
+            .modify((topic) => {
+              if (!topic || !topic.messages) return;
+              const messageIndex = topic.messages.findIndex((m: Message) => m.id === messageUpdates.id);
+              if (messageIndex !== -1 && topic.messages) {
+                keysToUpdate.forEach(key => {
+                  (topic.messages![messageIndex] as any)[key] = (messageUpdates as any)[key];
+                });
+                topic.messages![messageIndex].updatedAt = new Date().toISOString();
+              }
+            });
+        }
+      });
+
+      console.log(`[DexieStorageService] updateMessageAndBlocks 完成: 消息=${messageUpdates.id}, 块数量=${blocksToUpdate.length}`);
+    } catch (error) {
+      console.error(`[DexieStorageService] updateMessageAndBlocks 失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔧 批量更新块（upsert 操作）
+   * 参考 Cherry Studio 的 updateBlocks
+   */
+  async upsertMessageBlocks(blocks: MessageBlock[]): Promise<void> {
+    if (blocks.length === 0) return;
+    await this.message_blocks.bulkPut(blocks);
+  }
+
+  /**
+   * 🔧 更新单个块的字段（仅更新已存在的块）
+   * 用于节流更新场景，效率更高
+   */
+  async updateMessageBlockFields(blockId: string, updates: Partial<MessageBlock>): Promise<void> {
+    await this.message_blocks.update(blockId, {
       ...updates,
       updatedAt: new Date().toISOString()
-    };
-
-    await this.messages.update(id, updatedMessage);
+    });
   }
 
   async deleteMessageBlocksByIds(blockIds: string[]): Promise<void> {
