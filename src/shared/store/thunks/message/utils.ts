@@ -18,7 +18,7 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
       // 保存消息到messages表（保持兼容性）
       await dexieStorage.messages.put(message);
 
-      // 更新topics表中的messageIds数组
+      // 更新topics表中的messageIds数组和messages数组
       const topic = await dexieStorage.topics.get(message.topicId);
       if (topic) {
         // 确保messageIds数组存在
@@ -34,12 +34,25 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
           console.log(`[saveMessageAndBlocksToDB] 消息 ${message.id} 已存在于话题 ${topic.id}`);
         }
 
+        // 🔧 关键修复：同时更新 topic.messages 数组（getTopicMessages 优先从这里读取）
+        if (!topic.messages) {
+          topic.messages = [];
+        }
+        const messageIndex = topic.messages.findIndex((m: Message) => m.id === message.id);
+        if (messageIndex >= 0) {
+          // 消息已存在，更新
+          topic.messages[messageIndex] = message;
+        } else {
+          // 消息不存在，添加
+          topic.messages.push(message);
+        }
+
         // 更新话题的lastMessageTime
         topic.lastMessageTime = message.createdAt || message.updatedAt || new Date().toISOString();
 
         // 保存更新后的话题
         await dexieStorage.topics.put(topic);
-        console.log(`[saveMessageAndBlocksToDB] 话题 ${topic.id} 现有 ${topic.messageIds.length} 条消息`);
+        console.log(`[saveMessageAndBlocksToDB] 话题 ${topic.id} 现有 ${topic.messageIds.length} 条消息ID, ${topic.messages.length} 条消息对象`);
       }
     });
   } catch (error) {

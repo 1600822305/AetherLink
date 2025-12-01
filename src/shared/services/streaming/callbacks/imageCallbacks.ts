@@ -2,19 +2,27 @@
  * 图像回调模块
  * 处理图像生成和搜索响应
  * 
- * 参考 Cherry Studio imageCallbacks 设计
+ * 完全参考 Cherry Studio imageCallbacks 设计
  */
 
 import { v4 as uuid } from 'uuid';
 import { MessageBlockStatus, MessageBlockType } from '../../../types/newMessage';
 import type { ImageMessageBlock, MessageBlock } from '../../../types/newMessage';
-import type { CallbackDependencies, StreamProcessorCallbacks } from './types';
+import type { BlockManager } from '../BlockManager';
+
+/**
+ * 图像回调依赖
+ */
+interface ImageCallbacksDependencies {
+  blockManager: BlockManager;
+  assistantMsgId: string;
+}
 
 /**
  * 创建图像回调
  */
-export function createImageCallbacks(deps: CallbackDependencies): Partial<StreamProcessorCallbacks> {
-  const { messageId, blockManager } = deps;
+export const createImageCallbacks = (deps: ImageCallbacksDependencies) => {
+  const { assistantMsgId, blockManager } = deps;
   
   // 内部状态
   let imageBlockId: string | null = null;
@@ -25,7 +33,7 @@ export function createImageCallbacks(deps: CallbackDependencies): Partial<Stream
   const createNewImageBlock = (overrides: Partial<ImageMessageBlock> = {}): MessageBlock => {
     return {
       id: uuid(),
-      messageId,
+      messageId: assistantMsgId,
       type: MessageBlockType.IMAGE,
       url: '',
       mimeType: 'image/png',

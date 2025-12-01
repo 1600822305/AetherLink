@@ -1,7 +1,74 @@
+/**
+ * MCP 工具解析器
+ * 完全参考 Cherry Studio mcp-tools.ts 和 McpToolChunkMiddleware.ts 实现
+ */
+
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse } from '../types';
+import type { MCPToolPendingChunk, MCPToolInProgressChunk, MCPToolCompleteChunk } from '../types/chunk';
 import { ChunkType } from '../types/chunk';
 import { mcpService } from '../services/mcp';
 import { nanoid } from './index';
+
+// ==================== 核心函数：upsertMCPToolResponse ====================
+
+/**
+ * 更新或插入 MCP 工具响应状态
+ * 完全参考 Cherry Studio mcp-tools.ts 的 upsertMCPToolResponse 实现
+ * 
+ * 这是工具调用状态管理的核心函数，负责：
+ * 1. 维护 allToolResponses 数组（用于状态追踪）
+ * 2. 根据状态发送对应的 Chunk 事件
+ */
+export function upsertMCPToolResponse(
+  allToolResponses: MCPToolResponse[],
+  resp: MCPToolResponse,
+  onChunk: (chunk: MCPToolPendingChunk | MCPToolInProgressChunk | MCPToolCompleteChunk) => void
+): void {
+  const index = allToolResponses.findIndex((ret) => ret.id === resp.id);
+  let result = resp;
+  
+  if (index !== -1) {
+    // 更新已存在的工具响应
+    const cur = {
+      ...allToolResponses[index],
+      response: resp.response,
+      arguments: resp.arguments,
+      status: resp.status
+    };
+    allToolResponses[index] = cur;
+    result = cur;
+  } else {
+    // 插入新的工具响应
+    allToolResponses.push(resp);
+  }
+
+  // 根据状态发送对应的 Chunk
+  switch (resp.status) {
+    case 'pending':
+      onChunk({
+        type: ChunkType.MCP_TOOL_PENDING,
+        responses: [result]
+      } as MCPToolPendingChunk);
+      break;
+    case 'invoking':
+      onChunk({
+        type: ChunkType.MCP_TOOL_IN_PROGRESS,
+        responses: [result]
+      } as MCPToolInProgressChunk);
+      break;
+    case 'done':
+    case 'error':
+      onChunk({
+        type: ChunkType.MCP_TOOL_COMPLETE,
+        responses: [result]
+      } as MCPToolCompleteChunk);
+      break;
+    default:
+      break;
+  }
+}
+
+// ==================== 辅助函数 ====================
 
 /**
  * 根据名称查找 MCP 工具（支持转换后的名称）
@@ -157,7 +224,12 @@ export async function callMCPTool(toolResponse: MCPToolResponse): Promise<MCPCal
 
 /**
  * 解析和调用工具
- * 支持批量处理多个工具调用
+ * 完全参考 Cherry Studio McpToolChunkMiddleware.ts 的 parseAndCallTools 实现
+ * 
+ * 核心设计：
+ * 1. 使用 upsertMCPToolResponse 统一管理工具状态
+ * 2. 状态流转：pending → invoking → done/error
+ * 3. 每次状态变化都通过 onChunk 通知 UI 层
  */
 export async function parseAndCallTools(
   content: string | MCPToolResponse[],
@@ -165,95 +237,139 @@ export async function parseAndCallTools(
   onChunk?: (chunk: import('../types/chunk').Chunk) => void
 ): Promise<MCPCallToolResponse[]> {
   const toolResults: MCPCallToolResponse[] = [];
-  let currentToolResponses: MCPToolResponse[] = [];
+  
+  // 状态追踪数组（参考 Cherry Studio 的 allToolResponses）
+  const allToolResponses: MCPToolResponse[] = [];
+  
+  let curToolResponses: MCPToolResponse[] = [];
 
   // 处理输入
   if (Array.isArray(content)) {
-    currentToolResponses = content;
+    curToolResponses = content;
   } else {
     // 解析工具使用
-    currentToolResponses = parseToolUse(content, mcpTools);
+    curToolResponses = parseToolUse(content, mcpTools);
   }
 
-  if (!currentToolResponses || currentToolResponses.length === 0) {
+  if (!curToolResponses || curToolResponses.length === 0) {
     return toolResults;
   }
 
-  console.log(`[MCP] 开始调用 ${currentToolResponses.length} 个工具`);
+  console.log(`[MCP] 开始调用 ${curToolResponses.length} 个工具`);
 
-  // 发送工具调用开始事件
-  if (onChunk && currentToolResponses.length > 0) {
-    onChunk({
-      type: ChunkType.MCP_TOOL_IN_PROGRESS,
-      responses: currentToolResponses.map(tr => ({ ...tr, status: 'invoking' as const }))
-    });
+  // ==================== 阶段1：发送 PENDING 状态 ====================
+  // 参考 Cherry Studio：先遍历所有工具，发送 pending 状态
+  // 这会触发 UI 层创建工具块
+  for (const toolResponse of curToolResponses) {
+    if (onChunk) {
+      upsertMCPToolResponse(
+        allToolResponses,
+        {
+          ...toolResponse,
+          status: 'pending'
+        },
+        onChunk
+      );
+    }
   }
 
-  // 并行调用所有工具
-  const toolPromises = currentToolResponses.map(async (toolResponse) => {
-    try {
-      // 更新状态为调用中（创建新对象避免只读属性问题）
-      const mutableToolResponse = { ...toolResponse, status: 'invoking' as const };
+  // ==================== 阶段2：并行执行工具调用 ====================
+  const pendingPromises: Promise<void>[] = [];
 
-      console.log(`[MCP] 调用工具: ${toolResponse.tool.name}`);
+  curToolResponses.forEach((toolResponse) => {
+    const processingPromise = (async () => {
+      try {
+        // 2.1 更新为 invoking 状态
+        if (onChunk) {
+          upsertMCPToolResponse(
+            allToolResponses,
+            {
+              ...toolResponse,
+              status: 'invoking'
+            },
+            onChunk
+          );
+        }
 
-      // 调用工具
-      const result = await callMCPTool(mutableToolResponse);
+        console.log(`[MCP] 调用工具: ${toolResponse.tool.name}`);
 
-      // 更新状态（创建新对象）
-      const finalToolResponse = {
-        ...mutableToolResponse,
-        status: result.isError ? 'error' as const : 'done' as const,
-        response: result
-      };
+        // 2.2 执行工具调用
+        const toolCallResponse = await callMCPTool(toolResponse);
 
-      if (onChunk) {
-        onChunk({
-          type: ChunkType.MCP_TOOL_COMPLETE,
-          responses: [finalToolResponse]
-        });
-      }
+        // 2.3 更新为 done 状态
+        if (onChunk) {
+          upsertMCPToolResponse(
+            allToolResponses,
+            {
+              ...toolResponse,
+              status: 'done',
+              response: toolCallResponse
+            },
+            onChunk
+          );
+        }
 
-      return result;
-    } catch (error) {
-      console.error(`[MCP] 工具调用异常:`, error);
-
-      const errorResult: MCPCallToolResponse = {
-        isError: true,
-        content: [
-          {
-            type: 'text',
-            text: `工具调用异常: ${error instanceof Error ? error.message : '未知错误'}`
+        // 2.4 处理图片结果（参考 Cherry Studio）
+        if (toolCallResponse && !toolCallResponse.isError) {
+          const images: string[] = [];
+          for (const item of toolCallResponse.content) {
+            if (item.type === 'image' && item.data) {
+              images.push(`data:${item.mimeType};base64,${item.data}`);
+            }
           }
-        ]
-      };
 
-      const errorToolResponse = {
-        ...toolResponse,
-        status: 'error' as const,
-        response: errorResult
-      };
+          if (images.length && onChunk) {
+            onChunk({
+              type: ChunkType.IMAGE_CREATED
+            });
+            onChunk({
+              type: ChunkType.IMAGE_COMPLETE,
+              image: {
+                type: 'base64',
+                images: images
+              }
+            } as any);
+          }
+        }
 
-      if (onChunk) {
-        onChunk({
-          type: ChunkType.MCP_TOOL_COMPLETE,
-          responses: [errorToolResponse]
-        });
+        toolResults.push(toolCallResponse);
+      } catch (error) {
+        console.error(`[MCP] 工具调用异常: ${toolResponse.id}`, error);
+        
+        // 更新为 error 状态
+        const errorResponse: MCPCallToolResponse = {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: `工具调用异常: ${error instanceof Error ? error.message : '未知错误'}`
+            }
+          ]
+        };
+
+        if (onChunk) {
+          upsertMCPToolResponse(
+            allToolResponses,
+            {
+              ...toolResponse,
+              status: 'error',
+              response: errorResponse
+            },
+            onChunk
+          );
+        }
+
+        toolResults.push(errorResponse);
       }
+    })();
 
-      return errorResult;
-    }
+    pendingPromises.push(processingPromise);
   });
 
-  // 等待所有工具调用完成
-  const results = await Promise.all(toolPromises);
-  toolResults.push(...results);
+  // ==================== 阶段3：等待所有工具完成 ====================
+  await Promise.all(pendingPromises);
 
-  console.log(`[MCP] 所有工具调用完成，结果数量: ${results.length}`);
-
-  // 注意：不再发送汇总的 MCP_TOOL_COMPLETE 事件
-  // 参考项目设计：每个工具完成时已经发送了单独的完成事件（第 210-215 行）
-  // 这样避免 UI 层收到重复的完成事件
+  console.log(`[MCP] 所有工具调用完成，结果数量: ${toolResults.length}`);
 
   return toolResults;
 }

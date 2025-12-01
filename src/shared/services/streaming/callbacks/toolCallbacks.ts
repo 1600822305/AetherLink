@@ -1,144 +1,172 @@
 /**
  * 工具调用回调模块
- * 处理 MCP 工具调用
- * 
- * 参考 Cherry Studio toolCallbacks 设计
+ * 完全参考 Cherry Studio toolCallbacks.ts 实现
  */
 
+import type { ToolMessageBlock } from '../../../types/newMessage';
 import { MessageBlockStatus, MessageBlockType } from '../../../types/newMessage';
-import type { MessageBlock } from '../../../types/newMessage';
-import { v4 as uuid } from 'uuid';
-import type { CallbackDependencies, StreamProcessorCallbacks } from './types';
+import { createToolBlock, createCitationBlock } from '../../../utils/messageUtils/blockFactory';
+import type { BlockManager } from '../BlockManager';
+import type { AppDispatch } from '../../../store';
+
+// 使用宽松的工具响应类型，兼容不同来源的数据
+interface ToolResponseInput {
+  id: string;
+  tool: {
+    name: string;
+    serverName?: string;
+    serverId?: string;
+    [key: string]: any;
+  };
+  arguments?: Record<string, any>;
+  status: string;
+  response?: any;
+  [key: string]: any;
+}
 
 /**
- * 工具调用状态缓存
+ * 工具回调依赖
+ * 完全参考 Cherry Studio ToolCallbacksDependencies
  */
-interface ToolCallCache {
-  blockId: string;
-  status: 'pending' | 'running' | 'done' | 'error';
-  result?: any;
+interface ToolCallbacksDependencies {
+  blockManager: BlockManager;
+  assistantMsgId: string;
+  dispatch: AppDispatch;
 }
 
 /**
  * 创建工具调用回调
+ * 完全参考 Cherry Studio 实现
  */
-export function createToolCallbacks(deps: CallbackDependencies): Partial<StreamProcessorCallbacks> {
-  const { messageId, blockManager, mcpTools = [] } = deps;
-  
-  // 工具调用状态缓存
-  const toolCallsMap = new Map<string, ToolCallCache>();
+export const createToolCallbacks = (deps: ToolCallbacksDependencies) => {
+  const { blockManager, assistantMsgId } = deps;
 
-  /**
-   * 创建工具块
-   */
-  const createToolBlock = async (toolResponse: any): Promise<string> => {
-    const newBlockId = uuid();
-    const newBlock: MessageBlock = {
-      id: newBlockId,
-      messageId,
-      type: MessageBlockType.TOOL,
-      content: JSON.stringify({
-        name: toolResponse.name,
-        arguments: toolResponse.arguments
-      }),
-      createdAt: new Date().toISOString(),
-      status: MessageBlockStatus.PROCESSING,
-      toolName: toolResponse.name,
-      toolId: toolResponse.id,
-      toolCallId: toolResponse.toolCallId || toolResponse.id
-    } as MessageBlock;
-    
-    await blockManager.handleBlockTransition(newBlock, MessageBlockType.TOOL);
-    return newBlockId;
-  };
+  // 内部维护的状态
+  const toolCallIdToBlockIdMap = new Map<string, string>();
+  let toolBlockId: string | null = null;
+  let citationBlockId: string | null = null;
 
   return {
-    /**
-     * 工具调用等待（可选）
-     */
-    onToolCallPending: async (toolResponse: any) => {
-      console.log('[ToolCallbacks] 工具等待:', toolResponse.name);
-      
-      const blockId = await createToolBlock(toolResponse);
-      
-      toolCallsMap.set(toolResponse.id, {
-        blockId,
-        status: 'pending'
-      });
-    },
+    onToolCallPending: (toolResponse: ToolResponseInput) => {
+      console.log('[ToolCallbacks] onToolCallPending', toolResponse);
 
-    /**
-     * 工具调用进行中
-     */
-    onToolCallInProgress: async (toolResponse: any) => {
-      console.log('[ToolCallbacks] 工具执行中:', toolResponse.name);
-      
-      let cached = toolCallsMap.get(toolResponse.id);
-      
-      if (!cached) {
-        // 如果没有等待状态，直接创建块
-        const blockId = await createToolBlock(toolResponse);
-        cached = { blockId, status: 'running' };
-        toolCallsMap.set(toolResponse.id, cached);
+      if (blockManager.hasInitialPlaceholder) {
+        const changes = {
+          type: MessageBlockType.TOOL,
+          status: MessageBlockStatus.PENDING,
+          toolName: toolResponse.tool.name,
+          metadata: { rawMcpToolResponse: toolResponse as any }
+        };
+        toolBlockId = blockManager.initialPlaceholderBlockId!;
+        blockManager.smartBlockUpdate(toolBlockId, changes as any, MessageBlockType.TOOL);
+        toolCallIdToBlockIdMap.set(toolResponse.id, toolBlockId);
+      } else if (toolResponse.status === 'pending') {
+        const toolBlock = createToolBlock(assistantMsgId, toolResponse.id, {
+          toolName: toolResponse.tool.name,
+          status: MessageBlockStatus.PENDING,
+          metadata: { rawMcpToolResponse: toolResponse as any }
+        });
+        toolBlockId = toolBlock.id;
+        blockManager.handleBlockTransition(toolBlock, MessageBlockType.TOOL);
+        toolCallIdToBlockIdMap.set(toolResponse.id, toolBlock.id);
       } else {
-        // 更新状态为运行中
-        blockManager.smartBlockUpdate(
-          cached.blockId,
-          { status: MessageBlockStatus.PROCESSING },
-          MessageBlockType.TOOL,
-          false
+        console.warn(
+          `[onToolCallPending] Received unhandled tool status: ${toolResponse.status} for ID: ${toolResponse.id}`
         );
-        cached.status = 'running';
       }
     },
 
-    /**
-     * 工具调用完成
-     */
-    onToolCallComplete: async (toolResponse: any) => {
-      console.log('[ToolCallbacks] 工具完成:', toolResponse.name);
+    onToolCallInProgress: (toolResponse: ToolResponseInput) => {
+      console.log('[ToolCallbacks] onToolCallInProgress', toolResponse);
       
-      const cached = toolCallsMap.get(toolResponse.id);
+      const existingBlockId = toolCallIdToBlockIdMap.get(toolResponse.id);
       
-      if (cached) {
-        blockManager.smartBlockUpdate(
-          cached.blockId,
-          {
-            status: MessageBlockStatus.SUCCESS,
-            content: JSON.stringify({
-              name: toolResponse.name,
-              arguments: toolResponse.arguments,
-              result: toolResponse.result
-            })
-          },
-          MessageBlockType.TOOL,
-          true
+      if (existingBlockId) {
+        // 更新工具块状态为 PROCESSING（调用中）
+        const changes = {
+          status: MessageBlockStatus.PROCESSING,
+          metadata: { rawMcpToolResponse: toolResponse as any }
+        };
+        blockManager.smartBlockUpdate(existingBlockId, changes as any, MessageBlockType.TOOL);
+      } else {
+        console.warn(
+          `[onToolCallInProgress] No existing block found for tool ID: ${toolResponse.id}. The PENDING event may have been missed.`
         );
+      }
+    },
+
+    onToolCallComplete: (toolResponse: ToolResponseInput) => {
+      const existingBlockId = toolCallIdToBlockIdMap.get(toolResponse.id);
+      toolCallIdToBlockIdMap.delete(toolResponse.id);
+
+      if (toolResponse.status === 'done' || toolResponse.status === 'error' || toolResponse.status === 'cancelled') {
+        if (!existingBlockId) {
+          console.error(
+            `[onToolCallComplete] No existing block found for completed/error tool call ID: ${toolResponse.id}. Cannot update.`
+          );
+          return;
+        }
+
+        const finalStatus =
+          toolResponse.status === 'done' || toolResponse.status === 'cancelled'
+            ? MessageBlockStatus.SUCCESS
+            : MessageBlockStatus.ERROR;
+
+        const changes: Partial<ToolMessageBlock> = {
+          content: toolResponse.response,
+          status: finalStatus,
+          metadata: { rawMcpToolResponse: toolResponse as any }
+        };
+
+        if (finalStatus === MessageBlockStatus.ERROR) {
+          (changes as any).error = {
+            message: `Tool execution failed/error`,
+            details: toolResponse.response,
+            name: null,
+            stack: null
+          };
+        }
+        blockManager.smartBlockUpdate(existingBlockId, changes as any, MessageBlockType.TOOL, true);
         
-        cached.status = 'done';
-        cached.result = toolResponse.result;
+        // Handle citation block creation for web search results
+        if (toolResponse.tool.name === 'builtin_web_search' && toolResponse.response) {
+          const citationBlock = createCitationBlock(
+            assistantMsgId,
+            {
+              content: '',
+              response: { results: toolResponse.response, source: 'websearch' }
+            } as any,
+            {
+              status: MessageBlockStatus.SUCCESS
+            }
+          );
+          citationBlockId = citationBlock.id;
+          blockManager.handleBlockTransition(citationBlock, MessageBlockType.CITATION);
+        }
+        if (toolResponse.tool.name === 'builtin_knowledge_search' && toolResponse.response) {
+          const citationBlock = createCitationBlock(
+            assistantMsgId,
+            { 
+              content: '',
+              knowledge: toolResponse.response 
+            } as any,
+            {
+              status: MessageBlockStatus.SUCCESS
+            }
+          );
+          citationBlockId = citationBlock.id;
+          blockManager.handleBlockTransition(citationBlock, MessageBlockType.CITATION);
+        }
       } else {
-        // 没有缓存，创建新块并标记为完成
-        const blockId = await createToolBlock(toolResponse);
-        blockManager.smartBlockUpdate(
-          blockId,
-          { 
-            status: MessageBlockStatus.SUCCESS,
-            content: JSON.stringify({
-              name: toolResponse.name,
-              arguments: toolResponse.arguments,
-              result: toolResponse.result
-            })
-          },
-          MessageBlockType.TOOL,
-          true
+        console.warn(
+          `[onToolCallComplete] Received unhandled tool status: ${toolResponse.status} for ID: ${toolResponse.id}`
         );
       }
+
+      toolBlockId = null;
     },
 
-    // 清理
-    cleanup: () => {
-      toolCallsMap.clear();
-    }
+    // 暴露给 textCallbacks 使用的方法
+    getCitationBlockId: () => citationBlockId
   };
-}
+};

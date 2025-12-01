@@ -7,8 +7,6 @@ import type { Chunk } from '../../types/chunk';
 import type {
   SdkRequestParams,
   SdkMessageParam,
-  SdkTool,
-  SdkToolCall,
   SdkModel,
   SdkUsage,
   RequestOptions,
@@ -113,6 +111,14 @@ export interface AssistantConfig {
     streamOutput?: boolean;
     enableThinking?: boolean;
     thinkingBudget?: number;
+    /** 推理努力程度（对标 Cherry Studio）*/
+    reasoning_effort?: 'low' | 'medium' | 'high' | 'auto';
+    /** 自定义参数 */
+    customParameters?: Array<{
+      name: string;
+      type: 'string' | 'number' | 'boolean' | 'json';
+      value: unknown;
+    }>;
   };
   enableWebSearch?: boolean;
   enableToolUse?: boolean;
@@ -212,22 +218,37 @@ export interface ResponseChunkTransformer<TRawChunk = unknown> {
 
 /**
  * 图像生成参数
+ * 对标 Cherry Studio GenerateImageParams
  */
 export interface GenerateImageParams {
   /** 提示词 */
   prompt: string;
   /** 模型ID */
-  model?: string;
+  model: string;
   /** 生成数量 */
   n?: number;
-  /** 图像尺寸 */
+  /** 批次大小（Gemini用）*/
+  batchSize?: number;
+  /** 图像尺寸（OpenAI格式）*/
   size?: string;
+  /** 图像尺寸（Gemini格式：宽高比）*/
+  imageSize?: string;
   /** 图像质量 */
   quality?: 'standard' | 'hd';
   /** 图像风格 */
   style?: 'natural' | 'vivid';
   /** 负面提示词 */
   negativePrompt?: string;
+  /** 种子 */
+  seed?: string;
+  /** 推理步数 */
+  numInferenceSteps?: number;
+  /** 引导尺度 */
+  guidanceScale?: number;
+  /** 中断信号 */
+  signal?: AbortSignal;
+  /** 提示词增强 */
+  promptEnhancement?: boolean;
 }
 
 // ==================== API Client Interface ====================

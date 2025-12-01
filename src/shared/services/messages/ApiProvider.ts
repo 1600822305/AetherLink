@@ -80,8 +80,8 @@ function createAiProviderWrapper(model: Model): any {
 
   return {
     sendChatMessage: async (messages: any[], options?: any) => {
-      // 从 localStorage 读取 MCP 模式
-      let mcpMode: 'prompt' | 'function' = 'function';
+      // 从 localStorage 读取 MCP 模式（默认 prompt 模式，与参考项目一致）
+      let mcpMode: 'prompt' | 'function' = 'prompt';
       try {
         const savedMode = localStorage.getItem('mcp_mode');
         console.log(`[ApiProvider] 🔍 localStorage mcp_mode 原始值:`, savedMode);

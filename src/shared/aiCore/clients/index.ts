@@ -24,6 +24,7 @@ export {
 // 导出具体客户端
 export { OpenAIClient } from './openai';
 export { GeminiClient } from './gemini';
+export { AnthropicClient } from './anthropic';
 
 // 导出模型组合
 export {

@@ -1,7 +1,9 @@
-import { v4 as uuid } from 'uuid';
-import { MessageBlockStatus, MessageBlockType, AssistantMessageStatus } from '../../../types/newMessage';
+// 🔧 清理：移除不再使用的导入（uuid, MessageBlockStatus, MessageBlockType, upsertOneBlock）
+import { throttle } from 'lodash';
+import { AssistantMessageStatus } from '../../../types/newMessage';
 // 新架构
-import { createStreamProcessor, createCallbacks, StreamingBlockManager } from '../../../services/streaming';
+import { createStreamProcessor, createCallbacks, BlockManager } from '../../../services/streaming';
+import { updateOneBlock } from '../../slices/messageBlocksSlice';
 import { ApiProviderRegistry } from '../../../services/messages/ApiProvider';
 import { generateImage as generateOpenAIImage } from '../../../aiCore/legacy/clients/openai/image';
 import { generateImage as generateGeminiImage } from '../../../aiCore/legacy/clients/gemini/image';
@@ -9,7 +11,7 @@ import { createImageBlock } from '../../../utils/messageUtils';
 import { createAbortController } from '../../../utils/abortController';
 import { mcpService } from '../../../services/mcp';
 import { newMessagesActions } from '../../slices/newMessagesSlice';
-import { upsertOneBlock, addOneBlock } from '../../slices/messageBlocksSlice';
+import { addOneBlock } from '../../slices/messageBlocksSlice';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
 import type { Message, MessageBlock } from '../../../types/newMessage';
 import type { Model, MCPTool } from '../../../types';
@@ -54,31 +56,10 @@ export const processAssistantResponse = async (
       }
     }));
 
-    // 2. 创建占位符块（参考最佳实例逻辑）
-    const placeholderBlock: MessageBlock = {
-      id: uuid(),
-      messageId: assistantMessage.id,
-      type: MessageBlockType.UNKNOWN,
-      content: '',
-      createdAt: new Date().toISOString(),
-      status: MessageBlockStatus.PROCESSING
-    };
-
-    console.log(`[sendMessage] 创建占位符块: ${placeholderBlock.id}`);
-
-    // 添加占位符块到Redux
-    dispatch(upsertOneBlock(placeholderBlock));
-
-    // 保存占位符块到数据库
-    await dexieStorage.saveMessageBlock(placeholderBlock);
-
-    // 3. 关联占位符块到消息
-    dispatch(newMessagesActions.updateMessage({
-      id: assistantMessage.id,
-      changes: {
-        blocks: [placeholderBlock.id]
-      }
-    }));
+    // 🔧 修复：移除预创建占位块逻辑
+    // 参考 Cherry Studio：所有占位块都在 onLLMResponseCreated 中创建
+    // 这样多轮迭代时每轮都会正确创建新占位块
+    console.log(`[sendMessage] 消息已创建，等待 onLLMResponseCreated 创建占位块`);
 
     // 4. 获取 MCP 工具（如果启用）- 现在用户已经能看到加载状态了
     let mcpTools: MCPTool[] = [];
@@ -120,29 +101,8 @@ export const processAssistantResponse = async (
       return messageTime < assistantMessageTime;
     });
 
-// 5. 更新消息数据库（同时更新messages表和topic.messages数组）
-    await dexieStorage.transaction('rw', [
-      dexieStorage.messages,
-      dexieStorage.topics
-    ], async () => {
-      // 更新messages表
-      await dexieStorage.updateMessage(assistantMessage.id, {
-        blocks: [placeholderBlock.id]
-      });
-
-      // 更新topic.messages数组
-      const topic = await dexieStorage.topics.get(topicId);
-      if (topic && topic.messages) {
-        const messageIndex = topic.messages.findIndex((m: Message) => m.id === assistantMessage.id);
-        if (messageIndex >= 0) {
-          topic.messages[messageIndex] = {
-            ...topic.messages[messageIndex],
-            blocks: [placeholderBlock.id]
-          };
-          await dexieStorage.topics.put(topic);
-        }
-      }
-    });
+// 5. 🔧 修复：移除预保存占位块逻辑
+    // 占位块将在 onLLMResponseCreated 中创建并保存
 
 // 6. 创建AbortController
     const { abortController, cleanup } = createAbortController(assistantMessage.askId, true);
@@ -163,7 +123,6 @@ export const processAssistantResponse = async (
           console.warn(`[DB保存] ⚠️ 块 ${block.id.substring(0, 8)}... 类型为空！跳过保存`);
           return false;
         }
-        console.log(`[DB保存] 块 ${block.id.substring(0, 8)}... 类型=${blockType} 状态=${(block as any).status} 内容=${(block as any).content?.length || 0}字符`);
         return true;
       });
 
@@ -176,27 +135,81 @@ export const processAssistantResponse = async (
       );
     };
 
-    const blockManager = new StreamingBlockManager({
+    // 🔧 参考 Cherry Studio：创建节流函数管理器
+    const THROTTLE_INTERVAL = 100;
+    const throttledUpdates = new Map<string, ReturnType<typeof throttle>>();
+    
+    const throttledBlockUpdate = (blockId: string, blockUpdate: any) => {
+      let throttledFn = throttledUpdates.get(blockId);
+      if (!throttledFn) {
+        throttledFn = throttle((update: any) => {
+          dispatch(updateOneBlock({ id: blockId, changes: update }));
+          saveUpdatedBlockToDB(blockId, assistantMessage.id, topicId, _getState);
+        }, THROTTLE_INTERVAL);
+        throttledUpdates.set(blockId, throttledFn);
+      }
+      throttledFn(blockUpdate);
+    };
+    
+    const cancelThrottledBlockUpdate = (blockId: string) => {
+      const throttledFn = throttledUpdates.get(blockId);
+      if (throttledFn) {
+        throttledFn.flush();
+        throttledFn.cancel();
+        throttledUpdates.delete(blockId);
+      }
+    };
+    
+    // 🔧 保存单个块到数据库
+    const saveUpdatedBlockToDB = async (
+      blockId: string | null,
+      _messageId: string,
+      _tId: string,
+      getState: () => RootState
+    ) => {
+      if (!blockId) return;
+      const state = getState();
+      const block = state.messageBlocks?.entities?.[blockId];
+      if (block) {
+        await dexieStorage.updateMessageBlock(blockId, block);
+      }
+    };
+
+    // 🔧 创建 BlockManager（参考 Cherry Studio）
+    const blockManager = new BlockManager({
       dispatch,
       getState: _getState,
-      messageId: assistantMessage.id,
+      assistantMsgId: assistantMessage.id,
       topicId,
-      initialBlockId: placeholderBlock.id,
+      saveUpdatedBlockToDB,
       saveUpdatesToDB,
-      throttleInterval: 100
+      throttledBlockUpdate,
+      cancelThrottledBlockUpdate
     });
 
     const callbacks = createCallbacks({
       dispatch,
       getState: _getState,
-      messageId: assistantMessage.id,
+      assistantMsgId: assistantMessage.id,
       topicId,
       blockManager,
-      mcpTools,
-      saveUpdatesToDB
+      saveUpdatesToDB,
+      assistant: assistant || { id: 'default', name: 'Assistant' }
     });
 
-    const processChunk = createStreamProcessor(callbacks);
+    const processChunk = createStreamProcessor(callbacks as any);
+
+    // 🔧 清理所有节流函数
+    const flushAllThrottles = () => {
+      throttledUpdates.forEach((fn) => fn.flush());
+    };
+    
+    const cancelAllThrottles = () => {
+      throttledUpdates.forEach((fn) => {
+        fn.cancel();
+      });
+      throttledUpdates.clear();
+    };
 
     // 兼容旧接口的包装器
     const responseHandler = {
@@ -205,7 +218,7 @@ export const processAssistantResponse = async (
         await callbacks.onTextChunk?.(content);
       },
       complete: async (_content?: string, _reasoning?: string) => {
-        blockManager.flushThrottle();
+        flushAllThrottles();
         await callbacks.onComplete?.(AssistantMessageStatus.SUCCESS);
         
         // 🔧 关键修复：确保最终的消息块列表保存到数据库
@@ -245,19 +258,19 @@ export const processAssistantResponse = async (
         dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
       },
       completeWithInterruption: async () => {
-        blockManager.flushThrottle();
+        flushAllThrottles();
         await callbacks.onComplete?.(AssistantMessageStatus.SUCCESS);
         dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
         dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
       },
       fail: async (error: Error) => {
-        blockManager.cancelThrottle();
+        cancelAllThrottles();
         await callbacks.onError?.(error);
         dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
         dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
       },
       cleanup: () => {
-        blockManager.cleanup();
+        cancelAllThrottles();
         callbacks.cleanup?.();
       }
     };
@@ -419,11 +432,12 @@ export const processAssistantResponse = async (
         }
       } else {
 
-        // 修复：根据实际provider类型选择合适的消息格式
-        //  关键修复：使用getActualProviderType来正确判断Gemini provider
+        // 🔧 修复：统一使用 apiMessages（已提取 content）
+        // 原来 Gemini 用 filteredOriginalMessages（只有 blockIds，没有 content）
+        // 这导致 GeminiClient.transformMessage 无法获取消息内容
         const actualProviderType = getActualProviderType(model);
         const isActualGeminiProvider = actualProviderType === 'gemini';
-        const messagesToSend = isActualGeminiProvider ? filteredOriginalMessages : apiMessages;
+        const messagesToSend = apiMessages; // 统一使用已处理的消息
 
         console.log(`[processAssistantResponse] Provider类型: ${model.provider} -> 实际类型: ${actualProviderType}, 使用${isActualGeminiProvider ? '原始' : 'API'}格式消息，消息数量: ${messagesToSend.length}`);
 
@@ -451,8 +465,8 @@ export const processAssistantResponse = async (
           });
         }
 
-        // 获取 MCP 模式设置
-        const mcpMode = localStorage.getItem('mcp-mode') as 'prompt' | 'function' || 'function';
+        // 获取 MCP 模式设置（使用统一的 key: mcp_mode）
+        const mcpMode = localStorage.getItem('mcp_mode') as 'prompt' | 'function' || 'prompt';
         console.log(`[MCP] 当前模式: ${mcpMode}`);
 
         //  修复Gemini系统提示词传递问题：从API消息中提取系统提示词

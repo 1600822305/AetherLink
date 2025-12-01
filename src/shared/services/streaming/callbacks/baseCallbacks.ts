@@ -1,159 +1,194 @@
 /**
  * 基础回调模块
- * 处理 LLM 响应生命周期和错误
- * 
- * 参考 Cherry Studio baseCallbacks 设计
+ * 完全参考 Cherry Studio baseCallbacks.ts 实现
  */
 
 import { MessageBlockStatus, MessageBlockType, AssistantMessageStatus } from '../../../types/newMessage';
+import type { MessageBlock, PlaceholderMessageBlock } from '../../../types/newMessage';
 import { newMessagesActions } from '../../../store/slices/newMessagesSlice';
 import { EventEmitter, EVENT_NAMES } from '../../EventService';
-import type { CallbackDependencies, StreamProcessorCallbacks } from './types';
+import { createBaseMessageBlock, createErrorBlock } from '../../../utils/messageUtils/blockFactory';
+import type { BlockManager } from '../BlockManager';
+import type { AppDispatch, RootState } from '../../../store';
+import type { Assistant } from './types';
+
+/**
+ * 基础回调依赖
+ * 完全参考 Cherry Studio BaseCallbacksDependencies
+ */
+interface BaseCallbacksDependencies {
+  blockManager: BlockManager;
+  dispatch: AppDispatch;
+  getState: () => RootState;
+  topicId: string;
+  assistantMsgId: string;
+  saveUpdatesToDB: any;
+  assistant: Assistant;
+}
+
+/**
+ * 判断是否为中止错误
+ */
+const isAbortError = (error: any): boolean => {
+  return error?.name === 'AbortError' ||
+    error?.message?.includes('aborted') ||
+    error?.message?.includes('cancelled');
+};
+
+/**
+ * 序列化错误对象
+ */
+const serializeError = (error: any) => {
+  return {
+    message: error?.message || 'Unknown error',
+    name: error?.name || 'Error',
+    stack: error?.stack
+  };
+};
+
+/**
+ * 查找所有块
+ */
+const findAllBlocks = (message: any): MessageBlock[] => {
+  if (!message?.blocks) return [];
+  return message.blocks;
+};
+
+/**
+ * 获取主文本内容
+ */
+const getMainTextContent = (message: any): string => {
+  if (!message?.blocks) return '';
+  const mainTextBlock = message.blocks.find((b: any) => b?.type === MessageBlockType.MAIN_TEXT);
+  return mainTextBlock?.content || '';
+};
 
 /**
  * 创建基础回调
+ * 完全参考 Cherry Studio 实现
  */
-export function createBaseCallbacks(deps: CallbackDependencies): Partial<StreamProcessorCallbacks> {
-  const { dispatch, getState, messageId, topicId, blockManager, saveUpdatesToDB } = deps;
-  
+export const createBaseCallbacks = (deps: BaseCallbacksDependencies) => {
+  const { blockManager, dispatch, getState, topicId, assistantMsgId, saveUpdatesToDB } = deps;
+
   const startTime = Date.now();
 
+  // 通用的 block 查找函数
+  const findBlockIdForCompletion = (message?: any) => {
+    // 优先使用 BlockManager 中的 activeBlockInfo
+    const activeBlockInfo = blockManager.activeBlockInfo;
+
+    if (activeBlockInfo) {
+      return activeBlockInfo.id;
+    }
+
+    // 如果没有活跃的block，从message中查找最新的block作为备选
+    const targetMessage = message || getState().messages?.entities?.[assistantMsgId];
+    if (targetMessage) {
+      const allBlocks = findAllBlocks(targetMessage);
+      if (allBlocks.length > 0) {
+        return allBlocks[allBlocks.length - 1].id; // 返回最新的block
+      }
+    }
+
+    // 最后的备选方案：从 blockManager 获取占位符块ID
+    return blockManager.initialPlaceholderBlockId;
+  };
+
   return {
-    /**
-     * LLM 响应创建
-     */
     onLLMResponseCreated: async () => {
-      console.log('[BaseCallbacks] LLM 响应创建');
-      // 如果没有初始占位符，创建一个
-      if (!blockManager.hasInitialPlaceholder) {
-        // 占位符块应该已经在 processAssistantResponse 中创建
-        console.log('[BaseCallbacks] 使用已有的占位符块');
-      }
+      const baseBlock = createBaseMessageBlock(assistantMsgId, MessageBlockType.UNKNOWN, {
+        status: MessageBlockStatus.PROCESSING
+      });
+      await blockManager.handleBlockTransition(baseBlock as PlaceholderMessageBlock, MessageBlockType.UNKNOWN);
     },
 
-    /**
-     * LLM 响应完成
-     */
-    onLLMResponseComplete: async (response?: any) => {
-      console.log('[BaseCallbacks] LLM 响应完成');
-      
-      // 更新消息的 usage 和 metrics
-      if (response?.usage || response?.metrics) {
-        dispatch(newMessagesActions.updateMessage({
-          id: messageId,
-          changes: {
-            usage: response.usage,
-            metrics: response.metrics
-          }
-        }));
-      }
-    },
-
-    /**
-     * 块完成
-     */
-    onBlockComplete: async (response?: any) => {
-      console.log('[BaseCallbacks] 块完成');
-      // 块完成的处理由具体的回调模块处理
-    },
-
-    /**
-     * 错误处理
-     */
     onError: async (error: any) => {
-      console.error('[BaseCallbacks] 错误:', error);
+      console.error('[BaseCallbacks] onError', error);
       
-      const isAbortError = error?.name === 'AbortError' || 
-                          error?.message?.includes('aborted') ||
-                          error?.message?.includes('cancelled');
-      
-      // 更新当前块状态
-      const activeBlock = blockManager.activeBlockInfo;
-      if (activeBlock) {
-        blockManager.smartBlockUpdate(
-          activeBlock.id,
-          { 
-            status: isAbortError ? MessageBlockStatus.PAUSED : MessageBlockStatus.ERROR 
-          },
-          activeBlock.type,
-          true
-        );
+      const isErrorTypeAbort = isAbortError(error);
+      const serializableError = serializeError(error);
+      if (isErrorTypeAbort) {
+        serializableError.message = 'pause_placeholder';
       }
 
-      // 更新消息状态
-      const messageStatus = isAbortError 
-        ? AssistantMessageStatus.SUCCESS  // 用户主动中断视为成功
-        : AssistantMessageStatus.ERROR;
-      
-      dispatch(newMessagesActions.updateMessage({
-        id: messageId,
-        changes: { status: messageStatus }
-      }));
-      
-      await saveUpdatesToDB(messageId, topicId, { status: messageStatus }, []);
+      const duration = Date.now() - startTime;
+      console.log(`[BaseCallbacks] Error after ${duration}ms`);
 
-      // 发送完成事件
+      const possibleBlockId = findBlockIdForCompletion();
+
+      if (possibleBlockId) {
+        // 更改上一个block的状态为ERROR
+        const changes = {
+          status: isErrorTypeAbort ? MessageBlockStatus.PAUSED : MessageBlockStatus.ERROR
+        };
+        blockManager.smartBlockUpdate(possibleBlockId, changes, blockManager.lastBlockType!, true);
+      }
+
+      const errorBlock = createErrorBlock(assistantMsgId, serializableError, { status: MessageBlockStatus.SUCCESS });
+      await blockManager.handleBlockTransition(errorBlock, MessageBlockType.ERROR);
+      
+      const messageErrorUpdate = {
+        status: isErrorTypeAbort ? AssistantMessageStatus.SUCCESS : AssistantMessageStatus.ERROR
+      };
+      dispatch(
+        newMessagesActions.updateMessage({
+          topicId,
+          messageId: assistantMsgId,
+          updates: messageErrorUpdate
+        })
+      );
+      await saveUpdatesToDB(assistantMsgId, topicId, messageErrorUpdate, []);
+
       EventEmitter.emit(EVENT_NAMES.MESSAGE_COMPLETE, {
-        id: messageId,
+        id: assistantMsgId,
         topicId,
-        status: isAbortError ? 'pause' : 'error',
-        error: error?.message
+        status: isErrorTypeAbort ? 'pause' : 'error',
+        error: error.message
       });
-
-      // 清除加载状态
-      dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
-      dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
     },
 
-    /**
-     * 处理完成
-     */
-    onComplete: async (status: AssistantMessageStatus | string, response?: any) => {
-      const duration = Date.now() - startTime;
-      console.log(`[BaseCallbacks] 处理完成，状态: ${status}，耗时: ${duration}ms`);
+    onComplete: async (status: AssistantMessageStatus, response?: any) => {
+      const finalStateOnComplete = getState();
+      const finalAssistantMsg = finalStateOnComplete.messages?.entities?.[assistantMsgId];
 
-      // 确保活跃块标记为完成
-      const activeBlock = blockManager.activeBlockInfo;
-      if (activeBlock) {
-        blockManager.smartBlockUpdate(
-          activeBlock.id,
-          { status: MessageBlockStatus.SUCCESS },
-          activeBlock.type,
-          true
-        );
+      if (status === AssistantMessageStatus.SUCCESS && finalAssistantMsg) {
+        const possibleBlockId = findBlockIdForCompletion(finalAssistantMsg);
+
+        if (possibleBlockId) {
+          const changes = {
+            status: MessageBlockStatus.SUCCESS
+          };
+          blockManager.smartBlockUpdate(possibleBlockId, changes, blockManager.lastBlockType!, true);
+        }
+
+        const duration = Date.now() - startTime;
+        const content = getMainTextContent(finalAssistantMsg);
+        console.log(`[BaseCallbacks] Complete after ${duration}ms, content length: ${content.length}`);
       }
 
-      // 刷新节流更新
-      blockManager.flushThrottle?.();
+      if (response && response.metrics) {
+        if (response.metrics.completion_tokens === 0 && response.usage?.completion_tokens) {
+          response = {
+            ...response,
+            metrics: {
+              ...response.metrics,
+              completion_tokens: response.usage.completion_tokens
+            }
+          };
+        }
+      }
 
-      // 更新消息状态
-      const finalStatus = status === 'success' || status === AssistantMessageStatus.SUCCESS
-        ? AssistantMessageStatus.SUCCESS
-        : status as AssistantMessageStatus;
-      
-      const messageUpdates = {
-        status: finalStatus,
-        metrics: response?.metrics,
-        usage: response?.usage
-      };
-      
-      dispatch(newMessagesActions.updateMessage({
-        id: messageId,
-        changes: messageUpdates
-      }));
-      
-      await saveUpdatesToDB(messageId, topicId, messageUpdates, []);
-
-      // 发送完成事件
-      EventEmitter.emit(EVENT_NAMES.MESSAGE_COMPLETE, {
-        id: messageId,
-        topicId,
-        status: finalStatus
-      });
-
-      // 清除加载状态
-      dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
-      dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));
+      const messageUpdates = { status, metrics: response?.metrics, usage: response?.usage };
+      dispatch(
+        newMessagesActions.updateMessage({
+          topicId,
+          messageId: assistantMsgId,
+          updates: messageUpdates
+        })
+      );
+      await saveUpdatesToDB(assistantMsgId, topicId, messageUpdates, []);
+      EventEmitter.emit(EVENT_NAMES.MESSAGE_COMPLETE, { id: assistantMsgId, topicId, status });
+      console.log('[BaseCallbacks] onComplete finished');
     }
   };
-}
+};

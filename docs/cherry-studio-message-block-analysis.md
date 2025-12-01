@@ -1,42 +1,39 @@
-# Cherry Studio 信息块(MessageBlock)系统分析
+# Cherry Studio 多轮工具调用信息块排序保存逻辑分析
 
-## 概述
+> 本文档详细分析 Cherry Studio 如何实现多轮工具迭代调用时信息块的按时间序列排序
 
-Cherry Studio 采用了一个精心设计的信息块(MessageBlock)系统来管理和显示 AI 对话中的各种内容类型。该系统将消息内容分解为不同类型的"块"，支持流式处理、状态管理和灵活的渲染。
+## 1. 概述
 
----
+Cherry Studio 采用了一套完整的消息块(MessageBlock)系统来处理多轮对话中的各种内容类型，包括文本、思考过程、工具调用、引用等。本文档分析其信息块的排序保存逻辑。
 
-## 1. 核心类型定义
+## 2. 核心数据结构
 
-### 1.1 MessageBlock 类型枚举
-
-位置：[`src/renderer/src/types/newMessage.ts:23-36`](docs/参考项目/cherry-studio-main/src/renderer/src/types/newMessage.ts:23)
+### 2.1 MessageBlock 类型枚举
 
 ```typescript
-export enum MessageBlockType {
-  UNKNOWN = 'unknown',        // 未知类型，用于占位符
-  MAIN_TEXT = 'main_text',    // 主要文本内容
-  THINKING = 'thinking',      // 思考过程（Claude、OpenAI-o系列等）
-  TRANSLATION = 'translation', // 翻译内容
-  IMAGE = 'image',            // 图片内容
-  CODE = 'code',              // 代码块
-  TOOL = 'tool',              // 工具调用
-  FILE = 'file',              // 文件内容
-  ERROR = 'error',            // 错误信息
-  CITATION = 'citation',      // 引用类型（网络搜索、知识库等）
-  VIDEO = 'video',            // 视频内容
-  COMPACT = 'compact'         // 压缩命令响应
+// 文件: src/renderer/src/types/newMessage.ts
+enum MessageBlockType {
+  UNKNOWN = 'unknown',      // 未知类型，用于占位
+  MAIN_TEXT = 'main_text',  // 主要文本内容
+  THINKING = 'thinking',    // 思考过程
+  TRANSLATION = 'translation', // 翻译
+  IMAGE = 'image',          // 图片内容
+  CODE = 'code',            // 代码块
+  TOOL = 'tool',            // 工具调用
+  FILE = 'file',            // 文件内容
+  ERROR = 'error',          // 错误信息
+  CITATION = 'citation',    // 引用(网络搜索/知识库)
+  VIDEO = 'video',          // 视频内容
+  COMPACT = 'compact'       // 紧凑命令响应
 }
 ```
 
-### 1.2 块状态定义
-
-位置：[`src/renderer/src/types/newMessage.ts:39-46`](docs/参考项目/cherry-studio-main/src/renderer/src/types/newMessage.ts:39)
+### 2.2 MessageBlock 状态
 
 ```typescript
-export enum MessageBlockStatus {
+enum MessageBlockStatus {
   PENDING = 'pending',       // 等待处理
-  PROCESSING = 'processing', // 正在处理，等待接收
+  PROCESSING = 'processing', // 正在处理
   STREAMING = 'streaming',   // 正在流式接收
   SUCCESS = 'success',       // 处理成功
   ERROR = 'error',           // 处理错误
@@ -44,415 +41,503 @@ export enum MessageBlockStatus {
 }
 ```
 
-### 1.3 基础块接口
-
-位置：[`src/renderer/src/types/newMessage.ts:49-59`](docs/参考项目/cherry-studio-main/src/renderer/src/types/newMessage.ts:49)
+### 2.3 消息与块的关系
 
 ```typescript
-export interface BaseMessageBlock {
-  id: string              // 块ID
-  messageId: string       // 所属消息ID
-  type: MessageBlockType  // 块类型
-  createdAt: string       // 创建时间
-  updatedAt?: string      // 更新时间
-  status: MessageBlockStatus // 块状态
-  model?: Model           // 使用的模型
-  metadata?: Record<string, any> // 通用元数据
-  error?: SerializedError // 序列化错误对象
-}
-```
-
-### 1.4 具体块类型
-
-#### MainTextMessageBlock - 主文本块
-```typescript
-export interface MainTextMessageBlock extends BaseMessageBlock {
-  type: MessageBlockType.MAIN_TEXT
-  content: string
-  knowledgeBaseIds?: string[]
-  citationReferences?: {
-    citationBlockId?: string
-    citationBlockSource?: WebSearchSource
-  }[]
-}
-```
-
-#### ThinkingMessageBlock - 思考块
-```typescript
-export interface ThinkingMessageBlock extends BaseMessageBlock {
-  type: MessageBlockType.THINKING
-  content: string
-  thinking_millsec: number  // 思考时间（毫秒）
-}
-```
-
-#### ImageMessageBlock - 图片块
-```typescript
-export interface ImageMessageBlock extends BaseMessageBlock {
-  type: MessageBlockType.IMAGE
-  url?: string
-  file?: FileMetadata
-  metadata?: {
-    prompt?: string
-    negativePrompt?: string
-    generateImageResponse?: GenerateImageResponse
-  }
-}
-```
-
-#### ToolMessageBlock - 工具块
-```typescript
-export interface ToolMessageBlock extends BaseMessageBlock {
-  type: MessageBlockType.TOOL
-  toolId: string
-  toolName?: string
-  arguments?: Record<string, any>
-  content?: string | object
-  metadata?: {
-    rawMcpToolResponse?: MCPToolResponse | NormalToolResponse
-  }
-}
-```
-
-#### CitationMessageBlock - 引用块
-```typescript
-export interface CitationMessageBlock extends BaseMessageBlock {
-  type: MessageBlockType.CITATION
-  response?: WebSearchResponse
-  knowledge?: KnowledgeReference[]
-  memories?: MemoryItem[]
-}
-```
-
----
-
-## 2. 消息与块的关系
-
-### 2.1 Message 结构
-
-位置：[`src/renderer/src/types/newMessage.ts:184-224`](docs/参考项目/cherry-studio-main/src/renderer/src/types/newMessage.ts:184)
-
-```typescript
-export type Message = {
+// Message 结构
+interface Message {
   id: string
   role: 'user' | 'assistant' | 'system'
-  assistantId: string
   topicId: string
-  createdAt: string
-  status: UserMessageStatus | AssistantMessageStatus
+  // ... 其他字段
   
-  // 块集合 - 存储块ID数组
+  // 块集合 - 存储块ID数组，保持顺序
   blocks: MessageBlock['id'][]
-  
-  // 其他元数据...
-  model?: Model
-  usage?: Usage
-  metrics?: Metrics
 }
 ```
 
-**关键设计**：Message 只存储块ID数组，不直接存储块内容，实现了消息和块的解耦。
+**关键设计**：Message 中的 `blocks` 字段是一个 ID 数组，通过数组顺序来维护块的排列顺序。
 
----
+## 3. 块排序规则
 
-## 3. 块创建工具函数
+### 3.1 核心排序机制
 
-位置：[`src/renderer/src/utils/messageUtils/create.ts`](docs/参考项目/cherry-studio-main/src/renderer/src/utils/messageUtils/create.ts)
+**块的添加通过两个步骤完成**：
 
-### 3.1 基础块创建
+1. **`handleBlockTransition`** 调用 `updateMessage` 的 `blockInstruction`
+2. **`updateMessage` reducer** 将块 push 到末尾
 
 ```typescript
-export function createBaseMessageBlock<T extends MessageBlockType>(
-  messageId: string,
-  type: T,
-  overrides: Partial<Omit<BaseMessageBlock, 'id' | 'messageId' | 'type'>> = {}
-): BaseMessageBlock & { type: T } {
-  return {
-    id: uuidv4(),
-    messageId,
-    type,
-    createdAt: new Date().toISOString(),
-    status: MessageBlockStatus.PROCESSING,
-    error: undefined,
-    ...overrides
+// BlockManager.ts - handleBlockTransition
+async handleBlockTransition(newBlock: MessageBlock, newBlockType: MessageBlockType) {
+  // 步骤1: 通过 blockInstruction 添加块
+  this.deps.dispatch(
+    newMessagesActions.updateMessage({
+      topicId: this.deps.topicId,
+      messageId: this.deps.assistantMsgId,
+      updates: { blockInstruction: { id: newBlock.id } }  // 不指定 position
+    })
+  )
+  // ...
+}
+
+// newMessage.ts - updateMessage reducer
+updateMessage(state, action) {
+  if (blockInstruction) {
+    const { id: blockIdToAdd, position } = blockInstruction
+    if (!currentBlocks.includes(blockIdToAdd)) {
+      if (typeof position === 'number' && position >= 0) {
+        currentBlocks.splice(position, 0, blockIdToAdd)  // 指定位置插入
+      } else {
+        currentBlocks.push(blockIdToAdd)  // 默认：追加到末尾！
+      }
+    }
   }
 }
 ```
 
-### 3.2 各类型块创建函数
+### 3.2 关键：所有块按时间顺序追加
 
-- `createMainTextBlock(messageId, content, overrides)` - 创建主文本块
-- `createThinkingBlock(messageId, content, overrides)` - 创建思考块
-- `createImageBlock(messageId, overrides)` - 创建图片块
-- `createCodeBlock(messageId, content, language, overrides)` - 创建代码块
-- `createToolBlock(messageId, toolId, overrides)` - 创建工具块
-- `createCitationBlock(messageId, citationData, overrides)` - 创建引用块
-- `createFileBlock(messageId, file, overrides)` - 创建文件块
-- `createErrorBlock(messageId, errorData, overrides)` - 创建错误块
-- `createVideoBlock(messageId, overrides)` - 创建视频块
-- `createCompactBlock(messageId, content, compactedContent, overrides)` - 创建压缩块
+**实际排序规则：所有新块都追加到数组末尾，保持时间序列顺序。**
 
----
+| 块类型 | 插入位置 | 说明 |
+|--------|----------|------|
+| 所有类型 | 数组末尾 | 按创建时间顺序追加 |
 
-## 4. 块状态管理 (Redux Store)
+> 注意：`upsertBlockReference` 中的 THINKING 前置逻辑是备用机制，在正常流式处理中不会生效，因为 `updateMessage` 先执行完毕后块已存在。
 
-位置：[`src/renderer/src/store/messageBlock.ts`](docs/参考项目/cherry-studio-main/src/renderer/src/store/messageBlock.ts)
+## 4. 多轮工具调用处理流程
 
-### 4.1 实体适配器
+### 4.1 整体架构
 
-使用 Redux Toolkit 的 `createEntityAdapter` 进行规范化状态管理：
-
-```typescript
-const messageBlocksAdapter = createEntityAdapter<MessageBlockEntity>()
-
-const initialState = messageBlocksAdapter.getInitialState({
-  loadingState: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
-  error: null as string | null
-})
+```
+AI SDK Stream
+    ↓
+AiSdkToChunkAdapter (转换层)
+    ↓
+StreamProcessor (分发器)
+    ↓
+Callbacks (各类回调处理器)
+    ↓
+BlockManager (块状态管理)
+    ↓
+Redux Store + Database (持久化)
 ```
 
-### 4.2 Actions
+### 4.2 Chunk 类型与块类型映射
 
 ```typescript
-export const {
-  upsertOneBlock,       // 添加或更新单个块
-  upsertManyBlocks,     // 批量添加或更新块
-  removeOneBlock,       // 移除单个块
-  removeManyBlocks,     // 批量移除块
-  removeAllBlocks,      // 移除所有块
-  updateOneBlock        // 更新块属性
-} = messageBlocksSlice.actions
+// 文件: src/renderer/src/types/chunk.ts
+enum ChunkType {
+  // 文本相关
+  TEXT_START = 'text.start',
+  TEXT_DELTA = 'text.delta',
+  TEXT_COMPLETE = 'text.complete',
+  
+  // 思考相关
+  THINKING_START = 'thinking.start',
+  THINKING_DELTA = 'thinking.delta',
+  THINKING_COMPLETE = 'thinking.complete',
+  
+  // 工具相关
+  MCP_TOOL_CREATED = 'mcp_tool_created',
+  MCP_TOOL_PENDING = 'mcp_tool_pending',
+  MCP_TOOL_IN_PROGRESS = 'mcp_tool_in_progress',
+  MCP_TOOL_COMPLETE = 'mcp_tool_complete',
+  
+  // 搜索相关
+  WEB_SEARCH_IN_PROGRESS = 'web_search_in_progress',
+  WEB_SEARCH_COMPLETE = 'web_search_complete',
+  LLM_WEB_SEARCH_COMPLETE = 'llm_websearch_complete',
+  
+  // 图片相关
+  IMAGE_CREATED = 'image.created',
+  IMAGE_COMPLETE = 'image.complete',
+  
+  // 生命周期
+  LLM_RESPONSE_CREATED = 'llm_response_created',
+  BLOCK_COMPLETE = 'block_complete',
+  ERROR = 'error'
+}
 ```
 
-### 4.3 Selectors
+### 4.3 工具调用处理 (toolCallbacks.ts)
 
 ```typescript
-export const messageBlocksSelectors = messageBlocksAdapter.getSelectors<RootState>(
-  (state) => state.messageBlocks
-)
+// 文件: src/renderer/src/services/messageStreaming/callbacks/toolCallbacks.ts
+
+const createToolCallbacks = (deps: ToolCallbacksDependencies) => {
+  // 维护工具调用ID到块ID的映射
+  const toolCallIdToBlockIdMap = new Map<string, string>()
+  let toolBlockId: string | null = null
+  let citationBlockId: string | null = null
+
+  return {
+    // 工具调用开始(pending状态)
+    onToolCallPending: (toolResponse: MCPToolResponse) => {
+      if (blockManager.hasInitialPlaceholder) {
+        // 使用占位块
+        const changes = {
+          type: MessageBlockType.TOOL,
+          status: MessageBlockStatus.PENDING,
+          toolName: toolResponse.tool.name,
+          metadata: { rawMcpToolResponse: toolResponse }
+        }
+        toolBlockId = blockManager.initialPlaceholderBlockId!
+        blockManager.smartBlockUpdate(toolBlockId, changes, MessageBlockType.TOOL)
+        toolCallIdToBlockIdMap.set(toolResponse.id, toolBlockId)
+      } else {
+        // 创建新的工具块
+        const toolBlock = createToolBlock(assistantMsgId, toolResponse.id, {
+          toolName: toolResponse.tool.name,
+          status: MessageBlockStatus.PENDING,
+          metadata: { rawMcpToolResponse: toolResponse }
+        })
+        toolBlockId = toolBlock.id
+        blockManager.handleBlockTransition(toolBlock, MessageBlockType.TOOL)
+        toolCallIdToBlockIdMap.set(toolResponse.id, toolBlock.id)
+      }
+    },
+
+    // 工具调用完成
+    onToolCallComplete: (toolResponse: MCPToolResponse) => {
+      const existingBlockId = toolCallIdToBlockIdMap.get(toolResponse.id)
+      toolCallIdToBlockIdMap.delete(toolResponse.id)
+
+      if (toolResponse.status === 'done' || toolResponse.status === 'error') {
+        const finalStatus = toolResponse.status === 'done' 
+          ? MessageBlockStatus.SUCCESS 
+          : MessageBlockStatus.ERROR
+
+        const changes = {
+          content: toolResponse.response,
+          status: finalStatus,
+          metadata: { rawMcpToolResponse: toolResponse }
+        }
+        blockManager.smartBlockUpdate(existingBlockId, changes, MessageBlockType.TOOL, true)
+        
+        // 如果是网络搜索工具，创建引用块
+        if (toolResponse.tool.name === 'builtin_web_search' && toolResponse.response) {
+          const citationBlock = createCitationBlock(assistantMsgId, {
+            response: { results: toolResponse.response, source: WebSearchSource.WEBSEARCH }
+          }, { status: MessageBlockStatus.SUCCESS })
+          citationBlockId = citationBlock.id
+          blockManager.handleBlockTransition(citationBlock, MessageBlockType.CITATION)
+        }
+      }
+    }
+  }
+}
 ```
 
----
-
-## 5. 流式处理系统
-
-### 5.1 BlockManager
-
-位置：[`src/renderer/src/services/messageStreaming/BlockManager.ts`](docs/参考项目/cherry-studio-main/src/renderer/src/services/messageStreaming/BlockManager.ts)
-
-BlockManager 负责管理流式消息处理过程中的块状态：
+### 4.4 工具调用 Chunk 处理 (handleToolCallChunk.ts)
 
 ```typescript
-export class BlockManager {
+// 文件: src/renderer/src/aiCore/chunk/handleToolCallChunk.ts
+
+class ToolCallChunkHandler {
+  // 全局活跃工具调用映射
+  private static globalActiveToolCalls = new Map<string, ToolcallsMap>()
+
+  // 处理工具调用事件
+  handleToolCall(chunk: ToolCallChunk) {
+    const { toolCallId, toolName, input: args } = chunk
+    
+    // 确定工具类型
+    let tool: BaseTool
+    if (providerExecuted) {
+      tool = { id: toolCallId, name: toolName, type: 'provider' }
+    } else if (toolName.startsWith('builtin_')) {
+      tool = { id: toolCallId, name: toolName, type: 'builtin' }
+    } else {
+      // MCP工具
+      tool = this.mcpTools.find(t => t.name === toolName) || 
+             { id: toolCallId, name: toolName, type: 'provider' }
+    }
+
+    this.addActiveToolCall(toolCallId, { toolCallId, toolName, args, tool })
+    
+    // 发送 PENDING chunk
+    this.onChunk({
+      type: ChunkType.MCP_TOOL_PENDING,
+      responses: [{
+        id: toolCallId,
+        tool,
+        arguments: args,
+        status: 'pending',
+        toolCallId
+      }]
+    })
+  }
+
+  // 处理工具结果
+  handleToolResult(chunk: ToolResultChunk) {
+    const { toolCallId, output } = chunk
+    const toolCallInfo = this.activeToolCalls.get(toolCallId)
+    
+    const toolResponse = {
+      id: toolCallInfo.toolCallId,
+      tool: toolCallInfo.tool,
+      arguments: input,
+      status: 'done',
+      response: output,
+      toolCallId
+    }
+
+    this.activeToolCalls.delete(toolCallId)
+    
+    // 发送完成 chunk
+    this.onChunk({
+      type: ChunkType.MCP_TOOL_COMPLETE,
+      responses: [toolResponse]
+    })
+  }
+}
+```
+
+## 5. BlockManager 核心逻辑
+
+### 5.1 BlockManager 结构
+
+```typescript
+// 文件: src/renderer/src/services/messageStreaming/BlockManager.ts
+
+class BlockManager {
+  // 当前活跃块信息
   private _activeBlockInfo: ActiveBlockInfo | null = null
+  // 上一个块类型(用于错误处理和块类型转换判断)
   private _lastBlockType: MessageBlockType | null = null
 
-  // 智能更新策略：根据块类型连续性自动判断使用节流还是立即更新
+  // 智能更新策略
   smartBlockUpdate(
     blockId: string,
     changes: Partial<MessageBlock>,
     blockType: MessageBlockType,
     isComplete: boolean = false
   ) {
-    // 如果块类型改变或完成，立即更新
-    // 否则使用节流更新
+    const isBlockTypeChanged = this._lastBlockType !== null && 
+                               this._lastBlockType !== blockType
+
+    if (isBlockTypeChanged || isComplete) {
+      // 块类型改变或完成时，立即更新
+      if (isBlockTypeChanged && this._activeBlockInfo) {
+        this.deps.cancelThrottledBlockUpdate(this._activeBlockInfo.id)
+      }
+      if (isComplete) {
+        this.deps.cancelThrottledBlockUpdate(blockId)
+        this._activeBlockInfo = null
+      } else {
+        this._activeBlockInfo = { id: blockId, type: blockType }
+      }
+      this.deps.dispatch(updateOneBlock({ id: blockId, changes }))
+      this.deps.saveUpdatedBlockToDB(blockId, ...)
+      this._lastBlockType = blockType
+    } else {
+      // 同类型流式更新时使用节流
+      this._activeBlockInfo = { id: blockId, type: blockType }
+      this.deps.throttledBlockUpdate(blockId, changes)
+    }
   }
 
-  // 处理块转换
+  // 处理块转换(创建新块)
   async handleBlockTransition(newBlock: MessageBlock, newBlockType: MessageBlockType) {
-    // 更新消息的block引用
-    // 保存到数据库
+    this._lastBlockType = newBlockType
+    this._activeBlockInfo = { id: newBlock.id, type: newBlockType }
+
+    // 更新消息中的块列表
+    this.deps.dispatch(newMessagesActions.updateMessage({
+      topicId: this.deps.topicId,
+      messageId: this.deps.assistantMsgId,
+      updates: { blockInstruction: { id: newBlock.id } }
+    }))
+    
+    // 添加块到 store
+    this.deps.dispatch(upsertOneBlock(newBlock))
+    
+    // 触发排序逻辑
+    this.deps.dispatch(newMessagesActions.upsertBlockReference({
+      messageId: this.deps.assistantMsgId,
+      blockId: newBlock.id,
+      status: newBlock.status,
+      blockType: newBlock.type  // 这里传入块类型，排序逻辑在 reducer 中
+    }))
+
+    // 持久化到数据库
+    await this.deps.saveUpdatesToDB(...)
   }
 }
 ```
 
-### 5.2 回调系统
-
-位置：[`src/renderer/src/services/messageStreaming/callbacks/`](docs/参考项目/cherry-studio-main/src/renderer/src/services/messageStreaming/callbacks/)
-
-#### 回调类型：
-
-1. **baseCallbacks** - 基础回调
-   - `onLLMResponseCreated()` - 创建占位符块
-   - `onError()` - 处理错误
-   - `onComplete()` - 完成处理
-
-2. **textCallbacks** - 文本回调
-   - `onTextStart()` - 文本开始
-   - `onTextChunk(text)` - 接收文本片段
-   - `onTextComplete(finalText)` - 文本完成
-
-3. **thinkingCallbacks** - 思考回调
-   - `onThinkingStart()` - 思考开始
-   - `onThinkingChunk(text)` - 接收思考内容
-   - `onThinkingComplete(finalText)` - 思考完成
-
-4. **toolCallbacks** - 工具回调
-   - `onToolCallPending(toolResponse)` - 工具调用等待
-   - `onToolCallComplete(toolResponse)` - 工具调用完成
-
-5. **imageCallbacks** - 图片回调
-   - `onImageCreated()` - 图片创建
-   - `onImageDelta(imageData)` - 图片数据更新
-   - `onImageGenerated(imageData)` - 图片生成完成
-
-6. **citationCallbacks** - 引用回调
-7. **videoCallbacks** - 视频回调
-8. **compactCallbacks** - 压缩命令回调
-
----
-
-## 6. Chunk 类型定义
-
-位置：[`src/renderer/src/types/chunk.ts`](docs/参考项目/cherry-studio-main/src/renderer/src/types/chunk.ts)
-
-Chunk 是流式处理的基本单元，用于在 AI 响应过程中传递数据：
+### 5.2 节流更新机制
 
 ```typescript
-export enum ChunkType {
-  BLOCK_CREATED = 'block_created',
-  TEXT_START = 'text.start',
-  TEXT_DELTA = 'text.delta',
-  TEXT_COMPLETE = 'text.complete',
-  THINKING_START = 'thinking.start',
-  THINKING_DELTA = 'thinking.delta',
-  THINKING_COMPLETE = 'thinking.complete',
-  IMAGE_CREATED = 'image.created',
-  IMAGE_DELTA = 'image.delta',
-  IMAGE_COMPLETE = 'image.complete',
-  MCP_TOOL_CREATED = 'mcp_tool_created',
-  MCP_TOOL_PENDING = 'mcp_tool_pending',
-  MCP_TOOL_COMPLETE = 'mcp_tool_complete',
-  // ... 更多类型
+// 文件: src/renderer/src/store/thunk/messageThunk.ts
+
+// 使用 LRU Cache 管理节流器
+const blockUpdateThrottlers = new LRUCache<string, ReturnType<typeof throttle>>({
+  max: 100,
+  ttl: 1000 * 60 * 5
+})
+
+const getBlockThrottler = (id: string) => {
+  if (!blockUpdateThrottlers.has(id)) {
+    const throttler = throttle(async (blockUpdate: any) => {
+      const rafId = requestAnimationFrame(() => {
+        store.dispatch(updateOneBlock({ id, changes: blockUpdate }))
+      })
+      await updateSingleBlockV2(id, blockUpdate)
+    }, 150)  // 150ms 节流间隔
+    
+    blockUpdateThrottlers.set(id, throttler)
+  }
+  return blockUpdateThrottlers.get(id)!
 }
 ```
 
----
+## 6. 多轮工具调用的完整流程
 
-## 7. 块渲染组件
+### 6.1 时序图
 
-### 7.1 MessageBlockRenderer
+```mermaid
+sequenceDiagram
+    participant AI as AI Model
+    participant Adapter as AiSdkToChunkAdapter
+    participant Stream as StreamProcessor
+    participant TC as ToolCallbacks
+    participant BM as BlockManager
+    participant Store as Redux Store
+    participant DB as Database
 
-位置：[`src/renderer/src/pages/home/Messages/Blocks/index.tsx`](docs/参考项目/cherry-studio-main/src/renderer/src/pages/home/Messages/Blocks/index.tsx)
+    AI->>Adapter: tool-call event
+    Adapter->>Stream: MCP_TOOL_PENDING chunk
+    Stream->>TC: onToolCallPending
+    TC->>BM: handleBlockTransition - create TOOL block
+    BM->>Store: upsertOneBlock
+    BM->>Store: upsertBlockReference - add to blocks array
+    BM->>DB: saveUpdatesToDB
+    
+    AI->>Adapter: tool-result event
+    Adapter->>Stream: MCP_TOOL_COMPLETE chunk
+    Stream->>TC: onToolCallComplete
+    TC->>BM: smartBlockUpdate - update TOOL block status
+    BM->>Store: updateOneBlock
+    BM->>DB: saveUpdatedBlockToDB
+    
+    Note over TC: If web_search tool
+    TC->>BM: handleBlockTransition - create CITATION block
+    BM->>Store: upsertOneBlock
+    BM->>Store: upsertBlockReference - add to blocks array
+    
+    AI->>Adapter: text-delta event
+    Adapter->>Stream: TEXT_DELTA chunk
+    Stream->>TC: onTextChunk
+    TC->>BM: smartBlockUpdate - update MAIN_TEXT block
+    BM->>Store: throttledBlockUpdate
+```
 
-核心渲染组件，根据块类型分发到对应的子组件：
+### 6.2 典型的块顺序示例
+
+对于一个包含思考、工具调用和文本回复的助手消息：
+
+```
+Message.blocks = [
+  'thinking-block-1',    // 思考块(始终在最前)
+  'tool-block-1',        // 第一个工具调用
+  'citation-block-1',    // 第一个工具的引用结果
+  'tool-block-2',        // 第二个工具调用
+  'citation-block-2',    // 第二个工具的引用结果
+  'main-text-block-1'    // 主文本回复
+]
+```
+
+## 7. 数据持久化
+
+### 7.1 存储结构
+
+- **消息存储**: `db.topics` - 每个话题包含完整的消息列表
+- **块存储**: `db.message_blocks` - 独立存储所有消息块
+
+### 7.2 更新策略
 
 ```typescript
-const MessageBlockRenderer: React.FC<Props> = ({ blocks, message }) => {
-  const blockEntities = useSelector(messageBlocksSelectors.selectEntities)
-  const renderedBlocks = blocks.map((blockId) => blockEntities[blockId]).filter(Boolean)
-  const groupedBlocks = groupSimilarBlocks(renderedBlocks) // 分组相似块(如连续图片)
+// 流式更新时使用节流
+const saveUpdatedBlockToDB = async (blockId, messageId, topicId, getState) => {
+  const blockToSave = getState().messageBlocks.entities[blockId]
+  await saveUpdatesToDB(messageId, topicId, {}, [blockToSave])
+}
 
-  return (
-    <AnimatePresence mode="sync">
-      {groupedBlocks.map((block) => {
-        switch (block.type) {
-          case MessageBlockType.MAIN_TEXT:
-            return <MainTextBlock block={block} />
-          case MessageBlockType.THINKING:
-            return <ThinkingBlock block={block} />
-          case MessageBlockType.IMAGE:
-            return <ImageBlock block={block} />
-          case MessageBlockType.TOOL:
-            return <ToolBlock block={block} />
-          case MessageBlockType.CITATION:
-            return <CitationBlock block={block} />
-          case MessageBlockType.ERROR:
-            return <ErrorBlock block={block} message={message} />
-          // ... 更多类型
-        }
-      })}
-    </AnimatePresence>
-  )
+// 块转换时立即保存
+const saveUpdatesToDB = async (messageId, topicId, messageUpdates, blocksToUpdate) => {
+  await updateExistingMessageAndBlocksInDB({
+    id: messageId,
+    topicId,
+    ...messageUpdates
+  }, blocksToUpdate)
 }
 ```
 
-### 7.2 块分组策略
+## 8. 关键设计要点
+
+### 8.1 占位块机制
+
+当 LLM 响应开始时，会创建一个 `UNKNOWN` 类型的占位块：
 
 ```typescript
-const groupSimilarBlocks = (blocks: MessageBlock[]): (MessageBlock[] | MessageBlock)[] => {
-  // 对于 IMAGE 类型，按连续分组
-  // 对于 VIDEO 类型，按相同 filePath 分组
-  // 其他类型不分组
+onLLMResponseCreated: async () => {
+  const baseBlock = createBaseMessageBlock(assistantMsgId, MessageBlockType.UNKNOWN, {
+    status: MessageBlockStatus.PROCESSING
+  })
+  await blockManager.handleBlockTransition(baseBlock, MessageBlockType.UNKNOWN)
 }
 ```
 
-### 7.3 各类型块组件
+后续第一个实际内容块会复用这个占位块：
 
-| 组件 | 文件 | 用途 |
-|------|------|------|
-| `MainTextBlock` | `MainTextBlock.tsx` | 渲染主文本，支持 Markdown |
-| `ThinkingBlock` | `ThinkingBlock.tsx` | 可折叠的思考过程展示 |
-| `ImageBlock` | `ImageBlock.tsx` | 图片展示，支持预览 |
-| `ToolBlock` | `ToolBlock.tsx` | 工具调用展示 |
-| `CitationBlock` | `CitationBlock.tsx` | 引用来源展示 |
-| `ErrorBlock` | `ErrorBlock.tsx` | 错误信息展示 |
-| `FileBlock` | `FileBlock.tsx` | 文件附件展示 |
-| `VideoBlock` | `VideoBlock.tsx` | 视频播放 |
-| `TranslationBlock` | `TranslationBlock.tsx` | 翻译内容展示 |
-| `CompactBlock` | `CompactBlock.tsx` | 压缩内容展示 |
-| `PlaceholderBlock` | `PlaceholderBlock.tsx` | 加载占位符 |
-
----
-
-## 8. 架构设计总结
-
-### 8.1 设计模式
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       Message                                │
-│  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐              │
-│  │Block│  │Block│  │Block│  │Block│  │Block│   ...        │
-│  │ ID  │  │ ID  │  │ ID  │  │ ID  │  │ ID  │              │
-│  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘  └──┬──┘              │
-└─────┼────────┼────────┼────────┼────────┼───────────────────┘
-      │        │        │        │        │
-      ▼        ▼        ▼        ▼        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Redux Store (messageBlocks)               │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│  │MainText │ │Thinking │ │  Image  │ │  Tool   │   ...    │
-│  │  Block  │ │  Block  │ │  Block  │ │  Block  │          │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
-└─────────────────────────────────────────────────────────────┘
+```typescript
+if (blockManager.hasInitialPlaceholder) {
+  // 直接更新占位块的类型和内容
+  const changes = { type: MessageBlockType.MAIN_TEXT, content: '', ... }
+  blockManager.smartBlockUpdate(placeholderBlockId, changes, ...)
+}
 ```
 
-### 8.2 核心优势
+### 8.2 块类型转换检测
 
-1. **类型安全** - 使用 TypeScript 严格类型定义，每种块类型有专属接口
-2. **状态解耦** - Message 只存储块ID，块内容单独存储在 Redux Store
-3. **流式支持** - BlockManager + Callbacks 架构支持复杂的流式处理
-4. **可扩展性** - 添加新块类型只需：定义类型 → 创建函数 → 回调 → 渲染组件
-5. **性能优化** - 智能更新策略，支持节流和即时更新
-6. **组件复用** - 每种块类型对应独立组件，职责单一
+BlockManager 通过 `lastBlockType` 跟踪块类型变化：
 
-### 8.3 数据流
+```typescript
+const isBlockTypeChanged = this._lastBlockType !== null && 
+                           this._lastBlockType !== blockType
 
-```
-AI Response → Chunks → Callbacks → BlockManager → Redux Store → React Components
-     │            │         │             │              │              │
-     ▼            ▼         ▼             ▼              ▼              ▼
-  原始数据    事件类型   状态更新     块转换/更新     规范化存储      UI渲染
+if (isBlockTypeChanged) {
+  // 取消上一个块的节流更新
+  this.deps.cancelThrottledBlockUpdate(this._activeBlockInfo.id)
+  // 立即同步当前更新
+  this.deps.dispatch(updateOneBlock({ id: blockId, changes }))
+}
 ```
 
----
+### 8.3 工具调用追踪
 
-## 9. 与 AetherLink 的对比
+使用 Map 结构追踪工具调用：
 
-| 特性 | Cherry Studio | AetherLink 当前 |
-|------|---------------|-----------------|
-| 块类型系统 | 完整的枚举定义 | 需要实现 |
-| 状态管理 | Redux EntityAdapter | 待确定 |
-| 流式处理 | BlockManager + Callbacks | 需要设计 |
-| 组件渲染 | 类型驱动的组件分发 | 需要重构 |
+```typescript
+// 全局追踪(跨实例共享)
+private static globalActiveToolCalls = new Map<string, ToolcallsMap>()
 
----
+// 实例级追踪(块ID映射)
+const toolCallIdToBlockIdMap = new Map<string, string>()
+```
 
-## 10. 建议实施步骤
+## 9. 总结
 
-1. **类型定义** - 参照 `newMessage.ts` 定义块类型
-2. **创建工具** - 参照 `create.ts` 实现块创建函数
-3. **状态管理** - 参照 `messageBlock.ts` 设置 Redux slice
-4. **流式处理** - 参照 BlockManager 和 callbacks 实现流式支持
-5. **渲染组件** - 参照 Blocks 目录实现各类型渲染组件
+Cherry Studio 的消息块排序保存逻辑具有以下特点：
+
+1. **类型优先排序**: THINKING 块始终放在最前面，其他块按创建顺序追加
+2. **智能更新策略**: 块类型改变或完成时立即更新，同类型流式时节流更新
+3. **占位块机制**: 避免频繁创建/删除块，提高性能
+4. **分层架构**: Chunk(传输层) → Callbacks(业务层) → BlockManager(状态层) → Store(持久层)
+5. **工具调用追踪**: 通过 Map 结构关联工具调用ID与块ID
+6. **引用块关联**: 工具完成后自动创建相关的 Citation 块
+
+这套设计使得多轮工具调用中的各种信息块能够有序地呈现给用户，同时保证了良好的性能和数据一致性。

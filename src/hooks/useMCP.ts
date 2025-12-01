@@ -35,7 +35,7 @@ export const useMCP = (): MCPState & MCPActions => {
     tools: [],
     prompts: [],
     resources: [],
-    mode: 'function',
+    mode: 'prompt',
     enabled: false,
     loading: false
   });
@@ -49,7 +49,7 @@ export const useMCP = (): MCPState & MCPActions => {
 
         setState(prev => ({
           ...prev,
-          mode: savedMode || 'function',
+          mode: savedMode || 'prompt',
           enabled: savedEnabled !== null ? JSON.parse(savedEnabled) : false
         }));
       } catch (error) {

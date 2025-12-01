@@ -1,6 +1,7 @@
 import { createEntityAdapter, createSlice, createSelector, createAsyncThunk } from '@reduxjs/toolkit';
 import type { EntityState, PayloadAction } from '@reduxjs/toolkit';
-import type { Message, AssistantMessageStatus } from '../../types/newMessage.ts';
+import type { Message } from '../../types/newMessage.ts';
+import { MessageBlockType, MessageBlockStatus, AssistantMessageStatus } from '../../types/newMessage';
 import type { RootState } from '../index';
 import { dexieStorage } from '../../services/storage/DexieStorageService';
 import { topicCacheManager } from '../../services/TopicCacheManager';
@@ -84,9 +85,18 @@ interface AddMessagePayload {
   message: Message;
 }
 
+// 参考 Cherry Studio: 支持 blockInstruction 用于添加块引用
 interface UpdateMessagePayload {
-  id: string;
-  changes: Partial<Message>;
+  topicId?: string;  // 可选，用于日志
+  messageId?: string;  // 兼容旧格式
+  id?: string;  // 兼容旧格式
+  changes?: Partial<Message>;  // 兼容旧格式
+  updates?: Partial<Message> & {
+    blockInstruction?: {
+      id: string;
+      position?: number;  // 可选：指定插入位置，不传则追加到末尾
+    };
+  };
 }
 
 interface UpdateMessageStatusPayload {
@@ -117,10 +127,12 @@ interface ClearApiKeyErrorPayload {
 }
 
 // 添加块引用的Payload类型
+// 参考 Cherry Studio: 统一追加到末尾，依赖占位块机制保证时间顺序
 interface UpsertBlockReferencePayload {
   messageId: string;
   blockId: string;
-  status?: string;
+  status?: MessageBlockStatus;
+  blockType?: MessageBlockType;  // 保留用于日志/调试
 }
 
 // 4. 创建 Slice
@@ -268,11 +280,49 @@ const newMessagesSlice = createSlice({
     },
 
     // 更新消息
+    // 参考 Cherry Studio: 支持 blockInstruction 用于添加块引用
     updateMessage(state, action: PayloadAction<UpdateMessagePayload>) {
-      messagesAdapter.updateOne(state, {
-        id: action.payload.id,
-        changes: action.payload.changes
-      });
+      // 兼容旧格式和新格式
+      const messageId = action.payload.messageId || action.payload.id;
+      const updates = action.payload.updates || action.payload.changes;
+      
+      if (!messageId || !updates) {
+        return;
+      }
+
+      const { blockInstruction, ...otherUpdates } = updates as any;
+
+      if (blockInstruction) {
+        // Cherry Studio 逻辑：处理块指令
+        const messageToUpdate = state.entities[messageId];
+        if (messageToUpdate) {
+          const { id: blockIdToAdd, position } = blockInstruction;
+          const currentBlocks = [...(messageToUpdate.blocks || [])];
+          
+          if (!currentBlocks.includes(blockIdToAdd)) {
+            if (typeof position === 'number' && position >= 0 && position <= currentBlocks.length) {
+              currentBlocks.splice(position, 0, blockIdToAdd);
+            } else {
+              currentBlocks.push(blockIdToAdd);
+            }
+            messagesAdapter.updateOne(state, { 
+              id: messageId, 
+              changes: { ...otherUpdates, blocks: currentBlocks } 
+            });
+          } else {
+            // 块已存在，只更新其他字段
+            if (Object.keys(otherUpdates).length > 0) {
+              messagesAdapter.updateOne(state, { id: messageId, changes: otherUpdates });
+            }
+          }
+        }
+      } else {
+        // 普通更新
+        messagesAdapter.updateOne(state, {
+          id: messageId,
+          changes: otherUpdates
+        });
+      }
     },
 
     // 删除消息
@@ -302,27 +352,46 @@ const newMessagesSlice = createSlice({
       state.messageIdsByTopic[topicId] = [];
     },
 
-    // 添加或更新块引用（按流式接收顺序追加到末尾）
+    // 添加或更新块引用
+    // 🔧 修复：参考 Cherry Studio newMessage.ts:163 - 统一追加到末尾保持时间顺序
+    // 多轮迭代时，占位块机制已保证每轮第一个块位置正确，不需要额外排序
     upsertBlockReference(state, action: PayloadAction<UpsertBlockReferencePayload>) {
-      const { messageId, blockId } = action.payload;
+      const { messageId, blockId, status } = action.payload;
 
       const messageToUpdate = state.entities[messageId];
       if (!messageToUpdate) {
+        console.warn(`[upsertBlockReference] 消息 ${messageId} 不存在`);
         return;
       }
 
+      const changes: Partial<Message> = {};
       const currentBlocks = messageToUpdate.blocks || [];
 
-      // 如果块ID已在列表中，不重复添加
-      if (currentBlocks.includes(blockId)) {
-        return;
+      // 1. 更新块ID列表（如果不存在）- 统一追加到末尾
+      if (!currentBlocks.includes(blockId)) {
+        // 🔧 修复：移除 THINKING 前置逻辑，统一追加到末尾（参考 Cherry Studio）
+        // 占位块机制已保证每轮第一个块（通常是 THINKING）位置正确
+        changes.blocks = [...currentBlocks, blockId];
       }
 
-      // 按流式顺序追加到末尾
-      messagesAdapter.updateOne(state, {
-        id: messageId,
-        changes: { blocks: [...currentBlocks, blockId] }
-      });
+      // 2. 根据块状态更新消息状态（参考 Cherry Studio）
+      if (status) {
+        if (
+          (status === MessageBlockStatus.PROCESSING || status === MessageBlockStatus.STREAMING) &&
+          messageToUpdate.status !== AssistantMessageStatus.PROCESSING &&
+          messageToUpdate.status !== AssistantMessageStatus.SUCCESS &&
+          messageToUpdate.status !== AssistantMessageStatus.ERROR
+        ) {
+          changes.status = AssistantMessageStatus.PROCESSING;
+        } else if (status === MessageBlockStatus.ERROR) {
+          changes.status = AssistantMessageStatus.ERROR;
+        }
+      }
+
+      // 3. 应用更新
+      if (Object.keys(changes).length > 0) {
+        messagesAdapter.updateOne(state, { id: messageId, changes });
+      }
     }
   }
 });

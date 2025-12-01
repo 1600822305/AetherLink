@@ -17,10 +17,29 @@ import { ChunkType } from './types/chunk';
 import type { SdkModel } from './types/sdk';
 import type { Model } from '../types';
 
+// 导入适配器
+import { OpenAIToAiSdkAdapter } from './adapters/OpenAIToAiSdkAdapter';
+import { AiSdkToChunkAdapter } from './adapters/AiSdkToChunkAdapter';
+import type { MCPTool as AdapterMCPTool } from './adapters/ToolCallChunkHandler';
+
 // 导入现有的 MCP 提示词构建函数
 import { buildSystemPrompt } from '../utils/mcpPrompt';
 // 导入 MCP 工具调用相关函数
 import { parseToolUse, parseAndCallTools, hasToolUseTags } from '../utils/mcpToolParser';
+
+// 导入新的中间件系统
+import {
+  CompletionsMiddlewareBuilder,
+  applyCompletionsMiddlewares,
+  MiddlewareRegistry,
+  type CompletionsParams as MiddlewareCompletionsParams,
+} from './middleware';
+
+// 图片生成模型判断
+import { MIDDLEWARE_NAME as FinalChunkConsumerMiddlewareName } from './middleware/common/FinalChunkConsumerMiddleware';
+import { MIDDLEWARE_NAME as ErrorHandlerMiddlewareName } from './middleware/common/ErrorHandlerMiddleware';
+import { MIDDLEWARE_NAME as AbortHandlerMiddlewareName } from './middleware/common/AbortHandlerMiddleware';
+import { MIDDLEWARE_NAME as ImageGenerationMiddlewareName } from './middleware/feat/ImageGenerationMiddleware';
 
 // ==================== Types ====================
 
@@ -165,7 +184,9 @@ export default class AiProvider {
 
   /**
    * 执行 Completions 请求
-   * 核心方法，处理流式/非流式响应
+   * 使用适配器链处理流式响应（参考 Cherry Studio 架构）
+   * 
+   * 流程：OpenAIClient → OpenAIToAiSdkAdapter → AiSdkToChunkAdapter → Chunk 回调
    */
   public async completions(
     params: CompletionsParams,
@@ -188,41 +209,35 @@ export default class AiProvider {
 
     console.log(`[AiProvider] completions - Model: ${model.id}, Stream: ${streamOutput}`);
 
-    // 累积的结果
-    let accumulatedText = '';
-    let accumulatedReasoning = '';
+    // 用于存储最终结果
+    let finalText = '';
+    let finalReasoning = '';
     let usage: CompletionsResult['usage'];
-    
-    // 🔧 思考时间跟踪
-    let thinkingStartTime = 0;
-    let hasStartedThinking = false;
-    // 🔧 文本开始标志（参考 Cherry Studio）
-    let hasStartedText = false;
 
     try {
-      // 1. 转换消息格式（传入 mcpTools 和 mcpMode 支持提示词注入）
+      // 1. 转换消息格式
       const sdkMessages = this.transformMessages(messages, assistant, mcpTools, params.mcpMode);
 
       // 2. 构建 SDK 请求参数
       const transformer = this.apiClient.getRequestTransformer();
       const sdkPayload = transformer.transform({
+        // 传递完整消息对象，包括 images 等属性
         messages: sdkMessages.map((m, i) => ({
+          ...m,
           id: m.id || `msg-${i}`,
-          role: m.role,
-          content: m.content,
         })),
         assistant,
-        mcpTools: mcpTools?.map(t => ({
+        mcpTools: params.mcpMode === 'prompt' ? [] : mcpTools?.map(t => ({
           ...t,
           serverName: t.serverId || 'unknown',
         })) as any,
-        enableToolUse: !!mcpTools?.length,
+        enableToolUse: params.mcpMode === 'prompt' ? false : !!mcpTools?.length,
+        mcpMode: params.mcpMode,
       });
       
-      // 🔧 设置流式输出
       (sdkPayload as any).stream = streamOutput;
 
-      // 3. 发送 LLM_RESPONSE_CREATED
+      // 3. 发送 LLM_RESPONSE_CREATED（适配器内部不会发送这个）
       if (onChunk) {
         await onChunk({ type: ChunkType.LLM_RESPONSE_CREATED });
       }
@@ -233,119 +248,56 @@ export default class AiProvider {
         { signal: options?.signal || params.abortSignal }
       );
 
-      // 5. 处理流式响应
-      // 🔧 参照 Cherry Studio ThinkChunkMiddleware 的设计：
-      // - THINKING_DELTA.text 是累积的完整内容，不是增量
-      // - 收到非思考 chunk 时才发送 THINKING_COMPLETE
-      for await (const rawChunk of rawStream as AsyncIterable<any>) {
-        // 🔧 调试：打印原始 chunk
-        if (!streamOutput) {
-          console.log(`[AiProvider] 非流式 rawChunk:`, JSON.stringify(rawChunk).substring(0, 500));
+      // 5. 创建 onChunk 回调
+      const chunkCallback = (chunk: Chunk) => {
+        // 收集结果（使用累积的文本）
+        if (chunk.type === ChunkType.TEXT_DELTA) {
+          finalText += (chunk as any).text || '';
+        }
+        if (chunk.type === ChunkType.THINKING_DELTA) {
+          finalReasoning += (chunk as any).text || '';
+        }
+        if (chunk.type === ChunkType.LLM_RESPONSE_COMPLETE && (chunk as any).response?.usage) {
+          usage = (chunk as any).response.usage;
         }
         
-        // 解析 chunk，不传 onChunk（由我们统一处理）
-        const result = this.processChunk(rawChunk);
-        
-        // 🔧 调试：打印解析结果
-        if (!streamOutput) {
-          console.log(`[AiProvider] 非流式解析结果:`, { text: result.text?.substring(0, 100), reasoning: result.reasoning?.substring(0, 100) });
-        }
-        
-        // 处理思考内容
-        if (result.reasoning) {
-          // 第一次接收到思考内容时记录开始时间
-          if (!hasStartedThinking) {
-            hasStartedThinking = true;
-            thinkingStartTime = Date.now();
-            // 🔧 只在流式模式下发送 THINKING_START（非流式不需要多轮重置）
-            console.log('[AiProvider] 准备发送 THINKING_START', { onChunk: !!onChunk, streamOutput });
-            if (onChunk && streamOutput) {
-              await onChunk({ type: ChunkType.THINKING_START } as Chunk);
-              console.log('[AiProvider] THINKING_START 已发送');
-            }
-          }
-          
-          // 累积思考内容
-          accumulatedReasoning += result.reasoning;
-          
-          // 🔧 关键：发送的 text 是累积内容，不是增量
-          // 非流式模式直接发送 THINKING_COMPLETE（因为一次性完成）
-          if (onChunk) {
-            if (streamOutput) {
-              await onChunk({
-                type: ChunkType.THINKING_DELTA,
-                text: accumulatedReasoning,
-                thinking_millsec: Date.now() - thinkingStartTime,
-              } as Chunk);
-            }
-            // 非流式模式的思考内容在处理文本时一起发送 THINKING_COMPLETE
-          }
-        }
-        
-        // 处理文本内容
-        if (result.text) {
-          // 🔧 收到文本时，如果之前有思考内容，先发送 THINKING_COMPLETE
-          if (hasStartedThinking && thinkingStartTime > 0) {
-            if (onChunk) {
-              await onChunk({
-                type: ChunkType.THINKING_COMPLETE,
-                text: accumulatedReasoning,
-                thinking_millsec: Date.now() - thinkingStartTime,
-              } as Chunk);
-            }
-            // 重置思考状态
-            hasStartedThinking = false;
-            thinkingStartTime = 0;
-          }
-          
-          // 🔧 参考 Cherry Studio：第一次发送文本前，先发送 TEXT_START
-          if (!hasStartedText && streamOutput) {
-            hasStartedText = true;
-            console.log('[AiProvider] 准备发送 TEXT_START', { onChunk: !!onChunk, streamOutput });
-            if (onChunk) {
-              await onChunk({ type: ChunkType.TEXT_START } as Chunk);
-              console.log('[AiProvider] TEXT_START 已发送');
-            }
-          }
-          
-          accumulatedText += result.text;
-          if (onChunk) {
-            // 🔧 非流式模式发送 TEXT_COMPLETE，流式模式发送 TEXT_DELTA
-            // 参考 Cherry Studio：发送累积的文本，不是增量
-            await onChunk({
-              type: streamOutput ? ChunkType.TEXT_DELTA : ChunkType.TEXT_COMPLETE,
-              text: accumulatedText,
-            } as Chunk);
-          }
-        }
-        
-        if (result.usage) {
-          usage = result.usage;
-        }
-      }
-      
-      // 🔧 流结束后，如果还有未完成的思考内容，发送 THINKING_COMPLETE
-      if (hasStartedThinking && thinkingStartTime > 0 && accumulatedReasoning) {
+        // 转发给外部回调
         if (onChunk) {
-          await onChunk({
-            type: ChunkType.THINKING_COMPLETE,
-            text: accumulatedReasoning,
-            thinking_millsec: Date.now() - thinkingStartTime,
-          } as Chunk);
+          onChunk(chunk);
         }
-        hasStartedThinking = false;
-        thinkingStartTime = 0;
+      };
+
+      console.log('[AiProvider] 开始处理流..., Provider:', this.provider.type);
+
+      // 6. 根据 provider 类型选择不同的流处理方式
+      const providerType = this.provider.type?.toLowerCase() || '';
+      
+      if (providerType === 'gemini' || providerType === 'google') {
+        // Gemini 专用处理（对标 Cherry Studio）
+        await this.processGeminiStream(rawStream as AsyncIterable<any>, chunkCallback);
+      } else {
+        // OpenAI 兼容格式 → AI SDK 格式 → Chunk 事件
+        const openAIAdapter = new OpenAIToAiSdkAdapter();
+        const aiSdkResult = await openAIAdapter.convertToAiSdkStream(rawStream as AsyncIterable<any>);
+        
+        const chunkAdapter = new AiSdkToChunkAdapter(
+          chunkCallback,
+          mcpTools as AdapterMCPTool[],
+          true,
+          params.enableWebSearch
+        );
+        
+        await chunkAdapter.processStream(aiSdkResult);
       }
 
       // 6. 检查是否需要处理工具调用（提示词注入模式的多轮工具调用）
       if (params.mcpMode === 'prompt' && mcpTools && mcpTools.length > 0) {
-        const hasTools = hasToolUseTags(accumulatedText, mcpTools as any);
+        const hasTools = hasToolUseTags(finalText, mcpTools as any);
         
         if (hasTools) {
           console.log(`[AiProvider] 🔧 检测到工具调用，开始执行...`);
           
-          // 解析工具调用
-          const toolResponses = parseToolUse(accumulatedText, mcpTools as any);
+          const toolResponses = parseToolUse(finalText, mcpTools as any);
           
           if (toolResponses.length > 0) {
             console.log(`[AiProvider] 解析出 ${toolResponses.length} 个工具调用`);
@@ -365,44 +317,27 @@ export default class AiProvider {
             
             console.log(`[AiProvider] 🔄 递归调用 LLM，传递工具结果...`);
             
-            // 🔧 发送当前轮响应完成信号
-            if (onChunk) {
-              onChunk({
-                type: ChunkType.LLM_RESPONSE_COMPLETE,
-                response: { id: 'tool-call-response', content: accumulatedText },
-              } as Chunk);
-            }
-            
-            // 构建递归调用的消息（不包含系统提示词，因为递归时会重新构建）
+            // 构建递归消息
             const originalMessages = Array.isArray(messages) ? messages : [{ role: 'user' as const, content: messages }];
             const newMessages: Message[] = [
               ...originalMessages,
-              { role: 'assistant', content: accumulatedText },
+              { role: 'assistant', content: finalText },
               { role: 'user', content: toolResultsText }
             ];
             
-            // 递归调用（最多递归 5 次防止无限循环）
+            // 递归调用（最多 5 次）
             const recursionDepth = (params as any)._recursionDepth || 0;
             if (recursionDepth < 5) {
-              // 🔧 发送新一轮响应开始信号
-              if (onChunk) {
-                await onChunk({ type: ChunkType.LLM_RESPONSE_CREATED } as Chunk);
-              }
-              
               const recursiveResult = await this.completions({
                 ...params,
                 messages: newMessages,
                 _recursionDepth: recursionDepth + 1,
               } as any, options);
               
-              // 合并结果（不再简单拼接，因为每轮都是独立的）
-              const finalText = recursiveResult.getText();
-              const finalReasoning = recursiveResult.getReasoning();
-              
               return {
-                getText: () => finalText,
-                getReasoning: () => finalReasoning || undefined,
-                usage,
+                getText: () => recursiveResult.getText(),
+                getReasoning: () => recursiveResult.getReasoning(),
+                usage: recursiveResult.usage || usage,
               };
             } else {
               console.warn(`[AiProvider] ⚠️ 达到最大递归深度，停止工具调用`);
@@ -411,39 +346,20 @@ export default class AiProvider {
         }
       }
 
-      // 7. 发送完成信号
-      // 🔧 参考 Cherry Studio：先发送 TEXT_COMPLETE，再发送 LLM_RESPONSE_COMPLETE
-      if (onChunk && accumulatedText && streamOutput) {
-        await onChunk({
-          type: ChunkType.TEXT_COMPLETE,
-          text: accumulatedText,
-        } as Chunk);
-      }
-      
-      if (onChunk) {
-        await onChunk({
-          type: ChunkType.LLM_RESPONSE_COMPLETE,
-          response: { id: 'completion', content: accumulatedText },
-        } as Chunk);
-      }
-
-      console.log(`[AiProvider] completions 完成 - 文本长度: ${accumulatedText.length}, 推理长度: ${accumulatedReasoning.length}`);
+      console.log(`[AiProvider] completions 完成 - 文本: ${finalText.length}字, 推理: ${finalReasoning.length}字`);
 
       return {
-        getText: () => accumulatedText,
-        getReasoning: () => accumulatedReasoning || undefined,
+        getText: () => finalText,
+        getReasoning: () => finalReasoning || undefined,
         usage,
       };
     } catch (error) {
       console.error('[AiProvider] completions 错误:', error);
       
-      // 发送错误 chunk
       if (onChunk) {
         await onChunk({
           type: ChunkType.ERROR,
-          error: {
-            message: error instanceof Error ? error.message : String(error),
-          },
+          error: { message: error instanceof Error ? error.message : String(error) },
         });
       }
 
@@ -452,8 +368,8 @@ export default class AiProvider {
       }
 
       return {
-        getText: () => accumulatedText,
-        getReasoning: () => accumulatedReasoning || undefined,
+        getText: () => finalText,
+        getReasoning: () => finalReasoning || undefined,
         usage,
       };
     }
@@ -511,6 +427,186 @@ export default class AiProvider {
   // ==================== Private Methods ====================
 
   /**
+   * 处理 Gemini 流式响应
+   * 对标 Cherry Studio getResponseChunkTransformer + TextChunkMiddleware
+   * 
+   * 关键：TEXT_DELTA 发送的是累积后的完整文本，不是原始增量
+   */
+  private async processGeminiStream(
+    rawStream: AsyncIterable<any>,
+    onChunk: (chunk: Chunk) => void
+  ): Promise<void> {
+    let isFirstTextChunk = true;
+    let isFirstThinkingChunk = true;
+    let hasThinkingContent = false; // 🔧 追踪是否有思考内容
+    const toolCalls: any[] = [];
+    
+    // 对标 Cherry Studio TextChunkMiddleware: 累积文本
+    let accumulatedTextContent = '';
+    let accumulatedThinkingContent = '';
+
+    for await (const rawChunk of rawStream) {
+      // Cherry Studio: if (typeof chunk === 'string') { chunk = JSON.parse(chunk) }
+      let chunk = rawChunk;
+      if (typeof chunk === 'string') {
+        try {
+          chunk = JSON.parse(chunk);
+        } catch (error) {
+          console.error('[AiProvider] Gemini invalid chunk:', chunk, error);
+          continue;
+        }
+      }
+
+      // 处理 candidates
+      if (chunk.candidates && chunk.candidates.length > 0) {
+        for (const candidate of chunk.candidates) {
+          if (candidate.content?.parts) {
+            for (const part of candidate.content.parts) {
+              const text = part.text || '';
+
+              // 思考内容
+              if (part.thought) {
+                if (isFirstThinkingChunk) {
+                  onChunk({ type: ChunkType.THINKING_START });
+                  isFirstThinkingChunk = false;
+                }
+                hasThinkingContent = true;
+                // 累积思考内容
+                accumulatedThinkingContent += text;
+                onChunk({ 
+                  type: ChunkType.THINKING_DELTA, 
+                  text: accumulatedThinkingContent  // 发送累积后的完整文本
+                } as Chunk);
+              }
+              // 普通文本
+              else if (part.text) {
+                // 🔧 修复：思考结束后发送 THINKING_COMPLETE
+                if (hasThinkingContent && isFirstTextChunk) {
+                  onChunk({ 
+                    type: ChunkType.THINKING_COMPLETE,
+                    text: accumulatedThinkingContent,
+                  } as Chunk);
+                  hasThinkingContent = false;
+                }
+                if (isFirstTextChunk) {
+                  onChunk({ type: ChunkType.TEXT_START });
+                  isFirstTextChunk = false;
+                }
+                // 对标 Cherry Studio TextChunkMiddleware: accumulatedTextContent += chunk.text
+                accumulatedTextContent += text;
+                onChunk({ 
+                  type: ChunkType.TEXT_DELTA, 
+                  text: accumulatedTextContent  // 发送累积后的完整文本！
+                } as Chunk);
+              }
+              // 图片
+              else if (part.inlineData) {
+                const imageData = part.inlineData.data?.startsWith('data:')
+                  ? part.inlineData.data
+                  : `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+                onChunk({
+                  type: ChunkType.IMAGE_COMPLETE,
+                  image: { type: 'base64', images: [imageData] },
+                } as Chunk);
+              }
+              // 工具调用
+              else if (part.functionCall) {
+                toolCalls.push(part.functionCall);
+              }
+            }
+          }
+
+          // 完成处理
+          if (candidate.finishReason) {
+            // 🔧 修复：确保思考完成事件被发送
+            if (hasThinkingContent) {
+              onChunk({ 
+                type: ChunkType.THINKING_COMPLETE,
+                text: accumulatedThinkingContent,
+              } as Chunk);
+              hasThinkingContent = false;
+            }
+
+            // 搜索结果
+            if (candidate.groundingMetadata) {
+              onChunk({
+                type: ChunkType.LLM_WEB_SEARCH_COMPLETE,
+                llm_web_search: {
+                  results: candidate.groundingMetadata,
+                  source: 'gemini',
+                },
+              } as unknown as Chunk);
+            }
+
+            // 工具调用
+            if (toolCalls.length > 0) {
+              onChunk({
+                type: ChunkType.MCP_TOOL_CREATED,
+                tool_calls: [...toolCalls],
+              } as unknown as Chunk);
+              toolCalls.length = 0;
+            }
+
+            // 发送 TEXT_COMPLETE（对标 Cherry Studio）
+            if (accumulatedTextContent) {
+              onChunk({
+                type: ChunkType.TEXT_COMPLETE,
+                text: accumulatedTextContent,
+              } as Chunk);
+            }
+
+            // 响应完成
+            onChunk({
+              type: ChunkType.LLM_RESPONSE_COMPLETE,
+              response: {
+                usage: {
+                  prompt_tokens: chunk.usageMetadata?.promptTokenCount || 0,
+                  completion_tokens: (chunk.usageMetadata?.totalTokenCount || 0) - (chunk.usageMetadata?.promptTokenCount || 0),
+                  total_tokens: chunk.usageMetadata?.totalTokenCount || 0,
+                },
+              },
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * 判断是否为专用图片生成模型
+   * 对标 Cherry Studio isDedicatedImageGenerationModel
+   */
+  private isDedicatedImageGenerationModel(model: Model): boolean {
+    const modelId = model.id.toLowerCase();
+    
+    // DALL-E 系列
+    if (modelId.includes('dall-e')) return true;
+    
+    // Stable Diffusion
+    if (modelId.includes('stable-diffusion')) return true;
+    if (modelId.includes('sdxl')) return true;
+    
+    // Midjourney
+    if (modelId.includes('midjourney')) return true;
+    
+    // Imagen (Google)
+    if (modelId.includes('imagen')) return true;
+    
+    // Flux
+    if (modelId.includes('flux')) return true;
+    
+    // 通用图片生成模型标识
+    if (modelId.includes('image-generation')) return true;
+    if (modelId.includes('text-to-image')) return true;
+    
+    // 检查模型能力
+    if ((model as any).capabilities?.imageGeneration === true) return true;
+    if ((model as any).type === 'image') return true;
+    
+    return false;
+  }
+
+  /**
    * 转换消息格式
    * 🔧 支持 MCP 提示词注入模式
    */
@@ -550,134 +646,122 @@ export default class AiProvider {
     return result;
   }
 
+  // ==================== V2: 使用新中间件系统 ====================
+
   /**
-   * 处理单个 Chunk
-   * 返回解析出的文本、推理内容和使用统计
+   * 执行 Completions 请求（V2 - 使用新中间件系统）
+   * 基于 Redux 风格中间件架构，对标 Cherry Studio
    */
-  private processChunk(
-    rawChunk: any,
-    onChunk?: (chunk: Chunk) => void
-  ): { text?: string; reasoning?: string; usage?: CompletionsResult['usage'] } {
-    const result: { text?: string; reasoning?: string; usage?: CompletionsResult['usage'] } = {};
+  public async completionsV2(
+    params: CompletionsParams,
+    options?: { signal?: AbortSignal; timeout?: number }
+  ): Promise<CompletionsResult> {
+    await this.ensureInitialized();
 
-    // === OpenAI 兼容格式 ===
-    if (rawChunk.choices && rawChunk.choices.length > 0) {
-      for (const choice of rawChunk.choices) {
-        if (!choice) continue;
+    const { messages, assistant, onChunk, mcpTools, mcpMode } = params;
+    const model = assistant.model;
 
-        // 支持 delta（流式）和 message（非流式）
-        let contentSource: any = null;
-        if (choice.delta && Object.keys(choice.delta).length > 0) {
-          contentSource = choice.delta;
-        } else if (choice.message) {
-          contentSource = choice.message;
-        }
+    console.log('[AiProvider.V2] 使用新中间件系统执行 completions');
 
-        if (!contentSource) continue;
+    // 1. 转换消息格式
+    const sdkMessages = this.transformMessages(messages, assistant, mcpTools, mcpMode);
 
-        // 处理推理内容
-        const reasoningText = 
-          contentSource.reasoning_content || 
-          contentSource.reasoning || 
-          contentSource.thinking?.content;
-        if (reasoningText) {
-          result.reasoning = reasoningText;
-          if (onChunk) {
-            onChunk({
-              type: ChunkType.THINKING_DELTA,
-              text: reasoningText,
-            } as Chunk);
-          }
-        }
-
-        // 处理文本内容（支持 null 值）
-        if (contentSource.content !== undefined && contentSource.content !== null) {
-          result.text = contentSource.content;
-          if (onChunk) {
-            onChunk({
-              type: ChunkType.TEXT_DELTA,
-              text: contentSource.content,
-            } as Chunk);
-          }
-        }
+    // 2. 构建中间件链（对标 Cherry Studio）
+    const builder = CompletionsMiddlewareBuilder.withDefaults();
+    
+    // 🔧 图片生成模型：使用专用中间件链（对标 Cherry Studio）
+    if (model && this.isDedicatedImageGenerationModel(model)) {
+      console.log('[AiProvider.V2] 检测到图片生成模型，使用专用中间件链');
+      builder.clear();
+      builder
+        .add(MiddlewareRegistry[FinalChunkConsumerMiddlewareName])
+        .add(MiddlewareRegistry[ErrorHandlerMiddlewareName])
+        .add(MiddlewareRegistry[AbortHandlerMiddlewareName])
+        .add(MiddlewareRegistry[ImageGenerationMiddlewareName]);
+    } else {
+      // 普通对话模型：根据配置调整中间件
+      if (!mcpTools?.length) {
+        builder.remove('McpToolChunkMiddleware');
+        builder.remove('ToolUseExtractionMiddleware');
       }
-
-      // 处理 usage
-      if (rawChunk.usage) {
-        result.usage = {
-          prompt_tokens: rawChunk.usage.prompt_tokens || 0,
-          completion_tokens: rawChunk.usage.completion_tokens || 0,
-          total_tokens: rawChunk.usage.total_tokens || 0,
-        };
-      }
-    }
-    // === Gemini 格式 ===
-    else if (rawChunk.candidates?.[0]?.content?.parts) {
-      for (const part of rawChunk.candidates[0].content.parts) {
-        if (part.thought && part.text) {
-          result.reasoning = part.text;
-          if (onChunk) {
-            onChunk({
-              type: ChunkType.THINKING_DELTA,
-              text: part.text,
-            } as Chunk);
-          }
-        } else if (part.text) {
-          result.text = part.text;
-          if (onChunk) {
-            onChunk({
-              type: ChunkType.TEXT_DELTA,
-              text: part.text,
-            } as Chunk);
-          }
-        }
-      }
-    }
-    // === Anthropic 格式 ===
-    else if (rawChunk.type === 'content_block_delta') {
-      if (rawChunk.delta?.type === 'text_delta' && rawChunk.delta?.text) {
-        result.text = rawChunk.delta.text;
-        if (onChunk) {
-          onChunk({
-            type: ChunkType.TEXT_DELTA,
-            text: rawChunk.delta.text,
-          } as Chunk);
-        }
-      } else if (rawChunk.delta?.type === 'thinking_delta' && rawChunk.delta?.thinking) {
-        result.reasoning = rawChunk.delta.thinking;
-        if (onChunk) {
-          onChunk({
-            type: ChunkType.THINKING_DELTA,
-            text: rawChunk.delta.thinking,
-          } as Chunk);
-        }
-      }
-    }
-    // === 直接文本格式 ===
-    else if (typeof rawChunk === 'string') {
-      result.text = rawChunk;
-      if (onChunk) {
-        onChunk({
-          type: ChunkType.TEXT_DELTA,
-          text: rawChunk,
-        } as Chunk);
-      }
-    }
-    // === 未知格式回退 ===
-    else if (rawChunk.content || rawChunk.text || rawChunk.response) {
-      const text = rawChunk.content || rawChunk.text || rawChunk.response;
-      if (typeof text === 'string') {
-        result.text = text;
-        if (onChunk) {
-          onChunk({
-            type: ChunkType.TEXT_DELTA,
-            text: text,
-          } as Chunk);
-        }
+      if (!params.enableWebSearch) {
+        builder.remove('WebSearchMiddleware');
       }
     }
 
-    return result;
+    const middlewareNames = builder.getNames();
+    const middlewares = builder.build();
+    console.log(`[AiProvider.V2] 中间件链: ${middlewareNames.join(' → ')}`);
+
+    // 3. 构建中间件参数
+    const middlewareParams: MiddlewareCompletionsParams = {
+      callType: params.callType,
+      messages: sdkMessages.map((m, i) => ({
+        id: m.id || `msg-${i}`,
+        role: m.role,
+        content: m.content,
+      })) as any,
+      assistant: {
+        id: assistant.id,
+        name: assistant.name,
+        prompt: assistant.prompt,
+        model: assistant.model,
+        settings: {
+          temperature: assistant.settings?.temperature,
+          topP: assistant.settings?.topP,
+          maxTokens: assistant.settings?.maxTokens || params.maxTokens,
+          streamOutput: params.streamOutput !== false,
+        },
+      },
+      streamOutput: params.streamOutput !== false,
+      topicId: params.topicId,
+      mcpTools: mcpTools?.map(t => ({
+        ...t,
+        serverName: t.serverId || 'unknown',
+        serverId: t.serverId || 'unknown',
+      })) as any,
+      mcpMode: mcpMode || 'function',
+      enableToolUse: !!mcpTools?.length,
+      enableWebSearch: params.enableWebSearch,
+      enableGenerateImage: params.enableGenerateImage,
+      maxTokens: params.maxTokens || assistant.settings?.maxTokens,
+      onChunk: onChunk as any,
+      abortSignal: options?.signal || params.abortSignal,
+      shouldThrow: params.shouldThrow,
+    };
+
+    // 4. 应用中间件并执行
+    const enhancedCompletions = applyCompletionsMiddlewares(
+      this.apiClient as any,
+      this.apiClient.createCompletions.bind(this.apiClient),
+      middlewares
+    );
+
+    try {
+      const result = await enhancedCompletions(middlewareParams, {
+        signal: options?.signal || params.abortSignal,
+      });
+
+      console.log('[AiProvider.V2] completions 完成');
+
+      return {
+        getText: () => result.getText?.() || '',
+        getReasoning: () => result.getReasoning?.(),
+        usage: result.usage,
+        rawOutput: result.rawOutput,
+      };
+    } catch (error) {
+      console.error('[AiProvider.V2] completions 错误:', error);
+      
+      if (params.shouldThrow !== false) {
+        throw error;
+      }
+
+      return {
+        getText: () => '',
+        getReasoning: () => undefined,
+      };
+    }
   }
 }
 

@@ -72,7 +72,12 @@ export enum ChunkType {
   VIDEO_SEARCHED = 'video.searched',
   IMAGE_SEARCHED = 'image.searched',
   CITATION_DELTA = 'citation.delta',
-  CITATION_COMPLETE = 'citation.complete'
+  CITATION_COMPLETE = 'citation.complete',
+  
+  // MCP 工具调用扩展类型（对标 Cherry Studio）
+  MCP_TOOL_CALL_BEGIN = 'mcp_tool_call_begin',
+  MCP_TOOL_CALL_RESPONSE = 'mcp_tool_call_response',
+  MCP_TOOL_CALL_ERROR = 'mcp_tool_call_error'
 }
 
 export interface LLMResponseCreatedChunk {
@@ -427,10 +432,11 @@ export interface MCPToolCompleteChunk {
 
 /**
  * MCP 工具等待 Chunk
+ * 使用 any[] 以兼容不同的 MCPToolResponse 定义
  */
 export interface MCPToolPendingChunk {
   type: ChunkType.MCP_TOOL_PENDING
-  responses: MCPToolResponse[]
+  responses: any[]
 }
 
 /**

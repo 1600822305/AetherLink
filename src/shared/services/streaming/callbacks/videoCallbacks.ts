@@ -2,19 +2,28 @@
  * 视频回调模块
  * 处理视频搜索和生成响应
  * 
- * 参考 Cherry Studio videoCallbacks 设计
+ * 完全参考 Cherry Studio videoCallbacks 设计
  */
 
 import { v4 as uuid } from 'uuid';
 import { MessageBlockStatus, MessageBlockType } from '../../../types/newMessage';
 import type { VideoMessageBlock, MessageBlock } from '../../../types/newMessage';
-import type { CallbackDependencies, StreamProcessorCallbacks, VideoSearchResult } from './types';
+import type { BlockManager } from '../BlockManager';
+import type { VideoSearchResult } from './types';
+
+/**
+ * 视频回调依赖
+ */
+interface VideoCallbacksDependencies {
+  blockManager: BlockManager;
+  assistantMsgId: string;
+}
 
 /**
  * 创建视频回调
  */
-export function createVideoCallbacks(deps: CallbackDependencies): Partial<StreamProcessorCallbacks> {
-  const { messageId, blockManager } = deps;
+export const createVideoCallbacks = (deps: VideoCallbacksDependencies) => {
+  const { assistantMsgId, blockManager } = deps;
   
   // 内部状态
   let videoBlockId: string | null = null;
@@ -25,7 +34,7 @@ export function createVideoCallbacks(deps: CallbackDependencies): Partial<Stream
   const createNewVideoBlock = (overrides: Partial<VideoMessageBlock> = {}): MessageBlock => {
     return {
       id: uuid(),
-      messageId,
+      messageId: assistantMsgId,
       type: MessageBlockType.VIDEO,
       url: '',
       mimeType: 'video/mp4',

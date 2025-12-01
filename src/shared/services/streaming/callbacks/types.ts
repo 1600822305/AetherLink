@@ -1,13 +1,14 @@
 /**
  * 回调系统类型定义
- * 参考 Cherry Studio callbacks 设计
+ * 完全参考 Cherry Studio callbacks 设计
  */
 
-import type { MessageBlock, AssistantMessageStatus } from '../../../types/newMessage';
+import type { MessageBlock, AssistantMessageStatus, MessageBlockType } from '../../../types/newMessage';
 import type { AppDispatch, RootState } from '../../../store';
 
 /**
  * MCP 工具类型
+ * 与 types/index.ts 中的 MCPTool 保持一致
  */
 export interface MCPTool {
   id?: string;
@@ -15,6 +16,23 @@ export interface MCPTool {
   description?: string;
   inputSchema?: unknown;
   serverId?: string;
+  serverName?: string;  // 服务器名称（必需以兼容主类型定义）
+  type?: 'builtin' | 'provider' | 'mcp';
+  isBuiltIn?: boolean;  // 是否为内置工具
+}
+
+/**
+ * MCP 工具响应类型
+ * 与 types/index.ts 中的 MCPToolResponse 保持一致
+ */
+export interface MCPToolResponse {
+  id: string;
+  tool: MCPTool;
+  arguments: Record<string, any>;
+  status: 'pending' | 'invoking' | 'done' | 'error' | 'cancelled';  // 添加 'invoking' 状态
+  response?: any;
+  toolCallId?: string;
+  toolUseId?: string;  // Anthropic 兼容
 }
 
 /**
@@ -35,12 +53,13 @@ export interface Assistant {
 
 /**
  * 块管理器接口
+ * 完全参考 Cherry Studio BlockManager 设计
  */
 export interface IBlockManager {
   /** 当前活跃块信息 */
-  activeBlockInfo: { id: string; type: string } | null;
+  activeBlockInfo: { id: string; type: MessageBlockType } | null;
   /** 最后的块类型 */
-  lastBlockType: string | null;
+  lastBlockType: MessageBlockType | null;
   /** 初始占位符块 ID */
   initialPlaceholderBlockId: string | null;
   /** 是否有初始占位符 */
@@ -49,15 +68,11 @@ export interface IBlockManager {
   smartBlockUpdate(
     blockId: string,
     changes: Partial<MessageBlock>,
-    blockType: string,
+    blockType: MessageBlockType,
     isComplete?: boolean
   ): void;
   /** 处理块转换（创建新块） */
-  handleBlockTransition(newBlock: MessageBlock, newBlockType: string): Promise<void>;
-  /** 取消节流更新 */
-  cancelThrottle?(): void;
-  /** 刷新节流更新 */
-  flushThrottle?(): void;
+  handleBlockTransition(newBlock: MessageBlock, newBlockType: MessageBlockType): Promise<void>;
 }
 
 /**

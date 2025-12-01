@@ -280,8 +280,31 @@ export const prepareMessagesForApi = async (
   const apiMessages = [];
 
   for (const message of limitedMessages) {
-    // 获取消息内容 - 检查是否有知识库缓存（风格）
-    let content = getMainTextContent(message);
+    // 🔧 修复：获取消息内容 - 优先从 content 字段，否则从数据库获取 blocks
+    let content = '';
+    
+    // 1. 优先检查 message.content
+    if (typeof (message as any).content === 'string' && (message as any).content.trim()) {
+      content = (message as any).content;
+    } else {
+      // 2. 尝试从 Redux store 获取
+      content = getMainTextContent(message);
+      
+      // 3. 如果还是空的，从数据库获取 blocks
+      if (!content && message.blocks && message.blocks.length > 0) {
+        try {
+          const blocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
+          const mainTextBlock = blocks.find(b => 
+            b.type === 'main_text' || b.type === 'unknown' || b.type === 'context_summary'
+          );
+          if (mainTextBlock && 'content' in mainTextBlock) {
+            content = (mainTextBlock as any).content || '';
+          }
+        } catch (e) {
+          console.warn(`[prepareMessagesForApi] 从数据库获取 blocks 失败:`, e);
+        }
+      }
+    }
 
 
 

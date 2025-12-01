@@ -130,9 +130,11 @@ async function doInitialize(): Promise<void> {
     const [
       { OpenAIClient },
       { GeminiClient },
+      { AnthropicClient },
     ] = await Promise.all([
       import('./openai/OpenAIClient'),
       import('./gemini/GeminiClient'),
+      import('./anthropic/AnthropicClient'),
     ]);
 
     // 注册客户端
@@ -141,7 +143,8 @@ async function doInitialize(): Promise<void> {
         'openai': (p) => new OpenAIClient(p),
         'openai-response': (p) => new OpenAIClient(p), // 暂时用 OpenAI
         'gemini': (p) => new GeminiClient(p),
-        // 'anthropic': (p) => new AnthropicClient(p), // TODO: Phase 5.2
+        'anthropic': (p) => new AnthropicClient(p),
+        'claude': (p) => new AnthropicClient(p),
       },
       byId: {
         // OpenAI 兼容供应商

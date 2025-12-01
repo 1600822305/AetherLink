@@ -1,55 +1,105 @@
 /**
- * AI SDK 到 Chunk 适配器
- * 参考 Cherry Studio AiSdkToChunkAdapter 设计
- * 将 AI SDK 的 fullStream 转换为统一的 Chunk 格式
- * 
- * 设计理念：
- * - 依赖 AI SDK 的统一事件类型，单一适配器处理所有 Provider
- * - 不需要为每个 Provider 创建独立的适配器类
- * - AI SDK 已经将各 Provider 的响应格式标准化
+ * AI SDK 到 Cherry Studio Chunk 适配器
+ * 完全参考 Cherry Studio AiSdkToChunkAdapter.ts 实现
+ * 用于将 AI SDK 的 fullStream 转换为 Cherry Studio 的 chunk 格式
  */
 
 import type { Chunk } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
-import type { 
-  ChunkAdapterConfig, 
-  StreamProcessResult, 
-  MCPTool, 
-  WebSearchResult,
-  AiSdkStreamPart,
-  AiSdkStreamResult
-} from './types';
+import { ToolCallChunkHandler, type MCPTool } from './ToolCallChunkHandler';
+import { convertLinks, flushLinkConverterBuffer } from './linkConverter';
 
 /**
- * AI SDK 到 Chunk 统一适配器
- * 单一类处理所有 AI SDK 事件
+ * AI SDK Web 搜索结果类型
+ */
+export interface AISDKWebSearchResult {
+  url: string;
+  title?: string;
+  id?: string;
+  providerMetadata?: unknown;
+}
+
+/**
+ * Web 搜索结果类型
+ */
+export interface WebSearchResults {
+  results: AISDKWebSearchResult[];
+  source?: string;
+}
+
+/**
+ * Web 搜索来源枚举
+ */
+export enum WebSearchSource {
+  OPENAI = 'openai',
+  OPENAI_RESPONSE = 'openai_response',
+  ANTHROPIC = 'anthropic',
+  OPENROUTER = 'openrouter',
+  GEMINI = 'gemini',
+  QWEN = 'qwen',
+  HUNYUAN = 'hunyuan',
+  ZHIPU = 'zhipu',
+  GROK = 'grok',
+  WEBSEARCH = 'websearch',
+  AISDK = 'aisdk'
+}
+
+/**
+ * Claude Code 原始消息类型
+ */
+interface ClaudeCodeRawValue {
+  type: string;
+  session_id?: string;
+}
+
+/**
+ * AI SDK 流结果类型
+ */
+export interface AiSdkStreamResult {
+  fullStream?: ReadableStream<any>;
+  text: Promise<string>;
+}
+
+/**
+ * AI SDK 到 Cherry Studio Chunk 适配器类
+ * 处理 fullStream 到 Cherry Studio chunk 的转换
  */
 export class AiSdkToChunkAdapter {
-  private onChunk: (chunk: Chunk) => void | Promise<void>;
-  private mcpTools: MCPTool[];
-  private accumulate: boolean;
-  private enableWebSearch: boolean;
-  private onSessionUpdate?: (sessionId: string) => void;
-  
-  // 状态管理
-  private accumulatedText = '';
-  private accumulatedReasoning = '';
-  private webSearchResults: WebSearchResult[] = [];
-  private reasoningId = '';
+  toolCallHandler: ToolCallChunkHandler;
+  private accumulate: boolean | undefined;
   private isFirstChunk = true;
-  private hasTextContent = false;
+  private enableWebSearch: boolean = false;
+  private onSessionUpdate?: (sessionId: string) => void;
   private responseStartTimestamp: number | null = null;
   private firstTokenTimestamp: number | null = null;
+  private hasTextContent = false;
+  private getSessionWasCleared?: () => boolean;
 
-  constructor(config: ChunkAdapterConfig) {
-    this.onChunk = config.onChunk;
-    this.mcpTools = config.mcpTools || [];
-    this.accumulate = config.accumulate ?? true;
-    this.enableWebSearch = config.enableWebSearch ?? false;
-    this.onSessionUpdate = config.onSessionUpdate;
+  constructor(
+    private onChunk: (chunk: Chunk) => void,
+    mcpTools: MCPTool[] = [],
+    accumulate?: boolean,
+    enableWebSearch?: boolean,
+    onSessionUpdate?: (sessionId: string) => void,
+    getSessionWasCleared?: () => boolean
+  ) {
+    this.toolCallHandler = new ToolCallChunkHandler(onChunk, mcpTools);
+    this.accumulate = accumulate;
+    this.enableWebSearch = enableWebSearch || false;
+    this.onSessionUpdate = onSessionUpdate;
+    this.getSessionWasCleared = getSessionWasCleared;
   }
 
-  // ==================== 公开方法 ====================
+  private markFirstTokenIfNeeded() {
+    if (this.firstTokenTimestamp === null && this.responseStartTimestamp !== null) {
+      this.firstTokenTimestamp = Date.now();
+    }
+  }
+
+  private resetTimingState() {
+    this.responseStartTimestamp = null;
+    this.firstTokenTimestamp = null;
+  }
 
   /**
    * 处理 AI SDK 流结果
@@ -57,53 +107,52 @@ export class AiSdkToChunkAdapter {
    * @returns 最终的文本内容
    */
   async processStream(aiSdkResult: AiSdkStreamResult): Promise<string> {
+    // 如果是流式且有 fullStream
     if (aiSdkResult.fullStream) {
       await this.readFullStream(aiSdkResult.fullStream);
     }
+
+    // 使用 streamResult.text 获取最终结果
     return await aiSdkResult.text;
   }
 
   /**
-   * 获取累积的文本
+   * 读取 fullStream 并转换为 Cherry Studio chunks
+   * @param fullStream AI SDK 的 fullStream (ReadableStream)
    */
-  getAccumulatedText(): string {
-    return this.accumulatedText;
-  }
-
-  /**
-   * 获取累积的思考内容
-   */
-  getAccumulatedReasoning(): string {
-    return this.accumulatedReasoning;
-  }
-
-  // ==================== 流处理核心 ====================
-
-  /**
-   * 读取 fullStream 并转换为 Chunk
-   */
-  private async readFullStream(fullStream: ReadableStream<AiSdkStreamPart>): Promise<void> {
+  private async readFullStream(fullStream: ReadableStream<any>) {
     const reader = fullStream.getReader();
     const final = {
       text: '',
       reasoningContent: '',
-      webSearchResults: [] as WebSearchResult[],
+      webSearchResults: [] as AISDKWebSearchResult[],
       reasoningId: ''
     };
-    
     this.resetTimingState();
     this.responseStartTimestamp = Date.now();
+    // Reset state at the start of stream
     this.isFirstChunk = true;
     this.hasTextContent = false;
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
+          // Flush any remaining content from link converter buffer if web search is enabled
+          if (this.enableWebSearch) {
+            const remainingText = flushLinkConverterBuffer();
+            if (remainingText) {
+              this.markFirstTokenIfNeeded();
+              this.onChunk({
+                type: ChunkType.TEXT_DELTA,
+                text: remainingText
+              });
+            }
+          }
           break;
         }
-        
+
         // 转换并发送 chunk
         this.convertAndEmitChunk(value, final);
       }
@@ -115,74 +164,100 @@ export class AiSdkToChunkAdapter {
 
   /**
    * 转换 AI SDK chunk 为 Cherry Studio chunk 并调用回调
-   * 参考 Cherry Studio convertAndEmitChunk 实现
+   * @param chunk AI SDK 的 chunk 数据
    */
   private convertAndEmitChunk(
-    chunk: AiSdkStreamPart,
-    final: { 
-      text: string; 
-      reasoningContent: string; 
-      webSearchResults: WebSearchResult[]; 
-      reasoningId: string 
-    }
-  ): void {
+    chunk: any,
+    final: { text: string; reasoningContent: string; webSearchResults: AISDKWebSearchResult[]; reasoningId: string }
+  ) {
+    console.debug(`[AiSdkToChunkAdapter] AI SDK chunk type: ${chunk.type}`, chunk);
     switch (chunk.type) {
+      case 'raw': {
+        const agentRawMessage = chunk.rawValue as ClaudeCodeRawValue;
+        if (agentRawMessage.type === 'init' && agentRawMessage.session_id) {
+          this.onSessionUpdate?.(agentRawMessage.session_id);
+        } else if (agentRawMessage.type === 'compact' && agentRawMessage.session_id) {
+          this.onSessionUpdate?.(agentRawMessage.session_id);
+        }
+        this.onChunk({
+          type: ChunkType.RAW,
+          content: agentRawMessage
+        });
+        break;
+      }
       // === 文本相关事件 ===
       case 'text-start':
-        this.emit({ type: ChunkType.TEXT_START });
+        this.onChunk({
+          type: ChunkType.TEXT_START
+        });
         break;
-
       case 'text-delta': {
         this.hasTextContent = true;
         const processedText = chunk.text || '';
-        
-        if (this.accumulate) {
-          final.text += processedText;
-          this.accumulatedText = final.text;
+        let finalText: string;
+
+        // Only apply link conversion if web search is enabled
+        if (this.enableWebSearch) {
+          const result = convertLinks(processedText, this.isFirstChunk);
+
+          if (this.isFirstChunk) {
+            this.isFirstChunk = false;
+          }
+
+          // Handle buffered content
+          if (result.hasBufferedContent) {
+            finalText = result.text;
+          } else {
+            finalText = result.text || processedText;
+          }
         } else {
-          final.text = processedText;
-          this.accumulatedText += processedText;
+          // Without web search, just use the original text
+          finalText = processedText;
         }
 
-        if (processedText) {
+        if (this.accumulate) {
+          final.text += finalText;
+        } else {
+          final.text = finalText;
+        }
+
+        // Only emit chunk if there's text to send
+        if (finalText) {
           this.markFirstTokenIfNeeded();
-          this.emit({
+          this.onChunk({
             type: ChunkType.TEXT_DELTA,
-            text: this.accumulate ? final.text : processedText
+            text: this.accumulate ? final.text : finalText
           });
         }
         break;
       }
-
       case 'text-end':
-        this.emit({
+        this.onChunk({
           type: ChunkType.TEXT_COMPLETE,
           text: (chunk.providerMetadata?.text?.value as string) ?? final.text ?? ''
         });
         final.text = '';
         break;
-
-      // === 思考/推理相关事件 ===
       case 'reasoning-start':
+        // if (final.reasoningId !== chunk.id) {
         final.reasoningId = chunk.id;
-        this.reasoningId = chunk.id;
-        this.emit({ type: ChunkType.THINKING_START });
+        this.onChunk({
+          type: ChunkType.THINKING_START
+        });
+        // }
         break;
-
       case 'reasoning-delta':
         final.reasoningContent += chunk.text || '';
-        this.accumulatedReasoning = final.reasoningContent;
         if (chunk.text) {
           this.markFirstTokenIfNeeded();
         }
-        this.emit({
+        this.onChunk({
           type: ChunkType.THINKING_DELTA,
           text: final.reasoningContent || ''
         });
         break;
-
       case 'reasoning-end':
-        this.emit({
+        this.onChunk({
           type: ChunkType.THINKING_COMPLETE,
           text: final.reasoningContent || ''
         });
@@ -191,41 +266,80 @@ export class AiSdkToChunkAdapter {
 
       // === 工具调用相关事件 ===
       case 'tool-call':
-        this.handleToolCall(chunk);
-        break;
-
-      case 'tool-result':
-        this.handleToolResult(chunk);
+        this.toolCallHandler.handleToolCall(chunk);
         break;
 
       case 'tool-error':
-        this.handleToolError(chunk);
+        this.toolCallHandler.handleToolError(chunk);
         break;
 
-      // === 步骤完成事件 ===
+      case 'tool-result':
+        this.toolCallHandler.handleToolResult(chunk);
+        break;
+
+      // === 步骤相关事件 ===
       case 'finish-step': {
         const { providerMetadata, finishReason } = chunk;
-        
-        // 处理 Web 搜索结果
-        if (final.webSearchResults.length > 0) {
-          this.emit({
+        // google web search
+        if (providerMetadata?.google?.groundingMetadata) {
+          this.onChunk({
             type: ChunkType.LLM_WEB_SEARCH_COMPLETE,
             llm_web_search: {
-              results: final.webSearchResults
+              results: providerMetadata.google?.groundingMetadata as WebSearchResults,
+              source: WebSearchSource.GEMINI
             }
-          });
-          final.webSearchResults = [];
+          } as any);
+        } else if (final.webSearchResults.length) {
+          const providerName = Object.keys(providerMetadata || {})[0];
+          const sourceMap: Record<string, WebSearchSource> = {
+            [WebSearchSource.OPENAI]: WebSearchSource.OPENAI_RESPONSE,
+            [WebSearchSource.ANTHROPIC]: WebSearchSource.ANTHROPIC,
+            [WebSearchSource.OPENROUTER]: WebSearchSource.OPENROUTER,
+            [WebSearchSource.GEMINI]: WebSearchSource.GEMINI,
+            [WebSearchSource.QWEN]: WebSearchSource.QWEN,
+            [WebSearchSource.HUNYUAN]: WebSearchSource.HUNYUAN,
+            [WebSearchSource.ZHIPU]: WebSearchSource.ZHIPU,
+            [WebSearchSource.GROK]: WebSearchSource.GROK,
+            [WebSearchSource.WEBSEARCH]: WebSearchSource.WEBSEARCH
+          };
+          const source = sourceMap[providerName] || WebSearchSource.AISDK;
+
+          this.onChunk({
+            type: ChunkType.LLM_WEB_SEARCH_COMPLETE,
+            llm_web_search: {
+              results: final.webSearchResults,
+              source
+            }
+          } as any);
+        }
+        if (finishReason === 'tool-calls') {
+          this.onChunk({ type: ChunkType.LLM_RESPONSE_CREATED });
         }
 
-        // 工具调用完成后，创建新的 LLM 响应
-        if (finishReason === 'tool-calls') {
-          this.emit({ type: ChunkType.LLM_RESPONSE_CREATED });
-        }
+        final.webSearchResults = [];
         break;
       }
 
-      // === 最终完成事件 ===
       case 'finish': {
+        // Check if session was cleared (e.g., /clear command) and no text was output
+        const sessionCleared = this.getSessionWasCleared?.() ?? false;
+        if (sessionCleared && !this.hasTextContent) {
+          // Inject a "context cleared" message for the user
+          const clearMessage = '✨ Context cleared. Starting fresh conversation.';
+          this.onChunk({
+            type: ChunkType.TEXT_START
+          });
+          this.onChunk({
+            type: ChunkType.TEXT_DELTA,
+            text: clearMessage
+          });
+          this.onChunk({
+            type: ChunkType.TEXT_COMPLETE,
+            text: clearMessage
+          });
+          final.text = clearMessage;
+        }
+
         const usage = {
           completion_tokens: chunk.totalUsage?.outputTokens || 0,
           prompt_tokens: chunk.totalUsage?.inputTokens || 0,
@@ -233,11 +347,11 @@ export class AiSdkToChunkAdapter {
         };
         const metrics = this.buildMetrics(chunk.totalUsage);
         const baseResponse = {
-          text: final.text || this.accumulatedText,
-          reasoning_content: final.reasoningContent || this.accumulatedReasoning
+          text: final.text || '',
+          reasoning_content: final.reasoningContent || ''
         };
 
-        this.emit({
+        this.onChunk({
           type: ChunkType.BLOCK_COMPLETE,
           response: {
             ...baseResponse,
@@ -245,8 +359,7 @@ export class AiSdkToChunkAdapter {
             metrics: metrics ? { ...metrics } : undefined
           }
         });
-
-        this.emit({
+        this.onChunk({
           type: ChunkType.LLM_RESPONSE_COMPLETE,
           response: {
             ...baseResponse,
@@ -254,25 +367,20 @@ export class AiSdkToChunkAdapter {
             metrics: metrics ? { ...metrics } : undefined
           }
         });
-        
         this.resetTimingState();
         break;
       }
 
-      // === 搜索源事件 ===
+      // === 源和文件相关事件 ===
       case 'source':
-        if (chunk.sourceType === 'url' && chunk.url) {
-          final.webSearchResults.push({
-            url: chunk.url,
-            title: chunk.title
-          });
-          this.webSearchResults = final.webSearchResults;
+        if (chunk.sourceType === 'url') {
+          const { sourceType: _, ...rest } = chunk;
+          final.webSearchResults.push(rest);
         }
         break;
-
-      // === 文件事件（图片生成等）===
       case 'file':
-        this.emit({
+        // 文件相关事件，可能是图片生成
+        this.onChunk({
           type: ChunkType.IMAGE_COMPLETE,
           image: {
             type: 'base64',
@@ -280,121 +388,31 @@ export class AiSdkToChunkAdapter {
           }
         });
         break;
-
-      // === 中止事件 ===
       case 'abort':
-        this.emit({
+        this.onChunk({
           type: ChunkType.ERROR,
           error: { message: 'Request was aborted', type: 'AbortError' }
-        });
+        } as any);
         break;
-
-      // === 错误事件 ===
       case 'error':
-        this.emit({
+        this.onChunk({
           type: ChunkType.ERROR,
-          error: { 
+          error: {
             message: chunk.error?.message || 'Unknown error',
             type: chunk.error?.name || 'Error'
           }
-        });
-        break;
-
-      // === 原始数据事件 ===
-      case 'raw':
-        // 处理 session 更新等原始事件
-        if (chunk.rawValue?.type === 'init' && chunk.rawValue?.session_id) {
-          this.onSessionUpdate?.(chunk.rawValue.session_id);
-        }
+        } as any);
         break;
 
       default:
-        // 未知事件类型，忽略
-        break;
     }
   }
 
-  // ==================== 工具调用处理 ====================
-
-  private handleToolCall(chunk: { toolCallId: string; toolName: string; args: Record<string, any> }): void {
-    // 查找匹配的 MCP 工具
-    const mcpTool = this.mcpTools.find(t => t.name === chunk.toolName);
-    
-    this.emit({
-      type: ChunkType.MCP_TOOL_IN_PROGRESS,
-      responses: [{
-        id: chunk.toolCallId,
-        name: chunk.toolName,
-        arguments: chunk.args,
-        status: 'running',
-        toolCallId: chunk.toolCallId,
-        ...(mcpTool && { serverId: mcpTool.serverId })
-      }]
-    });
-  }
-
-  private handleToolResult(chunk: { toolCallId: string; result: any }): void {
-    this.emit({
-      type: ChunkType.MCP_TOOL_COMPLETE,
-      responses: [{
-        id: chunk.toolCallId,
-        name: '',
-        arguments: {},
-        status: 'done',
-        toolCallId: chunk.toolCallId,
-        result: chunk.result
-      }]
-    });
-  }
-
-  private handleToolError(chunk: { toolCallId: string; error: any }): void {
-    this.emit({
-      type: ChunkType.MCP_TOOL_COMPLETE,
-      responses: [{
-        id: chunk.toolCallId,
-        name: '',
-        arguments: {},
-        status: 'error',
-        toolCallId: chunk.toolCallId,
-        error: chunk.error
-      }]
-    });
-  }
-
-  // ==================== 辅助方法 ====================
-
-  /**
-   * 发送 Chunk 事件
-   */
-  private emit(chunk: Chunk): void {
-    this.onChunk(chunk);
-  }
-
-  /**
-   * 标记首个 token 时间
-   */
-  private markFirstTokenIfNeeded(): void {
-    if (this.firstTokenTimestamp === null && this.responseStartTimestamp !== null) {
-      this.firstTokenTimestamp = Date.now();
-    }
-  }
-
-  /**
-   * 重置计时状态
-   */
-  private resetTimingState(): void {
-    this.responseStartTimestamp = null;
-    this.firstTokenTimestamp = null;
-  }
-
-  /**
-   * 构建性能指标
-   */
   private buildMetrics(totalUsage?: {
     inputTokens?: number | null;
     outputTokens?: number | null;
     totalTokens?: number | null;
-  }): StreamProcessResult['metrics'] | undefined {
+  }) {
     if (!totalUsage) {
       return undefined;
     }
@@ -416,19 +434,6 @@ export class AiSdkToChunkAdapter {
       time_first_token_millsec: timeFirstToken,
       time_completion_millsec: timeCompletion
     };
-  }
-
-  /**
-   * 重置所有状态
-   */
-  reset(): void {
-    this.accumulatedText = '';
-    this.accumulatedReasoning = '';
-    this.webSearchResults = [];
-    this.reasoningId = '';
-    this.isFirstChunk = true;
-    this.hasTextContent = false;
-    this.resetTimingState();
   }
 }
 

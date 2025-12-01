@@ -1,116 +1,66 @@
 /**
  * 中间件构建器
- * 提供流式API来构建中间件链
+ * 对标 Cherry Studio CompletionsMiddlewareBuilder
  */
-import type { Middleware, MiddlewareBuilderOptions } from './types';
-import { MIDDLEWARE_NAMES } from './types';
-import { MiddlewareRegistry } from './registry';
+import type { CompletionsMiddleware, NamedMiddleware } from './types';
 
 /**
- * 中间件构建器类
- * 支持链式调用构建中间件列表
+ * Completions 中间件构建器
+ * 提供流式 API 构建中间件链
  */
-export class MiddlewareBuilder {
-  private middlewares: Middleware[] = [];
-
-  constructor(options?: MiddlewareBuilderOptions) {
-    if (options?.middlewares) {
-      this.middlewares = [...options.middlewares];
-    }
-  }
+export class CompletionsMiddlewareBuilder {
+  private middlewares: NamedMiddleware[] = [];
 
   /**
    * 创建带默认中间件的构建器
    */
-  public static withDefaults(): MiddlewareBuilder {
-    const builder = new MiddlewareBuilder();
-
-    // 按优先级添加默认中间件
-    const defaultOrder = [
-      MIDDLEWARE_NAMES.FINAL_CONSUMER,      // 0 - 最外层：消费最终结果
-      MIDDLEWARE_NAMES.ERROR_HANDLER,       // 10 - 错误处理
-      MIDDLEWARE_NAMES.ABORT_HANDLER,       // 20 - 中断处理
-      MIDDLEWARE_NAMES.TIMEOUT_HANDLER,     // 25 - 超时处理
-      MIDDLEWARE_NAMES.LOGGER,              // 30 - 日志
-      MIDDLEWARE_NAMES.WEB_SEARCH,          // 40 - 网络搜索
-      MIDDLEWARE_NAMES.TOOL_USE_EXTRACTION, // 50 - 工具调用提取
-      MIDDLEWARE_NAMES.THINKING_EXTRACTION, // 60 - 思考过程提取
-      MIDDLEWARE_NAMES.RESPONSE_TRANSFORM,  // 70 - 响应转换
-      MIDDLEWARE_NAMES.STREAM_ADAPTER,      // 80 - 流适配
-      MIDDLEWARE_NAMES.REQUEST_TRANSFORM,   // 90 - 请求转换
-    ];
-
-    defaultOrder.forEach(name => {
-      const middleware = MiddlewareRegistry.get(name);
-      if (middleware && middleware.enabled !== false) {
-        builder.middlewares.push(middleware);
-      }
-    });
-
+  static withDefaults(): CompletionsMiddlewareBuilder {
+    // 延迟导入避免循环依赖
+    const { DefaultCompletionsNamedMiddlewares } = require('./registry');
+    const builder = new CompletionsMiddlewareBuilder();
+    builder.middlewares = [...DefaultCompletionsNamedMiddlewares];
     return builder;
   }
 
   /**
-   * 创建空的构建器
+   * 创建空构建器
    */
-  public static empty(): MiddlewareBuilder {
-    return new MiddlewareBuilder();
-  }
-
-  /**
-   * 从注册表创建（包含所有启用的中间件）
-   */
-  public static fromRegistry(): MiddlewareBuilder {
-    const builder = new MiddlewareBuilder();
-    builder.middlewares = MiddlewareRegistry.getEnabled();
-    return builder;
+  static empty(): CompletionsMiddlewareBuilder {
+    return new CompletionsMiddlewareBuilder();
   }
 
   /**
    * 添加中间件
    */
-  public add(middleware: Middleware | string): MiddlewareBuilder {
-    if (typeof middleware === 'string') {
-      const m = MiddlewareRegistry.get(middleware);
-      if (m) {
-        this.middlewares.push(m);
-      } else {
-        console.warn(`[MiddlewareBuilder] 未找到中间件: ${middleware}`);
-      }
+  add(namedMiddleware: NamedMiddleware): this {
+    this.middlewares.push(namedMiddleware);
+    return this;
+  }
+
+  /**
+   * 在指定中间件之后插入
+   */
+  insertAfter(targetName: string, namedMiddleware: NamedMiddleware): this {
+    const index = this.middlewares.findIndex(m => m.name === targetName);
+    if (index !== -1) {
+      this.middlewares.splice(index + 1, 0, namedMiddleware);
     } else {
-      this.middlewares.push(middleware);
+      console.warn(`[MiddlewareBuilder] Middleware '${targetName}' not found, appending to end`);
+      this.middlewares.push(namedMiddleware);
     }
     return this;
   }
 
   /**
-   * 在指定位置之前插入中间件
+   * 在指定中间件之前插入
    */
-  public insertBefore(targetName: string, middleware: Middleware | string): MiddlewareBuilder {
-    const toInsert = this.resolveMiddleware(middleware);
-    if (!toInsert) return this;
-
+  insertBefore(targetName: string, namedMiddleware: NamedMiddleware): this {
     const index = this.middlewares.findIndex(m => m.name === targetName);
-    if (index === -1) {
-      this.middlewares.unshift(toInsert);
+    if (index !== -1) {
+      this.middlewares.splice(index, 0, namedMiddleware);
     } else {
-      this.middlewares.splice(index, 0, toInsert);
-    }
-    return this;
-  }
-
-  /**
-   * 在指定位置之后插入中间件
-   */
-  public insertAfter(targetName: string, middleware: Middleware | string): MiddlewareBuilder {
-    const toInsert = this.resolveMiddleware(middleware);
-    if (!toInsert) return this;
-
-    const index = this.middlewares.findIndex(m => m.name === targetName);
-    if (index === -1) {
-      this.middlewares.push(toInsert);
-    } else {
-      this.middlewares.splice(index + 1, 0, toInsert);
+      console.warn(`[MiddlewareBuilder] Middleware '${targetName}' not found, prepending to start`);
+      this.middlewares.unshift(namedMiddleware);
     }
     return this;
   }
@@ -118,98 +68,77 @@ export class MiddlewareBuilder {
   /**
    * 移除中间件
    */
-  public remove(name: string): MiddlewareBuilder {
+  remove(name: string): this {
+    const before = this.middlewares.length;
     this.middlewares = this.middlewares.filter(m => m.name !== name);
+    if (this.middlewares.length === before) {
+      console.debug(`[MiddlewareBuilder] Middleware '${name}' not found for removal`);
+    }
     return this;
   }
 
   /**
    * 替换中间件
    */
-  public replace(name: string, middleware: Middleware): MiddlewareBuilder {
+  replace(name: string, namedMiddleware: NamedMiddleware): this {
     const index = this.middlewares.findIndex(m => m.name === name);
     if (index !== -1) {
-      this.middlewares[index] = middleware;
+      this.middlewares[index] = namedMiddleware;
+    } else {
+      console.warn(`[MiddlewareBuilder] Middleware '${name}' not found for replacement`);
     }
     return this;
   }
 
   /**
-   * 只保留指定的中间件
+   * 检查是否包含中间件
    */
-  public only(...names: string[]): MiddlewareBuilder {
-    this.middlewares = this.middlewares.filter(m => names.includes(m.name));
-    return this;
-  }
-
-  /**
-   * 排除指定的中间件
-   */
-  public except(...names: string[]): MiddlewareBuilder {
-    this.middlewares = this.middlewares.filter(m => !names.includes(m.name));
-    return this;
+  has(name: string): boolean {
+    return this.middlewares.some(m => m.name === name);
   }
 
   /**
    * 清空所有中间件
    */
-  public clear(): MiddlewareBuilder {
+  clear(): this {
     this.middlewares = [];
     return this;
   }
 
   /**
-   * 按优先级排序
+   * 获取中间件数量
    */
-  public sort(): MiddlewareBuilder {
-    this.middlewares.sort((a, b) => (a.priority ?? 50) - (b.priority ?? 50));
-    return this;
+  get length(): number {
+    return this.middlewares.length;
   }
 
   /**
-   * 构建中间件数组
+   * 构建最终的中间件数组
    */
-  public build(): Middleware[] {
+  build(): CompletionsMiddleware[] {
+    return this.middlewares.map(m => m.middleware);
+  }
+
+  /**
+   * 获取具名中间件数组（用于调试）
+   */
+  buildNamed(): NamedMiddleware[] {
     return [...this.middlewares];
   }
 
   /**
-   * 获取当前中间件名称列表
+   * 获取中间件名称列表
    */
-  public getNames(): string[] {
+  getNames(): string[] {
     return this.middlewares.map(m => m.name);
-  }
-
-  /**
-   * 检查是否包含指定中间件
-   */
-  public has(name: string): boolean {
-    return this.middlewares.some(m => m.name === name);
-  }
-
-  /**
-   * 获取中间件数量
-   */
-  public count(): number {
-    return this.middlewares.length;
   }
 
   /**
    * 克隆构建器
    */
-  public clone(): MiddlewareBuilder {
-    const builder = new MiddlewareBuilder();
+  clone(): CompletionsMiddlewareBuilder {
+    const builder = new CompletionsMiddlewareBuilder();
     builder.middlewares = [...this.middlewares];
     return builder;
-  }
-
-  /**
-   * 解析中间件（字符串或对象）
-   */
-  private resolveMiddleware(middleware: Middleware | string): Middleware | undefined {
-    if (typeof middleware === 'string') {
-      return MiddlewareRegistry.get(middleware);
-    }
-    return middleware;
   }
 }

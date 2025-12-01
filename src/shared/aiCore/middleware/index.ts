@@ -1,93 +1,119 @@
 /**
  * 中间件系统统一导出
+ * 对标 Cherry Studio 架构
  * 
- * 使用方式:
- * import { MiddlewareBuilder, applyMiddlewares, ErrorHandlerMiddleware } from '@/shared/aiCore/middleware';
+ * @example
+ * ```typescript
+ * import {
+ *   CompletionsMiddlewareBuilder,
+ *   applyCompletionsMiddlewares,
+ *   MIDDLEWARE_NAMES,
+ * } from '@/shared/aiCore/middleware/index.new';
+ * 
+ * // 创建中间件构建器
+ * const builder = CompletionsMiddlewareBuilder.withDefaults();
+ * builder.remove('McpToolChunkMiddleware');
+ * 
+ * // 应用中间件
+ * const enhanced = applyCompletionsMiddlewares(
+ *   client,
+ *   client.createCompletions.bind(client),
+ *   builder.build()
+ * );
+ * ```
  */
 
-// 导出类型
+// ==================== Types ====================
+
 export type {
-  Middleware,
-  MiddlewareFunction,
-  MiddlewareContext,
-  MiddlewareOptions,
-  MiddlewareBuilderOptions,
+  BaseContext,
+  CompletionsContext,
+  CompletionsMiddleware,
+  MethodMiddleware,
+  MiddlewareAPI,
+  DispatchFunction,
+  NamedMiddleware,
+  ToolProcessingState,
+  FlowControl,
+  CustomState,
   AccumulatedData,
-  CompletionsExecutionOptions,
-  ExecutionResult,
+  InternalState,
   MiddlewareName,
 } from './types';
 
-// 导出常量和工具函数
 export {
+  MIDDLEWARE_CONTEXT_SYMBOL,
   MIDDLEWARE_NAMES,
-  createInitialContext,
+  createCompletionsContext,
   createEmptyAccumulated,
+  isMiddlewareContext,
 } from './types';
 
-// 导出注册表
-export { MiddlewareRegistry } from './registry';
+// ==================== Schemas ====================
 
-// 导出构建器
-export { MiddlewareBuilder } from './builder';
+export type {
+  Message,
+  MCPTool,
+  MCPToolResponse,
+  MCPCallToolResponse,
+  Model,
+  AssistantConfig,
+  CompletionsParams,
+  CompletionsResult,
+  RequestOptions,
+} from './schemas';
 
-// 导出组合器
+// ==================== Composer ====================
+
 export {
   compose,
-  applyMiddlewares,
-  createCompletionsExecutor,
-  executeWithMiddlewares,
+  applyCompletionsMiddlewares,
+  applyMethodMiddlewares,
   createContextSnapshot,
 } from './composer';
 
-// 导出核心中间件
+// ==================== Builder ====================
+
+export { CompletionsMiddlewareBuilder } from './builder';
+
+// ==================== Registry ====================
+
 export {
-  ErrorHandlerMiddleware,
-  AbortHandlerMiddleware,
-  FinalConsumerMiddleware,
-  LoggerMiddleware,
-  coreMiddlewares,
-} from './core';
+  MiddlewareRegistry,
+  DefaultCompletionsNamedMiddlewares,
+  getMiddleware,
+  getMiddlewareNames,
+  registerMiddleware,
+} from './registry';
 
-// ==================== 初始化函数 ====================
+// ==================== Common Middlewares ====================
 
-import { MiddlewareRegistry } from './registry';
-import { coreMiddlewares } from './core';
+export { ErrorHandlerMiddleware, ErrorType } from './common/ErrorHandlerMiddleware';
+export { AbortHandlerMiddleware } from './common/AbortHandlerMiddleware';
+export { FinalChunkConsumerMiddleware } from './common/FinalChunkConsumerMiddleware';
+export { LoggingMiddleware, LogLevel } from './common/LoggingMiddleware';
 
-/** 是否已初始化 */
-let initialized = false;
+// ==================== Core Middlewares ====================
 
-/**
- * 初始化中间件系统
- * 注册所有核心中间件
- */
-export function initializeMiddlewares(): void {
-  if (initialized) {
-    return;
-  }
+export { TransformCoreToSdkParamsMiddleware } from './core/TransformCoreToSdkParamsMiddleware';
+export { StreamAdapterMiddleware } from './core/StreamAdapterMiddleware';
+export { McpToolChunkMiddleware } from './core/McpToolChunkMiddleware';
+export { TextChunkMiddleware } from './core/TextChunkMiddleware';
+export { ThinkChunkMiddleware } from './core/ThinkChunkMiddleware';
+export { ResponseTransformMiddleware } from './core/ResponseTransformMiddleware';
+export {
+  RawStreamListenerMiddleware,
+  createRawStreamListenerMiddleware,
+  setStreamListenerConfig,
+  getStreamListenerConfig,
+  type StreamListenerConfig,
+  type StreamStats,
+} from './core/RawStreamListenerMiddleware';
 
-  console.log('[Middleware] 初始化中间件系统...');
-  
-  // 注册核心中间件
-  MiddlewareRegistry.registerAll(coreMiddlewares);
+// ==================== Feature Middlewares ====================
 
-  initialized = true;
-
-  console.log('[Middleware] 已注册中间件:', MiddlewareRegistry.getNames());
-  console.log('[Middleware] 统计:', MiddlewareRegistry.getStats());
-}
-
-/**
- * 重置中间件系统（用于测试）
- */
-export function resetMiddlewares(): void {
-  MiddlewareRegistry.clear();
-  initialized = false;
-}
-
-/**
- * 检查是否已初始化
- */
-export function isMiddlewaresInitialized(): boolean {
-  return initialized;
-}
+export { WebSearchMiddleware, WebSearchSource } from './feat/WebSearchMiddleware';
+export { ThinkingTagExtractionMiddleware } from './feat/ThinkingTagExtractionMiddleware';
+export { ToolUseExtractionMiddleware } from './feat/ToolUseExtractionMiddleware';
+export { ImageGenerationMiddleware } from './feat/ImageGenerationMiddleware';
+export { RetryMiddleware, createRetryMiddleware } from './feat/RetryMiddleware';

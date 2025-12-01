@@ -1108,18 +1108,18 @@ export class DexieStorageService extends Dexie {
             .equals(topicId)
             .modify((topic) => {
               if (!topic || !topic.messages) return;
-              const messageIndex = topic.messages.findIndex((m: Message) => m.id === messageUpdates.id);
-              if (messageIndex !== -1 && topic.messages) {
+              const messages = topic.messages; // 提取到局部变量，帮助 TS 类型推断
+              const messageIndex = messages.findIndex((m: Message) => m.id === messageUpdates.id);
+              if (messageIndex !== -1) {
                 keysToUpdate.forEach(key => {
-                  (topic.messages![messageIndex] as any)[key] = (messageUpdates as any)[key];
+                  (messages[messageIndex] as any)[key] = (messageUpdates as any)[key];
                 });
-                topic.messages![messageIndex].updatedAt = new Date().toISOString();
+                messages[messageIndex].updatedAt = new Date().toISOString();
               }
             });
         }
       });
 
-      console.log(`[DexieStorageService] updateMessageAndBlocks 完成: 消息=${messageUpdates.id}, 块数量=${blocksToUpdate.length}`);
     } catch (error) {
       console.error(`[DexieStorageService] updateMessageAndBlocks 失败:`, error);
       throw error;

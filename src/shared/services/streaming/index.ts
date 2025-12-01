@@ -2,30 +2,25 @@
  * 流处理服务模块
  * 统一导出流处理相关的所有组件
  * 
- * 参考 Cherry Studio 架构设计
+ * 完全参考 Cherry Studio 架构设计
  */
 
 // 导出 StreamProcessor
 export { createStreamProcessor, createMinimalStreamProcessor } from './StreamProcessor';
 
 // 导出 BlockManager
-export { StreamingBlockManager, createStreamingBlockManager } from './BlockManager';
-export type { StreamingBlockManagerConfig } from './BlockManager';
+export { BlockManager, StreamingBlockManager, createStreamingBlockManager } from './BlockManager';
+export type { BlockManagerDependencies, StreamingBlockManagerConfig } from './BlockManager';
 
 // 导出回调系统
-export * from './callbacks';
-export { 
-  createCallbacks, 
-  createMinimalCallbacks, 
-  createThinkingCallbacksSet 
-} from './callbacks';
+export { createCallbacks } from './callbacks';
 
 // 类型导出
 export type { 
   StreamProcessorCallbacks,
-  CallbackDependencies,
   IBlockManager,
   MCPTool,
+  MCPToolResponse,
   Assistant,
   KnowledgeReference,
   Citation,

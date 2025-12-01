@@ -44,10 +44,10 @@ export const useChatFeatures = (
     const saved = localStorage.getItem('mcp-tools-enabled');
     return saved !== null ? JSON.parse(saved) : false; // 默认关闭
   });
-  // MCP 工具调用模式 - 从 localStorage 读取
+  // MCP 工具调用模式 - 从 localStorage 读取（使用统一的 key: mcp_mode）
   const [mcpMode, setMcpMode] = useState<'prompt' | 'function'>(() => {
-    const saved = localStorage.getItem('mcp-mode');
-    return (saved as 'prompt' | 'function') || 'function';
+    const saved = localStorage.getItem('mcp_mode');
+    return (saved as 'prompt' | 'function') || 'prompt';
   });
 
   // 切换图像生成模式
@@ -616,44 +616,24 @@ export const useChatFeatures = (
     contentPrefix: string
   ) => {
     try {
-      // 直接调用API并手动处理响应，使用累积方式而不是替换
+      // 直接调用API并手动处理响应
       const { sendChatRequest } = await import('../../../shared/aiCore/legacy/clients');
 
-      let accumulatedContent = '';
+      // 🔧 修复：sendChatRequest 需要分开的参数 (messages, model, abortSignal?)
+      const response = await sendChatRequest(messages, model);
 
-      const response = await sendChatRequest({
-        messages,
-        modelId: getModelIdentityKey({ id: model.id, provider: model.provider }),
-        onChunk: async (content: string) => {
-          // 只累积新的AI分析内容
-          accumulatedContent += content;
-          // 组合完整内容：前缀（搜索结果+标题）+ 累积的AI分析内容
-          const fullContent = contentPrefix + accumulatedContent;
-
-          // 更新块内容
-          await TopicService.updateMessageBlockFields(blockId, {
-            content: fullContent,
-            status: MessageBlockStatus.PROCESSING
-          });
-
-          // 更新Redux状态
-          dispatch(updateOneBlock({
-            id: blockId,
-            changes: {
-              content: fullContent,
-              status: MessageBlockStatus.PROCESSING,
-              updatedAt: new Date().toISOString()
-            }
-          }));
-        }
-      });
-
-      // 处理最终响应
+      // 🔧 修复：处理返回类型可能是 string 或 ChatResponse
       let finalContent = '';
-      if (response.success && response.content) {
-        finalContent = response.content;
-      } else if (response.error) {
-        finalContent = `AI分析失败: ${response.error}`;
+      if (typeof response === 'string') {
+        // 如果返回的是字符串，直接使用
+        finalContent = response;
+      } else if (response && typeof response === 'object') {
+        // 如果返回的是对象，检查 content 字段
+        if ('content' in response && response.content) {
+          finalContent = response.content;
+        } else if ('error' in response && response.error) {
+          finalContent = `AI分析失败: ${response.error}`;
+        }
       }
 
       // 更新最终状态
@@ -766,10 +746,10 @@ export const useChatFeatures = (
     localStorage.setItem('mcp-tools-enabled', JSON.stringify(newValue));
   };
 
-  // 切换 MCP 模式
+  // 切换 MCP 模式（使用统一的 key: mcp_mode）
   const handleMCPModeChange = (mode: 'prompt' | 'function') => {
     setMcpMode(mode);
-    localStorage.setItem('mcp-mode', mode);
+    localStorage.setItem('mcp_mode', mode);
   };
 
   // 处理多模型发送 - 完全重写

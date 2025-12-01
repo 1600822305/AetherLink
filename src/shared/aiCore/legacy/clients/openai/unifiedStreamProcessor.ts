@@ -1,6 +1,14 @@
 /**
  * 统一流式响应处理器
  * 合并 streamProcessor.ts 和 stream.ts 的功能，去除重复代码
+ * 
+ * @deprecated 此模块为 Legacy 代码，新代码请使用 `src/shared/services/streaming/StreamProcessor.ts`
+ * 和 `src/shared/services/streaming/callbacks/` 下的模块化回调系统。
+ * 
+ * 迁移指南：
+ * - 使用 `createStreamProcessor()` 替代 `UnifiedStreamProcessor`
+ * - 使用 `createCallbacks()` 获取模块化回调
+ * - 使用 `BlockManager.getOrCreateBlock()` 统一处理占位块
  */
 import OpenAI from 'openai';
 import {
@@ -65,6 +73,8 @@ interface StreamProcessingState {
 /**
  * 统一流式响应处理器类
  * 整合了原有两个处理器的所有功能
+ * 
+ * @deprecated 请使用新架构的 `createStreamProcessor()` + 模块化回调
  */
 export class UnifiedStreamProcessor {
   private options: UnifiedStreamOptions;
