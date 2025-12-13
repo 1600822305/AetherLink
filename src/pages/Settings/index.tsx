@@ -7,7 +7,6 @@ import {
   Keyboard as KeyboardIcon,
   Database as StorageIcon,
   Mic as RecordVoiceOverIcon,
-  Puzzle as ExtensionIcon,
   Info as InfoIcon,
   Palette as FormatColorFillIcon,
   Settings as SettingsApplicationsIcon,
@@ -74,19 +73,7 @@ const SettingsPage: React.FC = () => {
     edgeThreshold: 50 // 左边缘50px内开始滑动才有效
   });
 
-  // 功能开放状态配置
-  const FEATURE_FLAGS = {
-    shortcuts: false,  // 快捷键设置功能未开放
-    features: false,   // 功能设置未开放
-  };
-
   const navigateTo = (path: string) => {
-    // 从路径中提取功能ID
-    const featureId = path.split('/').pop();
-    // 检查功能是否开放
-    if (featureId && FEATURE_FLAGS[featureId as keyof typeof FEATURE_FLAGS] === false) {
-      return; // 功能未开放，不进行导航
-    }
     navigate(path);
   };
 
@@ -186,15 +173,6 @@ const SettingsPage: React.FC = () => {
       title: t('settings.groups.shortcuts'),
       items: [
         {
-          id: 'shortcuts',
-          title: t('settings.items.shortcuts.title'),
-          description: t('settings.items.shortcuts.description'),
-          icon: <KeyboardIcon size={24} />,
-          path: '/settings/shortcuts',
-          onClick: () => navigateTo('/settings/shortcuts'),
-          disabled: FEATURE_FLAGS.shortcuts === false,
-        },
-        {
           id: 'quick-phrases',
           title: t('settings.items.quickPhrases.title'),
           description: t('settings.items.quickPhrases.description'),
@@ -264,15 +242,6 @@ const SettingsPage: React.FC = () => {
           onClick: () => navigateTo('/settings/network-proxy'),
         },
         {
-          id: 'features',
-          title: t('settings.items.features.title'),
-          description: t('settings.items.features.description'),
-          icon: <ExtensionIcon size={24} />,
-          path: '/settings/features',
-          onClick: () => navigateTo('/settings/features'),
-          disabled: FEATURE_FLAGS.features === false,
-        },
-        {
           id: 'about',
           title: t('settings.items.about.title'),
           description: t('settings.items.about.description'),
@@ -318,7 +287,6 @@ const SettingsPage: React.FC = () => {
                   description={item.description}
                   icon={item.icon}
                   onClick={item.onClick}
-                  disabled={item.disabled}
                   showArrow={true}
                 />
               ))}
