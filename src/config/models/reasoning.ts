@@ -25,7 +25,7 @@ export { isOpenAIReasoningModel } from './openai';
 
 // 推理模型正则
 export const REASONING_REGEX =
-  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking|think)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|4|4-fast)(?:-[\w-]+)?\b.*)$/i;
+  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking|think)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|3-thinking|4|4-fast)(?:-[\w-]+)?\b.*)$/i;
 
 // 模型类型到支持的 reasoning_effort 的映射表
 export const MODEL_SUPPORTED_REASONING_EFFORT: Record<ThinkingModelType, readonly ReasoningEffortOption[]> = {
@@ -95,7 +95,7 @@ export const MODEL_SUPPORTED_OPTIONS: Record<ThinkingModelType, readonly Reasoni
 export function isGrokReasoningModel(model?: Model): boolean {
   if (!model) return false;
   const modelId = getLowerBaseModelName(model.id);
-  return modelId.includes('grok-3-mini');
+  return modelId.includes('grok-3-mini') || modelId.includes('grok-3-thinking');
 }
 
 /**

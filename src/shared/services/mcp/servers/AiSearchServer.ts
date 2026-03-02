@@ -282,7 +282,7 @@ export class AiSearchServer {
       .trim()
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
+      .replace(/```\s*$/i, '')
       .trim();
 
     let subQueries: string[];
