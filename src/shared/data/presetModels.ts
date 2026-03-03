@@ -545,6 +545,30 @@ export const presetModels: PresetModel[] = [
     imageGeneration: true,
     modelTypes: [ModelType.Chat, ModelType.ImageGen]
   },
+
+  // Qwen 图像生成模型 (2025年8月发布)
+  {
+    id: 'Qwen/Qwen-Image-20B',
+    name: 'Qwen-Image 20B',
+    provider: 'siliconflow',
+    description: '阿里通义千问开源的首个20B图像生成模型，突破性中英文文本渲染能力，支持图像生成、编辑、理解一体化。',
+    capabilities: ['图像生成', '文本到图像', '中文文本渲染', '英文文本渲染', '图像编辑', '风格转换'],
+    requiresApiKey: true,
+    defaultBaseUrl: 'https://api.siliconflow.cn/v1',
+    imageGeneration: true,
+    modelTypes: [ModelType.ImageGen]
+  },
+  {
+    id: 'Qwen/Qwen-Image-Layered',
+    name: 'Qwen-Image Layered',
+    provider: 'siliconflow',
+    description: '阿里通义千问最新分层图像生成模型，采用自研创新架构可将图片"拆解"成多个图层，实现PS级精准编辑，彻底解决AI生图一致性问题。',
+    capabilities: ['图像生成', '分层编辑', '精准编辑', '一致性编辑', '专业设计', '图层分离'],
+    requiresApiKey: true,
+    defaultBaseUrl: 'https://api.siliconflow.cn/v1',
+    imageGeneration: true,
+    modelTypes: [ModelType.ImageGen]
+  },
 ];
 
 // 获取模型图标
