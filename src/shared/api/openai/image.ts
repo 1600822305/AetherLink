@@ -29,6 +29,8 @@ export async function generateImage(
 
     // 检查是否为 Grok 模型
     const isGrokModel = model.id.includes('grok') || model.provider === 'grok';
+    // 检查是否为 Qwen-Image 模型
+    const isQwenImageModel = model.id.includes('qwen-image') || model.id.includes('Qwen-Image');
 
     // 准备请求参数 - 根据模型类型使用不同参数
     let requestParams: any = {
@@ -39,6 +41,20 @@ export async function generateImage(
 
     if (isGrokModel) {
       // Grok 模型只支持基础参数
+    } else if (isQwenImageModel) {
+      // Qwen-Image 模型使用 image_size 参数
+      let imageSize = params.imageSize || '1328x1328';
+      // Qwen-Image 推荐尺寸
+      const qwenImageSizes = ['1328x1328', '1664x928', '928x1664', '1472x1140', '1140x1472', '1584x1056', '1056x1584'];
+      if (!qwenImageSizes.includes(imageSize)) {
+        imageSize = '1328x1328';
+      }
+      requestParams.image_size = imageSize;
+      requestParams.n = params.batchSize || 1;
+      // Qwen-Image 支持 guidance_scale (CFG)
+      if (params.guidanceScale !== undefined) {
+        requestParams.guidance_scale = params.guidanceScale;
+      }
     } else {
       // 其他模型使用完整参数
       // 确保size参数符合OpenAI API的要求
