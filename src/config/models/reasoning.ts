@@ -25,7 +25,7 @@ export { isOpenAIReasoningModel } from './openai';
 
 // 推理模型正则
 export const REASONING_REGEX =
-  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking|think)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|3-thinking|4|4-fast)(?:-[\w-]+)?\b.*)$/i;
+  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking|think)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bglm-zero-preview\b.*|.*\bgrok-(?:3-mini|3-thinking|4|4-fast)(?:-[\w-]+)?\b.*|.*\bqwen3-omni(?:-[\w-]+)?\b.*)$/i;
 
 // 模型类型到支持的 reasoning_effort 的映射表
 export const MODEL_SUPPORTED_REASONING_EFFORT: Record<ThinkingModelType, readonly ReasoningEffortOption[]> = {
@@ -161,7 +161,9 @@ export function isSupportedThinkingTokenGeminiModel(model?: Model): boolean {
 export function isQwenReasoningModel(model?: Model): boolean {
   if (!model) return false;
   const modelId = getLowerBaseModelName(model.id);
-  return modelId.includes('qwen3') || modelId.includes('qwen-max') || modelId.includes('qwen-plus');
+  return modelId.includes('qwen3') || modelId.includes('qwen-max') || 
+         modelId.includes('qwen-plus') || modelId.includes('qwq') || 
+         modelId.includes('qwen2.5') || modelId.includes('qwen2');
 }
 
 /**
@@ -177,7 +179,8 @@ export function isSupportedThinkingTokenQwenModel(model?: Model): boolean {
 export function isQwenAlwaysThinkModel(model?: Model): boolean {
   if (!model) return false;
   const modelId = getLowerBaseModelName(model.id);
-  return modelId.includes('qwq') || modelId.includes('qwen3-thinking');
+  return modelId.includes('qwq') || modelId.includes('qwen3-thinking') || 
+         modelId.includes('qwen-omni-thinking');
 }
 
 /**
