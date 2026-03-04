@@ -5,6 +5,7 @@ import { OpenAIProvider } from '../../api/openai';
 import { OpenAIAISDKProvider } from '../../api/openai-aisdk';
 import { AnthropicAISDKProvider } from '../../api/anthropic-aisdk';
 import { GeminiAISDKProvider } from '../../api/gemini-aisdk';
+import { DashScopeProvider } from '../../api/dashscope/provider';
 import { ModelComboProvider } from './ModelComboProvider';
 import { EnhancedApiProvider } from '../network/EnhancedApiProvider';
 import { OpenAIResponseProvider } from '../../providers/OpenAIResponseProvider';
@@ -48,6 +49,8 @@ function createProviderInstance(model: Model, providerType: string): any {
       return new OpenAIAISDKProvider(model);
     case 'openai-response':
       return new OpenAIResponseProvider(model);
+    case 'dashscope':
+      return new DashScopeProvider(model);
     default:
       return new OpenAIProvider(model);
   }

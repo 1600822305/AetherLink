@@ -274,7 +274,9 @@ export function isGenerateImageModel(model: Model): boolean {
     // 其他图像生成模型
     modelId.includes('dall-e') ||
     modelId.includes('midjourney') ||
-    modelId.includes('stable-diffusion')
+    modelId.includes('stable-diffusion') ||
+    // DashScope 官方 Qwen-Image 文生图模型
+    modelId.includes('qwen-image')
   );
 }
 

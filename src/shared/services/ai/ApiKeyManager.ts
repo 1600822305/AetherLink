@@ -249,6 +249,8 @@ export class ApiKeyManager {
         return key.startsWith('sk-') && key.length > 20;
       case 'volcengine':
         return key.length > 20;
+      case 'dashscope':
+        return key.startsWith('sk-') && key.length > 20;
       default:
         return key.length > 10; // 通用验证
     }
