@@ -23,6 +23,10 @@ export function createProvider(model: Model): any {
     case 'openai-aisdk':
       return new OpenAIAISDKProvider(model);
       
+    case 'dashscope':
+      // DashScope 聊天走 OpenAI 兼容模式
+      return new OpenAIProvider(model);
+
     // 可以在这里添加其他供应商
     case 'anthropic':
       // TODO: 实现 Anthropic Provider
@@ -78,6 +82,8 @@ export function getProviderDisplayName(model: Model): string {
       return '硅基流动';
     case 'volcengine':
       return '火山引擎';
+    case 'dashscope':
+      return '阿里云百炼';
     default:
       return providerType || 'Unknown';
   }
