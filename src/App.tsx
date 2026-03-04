@@ -15,7 +15,6 @@ import KnowledgeProvider from './components/KnowledgeManagement/KnowledgeProvide
 import { CodeStyleProvider } from './context/CodeStyleProvider';
 import AppContent from './components/AppContent';
 import LoggerService from './shared/services/infra/LoggerService';
-import { loadSettings } from './shared/store/settingsSlice';
 
 // 初始化日志拦截器
 LoggerService.log('INFO', '应用初始化');
@@ -23,9 +22,6 @@ LoggerService.log('INFO', '应用初始化');
 // 🚀 性能优化：非阻塞式恢复 Redux 状态
 // 在后台恢复状态，不阻塞渲染
 persistor.persist();
-
-// 在应用启动时加载设置（异步）
-store.dispatch(loadSettings());
 
 function App() {
   return (

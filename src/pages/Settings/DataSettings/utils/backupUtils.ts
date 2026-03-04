@@ -364,8 +364,9 @@ export async function prepareFullBackupData(): Promise<{
     // 获取基础备份数据
     const basicData = await prepareBasicBackupData();
 
-    // 获取设置数据
-    const appSettings = await getStorageItem('settings') || {};
+    // 从 Redux store 获取当前设置数据
+    const { default: store } = await import('../../../../shared/store');
+    const appSettings = store.getState().settings || {};
 
     // 获取备份设置
     const backupSettings = {

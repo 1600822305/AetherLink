@@ -1,4 +1,4 @@
-import { getStorageItem } from '../../../../shared/utils/storage';
+import store from '../../../../shared/store';
 import { createAndShareBackupFile, prepareBasicBackupData } from './backupUtils';
 import type { ChatTopic } from '../../../../shared/types';
 import type { Assistant } from '../../../../shared/types/Assistant';
@@ -30,8 +30,8 @@ interface ModelConfigData {
  */
 async function prepareModelConfigData(): Promise<ModelConfigData> {
   try {
-    // 获取完整的设置数据
-    const settings = await getStorageItem<any>('settings');
+    // 从 Redux store 获取当前设置数据
+    const settings = store.getState().settings as any;
     
     if (!settings) {
       console.warn('未找到设置数据');
@@ -103,7 +103,7 @@ async function prepareAssistantsData(): Promise<Assistant[]> {
  */
 async function prepareUserSettingsData(): Promise<any> {
   try {
-    const settings = await getStorageItem<any>('settings');
+    const settings = store.getState().settings as any;
     
     if (!settings) {
       console.warn('未找到用户设置数据');
@@ -242,7 +242,7 @@ export async function performSelectiveBackup(
     await createAndShareBackupFile(
       fileName,
       backupData,
-      (message) => {
+      (_message) => {
         const successMessage = `选择性备份创建成功！\n已备份: ${getSelectedOptionsText(options)}`;
         onSuccess(successMessage);
       },

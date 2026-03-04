@@ -107,7 +107,7 @@ export const getInitialState = (): SettingsState => {
         height?: number;
       }>,
     },
-    isLoading: true, // 初始时设为加载中状态
+    isLoading: false, // redux-persist 自动恢复状态，无需加载中标记
 
     // 消息气泡宽度默认设置
     messageBubbleMinWidth: 50, // 默认最小宽度50%

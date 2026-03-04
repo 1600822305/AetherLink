@@ -4,10 +4,10 @@ import type { Assistant } from '../../../../shared/types/Assistant';
 import { CURRENT_BACKUP_VERSION } from './backupUtils';
 import { importExternalBackup, type ImportMode } from './externalBackupUtils';
 import { dexieStorage } from '../../../../shared/services/storage/DexieStorageService';
-import { getStorageItem, setStorageItem, setStorageItems } from '../../../../shared/utils/storage';
+import { setStorageItems } from '../../../../shared/utils/storage';
 import { getMainTextContent } from '../../../../shared/utils/messageUtils';
 import store from '../../../../shared/store';
-import { loadSettings } from '../../../../shared/store/settingsSlice';
+import { updateSettings } from '../../../../shared/store/settingsSlice';
 
 /**
  * 从文件中读取JSON内容
@@ -350,12 +350,9 @@ export async function restoreSettings(
       sendWithEnter: mergedSettings.sendWithEnter !== undefined ? mergedSettings.sendWithEnter : true
     };
 
-    // 保存设置到数据库
-    await setStorageItem('settings', finalSettings);
-
-    // 重新加载设置到Redux store，确保状态同步
-    console.log('重新加载设置到Redux store...');
-    await store.dispatch(loadSettings());
+    // 直接更新 Redux store，redux-persist 会自动持久化
+    console.log('更新设置到 Redux store...');
+    store.dispatch(updateSettings(finalSettings));
 
     console.log('设置恢复完成');
     return true;
@@ -396,12 +393,9 @@ export async function restoreModelConfig(
       mergedSettings.modelTypeRules = modelConfigData.modelTypeRules;
     }
 
-    // 保存设置到数据库
-    await setStorageItem('settings', mergedSettings);
-
-    // 重新加载设置到Redux store，确保状态同步
-    console.log('重新加载模型配置到Redux store...');
-    await store.dispatch(loadSettings());
+    // 直接更新 Redux store，redux-persist 会自动持久化
+    console.log('更新模型配置到 Redux store...');
+    store.dispatch(updateSettings(mergedSettings));
 
     console.log('模型配置恢复完成');
     return true;
@@ -457,12 +451,9 @@ export async function restoreUserSettings(
       generatedImages: userSettingsData.generatedImages ?? currentSettings.generatedImages,
     };
 
-    // 保存设置到数据库
-    await setStorageItem('settings', mergedSettings);
-
-    // 重新加载设置到Redux store，确保状态同步
-    console.log('重新加载用户设置到Redux store...');
-    await store.dispatch(loadSettings());
+    // 直接更新 Redux store，redux-persist 会自动持久化
+    console.log('更新用户设置到 Redux store...');
+    store.dispatch(updateSettings(mergedSettings));
 
     console.log('用户设置恢复完成');
     return true;
@@ -486,12 +477,12 @@ export async function restoreBackupSettings(backupSettings: { location?: string;
 
     // 保存备份位置
     if (backupSettings.location) {
-      await setStorageItem('backup-location', backupSettings.location);
+      await dexieStorage.saveSetting('backup-location', backupSettings.location);
     }
 
     // 保存备份存储类型
     if (backupSettings.storageType) {
-      await setStorageItem('backup-storage-type', backupSettings.storageType);
+      await dexieStorage.saveSetting('backup-storage-type', backupSettings.storageType);
     }
 
     console.log('备份设置恢复完成');
@@ -580,8 +571,8 @@ export async function performFullRestore(
     // 处理备份数据的版本兼容性
     const processedData = processBackupDataForVersion(backupData);
 
-    // 获取当前设置
-    const currentSettings = await getStorageItem('settings') || {};
+    // 从 Redux store 获取当前设置
+    const currentSettings = store.getState().settings || {};
 
     let topicsCount = 0;
     let assistantsCount = 0;
@@ -611,7 +602,7 @@ export async function performFullRestore(
       if (processedData.userSettings) {
         onProgress?.('恢复用户设置', 0.6);
         // 获取最新的设置（可能已被模型配置恢复更新）
-        const latestSettings = await getStorageItem('settings') || {};
+        const latestSettings = store.getState().settings || {};
         settingsRestored = await restoreUserSettings(processedData.userSettings, latestSettings);
       }
     } else {

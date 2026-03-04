@@ -10,8 +10,6 @@ export type { SettingsState } from './settings/types';
 import type { SettingsState } from './settings/types';
 import { ensureModelIdentityKey, setDefaultFlags, canonicalModelKey, createSetter } from './settings/helpers';
 import { DEFAULT_HAPTIC_FEEDBACK, DEFAULT_CONTEXT_CONDENSE, DEFAULT_TOOLBAR_BUTTONS, getInitialState } from './settings/defaults';
-import { loadSettings } from './settings/thunks';
-export { loadSettings };
 
 const initialState = getInitialState();
 
@@ -357,26 +355,8 @@ const settingsSlice = createSlice({
       state.contextCondense = { ...DEFAULT_CONTEXT_CONDENSE, ...state.contextCondense, ...action.payload };
     },
   },
-  extraReducers: (builder) => {
-    // 处理加载设置
-    builder
-      .addCase(loadSettings.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(loadSettings.fulfilled, (state, action) => {
-        if (action.payload) {
-          // 合并加载的设置与当前状态
-          return {
-            ...action.payload,
-            isLoading: false
-          };
-        }
-        state.isLoading = false;
-      })
-      .addCase(loadSettings.rejected, (state) => {
-        state.isLoading = false;
-      })
-      ;
+  extraReducers: () => {
+    // redux-persist 已完全接管设置持久化，不再需要额外的加载逻辑
   }
 });
 

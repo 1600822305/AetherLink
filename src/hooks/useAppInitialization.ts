@@ -7,7 +7,7 @@ import { DataManager } from '../shared/services';
 import { DataRepairService } from '../shared/services/storage/DataRepairService';
 import { DatabaseCleanupService } from '../shared/services/storage/DatabaseCleanupService';
 import { initGroups } from '../shared/store/slices/groupsSlice';
-import { getStorageItem } from '../shared/utils/storage';
+import store from '../shared/store';
 // 🚀 性能优化：性能指标追踪
 import { recordMetric } from '../utils/performanceMetrics';
 
@@ -39,14 +39,12 @@ export const useAppInitialization = () => {
       setInitializationStep('配置显示设置...');
       setInitializationProgress(30);
 
-      // 获取主题设置并初始化服务（并行）
-      const [savedSettings] = await Promise.all([
-        getStorageItem('settings') as Promise<any>,
-        safeAreaService.initialize()
-      ]);
+      // 从 Redux store 获取主题设置并初始化服务（并行）
+      await safeAreaService.initialize();
 
-      const currentTheme = savedSettings?.theme || 'system';
-      const currentThemeStyle = savedSettings?.themeStyle || 'default';
+      const settingsState = store.getState().settings;
+      const currentTheme = settingsState?.theme || 'system';
+      const currentThemeStyle = settingsState?.themeStyle || 'default';
       const actualTheme = currentTheme === 'system'
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : currentTheme as 'light' | 'dark';
