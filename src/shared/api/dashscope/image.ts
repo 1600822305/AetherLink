@@ -87,7 +87,23 @@ function normalizeImageSize(size: string | undefined, modelId: string): string {
     if (QWEN_IMAGE_MAX_PLUS_SIZES.includes(normalizedSize)) {
       return normalizedSize;
     }
-    return '1664*928'; // 默认 16:9
+    // 根据输入尺寸的宽高比选择最接近的允许尺寸
+    const inputParts = normalizedSize.split('*').map(Number);
+    if (inputParts.length === 2 && !isNaN(inputParts[0]) && !isNaN(inputParts[1])) {
+      const inputRatio = inputParts[0] / inputParts[1];
+      let bestSize = QWEN_IMAGE_MAX_PLUS_SIZES[0];
+      let bestDiff = Infinity;
+      for (const s of QWEN_IMAGE_MAX_PLUS_SIZES) {
+        const [sw, sh] = s.split('*').map(Number);
+        const diff = Math.abs(sw / sh - inputRatio);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestSize = s;
+        }
+      }
+      return bestSize;
+    }
+    return '1328*1328'; // 默认 1:1
   }
 
   // qwen-image-2.0 系列支持自由设置，只要在 512*512 ~ 2048*2048 范围内
