@@ -5,10 +5,11 @@ import { createAssistantMessage } from '../../../shared/utils/messageUtils';
 import { newMessagesActions } from '../../../shared/store/slices/newMessagesSlice';
 import { upsertManyBlocks } from '../../../shared/store/slices/messageBlocksSlice';
 import { AssistantMessageStatus, MessageBlockStatus, MessageBlockType } from '../../../shared/types/newMessage';
+import type { SiliconFlowImageFormat, ChatTopic } from '../../../shared/types';
 
 interface UseAIDebateProps {
-  onSendMessage: (message: string, images?: any[], toolsEnabled?: boolean, files?: any[]) => void;
-  currentTopic: any;
+  onSendMessage: (message: string, images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => void;
+  currentTopic: ChatTopic | null;
 }
 
 export const useAIDebate = ({ onSendMessage, currentTopic }: UseAIDebateProps) => {

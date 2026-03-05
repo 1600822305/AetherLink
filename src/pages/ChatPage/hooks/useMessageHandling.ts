@@ -5,7 +5,7 @@ import { selectMessagesForTopic } from '../../../shared/store/selectors/messageS
 import { sendMessage, deleteMessage, regenerateResponse } from '../../../shared/store/thunks/messageThunk';
 import { loadTopicMessagesThunk } from '../../../shared/store/slices/newMessagesSlice';
 import { versionService } from '../../../shared/services/messages/VersionService';
-import type { SiliconFlowImageFormat } from '../../../shared/types';
+import type { SiliconFlowImageFormat, Model, ChatTopic } from '../../../shared/types';
 import type { AppDispatch } from '../../../shared/store';
 import { findModelInProviders } from '../../../shared/utils/modelUtils';
 
@@ -14,8 +14,8 @@ import { findModelInProviders } from '../../../shared/utils/modelUtils';
  * 负责发送、删除、重新生成消息等功能
  */
 export const useMessageHandling = (
-  selectedModel: any,
-  currentTopic: any
+  selectedModel: Model | null,
+  currentTopic: ChatTopic | null
 ) => {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -98,6 +98,7 @@ export const useMessageHandling = (
       }
 
       const modelToUse = latestModel || selectedModel;
+      if (!modelToUse) return null;
 
       console.log(`[handleRegenerateMessage] 使用模型重新生成消息: ${messageId}`, {
         modelId: modelToUse.id,
@@ -135,6 +136,8 @@ export const useMessageHandling = (
 
   // 增强版本管理 - 支持更多版本操作
   const handleSwitchMessageVersion = useCallback(async (versionIdOrCommand: string) => {
+    if (!currentTopic) return false;
+
     try {
       // 处理特殊命令
       if (versionIdOrCommand === 'latest') {
@@ -151,7 +154,7 @@ export const useMessageHandling = (
       
       if (versionIdOrCommand === 'create') {
         // 获取当前消息 - 假设当前只处理助手消息
-        const messages = selectMessagesForTopic(store.getState(), currentTopic.id);
+        const messages = selectMessagesForTopic(store.getState(), currentTopic!.id);
         const assistantMessages = messages.filter(m => m.role === 'assistant');
         
         if (assistantMessages.length > 0) {
