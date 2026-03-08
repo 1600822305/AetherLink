@@ -82,7 +82,7 @@ const MCPServerDetail: React.FC = () => {
       }));
       setHeaderPairs(pairs);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [server?.id]); // 只在服务器 ID 变化时重新初始化
 
   // 从 server.env 初始化 envPairs
@@ -408,9 +408,15 @@ const MCPServerDetail: React.FC = () => {
               <TextField
                 fullWidth
                 label={t('settings.mcpServer.detail.basicInfo.args') || '命令参数'}
-                value={(server.args || []).join(' ')}
-                onChange={(e) => setServer({ ...server, args: e.target.value.split(' ').filter(Boolean) })}
-                placeholder="C:\path\to\script.js 或 -y @anthropic/mcp-server-fetch"
+                value={server.argsText ?? (server.args || []).join(' ')}
+                onChange={(e) => setServer({ ...server, argsText: e.target.value })}
+                onBlur={() =>
+                  setServer((prev) => ({
+                    ...prev,
+                    args: (prev.argsText ?? '').trim() ? (prev.argsText ?? '').trim().split(/\s+/) : []
+                  }))
+                }
+                placeholder="C:\\path\\to\\script.js 或 -y @anthropic/mcp-server-fetch"
                 helperText={t('settings.mcpServer.detail.basicInfo.argsHelp') || '命令参数，用空格分隔'}
                 sx={{ mb: 2 }}
               />
@@ -454,10 +460,10 @@ const MCPServerDetail: React.FC = () => {
             </Typography>
             <Stack spacing={1.5} sx={{ mb: 3 }}>
               {headerPairs.map((pair) => (
-                <Stack 
-                  key={pair.id} 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  spacing={1} 
+                <Stack
+                  key={pair.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
                   alignItems={{ xs: 'stretch', sm: 'center' }}
                   sx={{
                     p: { xs: 1.5, sm: 0 },
@@ -473,7 +479,7 @@ const MCPServerDetail: React.FC = () => {
                     placeholder={t('settings.mcpServer.detail.advanced.placeholders.headerKey')}
                     value={pair.key}
                     onChange={(e) => {
-                      const newPairs = headerPairs.map(p => 
+                      const newPairs = headerPairs.map(p =>
                         p.id === pair.id ? { ...p, key: e.target.value } : p
                       );
                       setHeaderPairs(newPairs);
@@ -492,7 +498,7 @@ const MCPServerDetail: React.FC = () => {
                     placeholder={t('settings.mcpServer.detail.advanced.placeholders.headerValue')}
                     value={pair.value}
                     onChange={(e) => {
-                      const newPairs = headerPairs.map(p => 
+                      const newPairs = headerPairs.map(p =>
                         p.id === pair.id ? { ...p, value: e.target.value } : p
                       );
                       setHeaderPairs(newPairs);
@@ -546,10 +552,10 @@ const MCPServerDetail: React.FC = () => {
             </Typography>
             <Stack spacing={1.5} sx={{ mb: 3 }}>
               {envPairs.map((pair) => (
-                <Stack 
-                  key={pair.id} 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  spacing={1} 
+                <Stack
+                  key={pair.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
                   alignItems={{ xs: 'stretch', sm: 'center' }}
                   sx={{
                     p: { xs: 1.5, sm: 0 },
@@ -565,7 +571,7 @@ const MCPServerDetail: React.FC = () => {
                     placeholder={t('settings.mcpServer.detail.advanced.placeholders.envKey')}
                     value={pair.key}
                     onChange={(e) => {
-                      const newPairs = envPairs.map(p => 
+                      const newPairs = envPairs.map(p =>
                         p.id === pair.id ? { ...p, key: e.target.value } : p
                       );
                       setEnvPairs(newPairs);
@@ -584,7 +590,7 @@ const MCPServerDetail: React.FC = () => {
                     placeholder={t('settings.mcpServer.detail.advanced.placeholders.envValue')}
                     value={pair.value}
                     onChange={(e) => {
-                      const newPairs = envPairs.map(p => 
+                      const newPairs = envPairs.map(p =>
                         p.id === pair.id ? { ...p, value: e.target.value } : p
                       );
                       setEnvPairs(newPairs);
