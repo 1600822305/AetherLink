@@ -164,6 +164,10 @@ const MCPServerSettings: React.FC = () => {
     }
 
     try {
+      const parsedArgs = (newServer.argsText ?? '').trim()
+        ? (newServer.argsText ?? '').trim().split(/\s+/)
+        : (newServer.args ?? []);
+
       const server: MCPServer = {
         id: Date.now().toString(),
         name: newServer.name!,
@@ -174,7 +178,7 @@ const MCPServerSettings: React.FC = () => {
         isActive: false,
         headers: {},
         env: {},
-        args: []
+        args: parsedArgs
       };
       await mcpService.addServer(server);
       loadServers();
@@ -358,13 +362,13 @@ const MCPServerSettings: React.FC = () => {
           <Typography
             variant="h6"
             component="div"
-              sx={{
-                flexGrow: 1,
-                fontWeight: 600,
-              }}
-            >
-              {t('settings.mcpServer.pageTitle')}
-            </Typography>
+            sx={{
+              flexGrow: 1,
+              fontWeight: 600,
+            }}
+          >
+            {t('settings.mcpServer.pageTitle')}
+          </Typography>
           {activeTab === 0 && (
             <Button
               startIcon={<AddIcon />}
@@ -594,13 +598,13 @@ const MCPServerSettings: React.FC = () => {
             {assistantTemplates.length > 0 ? (
               <List disablePadding>
                 {assistantTemplates.map((tpl, i) => (
-                <BuiltinServerListItem key={tpl.id} template={tpl} index={i} total={assistantTemplates.length}
-                  addedServer={getAddedServer(tpl.name)} deletingId={deletingId}
-                  onToggleServer={handleToggleServer} onDeleteServer={handleDeleteServer}
-                  onAddBuiltinServer={handleAddBuiltinServer} onNavigateAssistant={handleNavigateAssistant}
-                  onEditServer={handleEditServer}
-                />
-              ))}
+                  <BuiltinServerListItem key={tpl.id} template={tpl} index={i} total={assistantTemplates.length}
+                    addedServer={getAddedServer(tpl.name)} deletingId={deletingId}
+                    onToggleServer={handleToggleServer} onDeleteServer={handleDeleteServer}
+                    onAddBuiltinServer={handleAddBuiltinServer} onNavigateAssistant={handleNavigateAssistant}
+                    onEditServer={handleEditServer}
+                  />
+                ))}
               </List>
             ) : (
               <Box sx={{ p: 3, textAlign: 'center' }}>
