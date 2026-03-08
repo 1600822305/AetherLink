@@ -1,9 +1,9 @@
 /**
  * Stdio MCP 客户端适配器（Tauri 桌面端专用）
- * 
+ *
  * 使用 Tauri Shell 插件 spawn 子进程，通过标准输入/输出与 MCP 服务器通信。
  * 此传输类型仅在 Tauri 桌面端可用（Windows/macOS/Linux）。
- * 
+ *
  * 工作原理：
  * 1. 使用 tauri_plugin_shell 的 Command API spawn 子进程
  * 2. 通过 stdin 发送 JSON-RPC 请求
@@ -30,10 +30,10 @@ interface TauriChild {
  * 将用户提供的命令映射到 Tauri scope 中定义的命令名称
  * Tauri 2.0 要求使用预定义的命令名称而非完整路径
  */
-function mapCommandToScopeName(command: string): { scopeName: string; executable: string } {
+function mapCommandToScopeName(command: string, args: string[] = []): { scopeName: string; executable: string[] } {
   const lowerCommand = command.toLowerCase();
   const baseName = lowerCommand.split(/[/\\]/).pop() || '';
-  
+
   // 根据命令名称或路径推断使用哪个预定义的命令
   if (baseName.includes('node') || lowerCommand.includes('node')) {
     return { scopeName: 'run-node', executable: 'node' };
@@ -51,9 +51,13 @@ function mapCommandToScopeName(command: string): { scopeName: string; executable
   if (baseName.includes('uvx') || lowerCommand.includes('uvx')) {
     return { scopeName: 'run-uvx', executable: 'uvx' };
   }
-  
+  // 未知命令：统一走 cmd，支持任意 exe 路径输入
+  if (isWindows()) {
+    return { scopeName: 'run-cmd', executable: ['/c', command, ...args] };
+  }
+
   // 默认尝试使用原始命令
-  return { scopeName: command, executable: command };
+  return { scopeName: command, executable: args };
 }
 
 class StdioTransport implements Transport {
@@ -87,7 +91,7 @@ class StdioTransport implements Transport {
       const { Command } = await import('@tauri-apps/plugin-shell');
 
       // 将命令映射到 Tauri scope 中定义的名称
-      const { scopeName } = mapCommandToScopeName(this.command);
+      const { scopeName, executable } = mapCommandToScopeName(this.command, this.args);
       console.log(`[Stdio Transport] 使用 scope 命令: ${scopeName}`);
 
       // 创建命令 - 使用 scope 名称
@@ -97,7 +101,7 @@ class StdioTransport implements Transport {
       if (this.cwd) {
         spawnOptions.cwd = this.cwd;
       }
-      const cmd = Command.create(scopeName, this.args, spawnOptions);
+      const cmd = Command.create(scopeName, executable, spawnOptions);
 
       // 监听 close 事件
       cmd.on('close', (data) => {
@@ -179,7 +183,7 @@ class StdioTransport implements Transport {
 
     const json = JSON.stringify(message) + '\n';
     console.log('[Stdio Transport] 发送消息:', message);
-    
+
     // Tauri 2.0 的 write 方法接受 string 或 number[]
     await this.child.write(json);
   }
