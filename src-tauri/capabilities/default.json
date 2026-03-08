@@ -10,10 +10,18 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "http://*:*/*" },
-        { "url": "https://*:*/*" },
-        { "url": "http://*" },
-        { "url": "https://*" }
+        {
+          "url": "http://*:*/*"
+        },
+        {
+          "url": "https://*:*/*"
+        },
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        }
       ]
     },
     "dialog:default",
@@ -22,7 +30,9 @@
     {
       "identifier": "fs:default",
       "allow": [
-        { "path": "**" }
+        {
+          "path": "**"
+        }
       ]
     },
     "fs:allow-read",
@@ -66,6 +76,11 @@
         {
           "name": "run-uvx",
           "cmd": "uvx",
+          "args": true
+        },
+        {
+          "name": "run-cmd",
+          "cmd": "cmd",
           "args": true
         }
       ]
