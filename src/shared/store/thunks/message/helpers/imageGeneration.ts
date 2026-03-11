@@ -3,6 +3,7 @@
  */
 import { generateImage as generateOpenAIImage } from '../../../../api/openai/image';
 import { generateImage as generateGeminiImage } from '../../../../api/gemini-aisdk/image';
+import { generateImage as generateDashScopeImage, isDashScopeImageModel } from '../../../../api/dashscope/image';
 import { createImageBlock } from '../../../../utils/messageUtils';
 import { dexieStorage } from '../../../../services/storage/DexieStorageService';
 import { newMessagesActions } from '../../../slices/newMessagesSlice';
@@ -105,6 +106,13 @@ export async function handleImageGeneration(
       batchSize: 1
     });
     responseHandler.handleStringContent('Gemini 图像生成完成！');
+  } else if (isDashScopeImageModel(model)) {
+    imageUrls = await generateDashScopeImage(model, {
+      prompt,
+      imageSize: '1024x1024',
+      batchSize: 1
+    });
+    responseHandler.handleStringContent('Qwen 图像生成完成！');
   } else {
     imageUrls = await generateOpenAIImage(model, {
       prompt,

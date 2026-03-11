@@ -80,6 +80,8 @@ const AddProviderPage: React.FC = () => {
         return 'https://ark.cn-beijing.volces.com/api/v3';
       case 'minimax':
         return 'https://api.minimaxi.com';
+      case 'dashscope':
+        return 'https://dashscope.aliyuncs.com/compatible-mode/v1';
       case 'google':
         return 'https://generativelanguage.googleapis.com/v1beta';
       default:

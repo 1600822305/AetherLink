@@ -386,6 +386,36 @@ export const getDefaultModelProviders = (): ModelProvider[] => [
       { id: 'hailuo-2.3-fast', name: 'Hailuo 2.3 Fast', provider: 'minimax', enabled: true, isDefault: false, description: '图片生成视频快速版，高性价比' },
       { id: 'music-2.0', name: 'Music 2.0', provider: 'minimax', enabled: true, isDefault: false, description: '文本生成音乐，增强音乐性，自然人声和流畅旋律' }
     ]
+  },
+  {
+    id: 'dashscope',
+    name: '阿里云百炼',
+    avatar: 'dashscope',
+    color: '#ff6a00',
+    isEnabled: false,
+    apiKey: '',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    providerType: 'dashscope',
+    models: [
+      // ========== Qwen 聊天模型 ==========
+      { id: 'qwen-max', name: 'Qwen-Max', provider: 'dashscope', enabled: true, isDefault: true, description: '通义千问超大规模语言模型，适合复杂任务' },
+      { id: 'qwen-plus', name: 'Qwen-Plus', provider: 'dashscope', enabled: true, isDefault: false, description: '通义千问大规模语言模型，平衡效果与成本' },
+      { id: 'qwen-turbo', name: 'Qwen-Turbo', provider: 'dashscope', enabled: true, isDefault: false, description: '通义千问快速模型，适合简单任务' },
+      { id: 'qwen-long', name: 'Qwen-Long', provider: 'dashscope', enabled: true, isDefault: false, description: '通义千问长文本模型，支持超长上下文' },
+      { id: 'qwen3-235b-a22b', name: 'Qwen3-235B-A22B', provider: 'dashscope', enabled: true, isDefault: false, description: 'Qwen3 旗舰模型，MoE架构' },
+      { id: 'qwen3-32b', name: 'Qwen3-32B', provider: 'dashscope', enabled: true, isDefault: false, description: 'Qwen3 32B 密集模型' },
+      { id: 'qwen3-30b-a3b', name: 'Qwen3-30B-A3B', provider: 'dashscope', enabled: true, isDefault: false, description: 'Qwen3 MoE轻量模型' },
+
+      // ========== Qwen 视觉模型 ==========
+      { id: 'qwen-vl-max', name: 'Qwen-VL-Max', provider: 'dashscope', enabled: true, isDefault: false, description: '通义千问视觉模型旗舰版' },
+      { id: 'qwen-vl-plus', name: 'Qwen-VL-Plus', provider: 'dashscope', enabled: true, isDefault: false, description: '通义千问视觉模型增强版' },
+
+      // ========== Qwen 文生图模型 ==========
+      { id: 'qwen-image-2.0-pro', name: 'Qwen-Image 2.0 Pro', provider: 'dashscope', enabled: true, isDefault: false, description: '千问图像生成Pro，文字渲染和真实质感更强', capabilities: { imageGeneration: true } },
+      { id: 'qwen-image-2.0', name: 'Qwen-Image 2.0', provider: 'dashscope', enabled: true, isDefault: false, description: '千问图像生成加速版，兼顾效果与速度', capabilities: { imageGeneration: true } },
+      { id: 'qwen-image-max', name: 'Qwen-Image Max', provider: 'dashscope', enabled: true, isDefault: false, description: '千问图像生成Max，真实感和自然度更强', capabilities: { imageGeneration: true } },
+      { id: 'qwen-image-plus', name: 'Qwen-Image Plus', provider: 'dashscope', enabled: true, isDefault: false, description: '千问图像生成Plus，擅长多样化艺术风格', capabilities: { imageGeneration: true } },
+    ]
   }
 ];
 

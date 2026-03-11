@@ -13,13 +13,15 @@ import {
   MessageBlockStatus,
   AssistantMessageStatus
 } from '../../../shared/types/newMessage.ts';
+import type { MessageBlock } from '../../../shared/types/newMessage.ts';
 
 import { abortCompletion } from '../../../shared/utils/abortController';
 import store from '../../../shared/store';
 import { setActiveProviderId } from '../../../shared/store/slices/webSearchSlice';
 import { TopicService } from '../../../shared/services/topics/TopicService';
 import { VideoTaskManager } from '../../../shared/services/ai/VideoTaskManager';
-import type { SiliconFlowImageFormat, GoogleVeoParams } from '../../../shared/types';
+import type { SiliconFlowImageFormat, GoogleVeoParams, Model, ChatTopic } from '../../../shared/types';
+import type { Message } from '../../../shared/types/newMessage.ts';
 
 /**
  * 互斥模式类型
@@ -31,9 +33,9 @@ type ExclusiveMode = 'image' | 'video' | 'webSearch' | null;
  * 包括图像生成、网络搜索、URL抓取等功能
  */
 export const useChatFeatures = (
-  currentTopic: any,
-  currentMessages: any[],
-  selectedModel: any,
+  currentTopic: ChatTopic | null,
+  currentMessages: Message[],
+  selectedModel: Model | null,
   handleSendMessage: (content: string, images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => void
 ) => {
   const dispatch = useDispatch();
@@ -427,7 +429,7 @@ export const useChatFeatures = (
    * 多模型发送消息
    * 支持同时向多个模型发送相同的消息
    */
-  const handleMultiModelSend = async (content: string, models: any[], images?: any[], _toolsEnabled?: boolean, files?: any[]) => {
+  const handleMultiModelSend = async (content: string, models: Model[], images?: SiliconFlowImageFormat[], _toolsEnabled?: boolean, files?: any[]) => {
     if (!currentTopic || !selectedModel) return;
 
     try {
@@ -459,7 +461,7 @@ export const useChatFeatures = (
       dispatch(newMessagesActions.addMessage({ topicId: currentTopic.id, message: userMessage }));
 
       // 3. 为每个模型创建独立的助手消息
-      const assistantMessages: any[] = [];
+      const assistantMessages: { message: Message; blocks: MessageBlock[]; model: Model }[] = [];
 
       for (const model of models) {
         const { message: assistantMessage, blocks: assistantBlocks } = createAssistantMessage({
@@ -510,9 +512,9 @@ export const useChatFeatures = (
    * 这样可以正确支持思考过程显示
    */
   const callSingleModelForMultiModel = async (
-    model: any,
-    assistantMessage: any,
-    assistantBlocks: any[],
+    model: Model,
+    assistantMessage: Message,
+    assistantBlocks: MessageBlock[],
     enableTools?: boolean
   ) => {
     try {
@@ -527,7 +529,7 @@ export const useChatFeatures = (
         dispatch as any,
         store.getState,
         assistantMessage,
-        currentTopic.id,
+        currentTopic!.id,
         model,
         enableTools ?? false // 支持工具调用
       );

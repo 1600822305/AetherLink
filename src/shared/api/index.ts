@@ -19,6 +19,9 @@ export * as geminiApi from './gemini-aisdk';
 // 导出Anthropic API模块 (使用 AI SDK 实现)
 export * as anthropicApi from './anthropic-aisdk';
 
+// 导出DashScope API模块 (阿里云百炼)
+export * as dashscopeApi from './dashscope';
+
 // 导出视频生成功能
 export { generateVideo, type GeneratedVideo } from '../services/network/APIService';
 export type { VideoGenerationParams, GoogleVeoParams } from '../services/network/APIService';

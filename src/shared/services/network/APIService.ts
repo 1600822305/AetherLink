@@ -5,6 +5,7 @@ import type { ImageGenerationParams, GeneratedImage } from '../../types';
 import { ModelType } from '../../types';
 import { log } from '../infra/LoggerService';
 import { generateImage as openaiGenerateImage, generateVideo as openaiGenerateVideo } from '../../api/openai';
+import { generateImage as dashscopeGenerateImage, isDashScopeImageModel } from '../../api/dashscope/image';
 import { generateVideoWithVeo } from '../../api/gemini-aisdk/veo';
 import type { VideoGenerationParams } from '../../api/openai/video';
 import type { GoogleVeoParams } from '../../api/gemini-aisdk/veo';
@@ -66,14 +67,18 @@ export async function generateImage(
       model.id === 'grok-2-image-latest' ||
       model.id === 'gemini-2.0-flash-exp-image-generation' ||
       model.id === 'gemini-2.0-flash-preview-image-generation' ||
-      (model.id === 'gemini-2.0-flash-exp' && model.imageGeneration);
+      (model.id === 'gemini-2.0-flash-exp' && model.imageGeneration) ||
+      // DashScope 官方 Qwen-Image 模型
+      isDashScopeImageModel(model);
 
     if (!isImageGenerationModel) {
       throw new Error(`模型 ${model.name} 不支持图像生成`);
     }
 
-    // 调用OpenAI兼容API生成图像
-    const imageUrls = await openaiGenerateImage(model, params);
+    // 根据 provider 选择图像生成 API
+    const imageUrls = isDashScopeImageModel(model)
+      ? await dashscopeGenerateImage(model, params)
+      : await openaiGenerateImage(model, params);
 
     // 创建图像生成结果
     const generatedImage: GeneratedImage = {

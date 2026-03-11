@@ -17,3 +17,25 @@ export { useFileUpload } from './useFileUpload';
 
 // 语音识别
 export { useVoiceRecognition } from './useVoiceRecognition';
+
+// 应用状态
+export { useAppState } from './useAppState';
+
+// 返回按钮
+export { useBackButton } from './useBackButton';
+
+// 键盘管理
+export { useKeyboard } from './useKeyboard';
+export type { UseKeyboardOptions, UseKeyboardResult } from './useKeyboard';
+
+// 模型组合同步
+export { useModelComboSync } from './useModelComboSync';
+
+// 笔记搜索
+export { useNotesSearch } from './useNotesSearch';
+
+// 话题管理
+export { useTopicManagement } from './useTopicManagement';
+
+// 视觉视口
+export { useVisualViewport } from './useVisualViewport';

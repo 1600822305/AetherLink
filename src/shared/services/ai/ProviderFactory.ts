@@ -6,6 +6,8 @@ import type { Model } from '../../types';
 import * as openaiApi from '../../api/openai';
 import { parseModelsResponse, normalizeModel } from '../../api/openai/models';
 import * as anthropicApi from '../../api/anthropic-aisdk';
+import * as dashscopeApi from '../../api/dashscope';
+import { DashScopeProvider } from '../../api/dashscope/provider';
 import { modelComboService } from './ModelComboService';
 import { OpenAIAISDKProvider } from '../../api/openai-aisdk';
 import { GeminiAISDKProvider } from '../../api/gemini-aisdk';
@@ -174,6 +176,19 @@ export function getProviderApi(model: Model): any {
           return await provider.testConnection();
         }
       };
+    case 'dashscope':
+      console.log(`[ProviderFactory] 使用 DashScope (阿里云百炼) API`);
+      return {
+        sendChatRequest: async (messages: any[], model: Model) => {
+          const provider = new DashScopeProvider(model);
+          return await provider.sendChatMessage(messages, {});
+        },
+        testConnection: async (model: Model) => {
+          const provider = new DashScopeProvider(model);
+          return await provider.testConnection();
+        },
+        fetchModels: dashscopeApi.fetchModels
+      };
     case 'openai':
     case 'deepseek': 
     case 'google':   
@@ -235,7 +250,7 @@ export async function sendChatRequest(
   try {
     console.log(`[ProviderFactory.sendChatRequest] 开始处理请求 - 模型ID: ${model.id}, 提供商: ${model.provider}`);
 
-    // 🎬 检查是否为视频生成模型
+    // 检查是否为视频生成模型
     if (isVideoGenerationModel(model)) {
       console.log(`[ProviderFactory.sendChatRequest] 检测到视频生成模型: ${model.id}`);
       throw new Error(`模型 ${model.name || model.id} 是视频生成模型，不支持聊天对话。请使用专门的视频生成功能。`);
@@ -421,6 +436,11 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
               { id: 'deepseek-reasoner', name: 'DeepSeek-R1', description: 'DeepSeek的推理模型，擅长解决复杂推理问题。', owned_by: 'deepseek' }
             ];
           }
+          break;
+        case 'dashscope':
+          // 阿里云百炼使用预设模型列表
+          console.log(`[fetchModelsFromEndpoint] DashScope使用预设模型列表`);
+          rawModels = await dashscopeApi.fetchModels(providerWithKey);
           break;
         case 'zhipu':
           // 智谱AI不支持标准的 /v1/models 接口，返回预设列表

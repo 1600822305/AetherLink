@@ -54,6 +54,7 @@ export const providerTypeOptions = [
   { value: 'siliconflow', label: '硅基流动 (SiliconFlow)' },
   { value: 'volcengine', label: '火山引擎' },
   { value: 'minimax', label: 'MiniMax' },
+  { value: 'dashscope', label: '阿里云百炼 (DashScope)' },
   { value: 'google', label: 'Google (通用)' },
   { value: 'custom', label: '自定义' }
 ];
