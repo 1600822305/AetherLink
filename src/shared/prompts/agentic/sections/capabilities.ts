@@ -1,5 +1,5 @@
 /**
- * 能力说明（简化版）
+ * 能力说明
  */
 
 export interface CapabilitiesConfig {
@@ -10,32 +10,25 @@ export interface CapabilitiesConfig {
 export function getCapabilitiesSection(config: CapabilitiesConfig): string {
   const { supportsBrowserUse, hasFileEditorTools } = config;
 
-  const fileEditorSection = hasFileEditorTools
-    ? `
-## File Editor Workflow
+  const parts: string[] = ['# Capabilities'];
 
-1. **list_workspaces** → Get available workspaces
-2. **get_workspace_files** → Explore project structure  
-3. **read_file** → Examine files (supports line ranges, batch reading)
-4. **apply_diff** / **write_to_file** → Make changes
-5. **attempt_completion** → Signal task completion
+  if (hasFileEditorTools) {
+    parts.push(`## File Operations
 
-### Key Tool Notes
-- **write_to_file**: Must provide \`line_count\` for validation, include COMPLETE content
-- **apply_diff**: Use SEARCH/REPLACE format for precise edits (recommended over write_to_file)
-- **create_file**: Safer for new files (fails if exists)`
-    : '';
+Workflow: \`list_workspaces\` → \`get_workspace_files\` → \`read_file\` → edit → \`attempt_completion\`
 
-  const browserSection = supportsBrowserUse
-    ? `
-## Browser Tools
-- Interact with websites and local dev servers when needed`
-    : '';
+Editing priority (prefer the first applicable option):
+1. **apply_diff** — SEARCH/REPLACE blocks for precise edits
+2. **insert_content** — append or insert at a specific line
+3. **write_to_file** — full rewrite (must include \`line_count\` and complete content)
+4. **create_file** — new files only (fails if file exists)`);
+  }
 
-  return `====
+  if (supportsBrowserUse) {
+    parts.push(`## Browser
 
-CAPABILITIES
+Interact with websites and local dev servers when needed.`);
+  }
 
-You have access to file editing tools that let you read, write, search, and manage files to accomplish complex coding tasks iteratively.
-${fileEditorSection}${browserSection}`;
+  return parts.join('\n\n');
 }

@@ -3,7 +3,6 @@
  */
 
 export { getToolUseSection } from './tool-use';
-export { getToolUseGuidelinesSection } from './tool-use-guidelines';
 export { getCapabilitiesSection } from './capabilities';
 export type { CapabilitiesConfig } from './capabilities';
 export { getRulesSection } from './rules';

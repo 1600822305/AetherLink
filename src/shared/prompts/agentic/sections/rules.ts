@@ -1,5 +1,5 @@
 /**
- * 规则约束（简化版）
+ * 规则约束
  */
 
 /** 工作区信息 */
@@ -14,53 +14,38 @@ export interface RulesConfig {
   osType: string;
   hasFileEditorTools: boolean;
   supportsBrowserUse: boolean;
-  /** 工作区列表（直接注入提示词） */
   workspaces?: WorkspaceInfo[];
 }
 
 export function getRulesSection(config: RulesConfig): string {
   const { cwd, hasFileEditorTools, workspaces = [] } = config;
 
-  // 构建工作区信息部分
-  let workspaceSection = '';
-  if (hasFileEditorTools && workspaces.length > 0) {
-    const workspaceList = workspaces.map((ws, index) => 
-      `  ${index + 1}. "${ws.name}" - ${ws.path}`
-    ).join('\n');
-    workspaceSection = `
-## Available Workspaces
-The following workspaces are available for file operations (use index number or name with get_workspace_files):
-${workspaceList}
-`;
-  } else if (hasFileEditorTools) {
-    workspaceSection = `
-## Workspaces
-No workspaces configured. Use \`list_workspaces\` to check available workspaces.
-`;
-  }
+  const parts: string[] = [
+    `# Rules
 
-  const editingRules = hasFileEditorTools
-    ? `
-## File Editing Rules
-- **Tool Priority**: \`apply_diff\` > \`replace_in_file\` > \`insert_content\` > \`write_to_file\`
-- **write_to_file**: MUST provide \`line_count\`, include COMPLETE content (no placeholders)
-- **apply_diff**: Read file first, use SEARCH/REPLACE format with enough context
-- **New Files**: Prefer \`create_file\` (safer) over \`write_to_file\``
-    : '';
-
-  return `====
-
-RULES
-
-## General
-- Working directory: ${cwd} (all paths relative to this)
-- Wait for tool confirmation before proceeding
-- Use tools instead of asking questions when possible
-- Goal-oriented: accomplish task, avoid back-and-forth
+## Execution
+- Working directory: \`${cwd}\`
+- One tool call per response. Wait for the result before proceeding.
+- Never assume a tool's outcome — always verify from the returned result.
+- Prefer tool use over asking the user. Be goal-oriented; minimize back-and-forth.
 
 ## Communication
-- Be direct and technical, no conversational phrases
-- FORBIDDEN openers: "Great", "Certainly", "Okay", "Sure"
-- attempt_completion result must be final (no questions)
-${workspaceSection}${editingRules}`;
+- Be direct and technical. No filler phrases ("Great", "Sure", "Certainly").
+- The \`attempt_completion\` result is final — no follow-up questions.`
+  ];
+
+  if (hasFileEditorTools) {
+    // 工作区信息
+    if (workspaces.length > 0) {
+      const list = workspaces.map((ws, i) => `${i + 1}. **${ws.name}** — \`${ws.path}\``).join('\n');
+      parts.push(`## Workspaces\n${list}`);
+    }
+
+    parts.push(`## File Editing
+- Always \`read_file\` before editing to get current content.
+- \`write_to_file\` must include \`line_count\` and the **complete** file content — no placeholders or ellipsis.
+- \`apply_diff\` requires sufficient surrounding context for unique matching.`);
+  }
+
+  return parts.join('\n\n');
 }

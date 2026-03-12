@@ -1,13 +1,10 @@
 /**
  * Agentic Mode 提示词系统
- * 参考 Roo Code 的模块化设计，为 Agentic 模式提供完整的提示词支持
- * 
- * 该系统独立于普通 MCP 提示词，仅在 Agentic 模式下使用
+ * 模块化设计，为 Agentic 模式提供完整的提示词支持
  */
 
 import type { MCPTool } from '../../types/index';
 import { getToolUseSection } from './sections/tool-use';
-import { getToolUseGuidelinesSection } from './sections/tool-use-guidelines';
 import { getCapabilitiesSection } from './sections/capabilities';
 import { getRulesSection } from './sections/rules';
 import { getObjectiveSection } from './sections/objective';
@@ -54,64 +51,34 @@ export function buildAgenticSystemPrompt(config: AgenticPromptConfig): string {
     workspaces = [],
   } = config;
 
-  // 检查是否有文件编辑工具
   const hasFileEditorTools = checkHasFileEditorTools(tools);
-  
-  // 构建各个 section
-  const sections: string[] = [];
 
-  // 1. 角色定义
-  sections.push(getRoleDefinition());
+  const sections: string[] = [
+    // 1. 角色定义
+    `You are an autonomous AI agent. You accomplish tasks by using tools step-by-step, verifying each result before proceeding. Every response must include exactly one tool call.`,
 
-  // 2. 工具使用格式
-  sections.push(getToolUseSection());
+    // 2. 工具调用格式
+    getToolUseSection(),
 
-  // 3. 工具目录
-  sections.push(getToolsCatalogSection(tools));
+    // 3. 工具目录
+    getToolsCatalogSection(tools),
 
-  // 4. 工具使用指南
-  sections.push(getToolUseGuidelinesSection());
+    // 4. 能力说明
+    getCapabilitiesSection({ supportsBrowserUse, hasFileEditorTools }),
 
-  // 5. 能力说明
-  sections.push(getCapabilitiesSection({
-    supportsBrowserUse,
-    hasFileEditorTools,
-  }));
+    // 5. 规则约束
+    getRulesSection({ cwd, osType, hasFileEditorTools, supportsBrowserUse, workspaces }),
 
-  // 6. 规则约束（包含工作区信息）
-  sections.push(getRulesSection({
-    cwd,
-    osType,
-    hasFileEditorTools,
-    supportsBrowserUse,
-    workspaces,
-  }));
+    // 6. 目标与完成协议
+    getObjectiveSection({ maxToolCalls, maxConsecutiveErrors }),
+  ];
 
-  // 7. 目标说明
-  sections.push(getObjectiveSection({
-    maxToolCalls,
-    maxConsecutiveErrors,
-  }));
-
-  // 8. 用户自定义指令
+  // 7. 用户自定义指令
   if (userSystemPrompt.trim()) {
-    sections.push(`====
-
-USER INSTRUCTIONS
-
-${userSystemPrompt}`);
+    sections.push(`# User Instructions\n\n${userSystemPrompt}`);
   }
 
   return sections.filter(s => s.trim()).join('\n\n');
-}
-
-/**
- * 获取角色定义
- */
-function getRoleDefinition(): string {
-  return `You are an autonomous AI agent operating in Agentic Mode. You have access to a set of tools that allow you to interact with the user's computer, read and write files, execute commands, and accomplish complex tasks iteratively.
-
-Your primary goal is to accomplish the user's task efficiently and accurately, using the available tools step-by-step until the task is complete.`;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * 目标说明（简化版）
+ * 目标与完成协议
  */
 
 export interface ObjectiveConfig {
@@ -10,39 +10,24 @@ export interface ObjectiveConfig {
 export function getObjectiveSection(config: ObjectiveConfig): string {
   const { maxToolCalls, maxConsecutiveErrors } = config;
 
-  return `====
-
-OBJECTIVE
-
-Break down tasks into clear steps and work through them methodically using tools.
+  return `# Task Completion
 
 ## Process
-1. Analyze task → Set goals in logical order
-2. Execute sequentially → One tool at a time, wait for confirmation
-3. **ALWAYS end with \`attempt_completion\`** → Present your result to the user
+1. Analyze the request → break into ordered steps.
+2. Execute one tool per response → verify result → next step.
+3. **End with \`attempt_completion\`** — every task must conclude with this call.
 
-## ⚠️ CRITICAL: Task Completion Protocol
+## attempt_completion
 
-**YOU MUST CALL \`attempt_completion\` TO END EVERY TASK.**
+A task is **incomplete** until \`attempt_completion\` is called. Call it when:
+- All requested work is done and verified.
 
-Without calling \`attempt_completion\`, the task is considered INCOMPLETE and FAILED, even if you have done all the work.
-
-### When to call attempt_completion:
-- After completing the user's request
-- After all file operations are done
-- When you have verified your changes work
-
-### How to call:
-<tool_use>
-  <name>attempt_completion</name>
-  <arguments>{"result": "Summary of what you accomplished"}</arguments>
-</tool_use>
-
-### Do NOT call attempt_completion if:
-- A tool just failed (fix the error first)
-- You are in the middle of a multi-step task
-- You need more information from the user
+Do **not** call it when:
+- A tool error just occurred (fix it first).
+- You are mid-way through a multi-step task.
+- You need more information from the user.
 
 ## Limits
-- Max ${maxToolCalls} tool calls, max ${maxConsecutiveErrors} consecutive errors`;
+- Maximum **${maxToolCalls}** tool calls per task.
+- Maximum **${maxConsecutiveErrors}** consecutive errors before reassessing approach.`;
 }

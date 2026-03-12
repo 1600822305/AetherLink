@@ -2,124 +2,109 @@ import type { MCPTool } from '../types/index';
 import { buildAgenticSystemPrompt, isAgenticMode } from '../prompts/agentic';
 import type { AgenticPromptConfig } from '../prompts/agentic';
 
-export const SYSTEM_PROMPT = `In this environment you have access to a set of tools you can use to answer the user's question. \
-You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
+export const SYSTEM_PROMPT = `You are a helpful assistant with access to external tools. Use them when needed to fulfill the user's request.
 
-## Tool Use Formatting
+# Tool Calling Protocol
 
-Tool use is formatted using XML-style tags. The tool name is enclosed in opening and closing tags, and each parameter is similarly enclosed within its own set of tags. Here's the structure:
+You may call **one tool per response**. After calling a tool, wait for the result before proceeding.
+
+## Format
+
+To call a tool, output the following XML block:
 
 <tool_use>
-  <name>{tool_name}</name>
-  <arguments>{json_arguments}</arguments>
+<name>TOOL_NAME</name>
+<arguments>JSON_OBJECT</arguments>
 </tool_use>
 
-The tool name should be the exact name of the tool you are using, and the arguments should be a JSON object containing the parameters required by that tool. For example:
-<tool_use>
-  <name>python_interpreter</name>
-  <arguments>{"code": "5 + 3 + 1294.678"}</arguments>
-</tool_use>
+- **TOOL_NAME**: Must exactly match one of the available tool names listed below.
+- **JSON_OBJECT**: A valid JSON object with the required parameters.
 
-The user will respond with the result of the tool use, which should be formatted as follows:
+Tool results will be returned as:
 
 <tool_use_result>
-  <name>{tool_name}</name>
-  <result>{result}</result>
+<name>TOOL_NAME</name>
+<result>RESULT_CONTENT</result>
 </tool_use_result>
 
-The result can be a string, file path, or any other output type that you can use as input for subsequent actions.
+Use the result to inform your next step: call another tool or provide a final answer.
 
-## Tool Use Examples
-{{ TOOL_USE_EXAMPLES }}
-
-## Tool Use Available Tools
-Above example were using notional tools that might not exist for you. You only have access to these tools:
+## Available Tools
 {{ AVAILABLE_TOOLS }}
 
-## Tool Use Rules
-Here are the rules you should always follow to solve your task:
-1. Always use the right arguments for the tools. Never use variable names as the action arguments, use the value instead.
-2. Call a tool only when needed: do not call the search agent if you do not need information, try to solve the task yourself.
-3. If no tool call is needed, just answer the question directly.
-4. Never re-do a tool call that you previously did with the exact same parameters.
-5. For tool use, MAKE SURE use XML tag format as shown in the examples above. Do not use any other format.
+## Rules
 
-# User Instructions
+1. **Only call tools listed above.** Never invent tool names or call tools that are not in the list.
+2. **One tool call per message.** Do not output multiple \`<tool_use>\` blocks in a single response.
+3. **Use correct argument types.** Pass actual values, not variable names or placeholders.
+4. **Do not repeat identical calls.** If you already called a tool with the same parameters, use the previous result.
+5. **Call tools only when necessary.** If you can answer directly from your knowledge, do so without calling a tool.
+6. **Always use the exact XML format.** Any deviation will cause a parsing failure.
+7. **When providing a final answer after tool use, do not include \`<tool_use>\` tags.**
+
+## Examples
+{{ TOOL_USE_EXAMPLES }}
+
+## User Instructions
 {{ USER_SYSTEM_PROMPT }}
-
-Now Begin! If you solve the task correctly, you will receive a reward of $1,000,000.
 `
 
 export const ToolUseExamples = `
-Here are a few examples using notional tools:
----
-User: Generate an image of the oldest person in this document.
+Below are illustrative examples using hypothetical tools. Your actual available tools are listed in the "Available Tools" section.
 
-A: I can use the document_qa tool to find out who the oldest person is in the document.
+### Example 1: Single tool call
+
+User: What is 1024 * 768?
+
+Assistant: 
 <tool_use>
-  <name>document_qa</name>
-  <arguments>{"document": "document.pdf", "question": "Who is the oldest person mentioned?"}</arguments>
+<name>calculator</name>
+<arguments>{"expression": "1024 * 768"}</arguments>
 </tool_use>
 
-User: <tool_use_result>
-  <name>document_qa</name>
-  <result>John Doe, a 55 year old lumberjack living in Newfoundland.</result>
+User:
+<tool_use_result>
+<name>calculator</name>
+<result>786432</result>
 </tool_use_result>
 
-A: I can use the image_generator tool to create a portrait of John Doe.
+Assistant: 1024 × 768 = 786,432.
+
+### Example 2: Multi-step tool use
+
+User: Compare the weather in Beijing and Tokyo.
+
+Assistant: Let me check Beijing's weather first.
 <tool_use>
-  <name>image_generator</name>
-  <arguments>{"prompt": "A portrait of John Doe, a 55-year-old man living in Canada."}</arguments>
+<name>get_weather</name>
+<arguments>{"city": "Beijing"}</arguments>
 </tool_use>
 
-User: <tool_use_result>
-  <name>image_generator</name>
-  <result>image.png</result>
+User:
+<tool_use_result>
+<name>get_weather</name>
+<result>Beijing: 22°C, sunny</result>
 </tool_use_result>
 
-A: the image is generated as image.png
-
----
-User: "What is the result of the following operation: 5 + 3 + 1294.678?"
-
-A: I can use the python_interpreter tool to calculate the result of the operation.
+Assistant: Now let me check Tokyo.
 <tool_use>
-  <name>python_interpreter</name>
-  <arguments>{"code": "5 + 3 + 1294.678"}</arguments>
+<name>get_weather</name>
+<arguments>{"city": "Tokyo"}</arguments>
 </tool_use>
 
-User: <tool_use_result>
-  <name>python_interpreter</name>
-  <result>1302.678</result>
+User:
+<tool_use_result>
+<name>get_weather</name>
+<result>Tokyo: 18°C, cloudy</result>
 </tool_use_result>
 
-A: The result of the operation is 1302.678.
+Assistant: Beijing is 22°C and sunny, while Tokyo is 18°C and cloudy. Beijing is warmer today.
 
----
-User: "Which city has the highest population , Guangzhou or Shanghai?"
+### Example 3: No tool needed
 
-A: I can use the search tool to find the population of Guangzhou.
-<tool_use>
-  <name>search</name>
-  <arguments>{"query": "Population Guangzhou"}</arguments>
-</tool_use>
+User: What is the capital of France?
 
-User: <tool_use_result>
-  <name>search</name>
-  <result>Guangzhou has a population of 15 million inhabitants as of 2021.</result>
-</tool_use_result>
-
-A: I can use the search tool to find the population of Shanghai.
-<tool_use>
-  <name>search</name>
-  <arguments>{"query": "Population Shanghai"}</arguments>
-</tool_use>
-
-User: <tool_use_result>
-  <name>search</name>
-  <result>26 million (2019)</result>
-</tool_use_result>
-A: The population of Shanghai is 26 million, while Guangzhou has a population of 15 million. Therefore, Shanghai has the highest population.
+Assistant: The capital of France is Paris.
 `
 
 // 注意：Agentic Mode 提示词已移至 src/shared/prompts/agentic/ 目录
@@ -132,22 +117,21 @@ export { checkHasFileEditorTools as hasFileEditorTools } from '../prompts/agenti
 export const AvailableTools = (tools: MCPTool[]) => {
   const availableTools = tools
     .map((tool) => {
-      // 使用 tool.id，现在它会是一个合理的工具名称（如 _aether_fetch_html）
       const toolName = tool.id || tool.name;
-      return `
-<tool>
-  <name>${toolName}</name>
-  <description>${tool.description}</description>
-  <arguments>
-    ${tool.inputSchema ? JSON.stringify(tool.inputSchema) : ''}
-  </arguments>
-</tool>
-`
+      const schema = tool.inputSchema;
+      let paramsBlock = '';
+      if (schema?.properties) {
+        const required = new Set(schema.required || []);
+        const params = Object.entries(schema.properties).map(([key, val]: [string, any]) => {
+          const reqTag = required.has(key) ? ' (required)' : ' (optional)';
+          return `    - ${key}${reqTag}: ${val.description || val.type || 'any'}`;
+        });
+        paramsBlock = `\n  <parameters>\n${params.join('\n')}\n  </parameters>`;
+      }
+      return `<tool>\n  <name>${toolName}</name>\n  <description>${tool.description || 'No description'}</description>${paramsBlock}\n</tool>`;
     })
     .join('\n')
-  return `<tools>
-${availableTools}
-</tools>`
+  return `<tools>\n${availableTools}\n</tools>`
 }
 
 /** 工作区信息 */
