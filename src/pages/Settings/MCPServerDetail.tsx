@@ -408,9 +408,18 @@ const MCPServerDetail: React.FC = () => {
               <TextField
                 fullWidth
                 label={t('settings.mcpServer.detail.basicInfo.args') || '命令参数'}
-                value={(server.args || []).join(' ')}
-                onChange={(e) => setServer({ ...server, args: e.target.value.split(' ').filter(Boolean) })}
-                placeholder="C:\path\to\script.js 或 -y @anthropic/mcp-server-fetch"
+                value={server.argsText ?? (server.args || []).join(' ')}
+                onChange={(e) => setServer({ ...server, argsText: e.target.value })}
+                onBlur={() =>
+                  setServer((prev) => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      args: (prev.argsText ?? '').trim() ? (prev.argsText ?? '').trim().split(/\s+/) : []
+                    };
+                  })
+                }
+                placeholder="C:\\path\\to\\script.js 或 -y @anthropic/mcp-server-fetch"
                 helperText={t('settings.mcpServer.detail.basicInfo.argsHelp') || '命令参数，用空格分隔'}
                 sx={{ mb: 2 }}
               />

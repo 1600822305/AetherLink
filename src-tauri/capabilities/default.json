@@ -67,6 +67,11 @@
           "name": "run-uvx",
           "cmd": "uvx",
           "args": true
+        },
+        {
+          "name": "run-cmd",
+          "cmd": "cmd",
+          "args": true
         }
       ]
     },

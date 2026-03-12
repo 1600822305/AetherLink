@@ -412,6 +412,7 @@ export interface MCPServer {
   headers?: Record<string, string>;
   env?: Record<string, string>;
   args?: string[];
+  argsText?: string;
   isActive: boolean;
   disabledTools?: string[];
   toolPermissionOverrides?: Record<string, 'read' | 'write' | 'confirm'>;

@@ -30,30 +30,35 @@ interface TauriChild {
  * 将用户提供的命令映射到 Tauri scope 中定义的命令名称
  * Tauri 2.0 要求使用预定义的命令名称而非完整路径
  */
-function mapCommandToScopeName(command: string): { scopeName: string; executable: string } {
+function mapCommandToScopeName(command: string, args: string[] = []): { scopeName: string; finalArgs: string[] } {
   const lowerCommand = command.toLowerCase();
   const baseName = lowerCommand.split(/[/\\]/).pop() || '';
   
   // 根据命令名称或路径推断使用哪个预定义的命令
   if (baseName.includes('node') || lowerCommand.includes('node')) {
-    return { scopeName: 'run-node', executable: 'node' };
+    return { scopeName: 'run-node', finalArgs: args };
   }
   if (baseName.includes('npx') || lowerCommand.includes('npx')) {
     // Windows 上 npx 实际是 npx.cmd，优先使用 run-npx-cmd
     if (isWindows()) {
-      return { scopeName: 'run-npx-cmd', executable: 'npx.cmd' };
+      return { scopeName: 'run-npx-cmd', finalArgs: args };
     }
-    return { scopeName: 'run-npx', executable: 'npx' };
+    return { scopeName: 'run-npx', finalArgs: args };
   }
   if (baseName.includes('python') || lowerCommand.includes('python')) {
-    return { scopeName: 'run-python', executable: 'python' };
+    return { scopeName: 'run-python', finalArgs: args };
   }
   if (baseName.includes('uvx') || lowerCommand.includes('uvx')) {
-    return { scopeName: 'run-uvx', executable: 'uvx' };
+    return { scopeName: 'run-uvx', finalArgs: args };
   }
   
-  // 默认尝试使用原始命令
-  return { scopeName: command, executable: command };
+  // 未知命令：Windows 上通过 cmd /c 执行任意可执行文件
+  if (isWindows()) {
+    return { scopeName: 'run-cmd', finalArgs: ['/c', command, ...args] };
+  }
+  
+  // 非 Windows：尝试使用原始命令作为 scope 名称
+  return { scopeName: command, finalArgs: args };
 }
 
 class StdioTransport implements Transport {
@@ -87,8 +92,8 @@ class StdioTransport implements Transport {
       const { Command } = await import('@tauri-apps/plugin-shell');
 
       // 将命令映射到 Tauri scope 中定义的名称
-      const { scopeName } = mapCommandToScopeName(this.command);
-      console.log(`[Stdio Transport] 使用 scope 命令: ${scopeName}`);
+      const { scopeName, finalArgs } = mapCommandToScopeName(this.command, this.args);
+      console.log(`[Stdio Transport] 使用 scope 命令: ${scopeName}, 参数: ${finalArgs.join(' ')}`);
 
       // 创建命令 - 使用 scope 名称
       const spawnOptions: Record<string, any> = {
@@ -97,7 +102,7 @@ class StdioTransport implements Transport {
       if (this.cwd) {
         spawnOptions.cwd = this.cwd;
       }
-      const cmd = Command.create(scopeName, this.args, spawnOptions);
+      const cmd = Command.create(scopeName, finalArgs, spawnOptions);
 
       // 监听 close 事件
       cmd.on('close', (data) => {

@@ -164,6 +164,10 @@ const MCPServerSettings: React.FC = () => {
     }
 
     try {
+      const parsedArgs = (newServer.argsText ?? '').trim()
+        ? (newServer.argsText ?? '').trim().split(/\s+/)
+        : (newServer.args ?? []);
+
       const server: MCPServer = {
         id: Date.now().toString(),
         name: newServer.name!,
@@ -174,7 +178,7 @@ const MCPServerSettings: React.FC = () => {
         isActive: false,
         headers: {},
         env: {},
-        args: []
+        args: parsedArgs
       };
       await mcpService.addServer(server);
       loadServers();

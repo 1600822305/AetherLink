@@ -99,8 +99,8 @@ const AddServerDialog: React.FC<AddServerDialogProps> = ({
               label={t('settings.mcpServer.addDialog.args') || '命令参数'}
               fullWidth
               variant="outlined"
-              value={(newServer.args || []).join(' ')}
-              onChange={(e) => onNewServerChange({ ...newServer, args: e.target.value.split(' ').filter(Boolean) })}
+              value={newServer.argsText ?? (newServer.args || []).join(' ')}
+              onChange={(e) => onNewServerChange({ ...newServer, argsText: e.target.value })}
               placeholder="-y @anthropic/mcp-server-fetch"
               helperText={t('settings.mcpServer.addDialog.argsHelp') || '命令参数，用空格分隔'}
               sx={{ mb: 2 }}
