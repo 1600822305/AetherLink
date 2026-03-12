@@ -12,28 +12,28 @@ import { universalFetch } from '../../../utils/universalFetch';
 // 工具定义
 const METASO_SEARCH_TOOL: Tool = {
   name: 'metaso_search',
-  description: '使用秘塔AI进行搜索，支持网页、文库、学术、图片、视频、播客等多种搜索范围',
+  description: '秘塔AI搜索。通过 scope 选择范围：webpage/document/scholar/image/video/podcast',
   inputSchema: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: '搜索关键词或问题'
+        description: '搜索关键词'
       },
       scope: {
         type: 'string',
         enum: ['webpage', 'document', 'scholar', 'image', 'video', 'podcast'],
-        description: '搜索范围：webpage=网页(默认)、document=文库、scholar=学术、image=图片、video=视频、podcast=播客',
+        description: '搜索范围',
         default: 'webpage'
       },
       size: {
         type: 'number',
-        description: '返回结果数量，默认10，建议范围5-20',
+        description: '返回结果数量',
         default: 10
       },
       includeRawContent: {
         type: 'boolean',
-        description: '是否抓取所有来源网页的原文内容（完整文本），开启后返回完整网页内容但响应较慢',
+        description: '是否抓取来源原文（响应较慢）',
         default: false
       }
     },
@@ -43,14 +43,14 @@ const METASO_SEARCH_TOOL: Tool = {
 
 const METASO_READER_TOOL: Tool = {
   name: 'metaso_reader',
-  description: '使用秘塔AI阅读器提取网页内容，返回纯文本格式',
+  description: '提取网页正文，返回纯文本',
   inputSchema: {
     type: 'object',
     properties: {
       url: {
         type: 'string',
         format: 'uri',
-        description: '要提取内容的网页URL'
+        description: '目标 URL'
       }
     },
     required: ['url']
@@ -59,29 +59,29 @@ const METASO_READER_TOOL: Tool = {
 
 const METASO_CHAT_TOOL: Tool = {
   name: 'metaso_chat',
-  description: '使用秘塔AI进行智能对话，基于实时搜索提供带引用来源的回答。支持多种知识范围和模型',
+  description: '秘塔AI对话，基于实时搜索提供带引用的回答',
   inputSchema: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: '用户的问题或查询内容'
+        description: '问题或查询内容'
       },
       scope: {
         type: 'string',
         enum: ['webpage', 'document', 'scholar', 'video', 'podcast'],
-        description: '知识范围：webpage=网页(默认)、document=文库、scholar=学术、video=视频、podcast=播客',
+        description: '知识范围',
         default: 'webpage'
       },
       model: {
         type: 'string',
         enum: ['fast', 'fast_thinking', 'ds-r1'],
-        description: '模型选择：fast=快速模型(默认)、fast_thinking=极速思考、ds-r1=深度推理',
+        description: '模型选择',
         default: 'fast'
       },
       stream: {
         type: 'boolean',
-        description: '是否使用流式响应，MCP中建议false以获得完整结果',
+        description: '是否流式响应',
         default: false
       }
     },

@@ -6,15 +6,7 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 export const READ_FILE_TOOL: Tool = {
   name: 'read_file',
-  description: `读取文件内容。支持读取完整文件、指定行范围或批量读取多个文件。
-
-功能特性:
-- 支持批量读取多个文件 (使用 files 数组)
-- 支持指定行范围读取
-- 自动 Token 预算控制，防止超出上下文限制
-- 支持代码定义提取 (extract_definitions)
-
-对于大文件，建议使用行范围参数只读取需要的部分。`,
+  description: '读取文件内容。支持单文件(path)或批量(files数组)读取，可指定行范围。大文件建议指定行范围。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -57,15 +49,7 @@ export const READ_FILE_TOOL: Tool = {
 
 export const WRITE_TO_FILE_TOOL: Tool = {
   name: 'write_to_file',
-  description: `将内容写入文件。如果文件不存在则创建，如果存在则覆盖。
-
-重要提示:
-- 必须提供 line_count 参数，用于验证内容完整性
-- 写入前请先读取文件确认内容
-- 系统会自动检测代码截断 (如 "// rest of code unchanged")
-- 支持 Diff 预览，返回变更统计
-
-如果内容被截断，请使用 apply_diff 工具进行增量修改。`,
+  description: '写入完整文件内容（创建或覆盖）。必须提供 line_count 验证完整性。内容不得截断，否则请用 apply_diff。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -92,13 +76,7 @@ export const WRITE_TO_FILE_TOOL: Tool = {
 
 export const LIST_FILES_TOOL: Tool = {
   name: 'list_files',
-  description: `列出目录内容，显示文件和文件夹。
-
-功能特性:
-- 支持分页，避免返回过多数据
-- 支持递归列出子目录
-- 可选返回文件大小信息
-- 返回总数和分页信息`,
+  description: '列出目录内容。支持递归、分页和文件大小信息。',
   inputSchema: {
     type: 'object',
     properties: {
@@ -144,16 +122,7 @@ export const GET_FILE_INFO_TOOL: Tool = {
 
 export const CREATE_FILE_TOOL: Tool = {
   name: 'create_file',
-  description: `创建新文件。如果文件已存在会报错。
-
-与 write_to_file 的区别:
-- create_file: 仅用于创建新文件，文件已存在时报错
-- write_to_file: 创建或覆盖文件，需要提供完整内容和行数验证
-
-适用场景:
-- 创建空文件
-- 创建带初始内容的新文件
-- 确保不会意外覆盖现有文件`,
+  description: '创建新文件（文件已存在则报错）。用于安全创建，避免意外覆盖。',
   inputSchema: {
     type: 'object',
     properties: {

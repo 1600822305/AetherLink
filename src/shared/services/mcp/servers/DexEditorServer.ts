@@ -21,15 +21,7 @@ import { DexEditorPlugin } from 'capacitor-dex-editor';
 
 const ATTEMPT_COMPLETION_TOOL: Tool = {
   name: 'attempt_completion',
-  description: `当你认为已经完成了用户的 APK/DEX 编辑任务时，使用此工具来结束任务并向用户展示结果。
-这是 Agentic 模式中唯一能够结束任务循环的方式。
-
-重要规则：
-1. 在完成所有必要的 DEX 操作后才调用此工具
-2. 提供清晰的完成摘要，说明做了什么修改
-3. 如果有任何遗留问题或建议，在 result 中说明
-4. 不要在工具执行失败后立即调用此工具，应该先尝试修复问题
-5. 如果修改了 APK，提醒用户需要重新签名`,
+  description: '结束任务并展示结果摘要。所有 DEX 操作完成后调用。如有 APK 修改，提醒用户重新签名。',
   inputSchema: {
     type: 'object',
     properties: {

@@ -29,26 +29,7 @@ export const INSERT_CONTENT_TOOL: Tool = {
 
 export const APPLY_DIFF_TOOL: Tool = {
   name: 'apply_diff',
-  description: `应用精确、有针对性的修改到现有文件。支持 unified diff 和 SEARCH/REPLACE 两种格式。
-
-支持的格式:
-1. Unified Diff 格式 (传统)
-2. SEARCH/REPLACE 格式 (推荐，更精确):
-   <<<<<<< SEARCH
-   :start_line:行号
-   -------
-   [要查找的精确内容]
-   =======
-   [替换后的内容]
-   >>>>>>> REPLACE
-
-特性:
-- 支持多个 SEARCH/REPLACE 块在一次调用中
-- 模糊匹配 (相似度阈值 90%)
-- 部分失败处理，返回详细报告
-- 自动重试计数
-
-提示: 如果不确定要搜索的精确内容，请先使用 read_file 工具获取最新内容。`,
+  description: '对文件应用精确编辑。支持 unified diff 和 SEARCH/REPLACE 格式（推荐）。可包含多个替换块，支持模糊匹配。编辑前先用 read_file 获取最新内容。',
   inputSchema: {
     type: 'object',
     properties: {

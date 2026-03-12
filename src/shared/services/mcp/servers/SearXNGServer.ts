@@ -16,68 +16,47 @@ import { universalFetch } from '../../../utils/universalFetch';
 
 const SEARXNG_SEARCH_TOOL: Tool = {
   name: 'searxng_search',
-  description: `使用 SearXNG 元搜索引擎进行互联网搜索，聚合 245 个搜索引擎的结果。
-
-支持 32 个搜索类别，按场景选择最佳类别：
-- general: 通用搜索（Google/Bing/DuckDuckGo/Baidu/Sogou/Yahoo 等 48 引擎）
-- news: 新闻搜索（Google News/Bing News/Reuters/搜狗微信 等 17 引擎）
-- science: 学术论文（arXiv/PubMed/Google Scholar/Semantic Scholar 等）
-- it: 技术编程（GitHub/StackOverflow/npm/PyPI/Docker Hub/HuggingFace/MDN 等 44 引擎）
-- videos: 视频搜索（YouTube/Bilibili/AcFun/iQiyi/Vimeo 等 28 引擎）
-- images: 图片搜索（Google Images/Unsplash/Pixabay/Pexels 等 39 引擎）
-- repos: 代码仓库（GitHub/GitLab/Codeberg/HuggingFace 等）
-- packages: 软件包（npm/PyPI/crates.io/Docker Hub 等 15 引擎）
-- social media: 社交媒体（Reddit/Mastodon/Lemmy）
-- translate: 翻译
-- weather: 天气查询
-- map: 地图（OpenStreetMap）
-- music: 音乐（SoundCloud/Bandcamp/YouTube 等）
-- books: 图书（Anna's Archive/OpenLibrary）
-- movies: 电影（IMDB/TMDB/RottenTomatoes）
-- q&a: 问答（StackOverflow/AskUbuntu 等）
-- dictionaries: 词典（Wiktionary/etymonline 等）
-- currency: 汇率换算
-- files: 文件/种子搜索`,
+  description: '聚合多引擎互联网搜索。通过 categories 参数选择搜索类别：general(通用), news(新闻), science(学术), it(技术), videos, images, repos, packages, social media, translate, weather, map, music, books, movies, q&a, dictionaries, currency, files。',
   inputSchema: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: '搜索关键词或问题。建议简洁明确，避免过长的查询'
+        description: '搜索关键词'
       },
       engines: {
         type: 'string',
-        description: '指定搜索引擎（逗号分隔）。常用引擎: google, bing, duckduckgo, baidu, sogou, wikipedia, github, arxiv, youtube, bilibili, stackoverflow, npm, pypi。留空使用该类别的全部引擎',
+        description: '指定引擎（逗号分隔），如 google,bing,duckduckgo。留空使用类别默认引擎',
       },
       language: {
         type: 'string',
-        description: '搜索语言代码。常用: zh-CN(中文), en(英文), ja(日语), ko(韩语), fr(法语), de(德语)。默认 zh-CN',
+        description: '语言代码，如 zh-CN, en, ja',
         default: 'zh-CN'
       },
       categories: {
         type: 'string',
-        description: '搜索类别（逗号分隔），根据用户意图选择最合适的类别。详见工具描述中的完整类别列表。默认 general',
+        description: '搜索类别（逗号分隔）',
         default: 'general'
       },
       maxResults: {
         type: 'number',
-        description: '返回结果数量上限，默认 10，建议 5-20',
+        description: '最大结果数',
         default: 10
       },
       timeRange: {
         type: 'string',
         enum: ['day', 'week', 'month', 'year', ''],
-        description: '时间范围过滤：day=近24小时, week=近一周, month=近一月, year=近一年。查询实时信息时建议设置此参数',
+        description: '时间范围过滤',
       },
       pageno: {
         type: 'number',
-        description: '搜索结果页码，默认 1。当第一页结果不够时可翻页获取更多结果',
+        description: '页码',
         default: 1
       },
       safesearch: {
         type: 'number',
         enum: [0, 1, 2],
-        description: '安全搜索级别：0=关闭, 1=中等过滤, 2=严格过滤。默认 0',
+        description: '安全搜索：0=关闭, 1=中等, 2=严格',
         default: 0
       }
     },
@@ -87,18 +66,18 @@ const SEARXNG_SEARCH_TOOL: Tool = {
 
 const SEARXNG_READ_URL_TOOL: Tool = {
   name: 'searxng_read_url',
-  description: '抓取指定 URL 的网页内容，自动提取正文并返回清洁的文本格式。适用于：阅读搜索结果中的文章详情、获取网页完整内容、提取 API 返回的 JSON 数据。支持 HTML/JSON/纯文本格式自动识别',
+  description: '抓取网页内容并提取正文，支持 HTML/JSON/纯文本',
   inputSchema: {
     type: 'object',
     properties: {
       url: {
         type: 'string',
         format: 'uri',
-        description: '要抓取的网页 URL'
+        description: '目标 URL'
       },
       maxLength: {
         type: 'number',
-        description: '返回内容的最大字符数，默认 5000',
+        description: '最大返回字符数',
         default: 5000
       }
     },
