@@ -324,16 +324,17 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       assistant
     } = options || {};
 
-    // 准备API消息格式（异步获取工作区信息）
-    const apiMessages = await this.prepareAPIMessages(messages, systemPrompt, mcpTools);
-
-    // 配置工具
+    // 先配置工具（设置 useSystemPromptForTools 的值）
+    // 必须在 prepareAPIMessages 之前调用，否则 buildSystemPromptWithTools 会使用错误的默认值
     const { tools } = this.setupToolsConfig({
       mcpTools,
       model: this.model,
       enableToolUse: enableTools,
       mcpMode
     });
+
+    // 准备API消息格式（会根据 useSystemPromptForTools 决定是否注入工具提示词）
+    const apiMessages = await this.prepareAPIMessages(messages, systemPrompt, mcpTools);
 
     // 获取统一参数与 API 格式参数
     const { unified, apiParams } = this.getApiParams(assistant);
