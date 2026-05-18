@@ -2,7 +2,7 @@
  * ModelManagementDialog - SolidJS 版本的 React 包装器
  * 使用 SolidBridge 桥接 SolidJS 组件
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme, alpha } from '@mui/material';
 import { SolidBridge } from '../../shared/bridges/SolidBridge';
 import { ModelManagementDrawer } from '../../solid/components/ModelSelector/ModelManagementDrawer.solid';
@@ -43,6 +43,9 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
   const theme = useTheme();
   const [loading, setLoading] = useState<boolean>(false);
   const [models, setModels] = useState<Model[]>([]);
+  // 单调递增的请求序号，用来丢弃乱序回来的旧请求结果，避免快速重开/切换 provider
+  // 时旧响应覆盖新响应
+  const latestRequestRef = useRef(0);
 
   // 注册返回键处理，使手机系统返回键关闭此抽屉而非导航回上一页
   useDialogBackHandler('model-management-drawer', open, onClose);
@@ -50,15 +53,20 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
   // 加载模型列表
   const loadModels = async () => {
     if (!provider) return;
+    const requestId = ++latestRequestRef.current;
+    setLoading(true);
     try {
-      setLoading(true);
       const fetchedModels = await fetchModels(provider);
+      if (requestId !== latestRequestRef.current) return;
       setModels(fetchedModels);
     } catch (error) {
+      if (requestId !== latestRequestRef.current) return;
       console.error('加载模型失败:', error);
       setModels([]);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
