@@ -12,7 +12,7 @@
         "options": {
           "bingFree": "🆓 Bing Free Search (Recommended)",
           "tavily": "💎 Tavily (Paid)",
-          "exa": "🧠 Exa (Neural Search)",
+          "exa": "🧠 Exa (Fastest Web Search API for AI)",
           "bocha": "🤖 Bocha (AI Search)",
           "firecrawl": "🕷️ Firecrawl (Web Scraping)",
           "custom": "⚙️ Custom Service"
@@ -53,7 +53,7 @@
           "linkText": "to get an API key."
         },
         "exa": {
-          "text": "Exa is a neural network-based search engine that provides semantic search. Visit",
+          "text": "Exa is the fastest and most accurate web search API for AI, with neural and semantic search. Visit",
           "link": "exa.ai",
           "linkText": "to get an API key."
         },
