@@ -24,7 +24,8 @@ const FUNCTION_CALLING_MODELS = [
   'learnlm(?:-[\\w-]+)?',
   'gemini(?:-[\\w-]+)?',
   'grok-3(?:-[\\w-]+)?',
-  'grok-4(?:-[\\w-]+)?'
+  'grok-4(?:-[\\w-]+)?',
+  'minimax-m\\d'
 ];
 
 // 函数调用排除模型
