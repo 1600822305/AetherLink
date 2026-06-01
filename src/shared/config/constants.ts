@@ -37,7 +37,11 @@ export const THINKING_TOKEN_MAP: Record<string, { min: number; max: number }> = 
 
   // Claude models
   'claude-3[.-]7.*sonnet.*$': { min: 1024, max: 64000 },
-  'claude-3-.*$': { min: 1024, max: 64000 }
+  'claude-3-.*$': { min: 1024, max: 64000 },
+
+  // MiniMax M 系列：思考由服务端 thinking 参数/内联 <think> 控制，
+  // 不发送 reasoning_effort，命中此项后走 getModelSpecificReasoningParameters 返回空参数
+  'minimax-m.*$': { min: 1024, max: 40960 }
 };
 
 /**
