@@ -378,13 +378,24 @@ export const getDefaultModelProviders = (): ModelProvider[] => [
     baseUrl: 'https://api.minimaxi.com/v1',
     providerType: 'openai',
     models: [
-      // MiniMax M2.1 系列 (2025年12月最新)
-      { id: 'MiniMax-M2.1', name: 'MiniMax M2.1', provider: 'minimax', enabled: true, isDefault: true, description: '2025年12月发布，多语言编程大幅提升(Rust/Java/Go/C++等)，支持Interleaved Thinking，WebDev/AppDev能力强' },
-      { id: 'MiniMax-M2.1-lightning', name: 'MiniMax M2.1 Lightning', provider: 'minimax', enabled: true, isDefault: false, description: 'M2.1快速版，结果相同但推理速度更快，适合高TPS需求' },
+      // MiniMax M3 系列 (2026年6月最新)
+      { id: 'MiniMax-M3', name: 'MiniMax M3', provider: 'minimax', enabled: true, isDefault: true, description: '2026年6月发布的旗舰模型：前沿编码/Agent 能力，1M 上下文(MSA 稀疏注意力)，原生多模态(图片/视频输入)，支持 thinking 思考控制', capabilities: { multimodal: true, vision: true, reasoning: true, functionCalling: true } },
+
+      // MiniMax M2.7 系列
+      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7', provider: 'minimax', enabled: true, isDefault: false, description: '真实工程能力顶尖，专业办公交付，角色化交互，开启递归自我改进', capabilities: { reasoning: true, functionCalling: true } },
+      { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed', provider: 'minimax', enabled: true, isDefault: false, description: 'M2.7 高速版，性能与 M2.7 相同但推理更快、低延迟', capabilities: { reasoning: true, functionCalling: true } },
+
+      // MiniMax M2.5 系列
+      { id: 'MiniMax-M2.5', name: 'MiniMax M2.5', provider: 'minimax', enabled: true, isDefault: false, description: '面向代码生成与重构优化，复杂任务处理能力与性价比强', capabilities: { reasoning: true, functionCalling: true } },
+      { id: 'MiniMax-M2.5-highspeed', name: 'MiniMax M2.5 Highspeed', provider: 'minimax', enabled: true, isDefault: false, description: 'M2.5 高速版，性能与 M2.5 相同但推理更快、低延迟', capabilities: { reasoning: true, functionCalling: true } },
+
+      // MiniMax M2.1 系列 (2025年12月)
+      { id: 'MiniMax-M2.1', name: 'MiniMax M2.1', provider: 'minimax', enabled: true, isDefault: false, description: '2025年12月发布，多语言编程大幅提升(Rust/Java/Go/C++等)，支持Interleaved Thinking，WebDev/AppDev能力强', capabilities: { reasoning: true, functionCalling: true } },
+      { id: 'MiniMax-M2.1-highspeed', name: 'MiniMax M2.1 Highspeed', provider: 'minimax', enabled: true, isDefault: false, description: 'M2.1快速版，结果相同但推理速度更快，适合高TPS需求', capabilities: { reasoning: true, functionCalling: true } },
 
       // MiniMax M2 系列
-      { id: 'MiniMax-M2', name: 'MiniMax M2', provider: 'minimax', enabled: true, isDefault: false, description: 'MiniMax大模型，支持200k上下文，128k输出，具备代理能力和函数调用' },
-      { id: 'MiniMax-M2-Stable', name: 'MiniMax M2 Stable', provider: 'minimax', enabled: true, isDefault: false, description: 'MiniMax M2稳定版，适合高并发场景' },
+      { id: 'MiniMax-M2', name: 'MiniMax M2', provider: 'minimax', enabled: true, isDefault: false, description: 'MiniMax大模型，支持200k上下文，128k输出，具备代理能力和函数调用', capabilities: { reasoning: true, functionCalling: true } },
+      { id: 'MiniMax-M2-Stable', name: 'MiniMax M2 Stable', provider: 'minimax', enabled: true, isDefault: false, description: 'MiniMax M2稳定版，适合高并发场景', capabilities: { reasoning: true, functionCalling: true } },
       { id: 'speech-2.6-hd', name: 'Speech 2.6 HD', provider: 'minimax', enabled: true, isDefault: false, description: '语音合成高清版，支持40种语言，7种情绪' },
       { id: 'speech-2.6-turbo', name: 'Speech 2.6 Turbo', provider: 'minimax', enabled: true, isDefault: false, description: '语音合成快速版，低延迟，支持40种语言' },
       { id: 'hailuo-2.3', name: 'Hailuo 2.3', provider: 'minimax', enabled: true, isDefault: false, description: '文本/图片生成视频，支持1080p 6s和768p 10s' },

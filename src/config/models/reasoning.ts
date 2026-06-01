@@ -234,6 +234,17 @@ export function isZhipuReasoningModel(model?: Model): boolean {
 }
 
 /**
+ * 检查是否为 MiniMax 推理模型
+ * M 系列(M2/M2.1/M2.5/M2.7/M3 等)均支持思考(thinking)，
+ * 兼容官方 id(MiniMax-M3) 与聚合站 id(minimax/minimax-m3)
+ */
+export function isMinimaxReasoningModel(model?: Model): boolean {
+  if (!model) return false;
+  const modelId = getLowerBaseModelName(model.id);
+  return /minimax-m\d/.test(modelId);
+}
+
+/**
  * 检查是否为豆包推理模型
  */
 export function isDoubaoReasoningModel(model?: Model): boolean {
@@ -325,7 +336,8 @@ export function isReasoningModel(model?: Model): boolean {
     isQwenReasoningModel(model) ||
     isGrokReasoningModel(model) ||
     isDeepSeekReasoningModel(model) ||
-    isZhipuReasoningModel(model)
+    isZhipuReasoningModel(model) ||
+    isMinimaxReasoningModel(model)
   ) {
     return true;
   }
