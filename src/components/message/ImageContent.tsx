@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, CircularProgress, IconButton, Dialog } from '@mui/material';
 import { Maximize2 as ZoomOutMapIcon, X as CloseIcon, AlertCircle as ErrorOutlineIcon } from 'lucide-react';
 import type { ImageContent as ImageContentType } from '../../shared/types';
-import { dexieStorage } from '../../shared/services/DexieStorageService';
+import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 
 interface ImageContentProps {
   image: ImageContentType;

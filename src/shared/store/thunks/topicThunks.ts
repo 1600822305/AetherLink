@@ -1,6 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
-import { dexieStorage } from '../../services/DexieStorageService';
+import { dexieStorage } from '../../services/storage/DexieStorageService';
 import { newMessagesActions } from '../slices/newMessagesSlice';
 import { upsertManyBlocks } from '../slices/messageBlocksSlice';
 import type { Message, MessageBlock } from '../../types/newMessage';
