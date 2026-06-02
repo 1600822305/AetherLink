@@ -1,0 +1,38 @@
+name: PR Type Check
+
+# 在 PR 上做 TypeScript 类型检查卡门。
+# 背景：其它 workflow 只跑 `vite build`，而 vite/esbuild 不做类型检查，
+# 导致"导入路径错误、缺少必填字段"等 TS 编译错误能合并进主分支，事后再逐个打补丁。
+# 这个轻量 job 在 PR 阶段就拦住整类问题。
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies with retry
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Attempting npm ci..."
+          npm ci || {
+            echo "npm ci failed, trying alternative approaches..."
+            rm -rf node_modules package-lock.json
+            npm cache clean --force
+            npm install --no-package-lock || npm install --legacy-peer-deps
+          }
+
+      - name: Type Check
+        run: npm run type-check
