@@ -73,7 +73,6 @@
     "build:tauri-debug": "tauri build --debug"
   },
   "overrides": {
-    "vite": "8.0.13",
     "mathjax-full": "3.2.2",
     "chevrotain": "11.0.3"
   },
