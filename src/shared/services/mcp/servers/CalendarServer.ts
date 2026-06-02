@@ -6,6 +6,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
 // 工具定义
 const GET_CALENDARS_TOOL: Tool = {
@@ -143,6 +144,37 @@ interface CalendarEvent {
   calendarId?: string;
 }
 
+// 入参校验 schema（与上方各工具的 inputSchema 保持一致）
+const GetEventsSchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  calendarId: z.string().optional()
+});
+
+const CreateEventSchema = z.object({
+  title: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  location: z.string().optional(),
+  notes: z.string().optional(),
+  calendarId: z.string().optional()
+});
+
+const UpdateEventSchema = z.object({
+  eventId: z.string(),
+  title: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  location: z.string().optional(),
+  notes: z.string().optional()
+});
+
+const DeleteEventSchema = z.object({
+  eventId: z.string(),
+  startDate: z.string(),
+  endDate: z.string()
+});
+
 /**
  * Calendar Server 类
  */
@@ -198,45 +230,14 @@ export class CalendarServer {
         switch (name) {
           case 'get_calendars':
             return await this.getCalendars();
-          case 'get_calendar_events': {
-            const a = this.asRecord(args, 'get_calendar_events');
-            return await this.getCalendarEvents({
-              startDate: this.requireString(a, 'startDate', 'get_calendar_events'),
-              endDate: this.requireString(a, 'endDate', 'get_calendar_events'),
-              calendarId: this.optionalString(a, 'calendarId')
-            });
-          }
-          case 'create_calendar_event': {
-            const a = this.asRecord(args, 'create_calendar_event');
-            return await this.createCalendarEvent({
-              title: this.requireString(a, 'title', 'create_calendar_event'),
-              startDate: this.requireString(a, 'startDate', 'create_calendar_event'),
-              endDate: this.requireString(a, 'endDate', 'create_calendar_event'),
-              location: this.optionalString(a, 'location'),
-              notes: this.optionalString(a, 'notes'),
-              calendarId: this.optionalString(a, 'calendarId')
-            });
-          }
-          case 'update_calendar_event': {
-            const a = this.asRecord(args, 'update_calendar_event');
-            return await this.updateCalendarEvent({
-              eventId: this.requireString(a, 'eventId', 'update_calendar_event'),
-              title: this.optionalString(a, 'title'),
-              startDate: this.optionalString(a, 'startDate'),
-              endDate: this.optionalString(a, 'endDate'),
-              location: this.optionalString(a, 'location'),
-              notes: this.optionalString(a, 'notes'),
-              calendarId: this.optionalString(a, 'calendarId')
-            });
-          }
-          case 'delete_calendar_event': {
-            const a = this.asRecord(args, 'delete_calendar_event');
-            return await this.deleteCalendarEvent({
-              eventId: this.requireString(a, 'eventId', 'delete_calendar_event'),
-              startDate: this.requireString(a, 'startDate', 'delete_calendar_event'),
-              endDate: this.requireString(a, 'endDate', 'delete_calendar_event')
-            });
-          }
+          case 'get_calendar_events':
+            return await this.getCalendarEvents(GetEventsSchema.parse(args));
+          case 'create_calendar_event':
+            return await this.createCalendarEvent(CreateEventSchema.parse(args));
+          case 'update_calendar_event':
+            return await this.updateCalendarEvent(UpdateEventSchema.parse(args));
+          case 'delete_calendar_event':
+            return await this.deleteCalendarEvent(DeleteEventSchema.parse(args));
           default:
             throw new Error(`未知的工具: ${name}`);
         }
@@ -254,35 +255,6 @@ export class CalendarServer {
         };
       }
     });
-  }
-
-  /**
-   * 校验工具入参为对象
-   */
-  private asRecord(args: Record<string, unknown> | undefined, tool: string): Record<string, unknown> {
-    if (!args || typeof args !== 'object') {
-      throw new Error(`${tool} 参数无效：缺少参数对象`);
-    }
-    return args;
-  }
-
-  /**
-   * 读取必填的字符串字段
-   */
-  private requireString(args: Record<string, unknown>, key: string, tool: string): string {
-    const value = args[key];
-    if (typeof value !== 'string' || value.trim() === '') {
-      throw new Error(`${tool} 参数无效：${key} 必须为非空字符串`);
-    }
-    return value;
-  }
-
-  /**
-   * 读取可选的字符串字段
-   */
-  private optionalString(args: Record<string, unknown>, key: string): string | undefined {
-    const value = args[key];
-    return typeof value === 'string' ? value : undefined;
   }
 
   /**

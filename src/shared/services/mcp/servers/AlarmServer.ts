@@ -6,6 +6,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import SystemAlarm from '../../../plugins/SystemAlarmPlugin';
 
 // 工具定义
@@ -73,18 +74,21 @@ const SET_TIMER_TOOL: Tool = {
   }
 };
 
-interface AlarmParams {
-  title: string;
-  time: string;
-  repeat?: 'none' | 'daily' | 'weekday' | 'weekend';
-  skipUi?: boolean;
-}
+// 入参校验 schema（与上方各工具的 inputSchema 保持一致）
+const AlarmParamsSchema = z.object({
+  title: z.string(),
+  time: z.string(),
+  repeat: z.enum(['none', 'daily', 'weekday', 'weekend']).default('none'),
+  skipUi: z.boolean().default(true)
+});
+type AlarmParams = z.infer<typeof AlarmParamsSchema>;
 
-interface TimerParams {
-  seconds: number;
-  message?: string;
-  skipUi?: boolean;
-}
+const TimerParamsSchema = z.object({
+  seconds: z.number(),
+  message: z.string().default('倒计时'),
+  skipUi: z.boolean().default(false)
+});
+type TimerParams = z.infer<typeof TimerParamsSchema>;
 
 /**
  * Alarm Server 类
@@ -127,11 +131,11 @@ export class AlarmServer {
       try {
         switch (name) {
           case 'set_alarm':
-            return await this.setAlarm(this.parseAlarmParams(args));
+            return await this.setAlarm(AlarmParamsSchema.parse(args));
           case 'show_alarms':
             return await this.showAlarms();
           case 'set_timer':
-            return await this.setTimer(this.parseTimerParams(args));
+            return await this.setTimer(TimerParamsSchema.parse(args));
           default:
             throw new Error(`未知的工具: ${name}`);
         }
@@ -149,51 +153,6 @@ export class AlarmServer {
         };
       }
     });
-  }
-
-  /**
-   * 校验并解析 set_alarm 工具入参
-   */
-  private parseAlarmParams(args: Record<string, unknown> | undefined): AlarmParams {
-    if (!args || typeof args !== 'object') {
-      throw new Error('set_alarm 参数无效：缺少参数对象');
-    }
-    const { title, time, repeat, skipUi } = args;
-    if (typeof title !== 'string' || title.trim() === '') {
-      throw new Error('set_alarm 参数无效：title 必须为非空字符串');
-    }
-    if (typeof time !== 'string' || Number.isNaN(new Date(time).getTime())) {
-      throw new Error('set_alarm 参数无效：time 必须为可解析的时间字符串');
-    }
-    const allowedRepeat = ['none', 'daily', 'weekday', 'weekend'] as const;
-    const repeatValue =
-      typeof repeat === 'string' && (allowedRepeat as readonly string[]).includes(repeat)
-        ? (repeat as AlarmParams['repeat'])
-        : 'none';
-    return {
-      title,
-      time,
-      repeat: repeatValue,
-      skipUi: typeof skipUi === 'boolean' ? skipUi : undefined
-    };
-  }
-
-  /**
-   * 校验并解析 set_timer 工具入参
-   */
-  private parseTimerParams(args: Record<string, unknown> | undefined): TimerParams {
-    if (!args || typeof args !== 'object') {
-      throw new Error('set_timer 参数无效：缺少参数对象');
-    }
-    const { seconds, message, skipUi } = args;
-    if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
-      throw new Error('set_timer 参数无效：seconds 必须为正数');
-    }
-    return {
-      seconds,
-      message: typeof message === 'string' ? message : undefined,
-      skipUi: typeof skipUi === 'boolean' ? skipUi : undefined
-    };
   }
 
   /**
