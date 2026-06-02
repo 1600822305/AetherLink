@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { MCPToolResponse, MCPCallToolResponse } from '../../shared/types';
 import { parseAndCallTools } from '../../shared/utils/mcpToolParser';
+import { ChunkType } from '../../shared/types/chunk';
 
 /**
  * MCP 工具列表组件
@@ -42,16 +43,19 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
 
   // 处理单个工具状态更新
   const handleToolUpdate = useCallback((updatedTool: MCPToolResponse, _result: MCPCallToolResponse) => {
-    const updatedTools = tools.map(tool =>
-      tool.id === updatedTool.id ? updatedTool : tool
-    );
+    // 使用函数式更新，避免并行执行多个工具时闭包中的 tools 过时导致相互覆盖
+    setTools(prevTools => {
+      const updatedTools = prevTools.map(tool =>
+        tool.id === updatedTool.id ? updatedTool : tool
+      );
 
-    setTools(updatedTools);
+      if (onUpdate) {
+        onUpdate(updatedTools);
+      }
 
-    if (onUpdate) {
-      onUpdate(updatedTools);
-    }
-  }, [tools, onUpdate]);
+      return updatedTools;
+    });
+  }, [onUpdate]);
 
   // 批量执行所有待执行的工具
   const handleExecuteAll = useCallback(async () => {
@@ -76,8 +80,18 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
             prevTools.map(t => t.id === tool.id ? invokingTool : t)
           );
 
-          const result = await parseAndCallTools([invokingTool], [], (toolResponse, callResult) => {
-            handleToolUpdate(toolResponse, callResult);
+          // parseAndCallTools 的 onChunk 回调只接收一个 Chunk 参数，
+          // 工具响应在 chunk.responses 中，需要从中取出后再更新 UI 状态
+          const result = await parseAndCallTools([invokingTool], [], (chunk) => {
+            if (
+              chunk.type === ChunkType.MCP_TOOL_COMPLETE ||
+              chunk.type === ChunkType.MCP_TOOL_IN_PROGRESS
+            ) {
+              const updatedTool = chunk.responses?.[0] as MCPToolResponse | undefined;
+              if (updatedTool) {
+                handleToolUpdate(updatedTool, updatedTool.response as MCPCallToolResponse);
+              }
+            }
           });
 
           completedCount++;
