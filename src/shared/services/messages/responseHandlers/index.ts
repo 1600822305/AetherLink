@@ -6,7 +6,6 @@ export { ResponseChunkProcessor, createResponseChunkProcessor } from './Response
 export { ToolResponseHandler } from './ToolResponseHandler';
 export { ToolUseExtractionProcessor } from './ToolUseExtractionProcessor';
 export type { ProcessedTextResult } from './ToolUseExtractionProcessor';
-export { ComparisonResultHandler } from './ComparisonResultHandler';
 export { KnowledgeSearchHandler } from './KnowledgeSearchHandler';
 export { ResponseCompletionHandler } from './ResponseCompletionHandler';
 export { ResponseErrorHandler } from './ResponseErrorHandler';
