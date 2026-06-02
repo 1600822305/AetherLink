@@ -69,6 +69,7 @@ export class AssistantService {
         name: assistantData.name || '新助手',
         emoji: assistantData.emoji || '😀',
         topicIds: [topic.id], // 只使用新的消息系统
+        topics: [topic], // 运行时话题数组，与 topicIds 保持一致
         type: 'assistant',
         isSystem: false,
         systemPrompt: assistantData.systemPrompt || DEFAULT_SYSTEM_PROMPT
