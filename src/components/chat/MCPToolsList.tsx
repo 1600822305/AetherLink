@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { MCPToolResponse, MCPCallToolResponse } from '../../shared/types';
 import { parseAndCallTools } from '../../shared/utils/mcpToolParser';
+import { ChunkType } from '../../shared/types/chunk';
 
 /**
  * MCP 工具列表组件
@@ -76,8 +77,18 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
             prevTools.map(t => t.id === tool.id ? invokingTool : t)
           );
 
-          const result = await parseAndCallTools([invokingTool], [], (toolResponse, callResult) => {
-            handleToolUpdate(toolResponse, callResult);
+          // parseAndCallTools 的 onChunk 回调只接收一个 Chunk 参数，
+          // 工具响应在 chunk.responses 中，需要从中取出后再更新 UI 状态
+          const result = await parseAndCallTools([invokingTool], [], (chunk) => {
+            if (
+              chunk.type === ChunkType.MCP_TOOL_COMPLETE ||
+              chunk.type === ChunkType.MCP_TOOL_IN_PROGRESS
+            ) {
+              const updatedTool = chunk.responses?.[0] as MCPToolResponse | undefined;
+              if (updatedTool) {
+                handleToolUpdate(updatedTool, updatedTool.response as MCPCallToolResponse);
+              }
+            }
           });
 
           completedCount++;
