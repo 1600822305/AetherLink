@@ -43,16 +43,19 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
 
   // 处理单个工具状态更新
   const handleToolUpdate = useCallback((updatedTool: MCPToolResponse, _result: MCPCallToolResponse) => {
-    const updatedTools = tools.map(tool =>
-      tool.id === updatedTool.id ? updatedTool : tool
-    );
+    // 使用函数式更新，避免并行执行多个工具时闭包中的 tools 过时导致相互覆盖
+    setTools(prevTools => {
+      const updatedTools = prevTools.map(tool =>
+        tool.id === updatedTool.id ? updatedTool : tool
+      );
 
-    setTools(updatedTools);
+      if (onUpdate) {
+        onUpdate(updatedTools);
+      }
 
-    if (onUpdate) {
-      onUpdate(updatedTools);
-    }
-  }, [tools, onUpdate]);
+      return updatedTools;
+    });
+  }, [onUpdate]);
 
   // 批量执行所有待执行的工具
   const handleExecuteAll = useCallback(async () => {
