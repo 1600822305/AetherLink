@@ -35,7 +35,7 @@ import type {
   GetFileHashOptions,
   GetFileHashResult,
   GetLineCountResult
-} from '../types/fileManager';
+} from '../../types/fileManager';
 
 const AdvancedFileManager = registerPlugin<AdvancedFileManagerPlugin>('AdvancedFileManager');
 
