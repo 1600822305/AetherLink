@@ -171,7 +171,7 @@ export class DataAdapter {
 
     // 简化逻辑，委托给DataRepairService
     try {
-      const { DataRepairService } = await import('../services/DataRepairService');
+      const { DataRepairService } = await import('../services/storage/DataRepairService');
       return await DataRepairService.repairDuplicateMessages(topicId);
     } catch (error) {
       this.log('修复重复消息失败', error);
