@@ -105,6 +105,7 @@ export class AssistantFactory {
         emoji: '😀', // 添加emoji字段，与最佳实例保持一致
         isSystem: false,
         topicIds: [defaultTopic.id],
+        topics: [defaultTopic], // 运行时话题数组，与 topicIds 保持一致
         systemPrompt: finalPrompt,
         type: 'assistant', // 添加type字段，与最佳实例保持一致
         // 确保其他必需的字段都有默认值
@@ -148,6 +149,7 @@ export class AssistantFactory {
         icon: null,
         isSystem: false,
         topicIds: [],
+        topics: [],
         systemPrompt: DEFAULT_SYSTEM_PROMPT
       };
     }
