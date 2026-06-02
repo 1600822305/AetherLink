@@ -35,7 +35,7 @@ class VoiceRecognitionService {
     // 初始化Web Speech API (如果在Web环境且浏览器支持)
     if (this.isWebEnvironment && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      this.webSpeechRecognition = new SpeechRecognitionAPI();
+      this.webSpeechRecognition = SpeechRecognitionAPI ? new SpeechRecognitionAPI() : null;
 
       if (this.webSpeechRecognition) {
         this.webSpeechRecognition.continuous = true;
