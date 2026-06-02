@@ -124,17 +124,76 @@ export class AlarmServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
-      switch (name) {
-        case 'set_alarm':
-          return this.setAlarm(args as AlarmParams);
-        case 'show_alarms':
-          return this.showAlarms();
-        case 'set_timer':
-          return this.setTimer(args as TimerParams);
-        default:
-          throw new Error(`未知的工具: ${name}`);
+      try {
+        switch (name) {
+          case 'set_alarm':
+            return await this.setAlarm(this.parseAlarmParams(args));
+          case 'show_alarms':
+            return await this.showAlarms();
+          case 'set_timer':
+            return await this.setTimer(this.parseTimerParams(args));
+          default:
+            throw new Error(`未知的工具: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : '未知错误'
+              }, null, 2)
+            }
+          ]
+        };
       }
     });
+  }
+
+  /**
+   * 校验并解析 set_alarm 工具入参
+   */
+  private parseAlarmParams(args: Record<string, unknown> | undefined): AlarmParams {
+    if (!args || typeof args !== 'object') {
+      throw new Error('set_alarm 参数无效：缺少参数对象');
+    }
+    const { title, time, repeat, skipUi } = args;
+    if (typeof title !== 'string' || title.trim() === '') {
+      throw new Error('set_alarm 参数无效：title 必须为非空字符串');
+    }
+    if (typeof time !== 'string' || Number.isNaN(new Date(time).getTime())) {
+      throw new Error('set_alarm 参数无效：time 必须为可解析的时间字符串');
+    }
+    const allowedRepeat = ['none', 'daily', 'weekday', 'weekend'] as const;
+    const repeatValue =
+      typeof repeat === 'string' && (allowedRepeat as readonly string[]).includes(repeat)
+        ? (repeat as AlarmParams['repeat'])
+        : 'none';
+    return {
+      title,
+      time,
+      repeat: repeatValue,
+      skipUi: typeof skipUi === 'boolean' ? skipUi : undefined
+    };
+  }
+
+  /**
+   * 校验并解析 set_timer 工具入参
+   */
+  private parseTimerParams(args: Record<string, unknown> | undefined): TimerParams {
+    if (!args || typeof args !== 'object') {
+      throw new Error('set_timer 参数无效：缺少参数对象');
+    }
+    const { seconds, message, skipUi } = args;
+    if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) {
+      throw new Error('set_timer 参数无效：seconds 必须为正数');
+    }
+    return {
+      seconds,
+      message: typeof message === 'string' ? message : undefined,
+      skipUi: typeof skipUi === 'boolean' ? skipUi : undefined
+    };
   }
 
   /**

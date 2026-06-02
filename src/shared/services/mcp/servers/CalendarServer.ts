@@ -194,21 +194,95 @@ export class CalendarServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
-      switch (name) {
-        case 'get_calendars':
-          return this.getCalendars();
-        case 'get_calendar_events':
-          return this.getCalendarEvents(args as any);
-        case 'create_calendar_event':
-          return this.createCalendarEvent(args as CalendarEvent);
-        case 'update_calendar_event':
-          return this.updateCalendarEvent(args as CalendarEvent & { eventId: string });
-        case 'delete_calendar_event':
-          return this.deleteCalendarEvent(args as { eventId: string; startDate: string; endDate: string });
-        default:
-          throw new Error(`未知的工具: ${name}`);
+      try {
+        switch (name) {
+          case 'get_calendars':
+            return await this.getCalendars();
+          case 'get_calendar_events': {
+            const a = this.asRecord(args, 'get_calendar_events');
+            return await this.getCalendarEvents({
+              startDate: this.requireString(a, 'startDate', 'get_calendar_events'),
+              endDate: this.requireString(a, 'endDate', 'get_calendar_events'),
+              calendarId: this.optionalString(a, 'calendarId')
+            });
+          }
+          case 'create_calendar_event': {
+            const a = this.asRecord(args, 'create_calendar_event');
+            return await this.createCalendarEvent({
+              title: this.requireString(a, 'title', 'create_calendar_event'),
+              startDate: this.requireString(a, 'startDate', 'create_calendar_event'),
+              endDate: this.requireString(a, 'endDate', 'create_calendar_event'),
+              location: this.optionalString(a, 'location'),
+              notes: this.optionalString(a, 'notes'),
+              calendarId: this.optionalString(a, 'calendarId')
+            });
+          }
+          case 'update_calendar_event': {
+            const a = this.asRecord(args, 'update_calendar_event');
+            return await this.updateCalendarEvent({
+              eventId: this.requireString(a, 'eventId', 'update_calendar_event'),
+              title: this.optionalString(a, 'title'),
+              startDate: this.optionalString(a, 'startDate'),
+              endDate: this.optionalString(a, 'endDate'),
+              location: this.optionalString(a, 'location'),
+              notes: this.optionalString(a, 'notes'),
+              calendarId: this.optionalString(a, 'calendarId')
+            });
+          }
+          case 'delete_calendar_event': {
+            const a = this.asRecord(args, 'delete_calendar_event');
+            return await this.deleteCalendarEvent({
+              eventId: this.requireString(a, 'eventId', 'delete_calendar_event'),
+              startDate: this.requireString(a, 'startDate', 'delete_calendar_event'),
+              endDate: this.requireString(a, 'endDate', 'delete_calendar_event')
+            });
+          }
+          default:
+            throw new Error(`未知的工具: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : '未知错误'
+              }, null, 2)
+            }
+          ]
+        };
       }
     });
+  }
+
+  /**
+   * 校验工具入参为对象
+   */
+  private asRecord(args: Record<string, unknown> | undefined, tool: string): Record<string, unknown> {
+    if (!args || typeof args !== 'object') {
+      throw new Error(`${tool} 参数无效：缺少参数对象`);
+    }
+    return args;
+  }
+
+  /**
+   * 读取必填的字符串字段
+   */
+  private requireString(args: Record<string, unknown>, key: string, tool: string): string {
+    const value = args[key];
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new Error(`${tool} 参数无效：${key} 必须为非空字符串`);
+    }
+    return value;
+  }
+
+  /**
+   * 读取可选的字符串字段
+   */
+  private optionalString(args: Record<string, unknown>, key: string): string | undefined {
+    const value = args[key];
+    return typeof value === 'string' ? value : undefined;
   }
 
   /**
