@@ -6,6 +6,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
 // 工具定义
 const GET_CALENDARS_TOOL: Tool = {
@@ -143,6 +144,37 @@ interface CalendarEvent {
   calendarId?: string;
 }
 
+// 入参校验 schema（与上方各工具的 inputSchema 保持一致）
+const GetEventsSchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  calendarId: z.string().optional()
+});
+
+const CreateEventSchema = z.object({
+  title: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  location: z.string().optional(),
+  notes: z.string().optional(),
+  calendarId: z.string().optional()
+});
+
+const UpdateEventSchema = z.object({
+  eventId: z.string(),
+  title: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  location: z.string().optional(),
+  notes: z.string().optional()
+});
+
+const DeleteEventSchema = z.object({
+  eventId: z.string(),
+  startDate: z.string(),
+  endDate: z.string()
+});
+
 /**
  * Calendar Server 类
  */
@@ -194,19 +226,33 @@ export class CalendarServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
-      switch (name) {
-        case 'get_calendars':
-          return this.getCalendars();
-        case 'get_calendar_events':
-          return this.getCalendarEvents(args as any);
-        case 'create_calendar_event':
-          return this.createCalendarEvent(args as CalendarEvent);
-        case 'update_calendar_event':
-          return this.updateCalendarEvent(args as CalendarEvent & { eventId: string });
-        case 'delete_calendar_event':
-          return this.deleteCalendarEvent(args as { eventId: string; startDate: string; endDate: string });
-        default:
-          throw new Error(`未知的工具: ${name}`);
+      try {
+        switch (name) {
+          case 'get_calendars':
+            return await this.getCalendars();
+          case 'get_calendar_events':
+            return await this.getCalendarEvents(GetEventsSchema.parse(args));
+          case 'create_calendar_event':
+            return await this.createCalendarEvent(CreateEventSchema.parse(args));
+          case 'update_calendar_event':
+            return await this.updateCalendarEvent(UpdateEventSchema.parse(args));
+          case 'delete_calendar_event':
+            return await this.deleteCalendarEvent(DeleteEventSchema.parse(args));
+          default:
+            throw new Error(`未知的工具: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : '未知错误'
+              }, null, 2)
+            }
+          ]
+        };
       }
     });
   }

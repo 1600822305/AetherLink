@@ -6,6 +6,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import SystemAlarm from '../../../plugins/SystemAlarmPlugin';
 
 // 工具定义
@@ -73,18 +74,21 @@ const SET_TIMER_TOOL: Tool = {
   }
 };
 
-interface AlarmParams {
-  title: string;
-  time: string;
-  repeat?: 'none' | 'daily' | 'weekday' | 'weekend';
-  skipUi?: boolean;
-}
+// 入参校验 schema（与上方各工具的 inputSchema 保持一致）
+const AlarmParamsSchema = z.object({
+  title: z.string(),
+  time: z.string(),
+  repeat: z.enum(['none', 'daily', 'weekday', 'weekend']).default('none'),
+  skipUi: z.boolean().default(true)
+});
+type AlarmParams = z.infer<typeof AlarmParamsSchema>;
 
-interface TimerParams {
-  seconds: number;
-  message?: string;
-  skipUi?: boolean;
-}
+const TimerParamsSchema = z.object({
+  seconds: z.number(),
+  message: z.string().default('倒计时'),
+  skipUi: z.boolean().default(false)
+});
+type TimerParams = z.infer<typeof TimerParamsSchema>;
 
 /**
  * Alarm Server 类
@@ -124,15 +128,29 @@ export class AlarmServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
-      switch (name) {
-        case 'set_alarm':
-          return this.setAlarm(args as AlarmParams);
-        case 'show_alarms':
-          return this.showAlarms();
-        case 'set_timer':
-          return this.setTimer(args as TimerParams);
-        default:
-          throw new Error(`未知的工具: ${name}`);
+      try {
+        switch (name) {
+          case 'set_alarm':
+            return await this.setAlarm(AlarmParamsSchema.parse(args));
+          case 'show_alarms':
+            return await this.showAlarms();
+          case 'set_timer':
+            return await this.setTimer(TimerParamsSchema.parse(args));
+          default:
+            throw new Error(`未知的工具: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : '未知错误'
+              }, null, 2)
+            }
+          ]
+        };
       }
     });
   }
