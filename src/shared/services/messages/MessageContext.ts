@@ -22,8 +22,9 @@ export const MessageContext = {
     // 应用上下文限制
     const limitedMessages = applyContextLimits(
       messages,
-      contextSettings.contextLength,
-      contextSettings.contextCount
+      contextSettings.contextCount,
+      contextSettings.contextWindowSize,
+      contextSettings.maxOutputTokens
     );
 
     console.log(`[MessageContext] 准备消息上下文 - 主题ID: ${topicId}, 原始消息数: ${messages.length}, 限制后: ${limitedMessages.length}`);
