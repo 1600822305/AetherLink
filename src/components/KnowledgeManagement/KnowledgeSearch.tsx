@@ -21,7 +21,7 @@ import { Search, X, Copy, Sparkles, Zap } from 'lucide-react';
 import CustomSwitch from '../CustomSwitch';
 import { MobileKnowledgeService } from '../../shared/services/knowledge/MobileKnowledgeService';
 import type { KnowledgeSearchResult } from '../../shared/types/KnowledgeBase';
-import { BlockManager } from '../../shared/services/messages/BlockManager';
+import blockManager from '../../shared/services/messages/BlockManager';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 
@@ -117,8 +117,8 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
         return;
       }
 
-      // 使用BlockManager创建引用块
-      await BlockManager.createKnowledgeReferenceBlockFromSearchResult(
+      // 使用 BlockManager 单例创建引用块
+      await blockManager.createKnowledgeReferenceBlockFromSearchResult(
         currentTopicId,
         result,
         knowledgeBaseId,
