@@ -294,26 +294,34 @@ export function convertToolCallsToMcpResponses(
   toolCalls: any[],
   mcpTools: MCPTool[]
 ): MCPToolResponse[] {
-  return toolCalls
-    .map((toolCall) => {
-      const mcpTool = findMcpToolByName(mcpTools, toolCall.function.name);
-      if (!mcpTool) return undefined;
+  return toolCalls.map((toolCall) => {
+    const toolName = toolCall.function?.name ?? '';
+    const mcpTool = findMcpToolByName(mcpTools, toolName);
 
-      const parsedArgs = (() => {
-        try {
-          return JSON.parse(toolCall.function.arguments);
-        } catch {
-          return toolCall.function.arguments;
-        }
-      })();
+    const parsedArgs = (() => {
+      try {
+        return JSON.parse(toolCall.function.arguments);
+      } catch {
+        return toolCall.function.arguments;
+      }
+    })();
 
-      return {
-        id: toolCall.id,
-        toolCallId: toolCall.id,
-        tool: mcpTool,
-        arguments: parsedArgs,
-        status: 'pending' as const
-      } as MCPToolResponse;
-    })
-    .filter((t): t is MCPToolResponse => typeof t !== 'undefined');
+    // 未匹配到的工具也保留一个占位 tool，绝不丢弃：保证每个 tool_call_id
+    // 都会得到一条 role:'tool' 结果消息。未知工具在执行阶段会返回 isError
+    // 结果，从而让下一轮请求的 tool_calls 与 tool 结果数量始终一致，避免
+    // OpenAI / 兼容端点因数量不匹配而 400。
+    const tool: MCPTool = mcpTool ?? {
+      name: toolName,
+      serverName: '',
+      serverId: ''
+    };
+
+    return {
+      id: toolCall.id,
+      toolCallId: toolCall.id,
+      tool,
+      arguments: parsedArgs,
+      status: 'pending' as const
+    } as MCPToolResponse;
+  });
 }

@@ -9,6 +9,8 @@
   },
   "scripts": {
     "postinstall": "patch-package || echo 'patch-package not found, skipping...'",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "concurrently \"node scripts/cors-proxy.js\" \"vite\" --names \"PROXY,VITE\" --prefix \"[{name}]\" --kill-others-on-fail",
     "build": "vite build",
     "build:turbo": "node scripts/turbo-build.js",
@@ -246,7 +248,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.1",
     "vite-plugin-image-optimizer": "^2.0.3",
-    "vite-plugin-solid": "^2.11.10"
+    "vite-plugin-solid": "^2.11.10",
+    "vitest": "^4.1.8"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

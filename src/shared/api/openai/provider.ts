@@ -28,7 +28,11 @@ import {
 import { ChunkType } from '../../types/chunk';
 import { isAbortError } from '../../utils/abortController';
 
-
+/**
+ * 工具调用循环的最大迭代次数（安全阀，防止模型反复发起工具调用导致死循环）。
+ * 取值 20 对齐 AI SDK 的 `stepCountIs(20)` 默认值与上游 Cherry Studio 的设置。
+ */
+const MAX_TOOL_ITERATIONS = 20;
 
 /**
  * 基础OpenAI Provider
@@ -432,8 +436,9 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       // 工具调用循环处理
       let currentMessages = [...params.messages];
       let iteration = 0;
+      let lastResult: string | { content: string; reasoning?: string; reasoningTime?: number } | undefined;
 
-      while (true) {
+      while (iteration < MAX_TOOL_ITERATIONS) {
         iteration++;
         console.log(`[OpenAIProvider] 流式工具调用迭代 ${iteration}`);
 
@@ -467,6 +472,8 @@ export class OpenAIProvider extends BaseOpenAIProvider {
           streamParams,
           onChunk
         );
+
+        lastResult = result;
 
         console.log(`[OpenAIProvider] 流式响应结果类型: ${typeof result}, hasToolCalls: ${typeof result === 'object' && (result as any)?.hasToolCalls}`);
 
@@ -549,6 +556,10 @@ export class OpenAIProvider extends BaseOpenAIProvider {
         // 没有工具调用或工具调用处理完成，返回结果
         return result;
       }
+
+      // 达到最大迭代次数：返回最后一轮结果而非丢弃内容（安全阀触发）
+      console.warn(`[OpenAIProvider] 流式工具调用达到最大迭代次数 ${MAX_TOOL_ITERATIONS}，提前结束循环`);
+      return lastResult ?? '';
     } catch (error) {
       if (isAbortError(error)) {
         console.log('[OpenAIProvider] 流式请求已取消:', error instanceof Error ? error.message : String(error));
@@ -593,7 +604,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       let currentMessages = [...params.messages];
       let finalContent = '';
       let allReasoningParts: string[] = []; // 收集所有轮次的 reasoning
-      let maxIterations = 5;
+      const maxIterations = MAX_TOOL_ITERATIONS;
       let iteration = 0;
 
       while (iteration < maxIterations) {
