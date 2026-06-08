@@ -58,8 +58,8 @@ export interface AIProvider {
 export interface ProviderApi {
   /** 发送聊天请求 */
   sendChatRequest(messages: any[], model: Model, options?: ChatOptions): Promise<ChatMessageResult>;
-  /** 测试 API 连接 */
-  testConnection(model: Model): Promise<boolean>;
+  /** 测试 API 连接（model-combo 等聚合实现不提供，故可选） */
+  testConnection?: (model: Model) => Promise<boolean>;
   /** 拉取模型列表（部分供应商提供） */
   fetchModels?: (...args: any[]) => Promise<any>;
 }
