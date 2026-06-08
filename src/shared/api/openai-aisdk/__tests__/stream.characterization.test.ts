@@ -31,7 +31,7 @@ vi.mock('../../../services/infra/EventEmitter', () => ({
   EVENT_NAMES: new Proxy({}, { get: (_t, p) => String(p) }),
 }));
 
-import { streamCompletion } from '../stream';
+import { streamCompletion, nonStreamCompletion } from '../stream';
 
 // 把一组 fullStream parts 包成 async iterable，并让 streamText 返回它
 function mockStream(parts: unknown[]) {
@@ -186,5 +186,44 @@ describe('AI SDK streamCompletion — Chunk 契约（工具调用）', () => {
       type: 'function',
       function: { name: 'search' },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 非流式路径：nonStreamCompletion 不直接发 onChunk（发送在 provider.ts），
+// 它的契约是 generateText 结果 → StreamResult 的映射。这是 provider 据以发出
+// TEXT_COMPLETE / THINKING_COMPLETE 的数据源，故同样需要钉死。
+// ---------------------------------------------------------------------------
+async function runNonStream(genResult: Record<string, unknown>) {
+  generateTextMock.mockResolvedValue(genResult);
+  const fakeClient = { chat: () => ({}), responses: () => ({}) } as any;
+  return nonStreamCompletion(
+    fakeClient,
+    'gpt-test',
+    [{ role: 'user', content: 'hi' }],
+  );
+}
+
+describe('AI SDK nonStreamCompletion — StreamResult 契约', () => {
+  it('纯文本：content = result.text，无推理、无工具', async () => {
+    const r = await runNonStream({ text: 'Hello', toolCalls: [] });
+    expect(r.content).toBe('Hello');
+    expect(r.reasoning).toBeUndefined();
+    expect(r.hasToolCalls).toBe(false);
+    expect(r.reasoningTime).toBeUndefined();
+  });
+
+  it('带推理：reasoning 透传，reasoningTime 被赋值', async () => {
+    const r = await runNonStream({ text: 'Hi', reasoning: 'because', toolCalls: [] });
+    expect(r.content).toBe('Hi');
+    expect(r.reasoning).toBe('because');
+    expect(typeof r.reasoningTime).toBe('number');
+  });
+
+  it('带工具调用：hasToolCalls=true 且 nativeToolCalls 透传', async () => {
+    const toolCalls = [{ toolCallId: 'c1', toolName: 'search', input: { q: 'x' } }];
+    const r = await runNonStream({ text: '', toolCalls });
+    expect(r.hasToolCalls).toBe(true);
+    expect(r.nativeToolCalls).toBe(toolCalls);
   });
 });
