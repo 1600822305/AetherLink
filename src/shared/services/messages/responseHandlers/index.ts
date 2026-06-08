@@ -9,3 +9,5 @@ export type { ProcessedTextResult } from './ToolUseExtractionProcessor';
 export { KnowledgeSearchHandler } from './KnowledgeSearchHandler';
 export { ResponseCompletionHandler } from './ResponseCompletionHandler';
 export { ResponseErrorHandler } from './ResponseErrorHandler';
+export { StreamIncrementTracker } from './StreamIncrementTracker';
+export type { IncrementInput, IncrementResult } from './StreamIncrementTracker';

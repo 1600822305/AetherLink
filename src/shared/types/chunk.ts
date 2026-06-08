@@ -76,9 +76,20 @@ export interface LLMResponseInProgressChunk {
 
 export interface TextDeltaChunk {
   /**
-   * 文本内容
+   * 文本内容。
+   *
+   * ⚠️ 语义约定（归一化边界）：
+   * - 若同时提供 `delta`，则 `delta` 为权威的「增量」语义，`text` 仅作兼容/调试用途。
+   * - 若未提供 `delta`，则 `text` 为「累积全文」语义（旧供应商默认行为）。
+   * 下游统一由 StreamIncrementTracker 归一成增量，块层不再自行猜测累积/增量。
    */
   text: string
+
+  /**
+   * 增量文本（本次新增的片段）。
+   * 提供时表示供应商按「增量」语义发送（如 Vercel AI SDK 的 text-delta）。
+   */
+  delta?: string
 
   /**
    * 数据块ID
@@ -86,7 +97,8 @@ export interface TextDeltaChunk {
   chunk_id?: number
 
   /**
-   * 是否是第一个文本块
+   * 是否是第一个文本块。
+   * 增量语义下用作「新一轮响应开始」的显式信号（替代靠累积长度变短的猜测）。
    */
   isFirstChunk?: boolean
 
@@ -180,9 +192,21 @@ export interface ImageCompleteChunk {
 
 export interface ThinkingDeltaChunk {
   /**
-   * 思考文本内容
+   * 思考文本内容。
+   * 语义约定同 {@link TextDeltaChunk.text}：提供 `delta` 时为增量，否则为累积全文。
    */
   text: string
+
+  /**
+   * 增量思考文本（本次新增的片段）。
+   * 提供时表示供应商按「增量」语义发送（如 Vercel AI SDK 的 reasoning-delta）。
+   */
+  delta?: string
+
+  /**
+   * 是否是第一个思考块（增量语义下用作「新一轮」的显式信号）。
+   */
+  isFirstChunk?: boolean
 
   /**
    * 思考时间（毫秒）
