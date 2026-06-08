@@ -2,7 +2,7 @@ import store from '../../store';
 import { EventEmitter, EVENT_NAMES } from '../infra/EventService';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
-import type { Chunk, TextDeltaChunk } from '../../types/chunk';
+import type { Chunk, TextDeltaChunk, ThinkingDeltaChunk, ThinkingCompleteChunk } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
 
 // 导入拆分后的处理器
@@ -17,6 +17,7 @@ import {
 import { dexieStorage } from '../storage/DexieStorageService';
 import { updateOneBlock, addOneBlock } from '../../store/slices/messageBlocksSlice';
 import { getHighPerformanceUpdateInterval } from '../../utils/performanceSettings';
+import { StreamIncrementTracker } from './responseHandlers/StreamIncrementTracker';
 
 /**
  * 响应处理器配置类型
@@ -52,7 +53,7 @@ export class ApiError extends Error {
  * Provider.sendChatMessage
  *   ↓ onChunk 回调
  * ResponseHandler.handleChunk
- *   ├─ THINKING_DELTA/COMPLETE → chunkProcessor.handleChunk (直接处理)
+ *   ├─ THINKING_DELTA/COMPLETE → handleThinkingChunk (增量归一后委托块处理器)
  *   ├─ TEXT_DELTA/COMPLETE → handleTextWithToolExtraction
  *   │     ├─ 工具提取器检测工具标签
  *   │     ├─ 纯文本 → chunkProcessor.handleChunk (保持原始类型)
@@ -81,9 +82,12 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
   const completionHandler = new ResponseCompletionHandler(messageId, blockId, topicId);
   const errorHandler = new ResponseErrorHandler(messageId, blockId, topicId);
 
-  // 跟踪已处理的文本长度（用于从累积内容中提取增量部分）
-  // 参考 Cherry Studio：工具提取器应该处理增量内容，而不是累积内容
-  let lastProcessedTextLength = 0;
+  // ⭐ 归一化边界：把上游「累积全文 / 增量」统一归一成增量，块层不再自行猜测。
+  // 文本与思考各持一个增量归一器（互不干扰）。
+  const textTracker = new StreamIncrementTracker();
+  const thinkingTracker = new StreamIncrementTracker();
+  // 思考内容归一后回填的累积全文（下游 chunkProcessor 仍按累积语义消费）
+  let thinkingCumulative = '';
   // 累积过滤后的文本内容（工具标签已移除）
   let accumulatedCleanText = '';
   // 🛡️ 幻觉防护：一旦检测到工具调用，丢弃后续所有非标签文本
@@ -124,8 +128,8 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
         switch (chunk.type) {
           case ChunkType.THINKING_DELTA:
           case ChunkType.THINKING_COMPLETE:
-            // 思考内容直接委托给块处理器
-            await chunkProcessor.handleChunk(chunk);
+            // 思考内容经增量归一后委托给块处理器
+            await this.handleThinkingChunk(chunk as ThinkingDeltaChunk | ThinkingCompleteChunk);
             break;
 
           case ChunkType.TEXT_DELTA:
@@ -151,6 +155,44 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
     },
 
     /**
+     * 处理思考(reasoning)内容：经增量归一后回填累积全文交给块处理器。
+     *
+     * chunkProcessor 仍按「累积」语义消费思考内容（替换写入），因此这里把上游的
+     * 累积/增量统一转成累积全文，保持块层零改动。累积语义供应商行为与原来一致，
+     * 增量语义（如 AI SDK reasoning-delta）在这里被归一。
+     */
+    async handleThinkingChunk(chunk: ThinkingDeltaChunk | ThinkingCompleteChunk): Promise<void> {
+      const hasDelta = typeof (chunk as ThinkingDeltaChunk).delta === 'string';
+
+      // 累积语义的「思考完成」：完成块携带完整思考全文，直接转发（保持原替换写入行为）
+      if (chunk.type === ChunkType.THINKING_COMPLETE && !hasDelta) {
+        thinkingCumulative = chunk.text ?? '';
+        await chunkProcessor.handleChunk(chunk);
+        thinkingTracker.reset();
+        thinkingCumulative = '';
+        return;
+      }
+
+      const { increment, newRound } = thinkingTracker.next({
+        text: chunk.text,
+        delta: (chunk as ThinkingDeltaChunk).delta,
+        isFirstChunk: (chunk as ThinkingDeltaChunk).isFirstChunk
+      });
+      if (newRound) thinkingCumulative = '';
+      thinkingCumulative += increment;
+
+      const normalized = { ...chunk, text: thinkingCumulative } as ThinkingDeltaChunk | ThinkingCompleteChunk;
+      delete (normalized as ThinkingDeltaChunk).delta;
+      await chunkProcessor.handleChunk(normalized);
+
+      // 增量语义的思考完成：重置以便下一轮
+      if (chunk.type === ChunkType.THINKING_COMPLETE) {
+        thinkingTracker.reset();
+        thinkingCumulative = '';
+      }
+    },
+
+    /**
      * 处理文本内容并检测工具调用
      * 
      * ⭐ 参考 Cherry Studio 架构：
@@ -169,31 +211,24 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
       // 保存原始 chunk 类型（DELTA 或 COMPLETE）
       const originalChunkType = chunk.type;
 
-      // ⭐ Step 1: 从累积内容中提取增量部分（参考 Cherry Studio）
-      let incrementalText = text;
-      if (text.length > lastProcessedTextLength) {
-        // 累积模式：只提取新增的部分
-        incrementalText = text.slice(lastProcessedTextLength);
-        lastProcessedTextLength = text.length;
-      } else if (text.length < lastProcessedTextLength) {
-        // ⭐ 新一轮 API 调用开始（内容变短了）
-        // 🔧 修复：先完成当前文本块（保存内容到数据库），再创建新块
-        // 这样中断时，之前迭代的内容不会丢失
+      // ⭐ Step 1: 归一成增量（累积/增量两种上游语义都收敛到这一处，块层不再猜测）
+      const { increment: incrementalText, newRound } = textTracker.next({
+        text,
+        delta: (chunk as TextDeltaChunk).delta,
+        isFirstChunk: (chunk as TextDeltaChunk).isFirstChunk
+      });
+
+      if (newRound) {
+        // ⭐ 新一轮响应开始：先完成当前文本块（保存内容），再准备新块
         console.log(`[ResponseHandler] 检测到新一轮响应，先保存当前内容再准备新文本块`);
-        
-        // 先完成当前文本块，确保内容已保存
         const savedBlockId = chunkProcessor.completeCurrentTextBlock();
         if (savedBlockId) {
           console.log(`[ResponseHandler] 已保存上一轮文本块: ${savedBlockId}`);
         }
-        
-        // 重置状态准备新块
-        lastProcessedTextLength = text.length;
         accumulatedCleanText = '';
         hasAnyToolUse = false;  // 🛡️ 重置幻觉守卫，新一轮可能输出最终文本答案
         chunkProcessor.resetTextBlock();
-        toolExtractionProcessor.reset();  // 🔧 修复：重置工具提取器，避免内容重复
-        incrementalText = text;  // 新一轮从头开始处理
+        toolExtractionProcessor.reset();  // 🔧 重置工具提取器，避免内容重复
       }
       // 如果没有新增内容，跳过处理
       if (!incrementalText) return;
