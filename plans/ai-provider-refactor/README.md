@@ -225,9 +225,9 @@ src/shared/ai/
 - **Phase 1 — 版本对齐（零架构改动）**
   升级 `ai / @ai-sdk/*` 到最新 v6 并锁版本；`type-check` + 特征测试确认无回归。
 - **Phase 2 — 零风险清理**
-  删死代码 `api/providerFactory.ts`；用 `knip`/`ts-prune` 扫未引用导出出清单；合并 `mcpToolParser` 与 `mcpPrompt`。
+  删死代码 `api/providerFactory.ts`（已删，PR #91）；用 `knip`/`ts-prune` 扫未引用导出出清单；~~合并 `mcpToolParser` 与 `mcpPrompt`~~ → **移至 Phase 3**（见下，二者非行为等价的重复，绑定到两个待合并基类）。
 - **Phase 3 — 立契约 + 合并基类**
-  新建 `ai/core/types.ts`；`ai/core/BaseProvider.ts` 合并两个旧基类；工厂 `getProviderApi` 返回类型 `any` → `AIProvider`（逼出隐藏耦合）。
+  新建 `ai/core/types.ts`；`ai/core/BaseProvider.ts` 合并两个旧基类；工厂 `getProviderApi` 返回类型 `any` → `AIProvider`（逼出隐藏耦合）。**并入：统一 `mcpToolParser.getMCPSystemPrompt`（Responses 路径）与 `mcpPrompt.buildSystemPrompt`（主路径）两套 MCP 提示词**——它俩分别绑在本阶段要合并的两个基类上，提示词统一会改 OpenAI Responses 路径文本（行为改动），故随基类合并一起做。
 - **Phase 4 — 适配器化（一次一家）**
   `*-aisdk` 收敛成 `adapters/<vendor>`，公共流式抽到 `shared/streamAdapter.ts`；**删除 `api/openai`（官方 SDK 聊天）**，OpenAI 统一走 `@ai-sdk/openai`；第三方兼容供应商接 `@ai-sdk/openai-compatible`，私有参数按 §5 逐个搬 + 实测。每迁一家跑该家特征测试。
 - **Phase 5 — 工厂/路由收口**
@@ -244,7 +244,7 @@ src/shared/ai/
 | — | 文档与计划（本文）| ✅ 完成 | 本 PR | 2026-06-08 | 建立 single source of truth |
 | 0 | 护栏（测试 + CI）| ✅ 完成 | #89 | 2026-06-08 | 4 条聊天路径 Chunk 契约特征测试（32 用例）+ PR Test(vitest) CI；CI 全绿（type-check/test/build/SonarCloud）；lint 因存量 230 errors 暂不门禁，留待 Phase 6 |
 | 1 | 版本对齐 v6 | ✅ 完成 | [#90](https://github.com/1600822305/AetherLink/pull/90) | 2026-06-08 | `ai`/`@ai-sdk/*` 升至最新稳定 v6 并 pin 精确版本；零架构改动；官方 `openai` 不动（Phase 4 删）；type-check/test(32)/build 全绿 |
-| 2 | 零风险清理 | ⬜ 未开始 | | | 删 `api/providerFactory.ts` |
+| 2 | 零风险清理 | 🔵 进行中 | [#91](https://github.com/1600822305/AetherLink/pull/91) | 2026-06-08 | 已删死代码 `api/providerFactory.ts`（0 引用、含误导 throw）；`tsc`/test(32)/build 全绿；`mcpToolParser`↔`mcpPrompt` 提示词统一移至 Phase 3（非等价重复、绑两基类、属行为改动）；`ts-prune` 本仓无可用输出 |
 | 3 | 立契约 + 合并基类 | ⬜ 未开始 | | | |
 | 4 | 适配器化（逐家）| ⬜ 未开始 | | | 删 `api/openai`、接 openai-compatible |
 | 5 | 工厂/路由收口 | ⬜ 未开始 | | | 改 43 处调用方 |
@@ -261,6 +261,7 @@ src/shared/ai/
 - **2026-06-08（Phase 0）** — 为四条聊天路径补齐 Chunk 契约特征测试（openai-aisdk 流式+非流式、官方 openai `UnifiedStreamProcessor`、anthropic-aisdk、gemini-aisdk），连同既有 tools 测试共 **33 用例全绿**；新增 `.github/workflows/pr-test.yml` 把 vitest 接入 PR CI（此前仅有 type-check 与 build）；用 DeepSeek 临时 key 跑通 live 基线，证实 `raw.reasoning_content` 推理映射与契约一致；评估 lint 门禁（存量 230 errors，暂缓）。详见 §6 Phase 0。
 - **2026-06-08（Phase 0 完成）** — 为通过 SonarCloud 新代码重复率门禁，将三家同构 AI SDK 测试（曾各自独立、重复率 48.8%）抽出共享参数化套件 `__tests__/shared/aisdkStreamContract.ts` 并合并进单文件 `__tests__/aisdk-stream.characterization.test.ts`（循环跑公共契约 + 各家特有推理用例），重复率降至达标；合并后 **32 用例全绿**，PR #89 CI 全绿（type-check / test / build / SonarCloud）。**Phase 0 标记完成**，可开始 Phase 1（版本对齐）。
 - **2026-06-08（Phase 1 完成）** — 版本对齐（零架构/逻辑改动）：把 `ai` `^6.0.103→6.0.197`、`@ai-sdk/openai` `^3.0.33→3.0.68`、`@ai-sdk/anthropic` `^3.0.47→3.0.81`、`@ai-sdk/google` `^3.0.33→3.0.80` 升至 npm 最新稳定 v6，并按"锁版本"要求 **pin 成精确版本（去 `^`）**；v7 仍 beta 未升。官方 `openai`（6.25.0）**保持不动**（Phase 4 删除目标，且本 Phase 范围仅含 `ai`/`@ai-sdk/*`）。`package-lock.json` 改动仅落在 `ai`/`@ai-sdk/*` 子树（含传递依赖 `@ai-sdk/provider`/`provider-utils`/`gateway`、`@vercel/oidc`、`eventsource-parser`），无不相关包变动。本机验证全绿：`type-check`（增量 + `tsc --noEmit` 全量）、`npm test` 32/32（Phase 0 Chunk 契约护栏未回归）、`vite build`（7990 modules）。PR [#90](https://github.com/1600822305/AetherLink/pull/90)。
+- **2026-06-08（Phase 2，进行中）** — 零风险清理：删除死代码 `src/shared/api/providerFactory.ts`（整文件 90 行）。该文件 **0 引用**（barrel `api/index.ts` 未 re-export，导出名仅文件内自引），且内含**误导性** `throw 'Anthropic/Gemini 尚未实现'`，而这两家实际已迁 AI SDK 实现；真工厂是 `services/ai/ProviderFactory.ts`。删后本机 `tsc --noEmit` / `npm test` 32/32 / `vite build`(7990 modules) 全绿，零行为改动。PR [#91](https://github.com/1600822305/AetherLink/pull/91)。**范围调整**：①`mcpToolParser` ↔ `mcpPrompt` 的「合并」经读码确认**不是行为等价的重复**——`getMCPSystemPrompt`（中文追加式，仅 OpenAI Responses 经 `providers/BaseAIProvider` 用）与 `buildSystemPrompt`（英文/Agentic 替换式，所有主 provider 经 `api/baseProvider` 用）是两套不同提示词，统一会改 Responses 提示词文本（行为改动），且分别绑定 Phase 3 待合并的两个基类，故**移至 Phase 3** 随基类合并一起做；②`ts-prune` 在本仓 TS 配置下无可用输出，未出清单，留作后续（不阻塞）。
 
 ---
 
