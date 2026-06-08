@@ -3,6 +3,7 @@
  * 定义了所有AI提供者必须实现的方法，并提供 MCP 工具调用的通用功能
  */
 import type { Message, MCPTool, Model } from '../types';
+import type { AIProvider } from '../ai/core/types';
 import { buildSystemPrompt, type WorkspaceInfo } from '../utils/mcpPrompt';
 import { workspaceService } from '../services/files/WorkspaceService';
 
@@ -41,7 +42,7 @@ sendChatMessage(
  * 抽象基础提供者类
  * 提供 MCP 工具调用的通用功能和智能切换机制
  */
-export abstract class AbstractBaseProvider implements BaseProvider {
+export abstract class AbstractBaseProvider implements BaseProvider, AIProvider {
   // 工具数量阈值：超过此数量将强制使用系统提示词模式
   private static readonly SYSTEM_PROMPT_THRESHOLD: number = 128;
 
