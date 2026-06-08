@@ -25,6 +25,7 @@ import PlaceholderBlock from './blocks/PlaceholderBlock';
 // KnowledgeReferenceBlock 已移除 - 知识库引用统一由 CitationBlock 渲染
 import ContextSummaryBlock from './blocks/ContextSummaryBlock';
 import ToolBlock from './blocks/ToolBlock';
+import { isEmptyMainTextBlock, shouldShowEmptyContentMessage } from './messageBlockRenderGuards';
 
 // 类型定义：分组后的块可以是单个块或块数组
 type GroupedBlock = MessageBlock | MessageBlock[];
@@ -83,27 +84,6 @@ const ImageBlockGroup: React.FC<ImageBlockGroupProps> = ({ children, count }) =>
  * - 相同路径的视频块会被去重（只保留第一个）
  * - 其他块保持原样
  */
-/**
- * 类型守卫：检查是否为空内容的主文本块
- */
-const isEmptyMainTextBlock = (block: MessageBlock, message: Message): boolean => {
-  if (block.type !== MessageBlockType.MAIN_TEXT) return false;
-  if (block.status !== MessageBlockStatus.SUCCESS) return false;
-  
-  // 流式输出、处理中或成功状态时不视为空
-  if (['streaming', 'processing', 'success'].includes(message.status)) return false;
-  
-  // 有版本历史时不视为空
-  if (message.versions && message.versions.length > 0) return false;
-  
-  // 检查内容是否为空
-  if ('content' in block) {
-    const content = (block as MainTextMessageBlock).content;
-    return !content || content.trim() === '';
-  }
-  return true;
-};
-
 /**
  * 类型守卫：判断是否为代码块
  */
@@ -242,9 +222,8 @@ const MessageBlockRenderer: React.FC<Props> = ({
 
   // 检查是否有空内容的成功状态块 - 使用提取的工具函数
   const hasEmptySuccessBlock = useMemo(() => {
-    if (renderedBlocks.length === 0) return false;
-    return renderedBlocks.some(block => isEmptyMainTextBlock(block, message));
-  }, [renderedBlocks, message.status, message.versions?.length]);
+    return shouldShowEmptyContentMessage(renderedBlocks, message);
+  }, [renderedBlocks, message]);
 
   // 是否启用动画 - 使用显式状态比较
   const enableAnimation = ANIMATING_STATUSES.includes(message.status);
