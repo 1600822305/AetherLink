@@ -1,12 +1,4 @@
-import store from '../../../store';
-import { dexieStorage } from '../../storage/DexieStorageService';
-import { updateOneBlock } from '../../../store/slices/messageBlocksSlice';
-import {
-  MessageBlockStatus,
-  MessageBlockType,
-  isTerminalBlockStatus
-} from '../../../types/newMessage';
-import type { MessageBlock, ThinkingMessageBlock } from '../../../types/newMessage';
+import { messageBlockRepository } from '../MessageBlockRepository';
 
 /**
  * 响应收尾的「单一不变量出口」。
@@ -40,66 +32,5 @@ export async function finalizeNonTerminalBlocks(
   messageId: string,
   options: FinalizeOptions
 ): Promise<number> {
-  const { now, thinkingDurationMs } = options;
-  const skip = new Set(options.skipBlockIds ?? []);
-
-  const message = store.getState().messages.entities[messageId];
-  const blockIds = message?.blocks ?? [];
-
-  const dbOps: Promise<unknown>[] = [];
-  let finalized = 0;
-
-  for (const id of blockIds) {
-    if (skip.has(id)) continue;
-
-    const block = store.getState().messageBlocks.entities[id];
-    if (!block || isTerminalBlockStatus(block.status)) continue;
-
-    const changes: Partial<MessageBlock> = {
-      status: MessageBlockStatus.SUCCESS,
-      updatedAt: now
-    };
-
-    if (block.type === MessageBlockType.THINKING) {
-      changes.thinking_millsec = resolveThinkingMillis(block, thinkingDurationMs, now);
-    }
-
-    // 同一份遍历：Redux 与 Dexie 一起写，保证一致
-    store.dispatch(updateOneBlock({ id, changes }));
-    dbOps.push(dexieStorage.updateMessageBlock(id, changes));
-    finalized++;
-  }
-
-  if (dbOps.length > 0) {
-    await Promise.all(dbOps);
-  }
-
-  if (finalized > 0) {
-    console.log(`[blockFinalization] 收尾非终态块 ${finalized} 个 - 消息ID: ${messageId}`);
-  }
-
-  return finalized;
-}
-
-/**
- * 思考时长 = 「结束时刻 − 起始时刻」，时间戳派生。
- * 优先级：块上已有的有效值 > 调用方兜底值 > 按 thinkingStartTime/createdAt 推算。
- */
-function resolveThinkingMillis(
-  block: ThinkingMessageBlock,
-  thinkingDurationMs: number | undefined,
-  now: string
-): number {
-  if (typeof block.thinking_millsec === 'number' && block.thinking_millsec > 0) {
-    return block.thinking_millsec;
-  }
-  if (typeof thinkingDurationMs === 'number' && thinkingDurationMs > 0) {
-    return thinkingDurationMs;
-  }
-  const start = block.thinkingStartTime ?? Date.parse(block.createdAt);
-  const end = Date.parse(now);
-  if (!Number.isNaN(start) && !Number.isNaN(end)) {
-    return Math.max(0, end - start);
-  }
-  return 0;
+  return messageBlockRepository.finalizeMessageBlocks(messageId, options);
 }

@@ -1,9 +1,6 @@
-import store from '../../../store';
-import { dexieStorage } from '../../storage/DexieStorageService';
-import { newMessagesActions } from '../../../store/slices/newMessagesSlice';
-import { addOneBlock } from '../../../store/slices/messageBlocksSlice';
 import { createCitationBlock } from '../../../utils/messageUtils';
 import type { KnowledgeReferenceItem } from '../../../types/newMessage';
+import { messageBlockRepository } from '../MessageBlockRepository';
 
 /**
  * 知识库搜索处理器 - 处理知识库搜索相关的逻辑
@@ -54,32 +51,10 @@ export class KnowledgeSearchHandler {
 
       console.log(`[KnowledgeSearchHandler] 创建统一引用块: ${citationBlock.id}`);
 
-      // 添加到Redux状态
-      store.dispatch(addOneBlock(citationBlock));
-
-      // 保存到数据库
-      await dexieStorage.saveMessageBlock(citationBlock);
-
-      // 将块添加到消息的blocks数组的开头（显示在顶部）
-      const currentMessage = store.getState().messages.entities[this.messageId];
-      if (currentMessage) {
-        const updatedBlocks = [citationBlock.id, ...(currentMessage.blocks || [])];
-
-        // 更新Redux中的消息
-        store.dispatch(newMessagesActions.updateMessage({
-          id: this.messageId,
-          changes: {
-            blocks: updatedBlocks
-          }
-        }));
-
-        // 同步更新数据库
-        await dexieStorage.updateMessage(this.messageId, {
-          blocks: updatedBlocks
-        });
-
-        console.log(`[KnowledgeSearchHandler] 统一引用块已添加到消息顶部: ${citationBlock.id}`);
-      }
+      await messageBlockRepository.createBlockAndAttach(citationBlock, {
+        position: { type: 'prepend' }
+      });
+      console.log(`[KnowledgeSearchHandler] 统一引用块已添加到消息顶部: ${citationBlock.id}`);
 
       console.log(`[KnowledgeSearchHandler] 统一引用块创建完成，包含 ${knowledgeItems.length} 条知识库引用`);
 

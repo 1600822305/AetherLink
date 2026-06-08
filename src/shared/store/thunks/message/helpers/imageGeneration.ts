@@ -6,9 +6,7 @@ import { generateImage as generateGeminiImage } from '../../../../api/gemini-ais
 import { generateImage as generateDashScopeImage, isDashScopeImageModel } from '../../../../api/dashscope/image';
 import { createImageBlock } from '../../../../utils/messageUtils';
 import { dexieStorage } from '../../../../services/storage/DexieStorageService';
-import { newMessagesActions } from '../../../slices/newMessagesSlice';
-import { addOneBlock } from '../../../slices/messageBlocksSlice';
-import { updateMessageAndTopic } from './dbHelpers';
+import { messageBlockRepository } from '../../../../services/messages/MessageBlockRepository';
 import { isGeminiModel as isGeminiProvider } from '../../../../../config/models';
 import type { Model } from '../../../../types';
 import type { Message } from '../../../../types/newMessage';
@@ -93,7 +91,7 @@ function getImageMimeType(imageUrl: string): string {
 export async function handleImageGeneration(
   context: ImageGenerationContext
 ): Promise<string> {
-  const { dispatch, model, assistantMessage, topicId, apiMessages, responseHandler } = context;
+  const { model, assistantMessage, topicId, apiMessages, responseHandler } = context;
 
   const prompt = extractImagePrompt(apiMessages);
   let imageUrls: string[] = [];
@@ -136,32 +134,7 @@ export async function handleImageGeneration(
     mimeType: getImageMimeType(imageUrl)
   });
 
-  // 添加图片块到 Redux 状态
-  dispatch(addOneBlock(imageBlock));
-
-  // 保存图片块到数据库
-  await dexieStorage.saveMessageBlock(imageBlock);
-
-  // 将图片块 ID 添加到消息的 blocks 数组
-  dispatch(newMessagesActions.upsertBlockReference({
-    messageId: assistantMessage.id,
-    blockId: imageBlock.id,
-    status: imageBlock.status
-  }));
-
-  // 更新消息
-  const updatedChanges = {
-    blocks: [...(assistantMessage.blocks || []), imageBlock.id],
-    updatedAt: new Date().toISOString()
-  };
-
-  dispatch(newMessagesActions.updateMessage({
-    id: assistantMessage.id,
-    changes: updatedChanges
-  }));
-
-  // 保存到数据库
-  await updateMessageAndTopic(assistantMessage.id, topicId, updatedChanges);
+  await messageBlockRepository.createBlockAndAttach(imageBlock);
 
   return '图像生成完成！';
 }

@@ -12,6 +12,7 @@ import { ChunkType } from '../../../types/chunk';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { checkAndHandleApiKeyError } from '../../../utils/apiKeyErrorHandler';
 import { finalizeNonTerminalBlocks } from './blockFinalization';
+import { messageBlockRepository } from '../MessageBlockRepository';
 import { AISDKError } from 'ai';
 import type { AiSdkErrorUnion } from '../../../types/error';
 
@@ -154,7 +155,7 @@ export class ResponseErrorHandler {
 
     // 保存错误状态到数据库，确保错误信息完整保存
     await Promise.all([
-      dexieStorage.updateMessageBlock(this.blockId, {
+      messageBlockRepository.updateBlock(this.blockId, {
         type: MessageBlockType.ERROR,
         status: MessageBlockStatus.ERROR,
         content: errorMessage,
