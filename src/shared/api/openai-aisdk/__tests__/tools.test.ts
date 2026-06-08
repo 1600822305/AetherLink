@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { convertMcpToolsToAISDK } from '../tools';
-import type { MCPTool } from '../../../types';
+import { convertMcpToolsToAISDK, mcpToolCallResponseToOpenAIMessage } from '../tools';
+import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../../types';
 
 // ---------------------------------------------------------------------------
 // 回归测试：convertMcpToolsToAISDK 必须返回 AI SDK 的 ToolSet（Record<string, Tool>）
@@ -59,5 +59,79 @@ describe('convertMcpToolsToAISDK — 返回 AI SDK ToolSet', () => {
   it('过滤无名工具', () => {
     const result = convertMcpToolsToAISDK([mcpTool({ name: '' })]);
     expect(Object.keys(result)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 回归测试：mcpToolCallResponseToOpenAIMessage 必须用 AI SDK v6 的
+// ToolResultPart 格式 `output: { type, value }`，而非旧的 `result: "<字符串>"`。
+//
+// 背景：多轮函数调用第 2 轮把工具结果发回模型时报
+// `AI_InvalidPromptError: messages do not match ModelMessage[]`，union 关键一条是
+// `invalid_type, expected object, path:["output"]`。AI SDK v6 的 ToolResultPart
+// 要求 output 为 ToolResultOutput 对象（text → {type:'text',value}，
+// 错误 → {type:'error-text',value}）。
+// ---------------------------------------------------------------------------
+
+const toolResponse = (over: Partial<MCPToolResponse>): MCPToolResponse =>
+  ({
+    id: 'call_1',
+    toolCallId: 'call_1',
+    tool: { name: 'searxng_search', serverName: 's', serverId: 's' } as MCPTool,
+    arguments: {},
+    status: 'done',
+    ...over,
+  } as MCPToolResponse);
+
+const callResult = (text: string, isError = false): MCPCallToolResponse => ({
+  content: [{ type: 'text', text }],
+  isError,
+});
+
+const fakeModel = { id: 'deepseek-v4-pro', provider: 'deepseek' } as unknown as Model;
+
+describe('mcpToolCallResponseToOpenAIMessage — AI SDK v6 tool-result 格式', () => {
+  it('成功结果用 output:{type:"text",value}，不再用 result 字符串', () => {
+    const msg = mcpToolCallResponseToOpenAIMessage(
+      toolResponse({}),
+      callResult('搜索结果文本'),
+      fakeModel
+    );
+
+    expect(msg.role).toBe('tool');
+    const part = msg.content[0];
+    expect(part.type).toBe('tool-result');
+    expect(part.toolCallId).toBe('call_1');
+    expect(part.toolName).toBe('searxng_search');
+    expect(part.output).toEqual({ type: 'text', value: '搜索结果文本' });
+    // 旧字段不应再出现
+    expect(part.result).toBeUndefined();
+    expect(part.isError).toBeUndefined();
+  });
+
+  it('错误结果用 output:{type:"error-text",value}', () => {
+    const msg = mcpToolCallResponseToOpenAIMessage(
+      toolResponse({}),
+      callResult('boom', true),
+      fakeModel
+    );
+
+    const part = msg.content[0];
+    expect(part.type).toBe('tool-result');
+    expect(part.output).toEqual({ type: 'error-text', value: 'Error: boom' });
+    expect(part.result).toBeUndefined();
+  });
+
+  it('XML 提示词模式仍返回 user 角色（不受影响）', () => {
+    const msg = mcpToolCallResponseToOpenAIMessage(
+      toolResponse({}),
+      callResult('结果'),
+      fakeModel,
+      true
+    );
+
+    expect(msg.role).toBe('user');
+    expect(msg.content).toContain('<tool_use_result>');
+    expect(msg.content).toContain('结果');
   });
 });

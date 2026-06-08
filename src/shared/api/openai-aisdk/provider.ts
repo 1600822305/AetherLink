@@ -487,10 +487,18 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
             };
           });
           
-          const assistantContent = content 
-            ? [{ type: 'text' as const, text: content }, ...toolCallParts]
-            : toolCallParts;
-          
+          // 重建 assistant 历史消息：保留 reasoning（思考）+ text + tool-call。
+          // 混合思考模型（如 deepseek-v4）会在同一轮同时产出 reasoning 与 tool-call，
+          // 若丢弃 reasoning，后续轮次行为可能退化。
+          const assistantContent: any[] = [];
+          if (result.reasoning) {
+            assistantContent.push({ type: 'reasoning' as const, text: result.reasoning });
+          }
+          if (content) {
+            assistantContent.push({ type: 'text' as const, text: content });
+          }
+          assistantContent.push(...toolCallParts);
+
           currentMessages.push({
             role: 'assistant',
             content: assistantContent
