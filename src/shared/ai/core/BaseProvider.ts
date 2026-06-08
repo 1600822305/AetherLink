@@ -26,7 +26,7 @@ import type {
   Metrics
 } from '../../types';
 import type { Chunk } from '../../types/chunk';
-import type { AIProvider } from './types';
+import type { AIProvider, ChatOptions, ChatMessageResult } from './types';
 import { buildSystemPrompt, type WorkspaceInfo } from '../../utils/mcpPrompt';
 import { workspaceService } from '../../services/files/WorkspaceService';
 
@@ -41,19 +41,7 @@ export interface BaseProvider {
    * @param options 选项
    * @returns 响应内容
    */
-  sendChatMessage(
-    messages: Message[],
-    options?: {
-      onChunk?: (chunk: Chunk) => void;
-      enableWebSearch?: boolean;
-      enableThinking?: boolean;
-      enableTools?: boolean;
-      tools?: string[];
-      mcpTools?: MCPTool[];
-      systemPrompt?: string;
-      abortSignal?: AbortSignal;
-    }
-  ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }>;
+  sendChatMessage(messages: Message[], options?: ChatOptions): Promise<ChatMessageResult>;
 
   /**
    * 测试API连接
@@ -95,17 +83,8 @@ export abstract class AbstractBaseProvider extends AbstractProviderCore implemen
    */
   abstract sendChatMessage(
     messages: Message[],
-    options?: {
-      onChunk?: (chunk: Chunk) => void;
-      enableWebSearch?: boolean;
-      enableThinking?: boolean;
-      enableTools?: boolean;
-      tools?: string[];
-      mcpTools?: MCPTool[];
-      systemPrompt?: string;
-      abortSignal?: AbortSignal;
-    }
-  ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }>;
+    options?: ChatOptions
+  ): Promise<ChatMessageResult>;
 
   /**
    * 抽象方法：测试API连接
