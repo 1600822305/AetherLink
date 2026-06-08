@@ -1,7 +1,24 @@
 import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
-import type { PayloadAction } from '@reduxjs/toolkit';
+import type { PayloadAction, Update } from '@reduxjs/toolkit';
 import type { MessageBlock } from '../../types/newMessage.ts';
+import { isTerminalBlockStatus } from '../../types/newMessage.ts';
 import type { RootState } from '../index';
+
+/**
+ * 终态不可逆守卫：已是终态（success/error/paused）的块，
+ * 拒绝任何把它改回非终态（pending/processing/streaming）的更新。
+ */
+function isIllegalRevert(
+  state: ReturnType<typeof messageBlocksAdapter.getInitialState>,
+  update: Update<MessageBlock, string>
+): boolean {
+  const nextStatus = (update.changes as Partial<MessageBlock>).status;
+  if (nextStatus === undefined) return false;
+  if (isTerminalBlockStatus(nextStatus)) return false;
+  const prev = state.entities[update.id];
+  if (!prev) return false;
+  return isTerminalBlockStatus(prev.status);
+}
 
 // 创建实体适配器
 const messageBlocksAdapter = createEntityAdapter<MessageBlock>();
@@ -50,11 +67,17 @@ const messageBlocksSlice = createSlice({
       state.error = action.payload;
     },
     
-    // 更新单个块
-    updateOneBlock: messageBlocksAdapter.updateOne,
+    // 更新单个块（终态不可逆：丢弃终态→非终态的回退更新）
+    updateOneBlock: (state, action: PayloadAction<Update<MessageBlock, string>>) => {
+      if (isIllegalRevert(state, action.payload)) return;
+      messageBlocksAdapter.updateOne(state, action.payload);
+    },
     
-    // 更新多个块
-    updateManyBlocks: messageBlocksAdapter.updateMany
+    // 更新多个块（终态不可逆：逐条过滤非法回退）
+    updateManyBlocks: (state, action: PayloadAction<Update<MessageBlock, string>[]>) => {
+      const legal = action.payload.filter(u => !isIllegalRevert(state, u));
+      if (legal.length) messageBlocksAdapter.updateMany(state, legal);
+    }
   }
 });
 
