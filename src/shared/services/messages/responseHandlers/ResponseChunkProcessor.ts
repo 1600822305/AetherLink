@@ -694,6 +694,31 @@ export class ResponseChunkProcessor {
     this.textAccumulator.clear(); // 工具调用后需要清空
   }
 
+  /**
+   * 完成当前思考块（新一轮/检测到工具时调用）。
+   * 与 completeCurrentTextBlock 对称：把当前思考块定稿为 SUCCESS，
+   * 让它成为一个独立、可折叠的历史思考块。
+   */
+  completeCurrentThinkingBlock(): string | null {
+    const thinkingBlockId = this.blockStateManager.getThinkingBlockId();
+    if (thinkingBlockId && this.thinkingAccumulator.getContent()) {
+      this.updateThinkingBlock(thinkingBlockId, this.lastThinkingMilliseconds, true);
+      return thinkingBlockId;
+    }
+    return null;
+  }
+
+  /**
+   * 重置思考块状态（与 resetTextBlock 对称：工具调用/新一轮后调用，下一轮思考创建新块）。
+   * 必须清空 thinkingAccumulator，否则替换写入语义会让下一段思考覆盖上一段。
+   */
+  resetThinkingBlock(): void {
+    this.blockStateManager.resetThinkingBlock();
+    this.thinkingAccumulator.clear();
+    this.reasoningStartTime = null;
+    this.lastThinkingMilliseconds = undefined;
+  }
+
   // Getters
   get content(): string { return this.textAccumulator.getContent(); }
   get thinking(): string { return this.thinkingAccumulator.getContent(); }

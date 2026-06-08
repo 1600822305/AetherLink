@@ -178,7 +178,13 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
         delta: (chunk as ThinkingDeltaChunk).delta,
         isFirstChunk: (chunk as ThinkingDeltaChunk).isFirstChunk
       });
-      if (newRound) thinkingCumulative = '';
+      if (newRound) {
+        // ⭐ 新一轮思考开始（如 思考→工具→再思考）：先把上一段思考块定稿，
+        // 再清空状态，让本段思考生成独立、可折叠的新块（与文本块对称）。
+        chunkProcessor.completeCurrentThinkingBlock();
+        chunkProcessor.resetThinkingBlock();
+        thinkingCumulative = '';
+      }
       thinkingCumulative += increment;
 
       const normalized = { ...chunk, text: thinkingCumulative } as ThinkingDeltaChunk | ThinkingCompleteChunk;
@@ -225,6 +231,10 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
         if (savedBlockId) {
           console.log(`[ResponseHandler] 已保存上一轮文本块: ${savedBlockId}`);
         }
+        // ⭐ 新一轮正式回答开始前，把上一段（思考阶段）的思考块也定稿并重置，
+        // 避免下一段思考复用同一块、覆盖上一段内容。
+        chunkProcessor.completeCurrentThinkingBlock();
+        chunkProcessor.resetThinkingBlock();
         accumulatedCleanText = '';
         hasAnyToolUse = false;  // 🛡️ 重置幻觉守卫，新一轮可能输出最终文本答案
         chunkProcessor.resetTextBlock();
