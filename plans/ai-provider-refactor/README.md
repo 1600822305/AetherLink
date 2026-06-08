@@ -51,6 +51,56 @@ AetherLink 的 AI 调用链（页面 → `services/ai/ProviderFactory` → `api/
 >
 > ⚠️ 待确认：用户印象中"某个功能不正常"导致没删——目前 git 历史里**未找到**明确的"因 bug X 回退"提交。若后续定位到具体功能（如某供应商流式/工具调用在 aisdk 下异常），在 §8 补记。
 
+### 决策：保留 vs 删除官方 OpenAI SDK
+- **终态：删除**官方 `openai` 聊天实现，全部统一到 AI SDK（+ `@ai-sdk/openai-compatible`）。永久保留两套 = 重复逻辑只是被契约盖住、依赖翻倍、同一供应商两条码路，等于重构没做到位。
+- **路径：先"统一保留"作过渡，最后才删**（绞杀者）。先把官方 openai 包进统一 `AIProvider` 契约 → 逐家把兼容供应商（deepseek/grok/siliconflow/volcengine/azure…）迁到 `@ai-sdk/openai-compatible` 并**逐家实测** → 全绿后最后一步删官方 openai。
+- **例外**：若 Phase 0 实测发现某关键供应商在 AI SDK 下确实无法复刻某行为，则**只为那一家保留官方 openai**，其余全迁。能否 100% 删干净，由测试结果决定，不拍脑袋。
+
+---
+
+## 2.5 块系统与 API 的边界：`Chunk` 契约（为什么重构 API 不会震塌信息块系统）
+
+> 这是本次重构最重要的"安全前提"。信息块（message block）系统又复杂又脆（详见 §2.6），但它和 API 层是**通过 `Chunk` 事件流解耦**的——这正是"敢动 API"的依据。
+
+### 边界长这样
+```
+API provider ──emit──▶ Chunk 事件流 ──▶ ResponseHandler.handleChunk(chunk)
+                       (src/shared/types/chunk)   ├ TEXT_DELTA / TEXT_COMPLETE
+                                                   ├ THINKING_DELTA / THINKING_COMPLETE
+                                                   └ MCP_TOOL_* ──▶ 块系统（ResponseChunkProcessor / BlockManager / slice）
+```
+`ResponseHandler` 只认 `Chunk` 类型，**完全不关心上游是官方 `openai` SDK 还是 Vercel AI SDK**（见 `src/shared/services/messages/ResponseHandler.ts` 顶部链路注释）。
+
+### 推论（重构的护身符）
+> **只要重构后 API 产出的 `Chunk` 序列（类型 + 顺序 + 内容）保持不变，下游那套脆弱的块逻辑就感知不到任何变化。**
+
+这不是"应该没事"的祈祷——**Phase 0 特征测试要钉死的就是这条边界**："给定某段 SDK 响应 → 产出的 Chunk 序列不变"。测试一旦建好，改 API 时只要它还绿，就**用数据证明**块系统行为不变。
+
+### 会破坏边界的高危改动（Phase 0 测试必须覆盖）
+- **thinking 分片/时机**变了（reasoning delta 怎么切、何时发 THINKING_COMPLETE）；
+- **工具调用事件**类型/时机/顺序变了（块系统对 `MCP_TOOL_*` 的顺序极敏感）；
+- `TEXT_DELTA` vs `TEXT_COMPLETE` 的发送方式变了；
+- 多模态 / citation / image 等 chunk 的发送方式变了。
+
+→ **Chunk 契约 = 防火墙；Phase 0 测试 = 给防火墙装报警器。** 两者到位，API 重构就与块系统隔离。
+
+---
+
+## 2.6 信息块系统现状（独立的后续重构目标，不在本次 API 重构范围）
+
+块系统本身确实"靠 bug 修 bug"，但它有自己的输入契约（= `Chunk`），与 API 重构**互不阻塞**，应**单独立项**重构。这里仅登记现状，供将来排期。
+
+规模：`services/messages` ~5420 行、`store/thunks/message` ~2989 行、**88 处 `any`**、**~83 处 workaround 注释**（"关键修复 / 防止 / 兜底 / 临时 / 避免重复 / 参考 cherry-studio"）。
+
+已知最脆的几处：
+1. **块状态机 `BlockStateManager`**（INITIAL/TEXT_ONLY/THINKING_ONLY/BOTH）：text 与 thinking 交错流式时，靠 null 检查打补丁决定是否新建块（`ResponseChunkProcessor.ts` 注释"关键修复：如果 textBlockId 为 null…创建新块"）。
+2. **从流式文本里正则抽取工具调用**（`ToolUseExtractionProcessor` + `ResponseHandler.handleTextWithToolExtraction`）："检测到工具，停止处理后续文本（防止覆盖）"、"标记已检测到工具调用后，文本将丢弃"——prompt 模式工具调用，最脆。
+3. **三层节流叠加**：per-block throttle（LRUCache）+ `requestAnimationFrame` + 完成时 `flush` 强制更新。
+4. **`ToolResponseHandler` 幂等去重**："防止重复创建工具块"、"幂等操作避免重复事件"。
+5. **`ResponseCompletionHandler.calculateFinalBlockIds(_chunkProcessor: any)`**：参数已废弃仍留 `any`；最终块顺序靠"流式收到的原始顺序"硬保。
+
+> 处理顺序：**先完成 AI Provider 重构（本文档），块系统重构留待其后单独立项**。届时同样先建"Chunk → 块状态"的特征测试作护栏。
+
 ---
 
 ## 3. SDK 版本说明（重要）
@@ -200,6 +250,7 @@ src/shared/ai/
 ## 8. 变更日志（每阶段追加）
 
 - **2026-06-08** — 建立本重构计划文档与进度追踪器；完成现状诊断、SDK 版本核实（确认在 v6 最新稳定线、v7 仍 beta）、"为何官方 OpenAI 未删"的根因调查（结论：兼容生态底座 + AI SDK 版为默认关闭的实验，未发现明确的 bug 回退提交）。
+- **2026-06-08** — 补充 §2 决策（保留 vs 删除官方 OpenAI：终态删、过渡先统一保留、例外按测试结果定）；新增 §2.5 `Chunk` 契约边界（论证 API 与信息块系统通过 Chunk 解耦，只要 Chunk 序列不变块系统不受影响，并列出高危改动让 Phase 0 测试覆盖）；新增 §2.6 信息块系统现状登记（~83 处 workaround，列为独立后续重构目标，不在本次 API 重构范围）。
 
 ---
 
