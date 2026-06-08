@@ -161,6 +161,9 @@ export interface AIProvider {
 ```
 
 ### 4.2 目标目录结构
+
+> ⚠️ **2026-06-08 决策修订**：下方 `adapters/<vendor>/` 的目录收敛**已放弃**（见 §6 Phase 4 / §8）。三家 `*-aisdk/provider.ts` 的高度相似属**有意为之的供应商独立性**，不去重、不搬目录（`*-aisdk` 保持现状）。`shared/streamAdapter.ts` 已以 `ai/adapters/shared/streamShared.ts` 落地（仅抽真·逐字重复的工具函数，#99）。下图保留为初始设想参考。
+
 ```
 src/shared/ai/
   core/
@@ -229,7 +232,11 @@ src/shared/ai/
 - **Phase 3 — 立契约 + 合并基类**
   新建 `ai/core/types.ts`；`ai/core/BaseProvider.ts` 合并两个旧基类；工厂 `getProviderApi` 返回类型 `any` → `AIProvider`（逼出隐藏耦合）。**并入：统一 `mcpToolParser.getMCPSystemPrompt`（Responses 路径）与 `mcpPrompt.buildSystemPrompt`（主路径）两套 MCP 提示词**——它俩分别绑在本阶段要合并的两个基类上，提示词统一会改 OpenAI Responses 路径文本（行为改动），故随基类合并一起做。
 - **Phase 4 — 适配器化（一次一家）**
-  `*-aisdk` 收敛成 `adapters/<vendor>`，公共流式抽到 `shared/streamAdapter.ts`；**删除 `api/openai`（官方 SDK 聊天）**，OpenAI 统一走 `@ai-sdk/openai`；第三方兼容供应商接 `@ai-sdk/openai-compatible`，私有参数按 §5 逐个搬 + 实测。每迁一家跑该家特征测试。
+  原计划：`*-aisdk` 收敛成 `adapters/<vendor>`，公共流式抽到 `shared/streamAdapter.ts`；**删除 `api/openai`（官方 SDK 聊天）**，OpenAI 统一走 `@ai-sdk/openai`；第三方兼容供应商接 `@ai-sdk/openai-compatible`，私有参数按 §5 逐个搬 + 实测。每迁一家跑该家特征测试。
+  - **4a ✅ 补护栏**（#97）：给 0 覆盖的 OpenAI **Responses** 路径补 9 个特征测试（41/41），纯加测试零行为。
+  - **4d ✅ 流式去重**（#99）：三家 `*-aisdk/stream.ts` 的**逐字重复**工具（`ThinkTagParser`、基础类型、`getProviderConfigFromStore`、`accumulateToolCall`、emit helpers、`PROMPT_MODE_STOP_SEQUENCES`）抽到单一共享件 `ai/adapters/shared/streamShared.ts`；各家 `fullStream` 循环（推理时机真差异）保留不动。-455/+61 行，零行为。
+  - **⛔ 决策（2026-06-08）：放弃 provider.ts 去重 + 目录收敛。** 量化发现 stream 去重后三家目录仍有 25.5% 跨家重复，大头是 `provider.ts`（1019 行，几乎全在 agentic 工具调用循环）。但这些重复属**有意为之的供应商独立性**——每家 provider 业务逻辑应可独立演进，硬抽共享基类是 god-base 过度设计。故 **provider.ts 保持各家独立、不去重**；连带地 **`*-aisdk` 目录不收敛到 `ai/adapters/<vendor>`**（搬动会把旧重复算成新代码、再触发门禁；不动则属旧代码、不卡门禁）。`shared/streamAdapter.ts` 的产物即 4d 的 `streamShared.ts`（仅抽真·逐字重复的工具函数）。
+  - **4e–4g（待排期，需 live key）**：接 `@ai-sdk/openai-compatible` + 私有参数搬 `providerOptions`（§5）→ 逐家灰度切默认聊天引擎 → 删官方 `openai` **聊天实现**（image/video/models 留 Phase 6）。
 - **Phase 5 — 工厂/路由收口**
   工厂改注册表；显式 `providerType` 优先、`inferProviderFromModel` 降为兜底；能力判断改 `provider.capabilities.*`；`chat()` 返回 union → `ChatResult`，逐个修 43 处调用方。
 - **Phase 6 — 收尾**
@@ -246,7 +253,7 @@ src/shared/ai/
 | 1 | 版本对齐 v6 | ✅ 完成 | [#90](https://github.com/1600822305/AetherLink/pull/90) | 2026-06-08 | `ai`/`@ai-sdk/*` 升至最新稳定 v6 并 pin 精确版本；零架构改动；官方 `openai` 不动（Phase 4 删）；type-check/test(32)/build 全绿 |
 | 2 | 零风险清理 | ✅ 完成 | [#91](https://github.com/1600822305/AetherLink/pull/91) | 2026-06-08 | 已删死代码 `api/providerFactory.ts`（0 引用、含误导 throw）；`tsc`/test(32)/build 全绿；`mcpToolParser`↔`mcpPrompt` 提示词统一移至 Phase 3（非等价重复、绑两基类、属行为改动）；`ts-prune` 本仓无可用输出 |
 | 3 | 立契约 + 合并基类 | ✅ 完成 | [#92](https://github.com/1600822305/AetherLink/pull/92) [#93](https://github.com/1600822305/AetherLink/pull/93) [#94](https://github.com/1600822305/AetherLink/pull/94) [#95](https://github.com/1600822305/AetherLink/pull/95) [#96](https://github.com/1600822305/AetherLink/pull/96) | 2026-06-08 | 拆 4 个栈式 PR：3a 清死代码（`OpenAI/AnthropicCompatibleProvider`、`createAIProvider`、随之变死的 mcpToolParser 导出）；3b 立契约 `ai/core/types.ts`（`AIProvider`/`ProviderApi`）；3c 合并基类到 `ai/core/BaseProvider.ts` + 抽共享根 `AbstractProviderCore`，旧路径留 re-export 垫片；3d `getProviderApi` 返回 `any→ProviderApi`。每步零行为改动、type-check/test(32)/build 全绿。#96 为修栈式合并落点（3b/3c/3d 曾落中间分支）把三步并入 main |
-| 4 | 适配器化（逐家）| ⬜ 未开始 | | | 删 `api/openai`、接 openai-compatible |
+| 4 | 适配器化（逐家）| 🔵 进行中 | [#97](https://github.com/1600822305/AetherLink/pull/97) [#99](https://github.com/1600822305/AetherLink/pull/99) | 2026-06-08 | 4a 补 Responses 特征测试（#97，41 用例）；4d 抽 `streamShared.ts` 去重三家 stream.ts（#99，零行为）。**决策：provider.ts 保持各家独立、不去重；`*-aisdk` 目录不收敛**（重复属有意的供应商独立性，强抽=god-base 过度设计）。剩 4e–4g 引擎切换 + 删官方 openai 聊天（需 live key，待排期）|
 | 5 | 工厂/路由收口 | ⬜ 未开始 | | | 改 43 处调用方 |
 | 6 | 收尾（rest/ + 清理）| ⬜ 未开始 | | | |
 
@@ -256,6 +263,11 @@ src/shared/ai/
 
 ## 8. 变更日志（每阶段追加）
 
+- **2026-06-08（Phase 4a/4d 完成 + 4 方向决策）** — Phase 4 改为「先补护栏 → 先去重 → 再搬目录」的安全顺序，并在量化后**调整范围**：
+  - **4a 补护栏**（[#97](https://github.com/1600822305/AetherLink/pull/97)）：OpenAI **Responses** 路径此前 0 特征测试覆盖，补 9 个用例钉死 `Responses 事件 → onChunk(Chunk)` 契约（41/41）。纯加测试、零生产改动。
+  - **4d 流式去重**（[#99](https://github.com/1600822305/AetherLink/pull/99)）：先前 #98 直接 `git mv` 搬 `anthropic-aisdk → ai/adapters/anthropic` 撞 SonarCloud 新代码重复率门禁（36.8% > 3%，三家 stream.ts 近乎逐字重复被算成新代码），已关闭。改为「先去重」：新建 `src/shared/ai/adapters/shared/streamShared.ts` 收纳三家逐字重复部分（`ThinkTagParser`、`BaseStreamResult/BaseStreamParams`、`getProviderConfigFromStore`、`accumulateToolCall`、`emitStreamComplete/Error`、`detectAndEmitToolUseTags`、`PROMPT_MODE_STOP_SEQUENCES`），三家 `stream.ts` 删本地副本改 import、`fullStream` 循环不动；一个 PR 同改三家（只改一家会与未迁移版本重复、仍触发门禁）。-455/+61 行，type-check/test(32)/build 全绿。
+  - **⛔ 决策：放弃 provider.ts 去重 + 目录收敛。** jscpd 量化（`--min-lines 10 --min-tokens 70`）：stream 去重后三家 `*-aisdk` 目录仍 25.5% 跨家重复，`provider.ts` 占 1019 行、几乎全在 agentic 工具调用循环（`handleStreamResponse`/`handleNonStreamResponse`/`formatResult`/`processToolCalls`/`processToolUses`），跨家差异极小（日志 label + 调用 options）。评估认为这属**有意为之的供应商独立性**：每家 provider 业务逻辑应保持可读、可独立演进，为重复率指标硬塞共享基类是 god-base 反模式。故 **provider.ts 不去重、保持各家独立**；连带 **`*-aisdk` 目录不收敛到 `ai/adapters/<vendor>`**（搬动 = 旧重复重算为新代码、再触发门禁；不动 = 旧代码、不卡门禁）。§4.2「`shared/streamAdapter.ts`」的落地即 4d 的 `streamShared.ts`（只抽真·逐字重复的工具函数，不抽 provider 业务逻辑）。
+  - 剩余 **4e–4g**（引擎切换 + 删官方 openai 聊天）真动运行逻辑、风险最高，需各供应商**临时 live key** 做回归，单独排期。
 - **2026-06-08** — 建立本重构计划文档与进度追踪器；完成现状诊断、SDK 版本核实（确认在 v6 最新稳定线、v7 仍 beta）、"为何官方 OpenAI 未删"的根因调查（结论：兼容生态底座 + AI SDK 版为默认关闭的实验，未发现明确的 bug 回退提交）。
 - **2026-06-08** — 补充 §2 决策（保留 vs 删除官方 OpenAI：终态删、过渡先统一保留、例外按测试结果定）；新增 §2.5 `Chunk` 契约边界（论证 API 与信息块系统通过 Chunk 解耦，只要 Chunk 序列不变块系统不受影响，并列出高危改动让 Phase 0 测试覆盖）；新增 §2.6 信息块系统现状登记（~83 处 workaround，列为独立后续重构目标，不在本次 API 重构范围）。
 - **2026-06-08（Phase 0）** — 为四条聊天路径补齐 Chunk 契约特征测试（openai-aisdk 流式+非流式、官方 openai `UnifiedStreamProcessor`、anthropic-aisdk、gemini-aisdk），连同既有 tools 测试共 **33 用例全绿**；新增 `.github/workflows/pr-test.yml` 把 vitest 接入 PR CI（此前仅有 type-check 与 build）；用 DeepSeek 临时 key 跑通 live 基线，证实 `raw.reasoning_content` 推理映射与契约一致；评估 lint 门禁（存量 230 errors，暂缓）。详见 §6 Phase 0。
