@@ -3,6 +3,7 @@
  */
 
 export { ResponseChunkProcessor, createResponseChunkProcessor } from './ResponseChunkProcessor';
+export type { ChunkProcessorView } from './ResponseChunkProcessor';
 export { ToolResponseHandler } from './ToolResponseHandler';
 export { ToolUseExtractionProcessor } from './ToolUseExtractionProcessor';
 export type { ProcessedTextResult } from './ToolUseExtractionProcessor';
