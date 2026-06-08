@@ -604,7 +604,9 @@ export class ResponseChunkProcessor {
       content: this.thinkingAccumulator.getContent(),
       createdAt: new Date().toISOString(),
       status: MessageBlockStatus.STREAMING,
-      thinking_millsec: 0
+      thinking_millsec: 0,
+      // 计时以时间戳派生：落一次起始时刻，UI 用它算实时耗时、收尾用它定格
+      thinkingStartTime: this.reasoningStartTime ?? Date.now()
     } as MessageBlock;
     this.blockUpdater.createBlock(block);
   }

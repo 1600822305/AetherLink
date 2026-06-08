@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../shared/store';
 import type { ThinkingMessageBlock } from '../../../shared/types/newMessage';
-import { MessageBlockStatus } from '../../../shared/types/newMessage';
+import { MessageBlockStatus, isTerminalBlockStatus } from '../../../shared/types/newMessage';
 import { EventEmitter, EVENT_NAMES } from '../../../shared/services/infra/EventEmitter';
 import { useDeepMemo } from '../../../hooks/useMemoization';
 import ThinkingDisplayRenderer from './ThinkingDisplayRenderer';
@@ -56,8 +56,12 @@ const ThinkingBlock: React.FC<Props> = ({ block }) => {
   // 状态管理
   const [expanded, setExpanded] = useState(!thoughtAutoCollapse);
   const isThinking = block.status === MessageBlockStatus.STREAMING;
-  const [thinkingTime, setThinkingTime] = useState(() => block.thinking_millsec || 0);
+  const isTerminal = isTerminalBlockStatus(block.status);
   const [copied, setCopied] = useState(false);
+
+  // 计时驱动：用时间戳推进，避免计数器累加漂移
+  const startMs = block.thinkingStartTime ?? Date.parse(block.createdAt);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   // 高级样式状态
   const [streamText, setStreamText] = useState('');
@@ -119,27 +123,32 @@ const ThinkingBlock: React.FC<Props> = ({ block }) => {
     }
   }, [block.content, content]);
 
-  // 思考时间计时器
+  // 思考时间计时器：仅在思考中按时间戳实时刷新；终态后冻结（与 status 解耦，
+  // 即使某条收尾路径漏改状态也只是不再刷新，不会出现计数器停不下来）
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+    if (!isThinking) return;
+    const timer = setInterval(() => setNowTick(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, [isThinking]);
 
-    if (isThinking) {
-      timer = setInterval(() => {
-        setThinkingTime(prev => prev + 100);
-      }, 100);
-    } else {
-      // 思考完成时立即设置最终时间，避免竞态条件
-      if (block.thinking_millsec && block.thinking_millsec !== thinkingTime) {
-        setThinkingTime(block.thinking_millsec);
+  // 显示用思考耗时：终态优先用收尾定格的 thinking_millsec，缺失则按时间戳兜底；
+  // 思考中则用「当前时刻 − 起始时刻」实时派生。
+  const thinkingTime = useMemo(() => {
+    if (isTerminal) {
+      if (typeof block.thinking_millsec === 'number' && block.thinking_millsec > 0) {
+        return block.thinking_millsec;
       }
+      const endMs = block.updatedAt ? Date.parse(block.updatedAt) : Date.now();
+      if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
+        return Math.max(0, endMs - startMs);
+      }
+      return block.thinking_millsec || 0;
     }
-
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-      }
-    };
-  }, [isThinking, block.thinking_millsec, thinkingTime]);
+    if (!Number.isNaN(startMs)) {
+      return Math.max(0, nowTick - startMs);
+    }
+    return block.thinking_millsec || 0;
+  }, [isTerminal, block.thinking_millsec, block.updatedAt, startMs, nowTick]);
 
   // 自动折叠逻辑
   useEffect(() => {

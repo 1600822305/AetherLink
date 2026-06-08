@@ -11,6 +11,7 @@ import type { Chunk } from '../../../types/chunk';
 import { ChunkType } from '../../../types/chunk';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { checkAndHandleApiKeyError } from '../../../utils/apiKeyErrorHandler';
+import { finalizeNonTerminalBlocks } from './blockFinalization';
 import { AISDKError } from 'ai';
 import type { AiSdkErrorUnion } from '../../../types/error';
 
@@ -165,6 +166,13 @@ export class ResponseErrorHandler {
         status: AssistantMessageStatus.ERROR
       })
     ]);
+
+    // 收尾不变量：错误时错误块已置 ERROR，其余非终态块（如思考块）一并结掉，
+    // 避免出错后思考计时仍在跑
+    await finalizeNonTerminalBlocks(this.messageId, {
+      now: new Date().toISOString(),
+      skipBlockIds: [this.blockId]
+    });
 
     // 发送消息完成事件（错误状态）
     EventEmitter.emit(EVENT_NAMES.MESSAGE_COMPLETE, {

@@ -9,6 +9,7 @@ import { v4 as uuid } from 'uuid';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { TopicNamingService } from '../../topics/TopicNamingService';
 import type { ChunkProcessorView } from './ResponseChunkProcessor';
+import { finalizeNonTerminalBlocks } from './blockFinalization';
 
 /**
  * 响应完成处理器 - 处理响应完成和中断的逻辑
@@ -74,7 +75,7 @@ export class ResponseCompletionHandler {
       const metadata = { interrupted: true, interruptedAt: new Date().toISOString() };
 
       // 中断情况下的简化处理
-      await this.handleInterruptedCompletion(interruptedContent, metadata);
+      await this.handleInterruptedCompletion(interruptedContent, metadata, chunkProcessor.thinkingDurationMs);
 
       return interruptedContent;
 
@@ -89,20 +90,29 @@ export class ResponseCompletionHandler {
   /**
    * 中断完成处理 - 简化版本，避免不必要的操作
    */
-  private async handleInterruptedCompletion(content: string, metadata: any): Promise<void> {
+  private async handleInterruptedCompletion(content: string, metadata: any, thinkingDurationMs?: number): Promise<void> {
     const now = metadata.interruptedAt;
 
-    // 1. 更新Redux状态
+    // 1. 主块（追加中断提示）置终态
     this.updateSingleBlock(this.blockId, content, now, undefined, metadata);
+
+    // 2. 收尾不变量：把其余所有非终态块（思考块/文本块/工具块）一并结掉
+    //    —— 这是「中断后思考计时不停」的根治点：不再只动 this.blockId
+    await finalizeNonTerminalBlocks(this.messageId, {
+      now,
+      thinkingDurationMs,
+      skipBlockIds: [this.blockId]
+    });
+
     this.updateStates(now, metadata);
 
-    // 2. 批量保存到数据库（避免重复操作）
+    // 3. 批量保存主块/消息到数据库（其余块已在 finalize 中落库）
     await this.saveInterruptedState(content, metadata);
 
-    // 3. 发送事件
+    // 4. 发送事件
     this.emitEvents(content, true);
 
-    // 4. 清理资源（中断情况下也需要清理）
+    // 5. 清理资源（中断情况下也需要清理）
     this.cleanupToolTracker();
   }
 
@@ -133,7 +143,16 @@ export class ResponseCompletionHandler {
       this.triggerTopicNaming();
     }
 
-    // 4. 清理资源
+    // 4. 收尾不变量兑现（幂等安全网）：确保没有任何块被遗漏在非终态
+    //    正常路径下各块已置 SUCCESS，此调用为 no-op；仅在出现意外遗漏时兽底
+    if (!interrupted) {
+      await finalizeNonTerminalBlocks(this.messageId, {
+        now,
+        thinkingDurationMs: chunkProcessor.thinkingDurationMs
+      });
+    }
+
+    // 5. 清理资源
     this.cleanupToolTracker();
 
     return content;
