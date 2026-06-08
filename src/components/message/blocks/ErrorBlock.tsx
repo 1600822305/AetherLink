@@ -91,10 +91,7 @@ const ErrorBlock: React.FC<Props> = ({ block }) => {
               padding: '10px',
               fontSize: '12px',
               cursor: 'pointer',
-              userSelect: 'none',
-              '&:hover': {
-                backgroundColor: 'error.light'
-              }
+              userSelect: 'none'
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
