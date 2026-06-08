@@ -10,10 +10,10 @@ import type { KnowledgeDocument } from '../../types/KnowledgeBase';
 import type { AppDispatch } from '../../store';
 
 /**
- * BlockManager 依赖接口
+ * MessageBlockCreator 依赖接口
  * 用于依赖注入，便于测试和解耦
  */
-export interface BlockManagerDependencies {
+export interface MessageBlockCreatorDependencies {
   /** Redux dispatch 函数 */
   dispatch: AppDispatch;
   /** 存储服务 */
@@ -30,7 +30,7 @@ export interface BlockManagerDependencies {
  * 默认依赖实现
  * 使用 Redux store 和 DataRepository
  */
-const defaultDependencies: BlockManagerDependencies = {
+const defaultDependencies: MessageBlockCreatorDependencies = {
   dispatch: (action: any) => store.dispatch(action),
   storage: {
     saveBlock: (block: MessageBlock) => DataRepository.blocks.save(block),
@@ -42,14 +42,18 @@ const defaultDependencies: BlockManagerDependencies = {
 };
 
 /**
- * 块管理器类
- * 负责创建和管理消息块
- * 支持依赖注入，便于测试
+ * 消息块创建器（静态创建 + 持久化）
+ *
+ * 职责：构造各类 MessageBlock 对象并写入 Redux + 数据库。
+ * 注意区分流式接入层的「块状态机」(BlockStateManager) 与「节流写入器」
+ * (SmartThrottledBlockUpdater)——本类只负责一次性创建块，不参与流式增量更新。
+ * （历史名为 BlockManager，因与流式状态器易混淆而更名。）
+ * 支持依赖注入，便于测试。
  */
-export class BlockManager {
-  private deps: BlockManagerDependencies;
+export class MessageBlockCreator {
+  private deps: MessageBlockCreatorDependencies;
 
-  constructor(dependencies?: Partial<BlockManagerDependencies>) {
+  constructor(dependencies?: Partial<MessageBlockCreatorDependencies>) {
     this.deps = { ...defaultDependencies, ...dependencies };
   }
   /**
@@ -71,7 +75,7 @@ export class BlockManager {
       status: MessageBlockStatus.PENDING
     } as MessageBlock;
 
-    console.log(`[BlockManager] 创建主文本块 - ID: ${blockId}, 消息ID: ${messageId}`);
+    console.log(`[MessageBlockCreator] 创建主文本块 - ID: ${blockId}, 消息ID: ${messageId}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -101,7 +105,7 @@ export class BlockManager {
       status: MessageBlockStatus.PENDING
     } as MessageBlock;
 
-    console.log(`[BlockManager] 创建思考过程块 - ID: ${blockId}, 消息ID: ${messageId}`);
+    console.log(`[MessageBlockCreator] 创建思考过程块 - ID: ${blockId}, 消息ID: ${messageId}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -132,7 +136,7 @@ export class BlockManager {
       status: MessageBlockStatus.ERROR
     } as MessageBlock;
 
-    console.log(`[BlockManager] 创建错误块 - ID: ${blockId}, 消息ID: ${messageId}, 错误: ${errorMessage}`);
+    console.log(`[MessageBlockCreator] 创建错误块 - ID: ${blockId}, 消息ID: ${messageId}, 错误: ${errorMessage}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -165,7 +169,7 @@ export class BlockManager {
       status: MessageBlockStatus.SUCCESS
     } as MessageBlock;
 
-    console.log(`[BlockManager] 创建代码块 - ID: ${blockId}, 消息ID: ${messageId}, 语言: ${language || 'text'}`);
+    console.log(`[MessageBlockCreator] 创建代码块 - ID: ${blockId}, 消息ID: ${messageId}, 语言: ${language || 'text'}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -212,7 +216,7 @@ export class BlockManager {
       status: MessageBlockStatus.SUCCESS
     } as MessageBlock;
 
-    console.log(`[BlockManager] 创建视频块 - ID: ${blockId}, 消息ID: ${messageId}, 类型: ${videoData.mimeType}`);
+    console.log(`[MessageBlockCreator] 创建视频块 - ID: ${blockId}, 消息ID: ${messageId}, 类型: ${videoData.mimeType}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -251,7 +255,7 @@ export class BlockManager {
       options
     );
 
-    console.log(`[BlockManager] 创建知识库引用块 - ID: ${block.id}, 消息ID: ${messageId}`);
+    console.log(`[MessageBlockCreator] 创建知识库引用块 - ID: ${block.id}, 消息ID: ${messageId}`);
 
     // 添加块到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -298,25 +302,25 @@ export class BlockManager {
 }
 
 // 单例实例，保持向后兼容
-let blockManagerInstance: BlockManager | null = null;
+let messageBlockCreatorInstance: MessageBlockCreator | null = null;
 
 /**
- * 获取 BlockManager 单例实例
+ * 获取 MessageBlockCreator 单例实例
  * 向后兼容：允许无缝替换原有的静态对象用法
  */
-export function getBlockManager(dependencies?: Partial<BlockManagerDependencies>): BlockManager {
-  if (!blockManagerInstance || dependencies) {
-    blockManagerInstance = new BlockManager(dependencies);
+export function getMessageBlockCreator(dependencies?: Partial<MessageBlockCreatorDependencies>): MessageBlockCreator {
+  if (!messageBlockCreatorInstance || dependencies) {
+    messageBlockCreatorInstance = new MessageBlockCreator(dependencies);
   }
-  return blockManagerInstance;
+  return messageBlockCreatorInstance;
 }
 
 /**
- * 重置 BlockManager 单例（主要用于测试）
+ * 重置 MessageBlockCreator 单例（主要用于测试）
  */
-export function resetBlockManager(): void {
-  blockManagerInstance = null;
+export function resetMessageBlockCreator(): void {
+  messageBlockCreatorInstance = null;
 }
 
 // 导出默认实例，保持向后兼容
-export default getBlockManager();
+export default getMessageBlockCreator();

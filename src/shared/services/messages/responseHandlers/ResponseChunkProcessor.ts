@@ -19,6 +19,30 @@ interface StateService {
   addBlockReference(messageId: string, blockId: string, status: MessageBlockStatus): void;
 }
 
+/**
+ * ResponseChunkProcessor 暴露给「完成处理器」(ResponseCompletionHandler) 的只读视图。
+ *
+ * 用于取代完成处理器里散落的 `chunkProcessor: any`：完成阶段只需要读取累积内容/块ID
+ * 等少量公开成员，这里把这层契约显式化，让编译器帮忙守约定（ResponseChunkProcessor
+ * 结构上即满足本接口）。
+ */
+export interface ChunkProcessorView {
+  /** 当前累积的主文本内容 */
+  readonly content: string;
+  /** 当前累积的思考内容 */
+  readonly thinking: string;
+  /** 流式新建的主文本块ID（未新建时为 null） */
+  readonly textBlockId: string | null;
+  /** 思考块ID（未创建时为 null） */
+  readonly thinkingId: string | null;
+  /** 思考耗时（毫秒），无思考时为 undefined */
+  readonly thinkingDurationMs: number | undefined;
+  /** 当前块状态机所处的块类型 */
+  readonly blockType: string;
+  /** 非流式响应手动建块后回填文本块ID */
+  setTextBlockId(blockId: string): void;
+}
+
 // 1. 抽象内容累积器
 abstract class ContentAccumulator {
   protected content = '';

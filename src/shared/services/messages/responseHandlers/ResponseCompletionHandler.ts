@@ -8,6 +8,7 @@ import { updateOneBlock, addOneBlock } from '../../../store/slices/messageBlocks
 import { v4 as uuid } from 'uuid';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { TopicNamingService } from '../../topics/TopicNamingService';
+import type { ChunkProcessorView } from './ResponseChunkProcessor';
 
 /**
  * 响应完成处理器 - 处理响应完成和中断的逻辑
@@ -47,7 +48,7 @@ export class ResponseCompletionHandler {
    * @param finalReasoning 最终思考内容（非流式响应时使用）
    * @returns 累计的响应内容
    */
-  async complete(finalContent: string | undefined, chunkProcessor: any, finalReasoning?: string) {
+  async complete(finalContent: string | undefined, chunkProcessor: ChunkProcessorView, finalReasoning?: string) {
     if (this.isComparisonResult(finalContent, chunkProcessor)) {
       return chunkProcessor.content;
     }
@@ -65,7 +66,7 @@ export class ResponseCompletionHandler {
   /**
    * 响应被中断时的完成处理
    */
-  async completeWithInterruption(chunkProcessor: any) {
+  async completeWithInterruption(chunkProcessor: ChunkProcessorView) {
     console.log(`[ResponseCompletionHandler] 响应被中断 - 消息ID: ${this.messageId}`);
 
     try {
@@ -110,7 +111,7 @@ export class ResponseCompletionHandler {
    */
   private async finalizeResponse(
     content: string,
-    chunkProcessor: any,
+    chunkProcessor: ChunkProcessorView,
     interrupted: boolean = false,
     metadata?: any,
     accumulatedReasoning?: string
@@ -141,10 +142,10 @@ export class ResponseCompletionHandler {
   /**
    * 批量保存到数据库 - 统一处理，避免重复
    */
-  private async batchSaveToDatabase(chunkProcessor: any, content: string, now: string, accumulatedReasoning?: string): Promise<void> {
+  private async batchSaveToDatabase(chunkProcessor: ChunkProcessorView, content: string, now: string, accumulatedReasoning?: string): Promise<void> {
     try {
       // 计算最终的块ID数组
-      const finalBlockIds = this.calculateFinalBlockIds(chunkProcessor);
+      const finalBlockIds = this.calculateFinalBlockIds();
 
       // 先更新块数据（不在事务中，避免冲突）
       await this.updateBlocksInDatabase(chunkProcessor, content, now, accumulatedReasoning);
@@ -163,7 +164,7 @@ export class ResponseCompletionHandler {
   /**
    * 更新块数据到数据库
    */
-  private async updateBlocksInDatabase(chunkProcessor: any, content: string, now: string, accumulatedReasoning?: string): Promise<void> {
+  private async updateBlocksInDatabase(chunkProcessor: ChunkProcessorView, content: string, now: string, accumulatedReasoning?: string): Promise<void> {
     const updateOperations: Promise<any>[] = [];
     const finalThinkingMillis = chunkProcessor.thinkingDurationMs;
     const thinkingContent = accumulatedReasoning || chunkProcessor.thinking || '';
@@ -250,7 +251,7 @@ export class ResponseCompletionHandler {
 
   private ensureAdditionalThinkingBlockUpdated(
     updateOperations: Promise<any>[],
-    chunkProcessor: any,
+    chunkProcessor: ChunkProcessorView,
     now: string,
     thinkingMillis?: number
   ): void {
@@ -269,7 +270,7 @@ export class ResponseCompletionHandler {
   /**
    * 检查是否为对比结果
    */
-  private isComparisonResult(finalContent: string | undefined, chunkProcessor: any): boolean {
+  private isComparisonResult(finalContent: string | undefined, chunkProcessor: ChunkProcessorView): boolean {
     if (finalContent === '__COMPARISON_RESULT__' || chunkProcessor.content === '__COMPARISON_RESULT__') {
       console.log(`[ResponseCompletionHandler] 检测到对比结果，跳过常规完成处理`);
       return true;
@@ -293,7 +294,7 @@ export class ResponseCompletionHandler {
   /**
    * 解析累积内容
    */
-  private resolveAccumulatedContent(finalContent: string | undefined, chunkProcessor: any): string {
+  private resolveAccumulatedContent(finalContent: string | undefined, chunkProcessor: ChunkProcessorView): string {
     const accumulatedContent = chunkProcessor.content;
     return (!accumulatedContent.trim() && finalContent) ? finalContent : accumulatedContent;
   }
@@ -301,7 +302,7 @@ export class ResponseCompletionHandler {
   /**
    * 处理非流式响应的块创建
    */
-  private async handleNonStreamBlockCreation(finalContent: string | undefined, chunkProcessor: any, accumulatedReasoning?: string): Promise<void> {
+  private async handleNonStreamBlockCreation(finalContent: string | undefined, chunkProcessor: ChunkProcessorView, accumulatedReasoning?: string): Promise<void> {
     const isNonStreamResponse = !chunkProcessor.content.trim() && finalContent && finalContent.trim();
     if (!isNonStreamResponse) return;
     
@@ -401,7 +402,7 @@ export class ResponseCompletionHandler {
    * 🔧 修复：非流式多轮工具调用时，每个块在创建时就已有正确内容
    * complete 时只需要更新状态为 SUCCESS，不要用相同内容覆盖所有块
    */
-  private updateAllBlockStates(chunkProcessor: any, _accumulatedContent: string, now: string, _accumulatedReasoning?: string): void {
+  private updateAllBlockStates(chunkProcessor: ChunkProcessorView, _accumulatedContent: string, now: string, _accumulatedReasoning?: string): void {
     const finalThinkingMillis = chunkProcessor.thinkingDurationMs;
     const thinkingAdditionalChanges = this.getThinkingAdditionalChanges(finalThinkingMillis);
     
@@ -493,7 +494,7 @@ export class ResponseCompletionHandler {
    * 关键修复：不再重新组织块顺序，保持流式接收时的原始顺序
    * 参考 cherry-studio：所有块按流式接收顺序依次追加
    */
-  private calculateFinalBlockIds(_chunkProcessor: any): string[] {
+  private calculateFinalBlockIds(): string[] {
     const currentMessage = store.getState().messages.entities[this.messageId];
     const existingBlocks = currentMessage?.blocks || [];
     
