@@ -6,44 +6,25 @@
 import { streamText, generateText } from 'ai';
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google';
 import { logApiRequest } from '../../services/infra/LoggerService';
-import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
 // ThinkTagParser 不再需要，Gemini 启用 thinkingConfig 后思考内容通过 reasoning-delta 返回
-import type { Model, MCPTool } from '../../types';
-import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK, parseGroundingMetadata } from './tools';
-import store from '../../store';
-
-/**
- * 获取模型对应的供应商配置
- */
-function getProviderConfig(model: Model): ModelProvider | null {
-  try {
-    const state = store.getState();
-    const providers = state.settings?.providers;
-
-    if (!providers || !Array.isArray(providers)) {
-      return null;
-    }
-
-    const provider = providers.find((p: ModelProvider) => p.id === model.provider);
-    return provider || null;
-  } catch (error) {
-    console.error('[Gemini AI SDK Stream] 获取供应商配置失败:', error);
-    return null;
-  }
-}
+import {
+  getProviderConfigFromStore,
+  accumulateToolCall,
+  emitStreamComplete,
+  emitStreamError,
+  detectAndEmitToolUseTags,
+  PROMPT_MODE_STOP_SEQUENCES,
+  type BaseStreamResult,
+  type BaseStreamParams,
+} from '../../ai/adapters/shared/streamShared';
 
 /**
  * 流式响应结果类型
  */
-export interface StreamResult {
-  content: string;
-  reasoning?: string;
-  reasoningTime?: number;
-  hasToolCalls?: boolean;
-  nativeToolCalls?: any[];
+export interface StreamResult extends BaseStreamResult {
   /** Gemini 特有：搜索结果来源 */
   sources?: any[];
   /** Gemini 特有：grounding metadata */
@@ -53,20 +34,7 @@ export interface StreamResult {
 /**
  * 流式请求参数
  */
-export interface StreamParams {
-  messages?: any[];
-  temperature?: number;
-  max_tokens?: number;
-  top_p?: number;
-  tools?: any[];
-  tool_choice?: any;
-  signal?: AbortSignal;
-  enableTools?: boolean;
-  mcpTools?: MCPTool[];
-  mcpMode?: 'prompt' | 'function';
-  model?: Model;
-  /** 自定义请求体参数 */
-  extraBody?: Record<string, any>;
+export interface StreamParams extends BaseStreamParams {
   /** 是否启用 Google Search */
   enableGoogleSearch?: boolean;
   /** Gemini 思考预算配置 */
@@ -100,7 +68,7 @@ export async function streamCompletion(
   const enableGoogleSearch = additionalParams?.enableGoogleSearch || false;
 
   // 获取供应商配置和 extraBody
-  const providerConfig = model ? getProviderConfig(model) : null;
+  const providerConfig = model ? getProviderConfigFromStore(model) : null;
   const extraBody = additionalParams?.extraBody || 
                     providerConfig?.extraBody ||
                     (model as any)?.extraBody || 
@@ -195,7 +163,7 @@ export async function streamCompletion(
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
+    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
 
     console.log(`[Gemini AI SDK Stream] 创建流式请求`);
 
@@ -248,25 +216,7 @@ export async function streamCompletion(
 
         case 'tool-call':
           console.log(`[Gemini AI SDK Stream] 检测到工具调用: ${part.toolName}`);
-          const toolInput = (part as any).input || (part as any).args || {};
-          toolCalls.push({
-            id: part.toolCallId,
-            type: 'function',
-            function: {
-              name: part.toolName,
-              arguments: JSON.stringify(toolInput)
-            }
-          });
-          
-          onChunk?.({
-            type: ChunkType.MCP_TOOL_CREATED,
-            responses: [{
-              id: part.toolCallId,
-              name: part.toolName,
-              arguments: toolInput,
-              status: 'pending'
-            }]
-          });
+          accumulateToolCall(part, toolCalls, onChunk);
           break;
 
         case 'reasoning-delta':
@@ -321,22 +271,10 @@ export async function streamCompletion(
     }
 
     // 发送全局事件
-    EventEmitter.emit(EVENT_NAMES.STREAM_COMPLETE, {
-      provider: 'gemini-aisdk',
-      model: modelId,
-      content: fullContent,
-      reasoning: fullReasoning,
-      timestamp: Date.now()
-    });
+    emitStreamComplete('gemini-aisdk', modelId, fullContent, fullReasoning);
 
     // 检查工具使用标签（XML 模式）
-    if (hasToolUseTags(fullContent)) {
-      console.log(`[Gemini AI SDK Stream] 检测到 XML 工具使用标签`);
-      EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
-        content: fullContent,
-        model: modelId
-      });
-    }
+    detectAndEmitToolUseTags(fullContent, modelId, 'Gemini AI SDK Stream');
 
     const endTime = Date.now();
     console.log(`[Gemini AI SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
@@ -353,14 +291,7 @@ export async function streamCompletion(
 
   } catch (error: any) {
     console.error('[Gemini AI SDK Stream] 流式响应失败:', error);
-
-    EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
-      provider: 'gemini-aisdk',
-      model: modelId,
-      error: error.message,
-      timestamp: Date.now()
-    });
-
+    emitStreamError('gemini-aisdk', modelId, error);
     throw error;
   }
 }
@@ -454,7 +385,7 @@ export async function nonStreamCompletion(
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
+    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
 
     const result = await generateText({
       model: client(modelId),
