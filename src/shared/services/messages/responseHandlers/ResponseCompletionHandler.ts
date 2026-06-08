@@ -70,6 +70,11 @@ export class ResponseCompletionHandler {
   async completeWithInterruption(chunkProcessor: ChunkProcessorView) {
     console.log(`[ResponseCompletionHandler] 响应被中断 - 消息ID: ${this.messageId}`);
 
+    // 关键修复：先取消所有待处理的节流/RAF 块更新，再收尾。
+    // 否则中断时最后一帧 thinking 更新（status=streaming）会在 finalize 之后才触发，
+    // 把已收尾的思考块重新写回 streaming → 计时器「死灰复燃」继续走。
+    chunkProcessor.cancelPendingUpdates();
+
     try {
       const interruptedContent = this.createInterruptedContent(chunkProcessor.content);
       const metadata = { interrupted: true, interruptedAt: new Date().toISOString() };
