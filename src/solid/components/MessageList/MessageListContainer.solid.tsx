@@ -2,28 +2,24 @@
  * MessageListContainer - 使用 SolidJS 的消息列表容器组件
  * 外壳用 SolidJS 实现滚动优化，内容由 React 通过 Portal 渲染
  */
-import { createSignal, createEffect, onCleanup, onMount } from 'solid-js';
+import { onCleanup } from 'solid-js';
 
 export interface MessageListContainerProps {
   children?: any;
   themeMode?: 'light' | 'dark';
   onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   onScrollToTop?: () => void;
-  onScrollToBottom?: () => void;
-  autoScrollToBottom?: boolean;
-  isStreaming?: boolean;
   chatBackground?: {
     enabled: boolean;
   };
 }
 
+// 注：自动下滑（贴底跟随）已统一收敛到 React 侧的 ChatScrollController，
+// 这里仅负责滚动 DOM 本体、滚动事件转发与「接近顶部加载更多」检测。
 export function MessageListContainer(props: MessageListContainerProps) {
   let containerRef: HTMLDivElement | undefined;
-  
-  const [isNearBottom, setIsNearBottom] = createSignal(true);
-  
-  // 滚动阈值
-  const BOTTOM_THRESHOLD = 150;
+
+  // 顶部加载更多阈值
   const TOP_THRESHOLD = 100;
   
   // ✅ 使用 rAF 自适应设备刷新率，不再使用固定 throttle
@@ -48,10 +44,6 @@ export function MessageListContainer(props: MessageListContainerProps) {
       if (st === lastScrollTop) return;
       lastScrollTop = st;
       
-      // 检查是否接近底部
-      const distanceFromBottom = scrollHeight - st - clientHeight;
-      setIsNearBottom(distanceFromBottom < BOTTOM_THRESHOLD);
-      
       // 回调
       props.onScroll?.(st, scrollHeight, clientHeight);
       
@@ -62,44 +54,11 @@ export function MessageListContainer(props: MessageListContainerProps) {
     });
   };
   
-  // 滚动到底部
-  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
-    if (!containerRef) return;
-    
-    containerRef.scrollTo({
-      top: containerRef.scrollHeight,
-      behavior
-    });
-  };
-  
-  // 暴露滚动方法到全局（供 React 调用）
-  onMount(() => {
-    // 创建全局方法供 React 调用
-    (window as any).__solidMessageListScrollToBottom = scrollToBottom;
-    (window as any).__solidMessageListGetContainer = () => containerRef;
-    
-    // 初始滚动到底部
-    if (props.autoScrollToBottom !== false) {
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
-    }
-  });
-  
-  // 监听流式输出时自动滚动
-  createEffect(() => {
-    if (props.isStreaming && isNearBottom() && props.autoScrollToBottom !== false) {
-      scrollToBottom();
-    }
-  });
-  
   // 清理
   onCleanup(() => {
     if (rafId) {
       cancelAnimationFrame(rafId);
     }
-    delete (window as any).__solidMessageListScrollToBottom;
-    delete (window as any).__solidMessageListGetContainer;
   });
   
   // 获取背景样式

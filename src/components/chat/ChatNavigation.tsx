@@ -94,6 +94,12 @@ const ChatNavigation: React.FC<ChatNavigationProps> = ({ containerId, topicId })
   }, [containerId]);
 
   const scrollToBottom = useCallback(() => {
+    // 优先走统一的贴底控制器，确保点击后恢复「跟随底部」状态
+    const controller = (window as any).__chatScrollController;
+    if (controller?.pinToBottom) {
+      controller.pinToBottom('smooth');
+      return;
+    }
     const container = document.getElementById(containerId);
     if (container) {
       container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
