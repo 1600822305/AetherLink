@@ -140,6 +140,9 @@ export function mcpToolCallResponseToOpenAIMessage(
   }
 
   // AI SDK 格式：返回 ToolModelMessage 格式
+  // AI SDK v6 的 ToolResultPart 要求用 `output: ToolResultOutput`（对象）承载结果，
+  // 而非旧的 `result: "<字符串>"`，否则多轮工具调用第 2 轮会报
+  // AI_InvalidPromptError（path:["output"] expected object）。
   // 参考：https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-text#toolmodelmessage
   return {
     role: 'tool',
@@ -147,8 +150,9 @@ export function mcpToolCallResponseToOpenAIMessage(
       type: 'tool-result',
       toolCallId: toolCallId,
       toolName: toolName,
-      result: content,
-      isError: resp.isError || false
+      output: resp.isError
+        ? { type: 'error-text' as const, value: content }
+        : { type: 'text' as const, value: content }
     }]
   };
 }
