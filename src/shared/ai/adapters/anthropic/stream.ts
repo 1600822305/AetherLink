@@ -5,14 +5,14 @@
  */
 import { streamText, generateText } from 'ai';
 import type { AnthropicProvider as AISDKAnthropicProvider } from '@ai-sdk/anthropic';
-import { logApiRequest } from '../../services/infra/LoggerService';
-import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
-import { hasToolUseTags } from '../../utils/mcpToolParser';
-import { ChunkType, type Chunk } from '../../types/chunk';
-import type { Model, MCPTool } from '../../types';
+import { logApiRequest } from '../../../services/infra/LoggerService';
+import { EventEmitter, EVENT_NAMES } from '../../../services/infra/EventEmitter';
+import { hasToolUseTags } from '../../../utils/mcpToolParser';
+import { ChunkType, type Chunk } from '../../../types/chunk';
+import type { Model, MCPTool } from '../../../types';
 import { convertMcpToolsToAISDK } from './tools';
 import { supportsExtendedThinking, isClaudeReasoningModel } from './client';
-import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
+import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../../config/reasoningTags';
 
 /**
  * 解析推理标签内容（用于兼容非原生推理模式）

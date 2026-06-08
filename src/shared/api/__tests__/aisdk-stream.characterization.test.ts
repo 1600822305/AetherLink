@@ -26,7 +26,7 @@ vi.mock('../../services/infra/EventEmitter', () => ({
 }));
 
 import { streamCompletion as openaiStream, nonStreamCompletion as openaiNonStream } from '../openai-aisdk/stream';
-import { streamCompletion as anthropicStream, nonStreamCompletion as anthropicNonStream } from '../anthropic-aisdk/stream';
+import { streamCompletion as anthropicStream, nonStreamCompletion as anthropicNonStream } from '../../ai/adapters/anthropic/stream';
 import { streamCompletion as geminiStream, nonStreamCompletion as geminiNonStream } from '../gemini-aisdk/stream';
 
 beforeEach(() => {

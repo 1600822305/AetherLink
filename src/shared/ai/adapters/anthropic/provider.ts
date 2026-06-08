@@ -13,18 +13,18 @@ import {
   isClaudeReasoningModel
 } from './client';
 import { streamCompletion, nonStreamCompletion, type StreamResult } from './stream';
-import { AbstractBaseProvider } from '../baseProvider';
-import type { Message, Model, MCPTool, MCPToolResponse, MCPCallToolResponse } from '../../types';
-import { parseAndCallTools, parseToolUse, removeToolUseTags, stripToolUseResultTags } from '../../utils/mcpToolParser';
+import { AbstractBaseProvider } from '../../core/BaseProvider';
+import type { Message, Model, MCPTool, MCPToolResponse, MCPCallToolResponse } from '../../../types';
+import { parseAndCallTools, parseToolUse, removeToolUseTags, stripToolUseResultTags } from '../../../utils/mcpToolParser';
 import {
   convertMcpToolsToAnthropic,
   mcpToolCallResponseToAnthropicMessage,
   convertToolCallsToMcpResponses
 } from './tools';
-import { ChunkType, type Chunk } from '../../types/chunk';
-import { getMainTextContent } from '../../utils/blockUtils';
-import { UnifiedParameterManager } from '../parameters/UnifiedParameterManager';
-import { AnthropicParameterFormatter } from '../parameters/formatters';
+import { ChunkType, type Chunk } from '../../../types/chunk';
+import { getMainTextContent } from '../../../utils/blockUtils';
+import { UnifiedParameterManager } from '../../../api/parameters/UnifiedParameterManager';
+import { AnthropicParameterFormatter } from '../../../api/parameters/formatters';
 
 /**
  * Anthropic 参数接口

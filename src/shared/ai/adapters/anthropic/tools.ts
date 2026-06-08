@@ -2,7 +2,7 @@
  * AI SDK Anthropic 工具调用模块
  * 将 MCP 工具转换为 AI SDK 格式，支持 Claude 内置工具
  */
-import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
+import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../../types';
 
 /**
  * Claude 内置工具类型

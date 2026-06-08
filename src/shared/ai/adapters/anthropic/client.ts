@@ -6,8 +6,8 @@
 import { generateText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import type { AnthropicProvider as AISDKAnthropicProvider } from '@ai-sdk/anthropic';
-import type { Model } from '../../types';
-import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
+import type { Model } from '../../../types';
+import { createPlatformFetch, createHeaderFilterFetch } from '../../../utils/universalFetch';
 
 
 /**
