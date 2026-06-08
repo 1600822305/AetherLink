@@ -3,7 +3,7 @@ import { useSelector, shallowEqual } from 'react-redux';
 import { Box, Fade, CircularProgress, Typography } from '@mui/material';
 import type { RootState } from '../../shared/store';
 import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
-import type { MessageBlock, Message, ImageMessageBlock, VideoMessageBlock, MainTextMessageBlock, CodeMessageBlock, ToolMessageBlock, ContextSummaryMessageBlock } from '../../shared/types/newMessage';
+import type { MessageBlock, Message, ImageMessageBlock, VideoMessageBlock, MainTextMessageBlock, CodeMessageBlock, ToolMessageBlock, ContextSummaryMessageBlock, ThinkingMessageBlock } from '../../shared/types/newMessage';
 import { MessageBlockType, MessageBlockStatus, AssistantMessageStatus } from '../../shared/types/newMessage';
 
 
@@ -153,6 +153,42 @@ const groupSimilarBlocks = (blocks: MessageBlock[]): GroupedBlock[] => {
   }, []);
 };
 
+/**
+ * 计算「思考阶段工具调用」的内嵌归组（供应商无关）
+ *
+ * 仅依据 block 顺序推断 phase：位于某个 THINKING 块之后、且在本回合首个
+ * MAIN_TEXT(正式回答) 之前的 TOOL 块，判定为思考阶段工具 → 内嵌进对应思考块；
+ * 一旦出现 MAIN_TEXT 即进入回答阶段，后续 TOOL 块保持顶层独立渲染。
+ *
+ * 该推断对所有供应商一致（DeepSeek/Claude/Gemini/...），无任何 provider 特有字段依赖。
+ * 判断不明确时一律安全回退为顶层块，绝不丢块。
+ */
+const computeInlineToolGroups = (
+  blocks: MessageBlock[],
+  enabled: boolean
+): { consumedToolIds: Set<string>; inlineToolMap: Map<string, ToolMessageBlock[]> } => {
+  const consumedToolIds = new Set<string>();
+  const inlineToolMap = new Map<string, ToolMessageBlock[]>();
+  if (!enabled) return { consumedToolIds, inlineToolMap };
+
+  let currentThinkingId: string | null = null;
+  for (const block of blocks) {
+    if (block.type === MessageBlockType.THINKING) {
+      currentThinkingId = block.id;
+    } else if (block.type === MessageBlockType.MAIN_TEXT) {
+      // 进入回答阶段，后续工具块归为顶层
+      currentThinkingId = null;
+    } else if (block.type === MessageBlockType.TOOL && currentThinkingId) {
+      const arr = inlineToolMap.get(currentThinkingId) ?? [];
+      arr.push(block as ToolMessageBlock);
+      inlineToolMap.set(currentThinkingId, arr);
+      consumedToolIds.add(block.id);
+    }
+  }
+
+  return { consumedToolIds, inlineToolMap };
+};
+
 interface Props {
   blocks: string[];
   message: Message;
@@ -178,8 +214,27 @@ const MessageBlockRenderer: React.FC<Props> = ({
     shallowEqual
   );
 
+  // 是否在思考块内显示思考阶段的工具调用（默认开启，可在设置中关闭以回到现状）
+  const thinkingToolInline = useSelector((state: RootState) =>
+    (state.settings as any).thinkingToolInline !== false
+  );
+
+  // 计算思考阶段工具的内嵌归组：被内嵌的工具块从顶层流剔除，挂到对应思考块
+  const { consumedToolIds, inlineToolMap } = useMemo(
+    () => computeInlineToolGroups(renderedBlocks, thinkingToolInline),
+    [renderedBlocks, thinkingToolInline]
+  );
+
+  // 顶层可见块（剔除已内嵌的工具块）
+  const visibleBlocks = useMemo(
+    () => consumedToolIds.size === 0
+      ? renderedBlocks
+      : renderedBlocks.filter((b) => !consumedToolIds.has(b.id)),
+    [renderedBlocks, consumedToolIds]
+  );
+
   // 对块进行分组（图片分组、视频去重）
-  const groupedBlocks = useMemo(() => groupSimilarBlocks(renderedBlocks), [renderedBlocks]);
+  const groupedBlocks = useMemo(() => groupSimilarBlocks(visibleBlocks), [visibleBlocks]);
 
   // 渲染占位符块
   const renderPlaceholder = () => {
@@ -314,7 +369,12 @@ const MessageBlockRenderer: React.FC<Props> = ({
                 blockComponent = <MainTextBlock block={block} role={message.role} messageId={message.id} />;
                 break;
               case MessageBlockType.THINKING:
-                blockComponent = <ThinkingBlock block={block} />;
+                blockComponent = (
+                  <ThinkingBlock
+                    block={block as ThinkingMessageBlock}
+                    inlineToolBlocks={inlineToolMap.get(block.id)}
+                  />
+                );
                 break;
               case MessageBlockType.IMAGE:
                 // 单独的图片块（非连续分组的情况）

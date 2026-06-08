@@ -57,6 +57,8 @@ interface ThinkingDisplayRendererProps {
   sidebarOpen: boolean;
   overlayOpen: boolean;
   updateCounter: number;
+  /** 思考阶段内嵌工具节点（可选） */
+  inlineTools?: React.ReactNode;
   onToggleExpanded: () => void;
   onCopy: (e: React.MouseEvent) => void;
   onSetSidebarOpen: (open: boolean) => void;
@@ -98,6 +100,7 @@ const ThinkingDisplayRenderer: React.FC<ThinkingDisplayRendererProps> = ({
   sidebarOpen,
   overlayOpen,
   updateCounter: _updateCounter,
+  inlineTools,
   onToggleExpanded,
   onCopy,
   onSetSidebarOpen,
@@ -129,6 +132,7 @@ const ThinkingDisplayRenderer: React.FC<ThinkingDisplayRendererProps> = ({
       thinkingTime={thinkingTime}
       content={content}
       copied={copied}
+      inlineTools={inlineTools}
       onToggleExpanded={onToggleExpanded}
       onCopy={onCopy}
     />
@@ -192,6 +196,11 @@ const ThinkingDisplayRenderer: React.FC<ThinkingDisplayRendererProps> = ({
       }}>
         <Markdown content={content} allowHtml={false} />
       </Box>
+      {inlineTools && (
+        <Box sx={{ px: 2, pb: 2, pt: 0 }}>
+          {inlineTools}
+        </Box>
+      )}
     </StyledPaper>
   );
 
@@ -690,49 +699,67 @@ const ThinkingDisplayRenderer: React.FC<ThinkingDisplayRendererProps> = ({
     </Box>
   );
 
-  // 检查是否是高级样式
-  const advancedStyles = ['stream', 'wave', 'sidebar', 'overlay', 'breadcrumb', 'floating', 'terminal'];
-  if (advancedStyles.includes(displayStyle)) {
-    return (
-      <ThinkingAdvancedStyles
-        displayStyle={displayStyle}
-        isThinking={isThinking}
-        thinkingTime={thinkingTime}
-        content={content}
-        copied={copied}
-        expanded={expanded}
-        streamText={streamText}
-        sidebarOpen={sidebarOpen}
-        overlayOpen={overlayOpen}
-        onToggleExpanded={onToggleExpanded}
-        onCopy={onCopy}
-        onSetSidebarOpen={onSetSidebarOpen}
-        onSetOverlayOpen={onSetOverlayOpen}
-        onSetStreamText={onSetStreamText}
-      />
-    );
+  // 根据样式选择渲染方法
+  const renderStyle = (): React.ReactNode => {
+    // 检查是否是高级样式
+    const advancedStyles = ['stream', 'wave', 'sidebar', 'overlay', 'breadcrumb', 'floating', 'terminal'];
+    if (advancedStyles.includes(displayStyle)) {
+      return (
+        <ThinkingAdvancedStyles
+          displayStyle={displayStyle}
+          isThinking={isThinking}
+          thinkingTime={thinkingTime}
+          content={content}
+          copied={copied}
+          expanded={expanded}
+          streamText={streamText}
+          sidebarOpen={sidebarOpen}
+          overlayOpen={overlayOpen}
+          onToggleExpanded={onToggleExpanded}
+          onCopy={onCopy}
+          onSetSidebarOpen={onSetSidebarOpen}
+          onSetOverlayOpen={onSetOverlayOpen}
+          onSetStreamText={onSetStreamText}
+        />
+      );
+    }
+
+    switch (displayStyle) {
+      case 'full':
+        return renderFullStyle();
+      case 'minimal':
+        return renderMinimalStyle();
+      case 'bubble':
+        return renderBubbleStyle();
+      case 'timeline':
+        return renderTimelineStyle();
+      case 'card':
+        return renderCardStyle();
+      case 'inline':
+        return renderInlineStyle();
+      case 'dots':
+        return renderDotsStyle();
+      case 'compact':
+      default:
+        return renderCompactStyle();
+    }
+  };
+
+  // compact / full 两种样式已在各自卡片内部嵌入工具，其余样式在卡片下方补充展示，避免丢块
+  const inlineToolsHandledInternally = displayStyle === 'compact' || displayStyle === 'full';
+
+  if (!inlineTools || inlineToolsHandledInternally) {
+    return <>{renderStyle()}</>;
   }
 
-  // 根据样式选择渲染方法
-  switch (displayStyle) {
-    case 'full':
-      return renderFullStyle();
-    case 'minimal':
-      return renderMinimalStyle();
-    case 'bubble':
-      return renderBubbleStyle();
-    case 'timeline':
-      return renderTimelineStyle();
-    case 'card':
-      return renderCardStyle();
-    case 'inline':
-      return renderInlineStyle();
-    case 'dots':
-      return renderDotsStyle();
-    case 'compact':
-    default:
-      return renderCompactStyle();
-  }
+  return (
+    <Box sx={{ width: '100%' }}>
+      {renderStyle()}
+      <Box sx={{ mt: -0.5, mb: 1.5 }}>
+        {inlineTools}
+      </Box>
+    </Box>
+  );
 };
 
 export default React.memo(ThinkingDisplayRenderer);

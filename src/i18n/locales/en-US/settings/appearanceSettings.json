@@ -187,6 +187,8 @@
         "description": "Customize AI thinking process display and auto-collapse behavior",
         "styleLabel": "Display Style",
         "autoCollapse": "Auto-collapse when complete",
+        "toolInline": "Show tool calls inside thinking",
+        "toolInlineDescription": "Embed tool calls made during the thinking phase inside the thinking block as simplified chips; when off, tool calls always render independently below the message",
         "styles": {
           "compact": "Compact (collapsible)",
           "full": "Full (always expanded)",

@@ -82,6 +82,9 @@ export interface SettingsState {
   // 思考过程自动折叠
   thoughtAutoCollapse?: boolean;
 
+  // 思考过程内显示工具调用（将思考阶段发起的工具调用以简化样式内嵌进思考块）
+  thinkingToolInline?: boolean;
+
   // 多模型对比显示样式
   multiModelDisplayStyle?: 'horizontal' | 'grid' | 'vertical';
 

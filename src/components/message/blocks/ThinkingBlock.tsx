@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useReducer, useMemo } from 'react';
 import { useSelector } from 'react-redux';
+import { Box } from '@mui/material';
 import type { RootState } from '../../../shared/store';
-import type { ThinkingMessageBlock } from '../../../shared/types/newMessage';
+import type { ThinkingMessageBlock, ToolMessageBlock } from '../../../shared/types/newMessage';
 import { MessageBlockStatus, isTerminalBlockStatus } from '../../../shared/types/newMessage';
 import { EventEmitter, EVENT_NAMES } from '../../../shared/services/infra/EventEmitter';
 import { useDeepMemo } from '../../../hooks/useMemoization';
 import ThinkingDisplayRenderer from './ThinkingDisplayRenderer';
+import InlineToolChip from './InlineToolChip';
 import { useTranslation } from '../../../i18n';
 
 // 思考过程显示样式类型
@@ -35,13 +37,15 @@ export const ThinkingDisplayStyle = {
 
 interface Props {
   block: ThinkingMessageBlock;
+  /** 思考阶段发起的工具调用（由 MessageBlockRenderer 按位置归组传入），以简化样式内嵌展示 */
+  inlineToolBlocks?: ToolMessageBlock[];
 }
 
 /**
  * 思考块组件
  * 显示AI的思考过程，支持多种显示样式
  */
-const ThinkingBlock: React.FC<Props> = ({ block }) => {
+const ThinkingBlock: React.FC<Props> = ({ block, inlineToolBlocks }) => {
   const { t } = useTranslation();
   // 从设置中获取思考过程显示样式
   const thinkingDisplayStyle = useSelector((state: RootState) =>
@@ -157,6 +161,18 @@ const ThinkingBlock: React.FC<Props> = ({ block }) => {
     }
   }, [isThinking, thoughtAutoCollapse]);
 
+  // 思考阶段内嵌工具节点（仅在有工具时构造）
+  const inlineTools = useMemo(() => {
+    if (!inlineToolBlocks || inlineToolBlocks.length === 0) return undefined;
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        {inlineToolBlocks.map((toolBlock) => (
+          <InlineToolChip key={toolBlock.id} block={toolBlock} />
+        ))}
+      </Box>
+    );
+  }, [inlineToolBlocks]);
+
   // 使用显示渲染组件
   return (
     <ThinkingDisplayRenderer
@@ -170,6 +186,7 @@ const ThinkingBlock: React.FC<Props> = ({ block }) => {
       sidebarOpen={sidebarOpen}
       overlayOpen={overlayOpen}
       updateCounter={updateCounter}
+      inlineTools={inlineTools}
       onToggleExpanded={toggleExpanded}
       onCopy={handleCopy}
       onSetSidebarOpen={setSidebarOpen}
