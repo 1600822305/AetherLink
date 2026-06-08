@@ -3,6 +3,7 @@
  * 负责根据供应商类型返回适当的API处理模块
  */
 import type { Model } from '../../types';
+import type { ProviderApi } from '../../ai/core/types';
 import * as openaiApi from '../../api/openai';
 import { parseModelsResponse, normalizeModel } from '../../api/openai/models';
 import * as anthropicApi from '../../api/anthropic-aisdk';
@@ -96,7 +97,7 @@ function isAzureOpenAI(model: Model): boolean {
  * @param model 模型配置
  * @returns 供应商API模块
  */
-export function getProviderApi(model: Model): any {
+export function getProviderApi(model: Model): ProviderApi {
   const providerType = getActualProviderType(model);
 
   // 扩展的Provider选择逻辑，支持Azure OpenAI和模型组合
@@ -209,6 +210,10 @@ export function getProviderApi(model: Model): any {
 export async function testConnection(model: Model): Promise<boolean> {
   try {
     const api = getProviderApi(model);
+    if (!api.testConnection) {
+      console.warn('[ProviderFactory.testConnection] 当前供应商 API 不支持连接测试');
+      return false;
+    }
     return await api.testConnection(model);
   } catch (error) {
     console.error('API连接测试失败:', error);
