@@ -4,7 +4,6 @@
  * 使用 SolidBridge 桥接 React 和 SolidJS
  */
 import React, { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
-import { throttle } from 'lodash';
 import { createPortal } from 'react-dom';
 import { Box, useTheme } from '@mui/material';
 import { SolidBridge } from '../../shared/bridges/SolidBridge';
@@ -23,7 +22,7 @@ import { dexieStorage } from '../../shared/services/storage/DexieStorageService'
 import { topicCacheManager } from '../../shared/services/topics/TopicCacheManager';
 import { getGroupedMessages, MessageGroupingType } from '../../shared/utils/messageGrouping';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
-import { EventEmitter, EVENT_NAMES } from '../../shared/services/infra/EventEmitter';
+import { ChatScrollController } from '../../shared/services/chat/ChatScrollController';
 
 interface SolidMessageListProps {
   messages: Message[];
@@ -108,12 +107,6 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   );
   const chatBackground = useSelector((state: RootState) =>
     state.settings.chatBackground || { enabled: false }
-  );
-
-  // 检查是否有流式消息
-  const hasStreamingMessage = useMemo(
-    () => messages.some(message => message.status === 'streaming'),
-    [messages]
   );
 
   // 计算显示的消息
@@ -326,139 +319,87 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     setCurrentTopic(updatedTopic);
   }, []);
 
-  // 滚动到底部的方法
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
-    const scrollFn = (window as any).__solidMessageListScrollToBottom;
-    if (scrollFn) {
-      scrollFn(behavior);
-    } else {
-      // 备用方案：直接操作容器
-      const container = document.getElementById('messageList');
-      if (container) {
-        container.scrollTo({ top: container.scrollHeight, behavior });
-      }
-    }
-  }, []);
+  // 内容元素引用（供 ResizeObserver 观察增高）
+  const contentElRef = useRef<HTMLDivElement | null>(null);
 
-  // 统一滚动管理器
-  const scrollManagerRef = useRef({
-    isScrolling: false,
-    lastScrollTime: 0
-  });
+  // 自动下滑控制器（贴底状态机）
+  const controllerRef = useRef<ChatScrollController | null>(null);
 
-  const unifiedScrollToBottom = useCallback((source: string = 'unknown', options: { force?: boolean; behavior?: ScrollBehavior } = {}) => {
-    const { force = false, behavior = 'auto' } = options;
-    const manager = scrollManagerRef.current;
-
-    if (!autoScrollToBottom && !force) {
-      return;
-    }
-
-    const now = Date.now();
-    if (manager.isScrolling && now - manager.lastScrollTime < 50) return;
-
-    manager.isScrolling = true;
-    manager.lastScrollTime = now;
-
-    requestAnimationFrame(() => {
-      try {
-        scrollToBottom(behavior);
-      } catch (error) {
-        console.error(`[SolidMessageList] 滚动失败 (来源: ${source}):`, error);
-      } finally {
-        setTimeout(() => {
-          manager.isScrolling = false;
-        }, 100);
-      }
-    });
-  }, [autoScrollToBottom, scrollToBottom]);
-
-  // 保存滚动方法的引用
-  const unifiedScrollToBottomRef = useRef(unifiedScrollToBottom);
+  // 用 ref 保存开关，避免开关变化时重建控制器
+  const autoScrollEnabledRef = useRef(autoScrollToBottom);
   useEffect(() => {
-    unifiedScrollToBottomRef.current = unifiedScrollToBottom;
-  }, [unifiedScrollToBottom]);
-
-  // ⭐ 监听流式消息时自动滚动
-  useEffect(() => {
-    if (!autoScrollToBottom) return;
-    if (hasStreamingMessage) {
-      unifiedScrollToBottomRef.current('streamingCheck');
-    }
-  }, [hasStreamingMessage, autoScrollToBottom]);
-
-  // ⭐ 监听流式事件，实现实时滚动
-  useEffect(() => {
-    const throttledTextDeltaHandler = throttle(() => {
-      if (!autoScrollToBottom) return;
-      
-      const container = document.getElementById('messageList');
-      if (container) {
-        const gap = container.scrollHeight - container.scrollTop - container.clientHeight;
-        const isNearBottom = gap < 120;
-        if (!isNearBottom) return;
-      }
-      unifiedScrollToBottomRef.current('textDelta');
-    }, 150);
-
-    const scrollToBottomHandler = () => {
-      if (!autoScrollToBottom) return;
-      unifiedScrollToBottomRef.current('eventHandler', { force: true });
-    };
-
-    const unsubscribeTextDelta = EventEmitter.on(EVENT_NAMES.STREAM_TEXT_DELTA, throttledTextDeltaHandler);
-    const unsubscribeTextComplete = EventEmitter.on(EVENT_NAMES.STREAM_TEXT_COMPLETE, throttledTextDeltaHandler);
-    const unsubscribeThinkingDelta = EventEmitter.on(EVENT_NAMES.STREAM_THINKING_DELTA, throttledTextDeltaHandler);
-    const unsubscribeScrollToBottom = EventEmitter.on(EVENT_NAMES.UI_SCROLL_TO_BOTTOM, scrollToBottomHandler);
-
-    return () => {
-      unsubscribeTextDelta();
-      unsubscribeTextComplete();
-      unsubscribeThinkingDelta();
-      unsubscribeScrollToBottom();
-      throttledTextDeltaHandler.cancel();
-    };
+    autoScrollEnabledRef.current = autoScrollToBottom;
   }, [autoScrollToBottom]);
 
-  // ⭐ 消息数量变化时滚动到底部
+  // 在滚动容器与内容元素就绪后创建控制器
+  useEffect(() => {
+    const container = portalContainer;
+    const content = contentElRef.current;
+    if (!container || !content) return;
+
+    const controller = new ChatScrollController(container, content, {
+      isEnabled: () => autoScrollEnabledRef.current,
+    });
+    controllerRef.current = controller;
+    // 暴露给 ChatNavigation 的「滑到底」按钮复用
+    (window as any).__chatScrollController = controller;
+
+    // 初始进入置底
+    controller.pinToBottom('auto');
+
+    return () => {
+      controller.destroy();
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+      }
+      if ((window as any).__chatScrollController === controller) {
+        delete (window as any).__chatScrollController;
+      }
+    };
+  }, [portalContainer]);
+
+  // 流式内容增长 / 思考 / 工具 / 图片异步加载等所有撑高，统一由
+  // ChatScrollController 内部的 ResizeObserver 被动跟随，无需在此监听业务事件。
+
+  // ⭐ 用户自己发送新消息时强制置底；AI 新消息仅在已贴底时跟随
   const prevMessagesLengthRef = useRef(messages.length);
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current) {
-      unifiedScrollToBottomRef.current('messageLengthChange');
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'user') {
+        controllerRef.current?.pinToBottom('auto');
+      }
     }
     prevMessagesLengthRef.current = messages.length;
-  }, [messages.length]);
+  }, [messages]);
 
-  // ⭐ 键盘弹出时自动滚动到底部
+  // ⭐ 键盘弹出时置底
   const prevKeyboardHeightRef = useRef(keyboardHeight);
   useEffect(() => {
     if (keyboardHeight > 0 && prevKeyboardHeightRef.current === 0) {
       setTimeout(() => {
-        unifiedScrollToBottomRef.current('keyboardShow', { force: true });
+        controllerRef.current?.pinToBottom('auto');
       }, 100);
     }
     prevKeyboardHeightRef.current = keyboardHeight;
   }, [keyboardHeight]);
 
-  // ⭐ 初始加载和话题切换时滚动到底部
+  // ⭐ 初始加载与话题切换时置底
   const prevTopicIdRef = useRef(currentTopicId);
   const isInitialLoadRef = useRef(true);
-  
+
   useEffect(() => {
     const isTopicChange = prevTopicIdRef.current !== currentTopicId;
-    
+
     if (isTopicChange || isInitialLoadRef.current) {
       if (isTopicChange) {
         setDisplayCount(INITIAL_DISPLAY_COUNT);
         prevTopicIdRef.current = currentTopicId;
       }
-      
+
       if (displayMessages.length > 0 && currentTopicId) {
         setTimeout(() => {
-          unifiedScrollToBottomRef.current(
-            isInitialLoadRef.current ? 'initialLoad' : 'topicSwitch', 
-            { force: true }
-          );
+          controllerRef.current?.pinToBottom('auto');
           isInitialLoadRef.current = false;
         }, 150);
       }
@@ -470,14 +411,12 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     themeMode: theme.palette.mode,
     onScroll: handleScroll,
     onScrollToTop: loadMoreMessages,
-    autoScrollToBottom,
-    isStreaming: hasStreamingMessage,
     chatBackground
-  }), [theme.palette.mode, handleScroll, loadMoreMessages, autoScrollToBottom, hasStreamingMessage, chatBackground]);
+  }), [theme.palette.mode, handleScroll, loadMoreMessages, chatBackground]);
 
   // React 内容
   const messageContent = useMemo(() => (
-    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box ref={contentElRef} sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* 错误提示 */}
       {error && (
         <Box
