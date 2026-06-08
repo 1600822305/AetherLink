@@ -9,6 +9,7 @@ import { messageBlockRepository } from '../../../services/messages/MessageBlockR
 import { createAbortController } from '../../../utils/abortController';
 import { newMessagesActions } from '../../slices/newMessagesSlice';
 import { prepareMessagesForApi, performKnowledgeSearchIfNeeded } from './apiPreparation';
+import { assertModelSupportsApiMessages } from './apiMessageValidation';
 import { extractAndSaveMemories, isAutoAnalyzeEnabled } from './memoryIntegration';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
 
@@ -121,7 +122,6 @@ async function handleTextGeneration(context: {
 
     // 非 Agentic 模式，单轮执行后结束
     if (!isInAgenticMode()) {
-      shouldContinueLoopFlag = false;
       break;
     }
 
@@ -137,7 +137,6 @@ async function handleTextGeneration(context: {
       // 检查是否达到错误限制
       if (hasReachedMistakeLimit()) {
         console.log(`[Agentic] 达到连续错误限制，结束循环`);
-        shouldContinueLoopFlag = false;
         break;
       }
 
@@ -162,7 +161,6 @@ async function handleTextGeneration(context: {
     const completionResult = checkCompletionSignal(toolResults);
     if (completionResult) {
       handleCompletionSignal(completionResult);
-      shouldContinueLoopFlag = false;
       break;
     }
 
@@ -172,7 +170,6 @@ async function handleTextGeneration(context: {
     // 检查是否应该继续
     if (!shouldContinueLoop()) {
       console.log(`[Agentic] 循环终止条件满足，结束循环`);
-      shouldContinueLoopFlag = false;
       break;
     }
 
@@ -287,6 +284,8 @@ export const processAssistantResponse = async (
           responseHandler
         });
       } else {
+        assertModelSupportsApiMessages(model, apiMessages);
+
         // 文本生成
         response = await handleTextGeneration({
           assistantMessage,
