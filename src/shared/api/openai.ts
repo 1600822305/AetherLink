@@ -1,10 +1,14 @@
 /**
- * OpenAI API 重定向模块
- * 为保持兼容性，将导入定向到模块化的实现
+ * OpenAI API重定向模块
+ * 为了保持兼容性，将导入重定向到新的模块化结构
  */
 
-// 导出所有模块化 API
+// 导出所有模块化API
 export * from './openai/index';
 
-// 重新导出连接测试函数（来自 client）
-export { testConnection } from './openai/client';
+// 导入并重新导出具体函数，以保持向后兼容性
+import { sendChatRequest } from './openai/index';
+import { testConnection } from './openai/client';
+
+// 重新导出主要函数
+export { sendChatRequest, testConnection };

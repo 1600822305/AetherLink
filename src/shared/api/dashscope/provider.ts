@@ -5,26 +5,26 @@
 import type { Message, Model, MCPTool } from '../../types';
 import type { Chunk } from '../../types/chunk';
 import { AbstractBaseProvider } from '../baseProvider';
-import { OpenAIAISDKProvider } from '../openai-aisdk';
+import { OpenAIProvider } from '../openai/provider';
 import { getDashScopeCompatibleUrl } from './client';
 
 /**
  * DashScope Provider
- * 继承 AbstractBaseProvider，内部委托 OpenAIAISDKProvider 处理聊天
+ * 继承 AbstractBaseProvider，内部委托 OpenAIProvider 处理聊天
  * 因为阿里云百炼的聊天 API 完全兼容 OpenAI 格式
  */
 export class DashScopeProvider extends AbstractBaseProvider {
-  private openaiProvider: OpenAIAISDKProvider;
+  private openaiProvider: OpenAIProvider;
 
   constructor(model: Model) {
     super(model);
 
-    // 创建一个 AI SDK OpenAI Provider，baseUrl 指向 DashScope 的兼容模式地址
+    // 创建一个 OpenAI Provider，baseUrl 指向 DashScope 的兼容模式地址
     const compatibleModel = {
       ...model,
       baseUrl: getDashScopeCompatibleUrl(model)
     };
-    this.openaiProvider = new OpenAIAISDKProvider(compatibleModel);
+    this.openaiProvider = new OpenAIProvider(compatibleModel);
   }
 
   /**

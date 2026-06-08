@@ -315,6 +315,44 @@ export async function parseAndCallTools(
 }
 
 /**
+ * 将 MCP 工具转换为 Anthropic 兼容的工具格式
+ */
+export function mcpToolsToAnthropicTools(mcpTools: MCPTool[]): any[] {
+  return mcpTools.map((tool) => ({
+    name: tool.id || tool.name,
+    description: tool.description,
+    input_schema: tool.inputSchema
+  }));
+}
+
+/**
+ * 将 MCP 工具转换为 OpenAI 兼容的工具格式
+ */
+export function mcpToolsToOpenAITools(mcpTools: MCPTool[]): any[] {
+  return mcpTools.map((tool) => ({
+    type: 'function',
+    function: {
+      name: tool.id || tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema
+    }
+  }));
+}
+
+/**
+ * 将 MCP 工具转换为 Gemini 兼容的工具格式
+ */
+export function mcpToolsToGeminiTools(mcpTools: MCPTool[]): any[] {
+  return mcpTools.map((tool) => ({
+    functionDeclarations: [{
+      name: tool.id || tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema
+    }]
+  }));
+}
+
+/**
  * 将 MCP 工具调用响应转换为消息格式
  */
 export function mcpToolCallResponseToMessage(
@@ -431,3 +469,39 @@ export function hasToolUseTags(content: string, mcpTools: MCPTool[] = []): boole
   return false;
 }
 
+/**
+ * 获取 MCP 工具的系统提示词
+ * 用于提示词注入模式
+ */
+export function getMCPSystemPrompt(mcpTools: MCPTool[]): string {
+  if (!mcpTools || mcpTools.length === 0) {
+    return '';
+  }
+
+  let systemPrompt = '\n\n# MCP 工具\n\n';
+  systemPrompt += '你可以使用以下工具来帮助用户。使用工具时，请使用以下 XML 格式：\n\n';
+  systemPrompt += '<tool_use>\n  <name>工具名称</name>\n  <arguments>{"参数": "值"}</arguments>\n</tool_use>\n\n';
+
+  //  添加严格的格式要求，防止标签分割
+  systemPrompt += '⚠️ **重要格式要求**：\n';
+  systemPrompt += '- 工具标签必须完整，不能在标签中间换行或添加空格\n';
+  systemPrompt += '- 错误示例：`<tool\\n_use>` 或 `<tool _use>`\n';
+  systemPrompt += '- 正确示例：`<tool_use>`\n';
+  systemPrompt += '- 标签格式错误会导致工具调用失败！\n\n';
+  systemPrompt += '## 可用工具\n\n';
+
+  mcpTools.forEach(tool => {
+    systemPrompt += `### ${tool.name}\n`;
+    if (tool.description) {
+      systemPrompt += `${tool.description}\n`;
+    }
+    if (tool.inputSchema) {
+      systemPrompt += `参数格式: ${JSON.stringify(tool.inputSchema, null, 2)}\n`;
+    }
+    systemPrompt += `服务器: ${tool.serverName}\n\n`;
+  });
+
+  systemPrompt += '请根据用户的需求选择合适的工具来协助完成任务。\n';
+
+  return systemPrompt;
+}

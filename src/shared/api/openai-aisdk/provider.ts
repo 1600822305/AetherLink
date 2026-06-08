@@ -333,16 +333,10 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
       throw new Error('API 密钥未设置，请在设置中配置 OpenAI API 密钥');
     }
 
-    // 添加网页搜索参数：把各供应商私有 body 字段（dashscope enable_search /
-    // openrouter plugins / openai web_search_options 等，见 client.getWebSearchParams）
-    // 与 apiParams 合并为统一 extraBody，由 stream.ts 落到 providerOptions.openai
-    // 透传进请求体（web search 字段优先，与官方 openai 路径 Object.assign 语义一致）。
+    // 添加网页搜索参数
     const webSearchParams = enableWebSearch && this.supportsWebSearch()
       ? getWebSearchParams(this.model, enableWebSearch)
       : {};
-    const extraBody = Object.keys(webSearchParams).length > 0
-      ? { ...apiParams, ...webSearchParams }
-      : apiParams;
 
     try {
       if (streamEnabled) {
@@ -354,7 +348,8 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
           mcpMode,
           onChunk,
           abortSignal,
-          extraBody
+          webSearchParams,
+          extraBody: apiParams
         });
       } else {
         return await this.handleNonStreamResponse(apiMessages, {
@@ -365,7 +360,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
           mcpMode,
           onChunk,
           abortSignal,
-          extraBody
+          extraBody: apiParams
         });
       }
     } catch (error: any) {
@@ -397,6 +392,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
       mcpMode: 'prompt' | 'function';
       onChunk?: (chunk: Chunk) => void;
       abortSignal?: AbortSignal;
+      webSearchParams?: any;
       extraBody?: Record<string, any>;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
@@ -487,18 +483,10 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
             };
           });
           
-          // 重建 assistant 历史消息：保留 reasoning（思考）+ text + tool-call。
-          // 混合思考模型（如 deepseek-v4）会在同一轮同时产出 reasoning 与 tool-call，
-          // 若丢弃 reasoning，后续轮次行为可能退化。
-          const assistantContent: any[] = [];
-          if (result.reasoning) {
-            assistantContent.push({ type: 'reasoning' as const, text: result.reasoning });
-          }
-          if (content) {
-            assistantContent.push({ type: 'text' as const, text: content });
-          }
-          assistantContent.push(...toolCallParts);
-
+          const assistantContent = content 
+            ? [{ type: 'text' as const, text: content }, ...toolCallParts]
+            : toolCallParts;
+          
           currentMessages.push({
             role: 'assistant',
             content: assistantContent

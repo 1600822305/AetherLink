@@ -3,7 +3,6 @@
  * 负责根据供应商类型返回适当的API处理模块
  */
 import type { Model } from '../../types';
-import type { ProviderApi } from '../../ai/core/types';
 import * as openaiApi from '../../api/openai';
 import { parseModelsResponse, normalizeModel } from '../../api/openai/models';
 import * as anthropicApi from '../../api/anthropic-aisdk';
@@ -93,29 +92,11 @@ function isAzureOpenAI(model: Model): boolean {
 }
 
 /**
- * 构造 OpenAI 兼容供应商的 API 实现（统一走 AI SDK 引擎）
- * 用于 openai / deepseek / grok / siliconflow / volcengine / azure-openai 及默认兜底。
- */
-function createOpenAICompatibleApi(): ProviderApi {
-  return {
-    sendChatRequest: async (messages: any[], model: Model, options?: any) => {
-      const provider = new OpenAIAISDKProvider(model);
-      return await provider.sendChatMessage(messages, options || {});
-    },
-    testConnection: async (model: Model) => {
-      const provider = new OpenAIAISDKProvider(model);
-      return await provider.testConnection();
-    },
-    fetchModels: openaiApi.fetchModels
-  };
-}
-
-/**
  * 获取供应商API - 支持Azure OpenAI和智能路由
  * @param model 模型配置
  * @returns 供应商API模块
  */
-export function getProviderApi(model: Model): ProviderApi {
+export function getProviderApi(model: Model): any {
   const providerType = getActualProviderType(model);
 
   // 扩展的Provider选择逻辑，支持Azure OpenAI和模型组合
@@ -168,12 +149,21 @@ export function getProviderApi(model: Model): ProviderApi {
         }
       };
     case 'azure-openai':
-      // Azure OpenAI 使用 OpenAI 兼容 API（特殊配置由 AI SDK client 处理）
-      console.log(`[ProviderFactory] 使用Azure OpenAI API (AI SDK)`);
-      return createOpenAICompatibleApi();
+      // Azure OpenAI使用OpenAI兼容API，但有特殊配置
+      console.log(`[ProviderFactory] 使用Azure OpenAI API`);
+      return openaiApi;
     case 'openai-aisdk':
       console.log(`[ProviderFactory] 使用AI SDK OpenAI API`);
-      return createOpenAICompatibleApi();
+      return {
+        sendChatRequest: async (messages: any[], model: Model, options?: any) => {
+          const provider = new OpenAIAISDKProvider(model);
+          return await provider.sendChatMessage(messages, options || {});
+        },
+        testConnection: async (model: Model) => {
+          const provider = new OpenAIAISDKProvider(model);
+          return await provider.testConnection();
+        }
+      };
     case 'gemini-aisdk':
       console.log(`[ProviderFactory] 使用AI SDK Gemini API`);
       return {
@@ -206,8 +196,8 @@ export function getProviderApi(model: Model): ProviderApi {
     case 'siliconflow': 
     case 'volcengine':  // 火山引擎使用OpenAI兼容API
     default:
-      // 默认使用 OpenAI 兼容 API，统一走 AI SDK 引擎
-      return createOpenAICompatibleApi();
+      // 默认使用OpenAI兼容API，与最佳实例保持一致
+      return openaiApi;
   }
 }
 
@@ -219,10 +209,6 @@ export function getProviderApi(model: Model): ProviderApi {
 export async function testConnection(model: Model): Promise<boolean> {
   try {
     const api = getProviderApi(model);
-    if (!api.testConnection) {
-      console.warn('[ProviderFactory.testConnection] 当前供应商 API 不支持连接测试');
-      return false;
-    }
     return await api.testConnection(model);
   } catch (error) {
     console.error('API连接测试失败:', error);

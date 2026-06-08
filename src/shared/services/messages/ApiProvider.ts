@@ -1,6 +1,7 @@
 import type { Model } from '../../types';
 import type { ModelProvider } from '../../config/defaultModels';
 import { getActualProviderType, testConnection } from '../ai/ProviderFactory';
+import { OpenAIProvider } from '../../api/openai';
 import { OpenAIAISDKProvider } from '../../api/openai-aisdk';
 import { AnthropicAISDKProvider } from '../../api/anthropic-aisdk';
 import { GeminiAISDKProvider } from '../../api/gemini-aisdk';
@@ -51,9 +52,7 @@ function createProviderInstance(model: Model, providerType: string): any {
     case 'dashscope':
       return new DashScopeProvider(model);
     default:
-      // OpenAI 兼容供应商（openai/deepseek/grok/siliconflow/volcengine/azure 等）
-      // 统一走 AI SDK 引擎（@ai-sdk/openai 的 .chat()）
-      return new OpenAIAISDKProvider(model);
+      return new OpenAIProvider(model);
   }
 }
 

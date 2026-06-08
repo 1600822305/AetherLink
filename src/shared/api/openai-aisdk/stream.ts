@@ -6,34 +6,179 @@
 import { streamText, generateText } from 'ai';
 import type { OpenAIProvider as AISDKOpenAIProvider } from '@ai-sdk/openai';
 import { logApiRequest } from '../../services/infra/LoggerService';
+import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
-import { getAppropriateTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
+import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
 import type { Model, MCPTool } from '../../types';
+import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK } from './tools';
-import {
-  ThinkTagParser,
-  getProviderConfigFromStore,
-  accumulateToolCall,
-  emitStreamComplete,
-  emitStreamError,
-  detectAndEmitToolUseTags,
-  PROMPT_MODE_STOP_SEQUENCES,
-  type BaseStreamResult,
-  type BaseStreamParams,
-} from '../../ai/adapters/shared/streamShared';
+import store from '../../store';
+
+/**
+ * 获取模型对应的供应商配置
+ */
+function getProviderConfig(model: Model): ModelProvider | null {
+  try {
+    const state = store.getState();
+    const providers = state.settings?.providers;
+
+    if (!providers || !Array.isArray(providers)) {
+      return null;
+    }
+
+    // 根据模型的 provider 字段查找对应的供应商
+    const provider = providers.find((p: ModelProvider) => p.id === model.provider);
+    return provider || null;
+  } catch (error) {
+    console.error('[AI SDK Stream] 获取供应商配置失败:', error);
+    return null;
+  }
+}
 
 /**
  * 流式响应结果类型
  */
-export interface StreamResult extends BaseStreamResult {}
+export interface StreamResult {
+  content: string;
+  reasoning?: string;
+  reasoningTime?: number;
+  hasToolCalls?: boolean;
+  nativeToolCalls?: any[];
+}
 
 /**
  * 流式请求参数
  */
-export interface StreamParams extends BaseStreamParams {
+export interface StreamParams {
+  messages?: any[];
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  tools?: any[];
+  tool_choice?: any;
+  signal?: AbortSignal;
+  enableTools?: boolean;
+  mcpTools?: MCPTool[];
+  mcpMode?: 'prompt' | 'function';
+  model?: Model;
+  /** 自定义请求体参数（优先级：模型级别 > 供应商级别） */
+  extraBody?: Record<string, any>;
   /** 是否使用 Responses API（仅对 OpenAI 官方 API 有效） */
   useResponsesAPI?: boolean;
+}
+
+/**
+ * 解析推理标签内容
+ * 支持动态配置的开始/结束标签
+ */
+class ThinkTagParser {
+  private contentBuffer = '';
+  private isInThinkTag = false;
+  private thinkBuffer = '';
+  private reasoningStartTime = 0;
+  private hasReasoningContent = false;
+  private openingTag: string;
+  private closingTag: string;
+
+  constructor(tag?: ReasoningTag) {
+    // 支持动态配置的推理标签
+    this.openingTag = tag?.openingTag || '<think>';
+    this.closingTag = tag?.closingTag || '</think>';
+  }
+
+  /**
+   * 处理文本块
+   * @returns { normalText: string, thinkText: string, isThinking: boolean }
+   */
+  processChunk(text: string): { normalText: string; thinkText: string; isThinking: boolean } {
+    this.contentBuffer += text;
+    
+    let normalText = '';
+    let thinkText = '';
+    let processedAny = true;
+
+    while (processedAny && this.contentBuffer.length > 0) {
+      processedAny = false;
+
+      if (!this.isInThinkTag) {
+        // 查找开始标签
+        const thinkStartIndex = this.contentBuffer.indexOf(this.openingTag);
+        if (thinkStartIndex !== -1) {
+          // 处理开始标签之前的普通内容
+          normalText += this.contentBuffer.substring(0, thinkStartIndex);
+          
+          // 进入思考模式
+          this.isInThinkTag = true;
+          if (!this.hasReasoningContent) {
+            this.hasReasoningContent = true;
+            this.reasoningStartTime = Date.now();
+          }
+          
+          this.contentBuffer = this.contentBuffer.substring(thinkStartIndex + this.openingTag.length);
+          processedAny = true;
+        } else if (this.contentBuffer.length > this.openingTag.length + 5) {
+          // 没有找到开始标签，输出安全的内容
+          const safeLength = this.contentBuffer.length - (this.openingTag.length + 5);
+          const safeContent = this.contentBuffer.substring(0, safeLength);
+          normalText += safeContent;
+          this.contentBuffer = this.contentBuffer.substring(safeLength);
+          processedAny = true;
+        }
+      } else {
+        // 在思考标签内，查找结束标签
+        const thinkEndIndex = this.contentBuffer.indexOf(this.closingTag);
+        if (thinkEndIndex !== -1) {
+          // 处理思考内容
+          thinkText += this.contentBuffer.substring(0, thinkEndIndex);
+          this.thinkBuffer += this.contentBuffer.substring(0, thinkEndIndex);
+          
+          // 退出思考模式
+          this.isInThinkTag = false;
+          this.contentBuffer = this.contentBuffer.substring(thinkEndIndex + this.closingTag.length);
+          processedAny = true;
+        } else if (this.contentBuffer.length > this.closingTag.length + 5) {
+          // 没有找到结束标签，输出安全的思考内容
+          const safeLength = this.contentBuffer.length - (this.closingTag.length + 5);
+          const safeThinkContent = this.contentBuffer.substring(0, safeLength);
+          thinkText += safeThinkContent;
+          this.thinkBuffer += safeThinkContent;
+          this.contentBuffer = this.contentBuffer.substring(safeLength);
+          processedAny = true;
+        }
+      }
+    }
+
+    return { normalText, thinkText, isThinking: this.isInThinkTag };
+  }
+
+  /**
+   * 流结束时处理剩余内容
+   */
+  flush(): { normalText: string; thinkText: string } {
+    let normalText = '';
+    let thinkText = '';
+
+    if (this.contentBuffer.length > 0) {
+      if (this.isInThinkTag) {
+        thinkText = this.contentBuffer;
+        this.thinkBuffer += this.contentBuffer;
+      } else {
+        normalText = this.contentBuffer;
+      }
+      this.contentBuffer = '';
+    }
+
+    return { normalText, thinkText };
+  }
+
+  getFullThinkContent(): string {
+    return this.thinkBuffer;
+  }
+
+  getReasoningTime(): number {
+    return this.hasReasoningContent ? Date.now() - this.reasoningStartTime : 0;
+  }
 }
 
 /**
@@ -64,7 +209,7 @@ export async function streamCompletion(
                     (model as any)?.providerExtraBody;
 
   // 获取 Responses API 开关配置（优先级：供应商配置 > 模型配置 > 默认关闭）
-  const providerConfig = model ? getProviderConfigFromStore(model) : null;
+  const providerConfig = model ? getProviderConfig(model) : null;
   const useResponsesAPI = providerConfig?.useResponsesAPI || 
                           additionalParams?.useResponsesAPI || 
                           (model as any)?.useResponsesAPI || 
@@ -126,7 +271,7 @@ export async function streamCompletion(
     // 继续生成 <tool_use_result> 幻觉内容。添加 stop sequence 强制模型停止，
     // 让多轮循环（provider.ts while loop）真正发挥作用
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
+    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
 
     // 准备 providerOptions（用于传递 extraBody）
     let providerOptions: Record<string, any> | undefined;
@@ -191,7 +336,27 @@ export async function streamCompletion(
 
         case 'tool-call':
           console.log(`[AI SDK Stream] 检测到工具调用: ${part.toolName}`);
-          accumulateToolCall(part, toolCalls, onChunk);
+          // AI SDK v6 使用 input 而不是 args
+          const toolInput = (part as any).input || (part as any).args || {};
+          toolCalls.push({
+            id: part.toolCallId,
+            type: 'function',
+            function: {
+              name: part.toolName,
+              arguments: JSON.stringify(toolInput)
+            }
+          });
+          
+          // 使用 MCP_TOOL_CREATED 类型
+          onChunk?.({
+            type: ChunkType.MCP_TOOL_CREATED,
+            responses: [{
+              id: part.toolCallId,
+              name: part.toolName,
+              arguments: toolInput,
+              status: 'pending'
+            }]
+          });
           break;
 
         case 'reasoning-delta':
@@ -281,10 +446,22 @@ export async function streamCompletion(
     }
 
     // 发送全局事件
-    emitStreamComplete('openai-aisdk', modelId, fullContent, fullReasoning);
+    EventEmitter.emit(EVENT_NAMES.STREAM_COMPLETE, {
+      provider: 'openai-aisdk',
+      model: modelId,
+      content: fullContent,
+      reasoning: fullReasoning,
+      timestamp: Date.now()
+    });
 
     // 检查工具使用标签（XML 模式）
-    detectAndEmitToolUseTags(fullContent, modelId, 'AI SDK Stream');
+    if (hasToolUseTags(fullContent)) {
+      console.log(`[AI SDK Stream] 检测到 XML 工具使用标签`);
+      EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
+        content: fullContent,
+        model: modelId
+      });
+    }
 
     const endTime = Date.now();
     console.log(`[AI SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
@@ -300,7 +477,14 @@ export async function streamCompletion(
 
   } catch (error: any) {
     console.error('[AI SDK Stream] 流式响应失败:', error);
-    emitStreamError('openai-aisdk', modelId, error);
+
+    EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
+      provider: 'openai-aisdk',
+      model: modelId,
+      error: error.message,
+      timestamp: Date.now()
+    });
+
     throw error;
   }
 }
@@ -331,7 +515,7 @@ export async function nonStreamCompletion(
                     (model as any)?.providerExtraBody;
 
   // 获取 Responses API 开关配置（优先级：供应商配置 > 模型配置 > 默认关闭）
-  const providerConfigNonStream = model ? getProviderConfigFromStore(model) : null;
+  const providerConfigNonStream = model ? getProviderConfig(model) : null;
   const useResponsesAPI = providerConfigNonStream?.useResponsesAPI || 
                           additionalParams?.useResponsesAPI || 
                           (model as any)?.useResponsesAPI || 
@@ -351,7 +535,7 @@ export async function nonStreamCompletion(
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
+    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
 
     // 准备 providerOptions（用于传递 extraBody）
     let providerOptions: Record<string, any> | undefined;
