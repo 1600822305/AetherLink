@@ -97,6 +97,15 @@ interface UpdateMessageStatusPayload {
   status: AssistantMessageStatus;
 }
 
+type BlockReferencePosition = 'append' | 'prepend' | 'before' | 'after';
+
+interface InsertBlockReferencePayload {
+  messageId: string;
+  blockId: string;
+  position?: BlockReferencePosition;
+  anchorBlockId?: string;
+}
+
 interface RemoveMessagePayload {
   topicId: string;
   messageId: string;
@@ -123,6 +132,33 @@ interface UpsertBlockReferencePayload {
   messageId: string;
   blockId: string;
   status?: string;
+}
+
+function insertBlockId(
+  currentBlocks: string[],
+  blockId: string,
+  position: BlockReferencePosition = 'append',
+  anchorBlockId?: string
+): string[] {
+  const withoutDuplicate = currentBlocks.filter(id => id !== blockId);
+
+  if (position === 'prepend') {
+    return [blockId, ...withoutDuplicate];
+  }
+
+  if ((position === 'before' || position === 'after') && anchorBlockId) {
+    const anchorIndex = withoutDuplicate.indexOf(anchorBlockId);
+    if (anchorIndex !== -1) {
+      const insertIndex = position === 'before' ? anchorIndex : anchorIndex + 1;
+      return [
+        ...withoutDuplicate.slice(0, insertIndex),
+        blockId,
+        ...withoutDuplicate.slice(insertIndex)
+      ];
+    }
+  }
+
+  return [...withoutDuplicate, blockId];
 }
 
 // 4. 创建 Slice
@@ -320,16 +356,29 @@ const newMessagesSlice = createSlice({
       }
 
       const currentBlocks = messageToUpdate.blocks || [];
+      const nextBlocks = insertBlockId(currentBlocks, blockId);
 
-      // 如果块ID已在列表中，不重复添加
-      if (currentBlocks.includes(blockId)) {
+      messagesAdapter.updateOne(state, {
+        id: messageId,
+        changes: { blocks: nextBlocks }
+      });
+    },
+
+    // 基于当前最新 state 插入块引用，避免异步调用用旧 blocks 数组覆盖新块
+    insertBlockReference(state, action: PayloadAction<InsertBlockReferencePayload>) {
+      const { messageId, blockId, position = 'append', anchorBlockId } = action.payload;
+
+      const messageToUpdate = state.entities[messageId];
+      if (!messageToUpdate) {
         return;
       }
 
-      // 按流式顺序追加到末尾
+      const currentBlocks = messageToUpdate.blocks || [];
+      const nextBlocks = insertBlockId(currentBlocks, blockId, position, anchorBlockId);
+
       messagesAdapter.updateOne(state, {
         id: messageId,
-        changes: { blocks: [...currentBlocks, blockId] }
+        changes: { blocks: nextBlocks }
       });
     }
   }

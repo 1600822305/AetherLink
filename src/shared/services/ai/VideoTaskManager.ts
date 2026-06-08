@@ -3,11 +3,11 @@ import { log } from '../infra/LoggerService';
 import { TopicService } from '../topics/TopicService';
 import { MessageBlockStatus } from '../../types/newMessage';
 import store from '../../store';
-import { updateOneBlock, upsertOneBlock } from '../../store/slices/messageBlocksSlice';
-import { dexieStorage } from '../storage/DexieStorageService';
+import { updateOneBlock } from '../../store/slices/messageBlocksSlice';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
+import { messageBlockRepository } from '../messages/MessageBlockRepository';
 
 /**
  * 视频生成任务接口
@@ -301,20 +301,7 @@ export class VideoTaskManager {
         updatedAt: new Date().toISOString()
       };
 
-      store.dispatch(upsertOneBlock(videoBlock));
-
-      // 更新消息的blocks数组
-      const message = store.getState().messages.entities[task.messageId];
-      if (message) {
-        const updatedBlocks = [...(message.blocks || []), videoBlock.id];
-        store.dispatch(newMessagesActions.updateMessage({
-          id: task.messageId,
-          changes: { blocks: updatedBlocks }
-        }));
-
-        await dexieStorage.updateMessage(task.messageId, { blocks: updatedBlocks });
-        await dexieStorage.saveMessageBlock(videoBlock);
-      }
+      await messageBlockRepository.createBlockAndAttach(videoBlock);
 
       // 更新消息状态为成功
       store.dispatch(newMessagesActions.updateMessage({

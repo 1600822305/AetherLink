@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
 import { newMessagesActions } from '../../../shared/store/slices/newMessagesSlice';
-import { upsertOneBlock } from '../../../shared/store/slices/messageBlocksSlice';
-import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
 import {
   createUserMessage,
   createAssistantMessage
@@ -15,6 +13,7 @@ import {
 import store from '../../../shared/store';
 import { TopicService } from '../../../shared/services/topics/TopicService';
 import { VideoTaskManager } from '../../../shared/services/ai/VideoTaskManager';
+import { messageBlockRepository } from '../../../shared/services/messages/MessageBlockRepository';
 import type { SiliconFlowImageFormat, GoogleVeoParams, Model, ChatTopic } from '../../../shared/types';
 
 /**
@@ -214,19 +213,7 @@ export const useVideoGeneration = (
           updatedAt: new Date().toISOString()
         };
 
-        // 添加视频块到Redux状态
-        store.dispatch(upsertOneBlock(videoBlock));
-
-        // 更新消息的blocks数组
-        const updatedBlocks = [...(assistantMessage.blocks || []), videoBlock.id];
-        store.dispatch(newMessagesActions.updateMessage({
-          id: assistantMessage.id,
-          changes: { blocks: updatedBlocks }
-        }));
-
-        // 保存到数据库
-        await dexieStorage.updateMessage(assistantMessage.id, { blocks: updatedBlocks });
-        await dexieStorage.saveMessageBlock(videoBlock);
+        await messageBlockRepository.createBlockAndAttach(videoBlock);
       }
 
       // 更新消息状态为成功

@@ -4,15 +4,12 @@ import { Languages } from 'lucide-react';
 import { throttle } from 'lodash';
 import { builtinLanguages, type TranslateLanguage } from '../../shared/services/translate/TranslateConfig';
 import { translateText } from '../../shared/services/translate';
-import { useAppDispatch } from '../../shared/store';
-import { upsertOneBlock } from '../../shared/store/slices/messageBlocksSlice';
-import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
 import { MessageBlockType, MessageBlockStatus } from '../../shared/types/newMessage';
 import type { TranslationMessageBlock, Message } from '../../shared/types/newMessage';
 import { v4 as uuidv4 } from 'uuid';
 import { getMainTextContent } from '../../shared/utils/messageUtils';
 import { toastManager } from '../EnhancedToast';
-import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
+import { messageBlockRepository } from '../../shared/services/messages/MessageBlockRepository';
 
 interface MessageTranslateButtonProps {
   message: Message;
@@ -28,7 +25,6 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
   const [translateAnchorEl, setTranslateAnchorEl] = useState<null | HTMLElement>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const mountedRef = useRef(true);
-  const dispatch = useAppDispatch();
 
   useEffect(() => {
     return () => {
@@ -72,25 +68,12 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
       createdAt: new Date().toISOString()
     };
 
-    // 添加翻译块到 Redux
-    dispatch(upsertOneBlock(translationBlock));
-    
-    // 更新消息的 blocks（block ID 数组）
-    const updatedBlockIds = [...(message.blocks || []), translationBlockId];
-    dispatch(newMessagesActions.updateMessage({
-      id: message.id,
-      changes: { blocks: updatedBlockIds }
-    }));
-
-    // 保存翻译块到数据库
-    await dexieStorage.saveMessageBlock(translationBlock);
-    // 更新消息的 blocks 到数据库
-    await dexieStorage.updateMessage(message.id, { blocks: updatedBlockIds });
+    await messageBlockRepository.createBlockAndAttach(translationBlock);
 
     // 节流更新数据库，避免频繁写入
     const throttledDbUpdate = throttle(
       async (blockId: string, changes: Partial<TranslationMessageBlock>) => {
-        await dexieStorage.updateMessageBlock(blockId, changes);
+        await messageBlockRepository.updateBlock(blockId, changes);
       },
       200,
       { leading: true, trailing: true }
@@ -109,9 +92,6 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
               content: text,
               status: isComplete ? MessageBlockStatus.SUCCESS : MessageBlockStatus.STREAMING
             };
-            // 更新 Redux
-            dispatch(upsertOneBlock(updatedBlock));
-            // 节流更新数据库
             throttledDbUpdate(translationBlockId, { content: text, status: updatedBlock.status });
           }
         }
@@ -119,14 +99,14 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
       
       // 最终更新为成功状态
       if (mountedRef.current) {
+        throttledDbUpdate.flush();
         const finalBlock = {
           ...translationBlock,
           content: finalResult,
           status: MessageBlockStatus.SUCCESS
         };
-        dispatch(upsertOneBlock(finalBlock));
-        // 最终保存到数据库
-        await dexieStorage.updateMessageBlock(translationBlockId, { 
+        await messageBlockRepository.updateBlock(translationBlockId, {
+          ...finalBlock,
           content: finalResult, 
           status: MessageBlockStatus.SUCCESS 
         });
@@ -139,9 +119,8 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
           content: '翻译失败: ' + (error instanceof Error ? error.message : '未知错误'),
           status: MessageBlockStatus.ERROR
         };
-        dispatch(upsertOneBlock(errorBlock));
-        // 保存错误状态到数据库
-        await dexieStorage.updateMessageBlock(translationBlockId, { 
+        await messageBlockRepository.updateBlock(translationBlockId, {
+          ...errorBlock,
           content: errorBlock.content, 
           status: MessageBlockStatus.ERROR 
         });
@@ -152,7 +131,7 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
         setIsTranslating(false);
       }
     }
-  }, [isTranslating, message, handleTranslateClose, dispatch]);
+  }, [isTranslating, message, handleTranslateClose]);
 
   return (
     <>

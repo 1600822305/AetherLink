@@ -39,7 +39,8 @@ vi.mock('../../../storage/DexieStorageService', () => ({
 }));
 
 vi.mock('../../../../store/slices/messageBlocksSlice', () => ({
-  updateOneBlock: (payload: any) => ({ __updateOneBlock: true, payload })
+  updateOneBlock: (payload: any) => ({ __updateOneBlock: true, payload }),
+  addOneBlock: (payload: any) => ({ __addOneBlock: true, payload })
 }));
 
 import { finalizeNonTerminalBlocks } from '../blockFinalization';

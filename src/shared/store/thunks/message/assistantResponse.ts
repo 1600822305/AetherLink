@@ -5,9 +5,9 @@
 import { AssistantMessageStatus } from '../../../types/newMessage';
 import { createResponseHandler } from '../../../services/messages/ResponseHandler';
 import { ApiProviderRegistry } from '../../../services/messages/ApiProvider';
+import { messageBlockRepository } from '../../../services/messages/MessageBlockRepository';
 import { createAbortController } from '../../../utils/abortController';
 import { newMessagesActions } from '../../slices/newMessagesSlice';
-import { upsertOneBlock } from '../../slices/messageBlocksSlice';
 import { prepareMessagesForApi, performKnowledgeSearchIfNeeded } from './apiPreparation';
 import { extractAndSaveMemories, isAutoAnalyzeEnabled } from './memoryIntegration';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
@@ -18,8 +18,6 @@ import type { RootState, AppDispatch } from '../../index';
 
 // 导入辅助模块
 import {
-  updateMessageAndTopic,
-  saveBlockToDB,
   isImageGenerationModel,
   handleImageGeneration,
   configureWebSearchTool,
@@ -226,14 +224,7 @@ export const processAssistantResponse = async (
     const placeholderBlock = createPlaceholderBlock(assistantMessage.id);
     console.log(`[sendMessage] 创建占位符块: ${placeholderBlock.id}`);
 
-    dispatch(upsertOneBlock(placeholderBlock));
-    await saveBlockToDB(placeholderBlock);
-
-    // 4. 关联占位符块到消息
-    dispatch(newMessagesActions.updateMessage({
-      id: assistantMessage.id,
-      changes: { blocks: [placeholderBlock.id] }
-    }));
+    await messageBlockRepository.createBlockAndAttach(placeholderBlock);
 
     // 5. 获取 MCP 工具（传入 hasSkills 以注入 read_skill 工具）
     const hasSkills = !!(assistant?.skillIds?.length);
@@ -263,11 +254,6 @@ export const processAssistantResponse = async (
       messages    // 传入已加载的消息列表
     });
     const filteredOriginalMessages = await prepareOriginalMessages(topicId, assistantMessage, messages);
-
-    // 9. 更新数据库
-    await updateMessageAndTopic(assistantMessage.id, topicId, {
-      blocks: [placeholderBlock.id]
-    });
 
     // 10. 创建 AbortController
     const { abortController, cleanup } = createAbortController(assistantMessage.askId, true);

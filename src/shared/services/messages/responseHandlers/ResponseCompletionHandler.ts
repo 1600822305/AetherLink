@@ -4,12 +4,13 @@ import { EventEmitter, EVENT_NAMES } from '../../infra/EventService';
 import { MessageBlockStatus, AssistantMessageStatus, MessageBlockType } from '../../../types/newMessage';
 import type { MessageBlock } from '../../../types/newMessage';
 import { newMessagesActions } from '../../../store/slices/newMessagesSlice';
-import { updateOneBlock, addOneBlock } from '../../../store/slices/messageBlocksSlice';
+import { updateOneBlock } from '../../../store/slices/messageBlocksSlice';
 import { v4 as uuid } from 'uuid';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { TopicNamingService } from '../../topics/TopicNamingService';
 import type { ChunkProcessorView } from './ResponseChunkProcessor';
 import { finalizeNonTerminalBlocks } from './blockFinalization';
+import { messageBlockRepository } from '../MessageBlockRepository';
 
 /**
  * 响应完成处理器 - 处理响应完成和中断的逻辑
@@ -217,13 +218,13 @@ export class ResponseCompletionHandler {
       // 非流式响应：根据是否有思考内容决定块类型
       if (thinkingContent.trim()) {
         // 有思考内容：初始块为思考块
-        updateOperations.push(dexieStorage.updateMessageBlock(
+        updateOperations.push(messageBlockRepository.updateBlock(
           this.blockId,
           this.buildThinkingSuccessUpdate(thinkingContent, now, finalThinkingMillis)
         ));
         // 更新文本块（如果已创建）
         if (chunkProcessor.textBlockId && chunkProcessor.textBlockId !== this.blockId) {
-          updateOperations.push(dexieStorage.updateMessageBlock(chunkProcessor.textBlockId, {
+          updateOperations.push(messageBlockRepository.updateBlock(chunkProcessor.textBlockId, {
             type: MessageBlockType.MAIN_TEXT,
             content: content,
             status: MessageBlockStatus.SUCCESS,
@@ -232,7 +233,7 @@ export class ResponseCompletionHandler {
         }
       } else {
         // 没有思考内容：初始块为文本块
-        updateOperations.push(dexieStorage.updateMessageBlock(this.blockId, {
+        updateOperations.push(messageBlockRepository.updateBlock(this.blockId, {
           type: MessageBlockType.MAIN_TEXT,
           content: content,
           status: MessageBlockStatus.SUCCESS,
@@ -242,12 +243,12 @@ export class ResponseCompletionHandler {
     } else {
       // 流式响应：使用原有逻辑
       if (chunkProcessor.blockType === MessageBlockType.THINKING) {
-        updateOperations.push(dexieStorage.updateMessageBlock(
+        updateOperations.push(messageBlockRepository.updateBlock(
           this.blockId,
           this.buildThinkingSuccessUpdate(thinkingContent, now, finalThinkingMillis)
         ));
       } else {
-        updateOperations.push(dexieStorage.updateMessageBlock(this.blockId, {
+        updateOperations.push(messageBlockRepository.updateBlock(this.blockId, {
           type: MessageBlockType.MAIN_TEXT,
           content: content,
           status: MessageBlockStatus.SUCCESS,
@@ -257,7 +258,7 @@ export class ResponseCompletionHandler {
 
       // 更新新创建的主文本块
       if (chunkProcessor.textBlockId && chunkProcessor.textBlockId !== this.blockId) {
-        updateOperations.push(dexieStorage.updateMessageBlock(chunkProcessor.textBlockId, {
+        updateOperations.push(messageBlockRepository.updateBlock(chunkProcessor.textBlockId, {
           type: MessageBlockType.MAIN_TEXT,
           content: content,
           status: MessageBlockStatus.SUCCESS,
@@ -298,7 +299,7 @@ export class ResponseCompletionHandler {
   ): void {
     if (chunkProcessor.thinkingId && chunkProcessor.thinkingId !== this.blockId) {
       updateOperations.push(
-        dexieStorage.updateMessageBlock(
+        messageBlockRepository.updateBlock(
           chunkProcessor.thinkingId,
           this.buildThinkingSuccessUpdate(chunkProcessor.thinking, now, thinkingMillis)
         )
@@ -358,13 +359,7 @@ export class ResponseCompletionHandler {
         status: MessageBlockStatus.SUCCESS
       };
 
-      store.dispatch(addOneBlock(newMainTextBlock));
-      await dexieStorage.saveMessageBlock(newMainTextBlock);
-      store.dispatch(newMessagesActions.upsertBlockReference({
-        messageId: this.messageId,
-        blockId: newMainTextBlock.id,
-        status: MessageBlockStatus.SUCCESS
-      }));
+      await messageBlockRepository.createBlockAndAttach(newMainTextBlock);
 
       if (typeof chunkProcessor.setTextBlockId === 'function') {
         chunkProcessor.setTextBlockId(newMainTextBlock.id);
@@ -396,7 +391,7 @@ export class ResponseCompletionHandler {
     ];
     // 主块为思考块时不写正文中断内容（思考块已由 finalize 落库），避免覆盖思考文本。
     if (writeMainBlock) {
-      ops.push(dexieStorage.updateMessageBlock(this.blockId, {
+      ops.push(messageBlockRepository.updateBlock(this.blockId, {
         content,
         status: MessageBlockStatus.SUCCESS,
         updatedAt: metadata.interruptedAt,

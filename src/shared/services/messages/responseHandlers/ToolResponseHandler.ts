@@ -1,14 +1,12 @@
 import store from '../../../store';
-import { dexieStorage } from '../../storage/DexieStorageService';
 import { MessageBlockStatus } from '../../../types/newMessage';
 import type { ToolMessageBlock, WebSearchReferenceItem } from '../../../types/newMessage';
-import { newMessagesActions } from '../../../store/slices/newMessagesSlice';
-import { updateOneBlock, addOneBlock } from '../../../store/slices/messageBlocksSlice';
 import { ChunkType } from '../../../types/chunk';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { createToolBlock, createCitationBlock } from '../../../utils/messageUtils';
 // callMCPTool 不再需要 - 工具执行由 Provider 层统一处理
 import type { MCPTool } from '../../../types';
+import { messageBlockRepository } from '../MessageBlockRepository';
 
 /**
  * 检查是否是 attempt_completion 工具（支持带前缀的名称）
@@ -78,29 +76,10 @@ export class ToolResponseHandler {
    */
   async atomicToolBlockOperation(toolId: string, toolBlock: any, operation: 'create' | 'update') {
     try {
-      // 参考 Cline：使用事务确保原子性
-      await dexieStorage.transaction('rw', [
-        dexieStorage.message_blocks,
-        dexieStorage.messages
-      ], async () => {
-        if (operation === 'create') {
-          // 1. 更新映射
-          this.toolCallIdToBlockIdMap.set(toolId, toolBlock.id);
-
-          // 2. 添加到 Redux 状态
-          store.dispatch(addOneBlock(toolBlock));
-
-          // 3. 保存到数据库
-          await dexieStorage.saveMessageBlock(toolBlock);
-
-          // 4. 更新消息的 blocks 数组
-          store.dispatch(newMessagesActions.upsertBlockReference({
-            messageId: this.messageId,
-            blockId: toolBlock.id,
-            status: toolBlock.status
-          }));
-        }
-      });
+      if (operation === 'create') {
+        this.toolCallIdToBlockIdMap.set(toolId, toolBlock.id);
+        await messageBlockRepository.createBlockAndAttach(toolBlock);
+      }
 
       console.log(`[ToolResponseHandler] 原子性工具块操作完成: ${operation} - toolId: ${toolId}, blockId: ${toolBlock.id}`);
     } catch (error) {
@@ -126,12 +105,7 @@ export class ToolResponseHandler {
           updatedAt: new Date().toISOString()
         };
 
-        store.dispatch(updateOneBlock({
-          id: existingBlockId,
-          changes: errorChanges
-        }));
-
-        await dexieStorage.updateMessageBlock(existingBlockId, errorChanges);
+        await messageBlockRepository.updateBlock(existingBlockId, errorChanges);
       }
     } catch (updateError) {
       console.error(`[ToolResponseHandler] 更新工具错误状态失败:`, updateError);
@@ -185,18 +159,8 @@ export class ToolResponseHandler {
             // 1. 更新映射
             this.toolCallIdToBlockIdMap.set(toolResponse.id, toolBlock.id);
 
-            // 2. 添加到 Redux 状态
-            store.dispatch(addOneBlock(toolBlock));
-
-            // 3. 保存到数据库
-            await dexieStorage.saveMessageBlock(toolBlock);
-
-            // 4. 更新消息的 blocks 数组
-            store.dispatch(newMessagesActions.upsertBlockReference({
-              messageId: this.messageId,
-              blockId: toolBlock.id,
-              status: toolBlock.status
-            }));
+            // 2. 统一创建块并关联到消息
+            await messageBlockRepository.createBlockAndAttach(toolBlock);
 
           } else {
             console.warn(`[ToolResponseHandler] 收到未处理的工具状态: ${toolResponse.status} for ID: ${toolResponse.id}`);
@@ -217,18 +181,7 @@ export class ToolResponseHandler {
    */
   async atomicToolBlockUpdate(blockId: string, changes: any) {
     try {
-      await dexieStorage.transaction('rw', [
-        dexieStorage.message_blocks
-      ], async () => {
-        // 1. 更新 Redux 状态
-        store.dispatch(updateOneBlock({
-          id: blockId,
-          changes
-        }));
-
-        // 2. 更新数据库
-        await dexieStorage.updateMessageBlock(blockId, changes);
-      });
+      await messageBlockRepository.updateBlock(blockId, changes);
 
       console.log(`[ToolResponseHandler] 原子性工具块更新完成: blockId: ${blockId}`);
     } catch (error) {
@@ -307,28 +260,10 @@ export class ToolResponseHandler {
 
       console.log(`[ToolResponseHandler] 创建 Web 搜索引用块: ${citationBlock.id}，包含 ${webSearchItems.length} 条结果`);
 
-      // 添加到 Redux
-      store.dispatch(addOneBlock(citationBlock));
-
-      // 保存到数据库
-      await dexieStorage.saveMessageBlock(citationBlock);
-
-      // 将引用块添加到消息 blocks 数组（紧跟在工具块之后）
-      const currentMessage = store.getState().messages.entities[this.messageId];
-      if (currentMessage) {
-        const updatedBlocks = [...(currentMessage.blocks || []), citationBlock.id];
-
-        store.dispatch(newMessagesActions.updateMessage({
-          id: this.messageId,
-          changes: { blocks: updatedBlocks }
-        }));
-
-        await dexieStorage.updateMessage(this.messageId, {
-          blocks: updatedBlocks
-        });
-
-        console.log(`[ToolResponseHandler] Web 搜索引用块已添加到消息: ${citationBlock.id}`);
-      }
+      await messageBlockRepository.createBlockAndAttach(citationBlock, {
+        position: { type: 'after', anchorBlockId: _toolBlockId }
+      });
+      console.log(`[ToolResponseHandler] Web 搜索引用块已添加到消息: ${citationBlock.id}`);
     } catch (error) {
       console.error(`[ToolResponseHandler] 创建 Web 搜索引用块失败:`, error);
     }
@@ -417,14 +352,7 @@ export class ToolResponseHandler {
 
             // 修复：简化更新操作，避免复杂事务
 
-            // 1. 更新 Redux 状态
-            store.dispatch(updateOneBlock({
-              id: existingBlockId,
-              changes
-            }));
-
-            // 2. 更新数据库
-            await dexieStorage.updateMessageBlock(existingBlockId, changes);
+            await messageBlockRepository.updateBlock(existingBlockId, changes);
 
             // 参考 Cline：标记工具执行完成
             globalToolTracker.completeTool(toolResponse.id, finalStatus === MessageBlockStatus.SUCCESS);

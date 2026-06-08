@@ -56,6 +56,36 @@ function setCachedContent(cacheKey: string, content: string): void {
   contentCache.set(cacheKey, { content, timestamp: now });
 }
 
+function getBlockContentSignature(block: unknown): string {
+  if (!block || typeof block !== 'object') return '';
+  const content = 'content' in block ? block.content : undefined;
+  if (typeof content === 'string') {
+    return String(content.length);
+  }
+  return '';
+}
+
+function buildContentCacheKey(message: Message): string {
+  const state = store.getState();
+  const blockSignature = (message.blocks || []).map(blockId => {
+    const block = messageBlocksSelectors.selectById(state, blockId);
+    if (!block) return `${blockId}:missing`;
+    return [
+      blockId,
+      block.status,
+      block.updatedAt || block.createdAt || '',
+      getBlockContentSignature(block)
+    ].join(':');
+  }).join('|');
+
+  return [
+    message.id,
+    message.updatedAt || message.createdAt,
+    (message.blocks || []).join(','),
+    blockSignature
+  ].join('::');
+}
+
 /**
  * 从旧版本消息中提取内容
  */
@@ -177,14 +207,13 @@ export function getMainTextContent(message: Message): string {
     return '';
   }
 
-  // 检查缓存
-  const cacheKey = `${message.id}-${message.updatedAt || message.createdAt}`;
-  const cachedContent = getCachedContent(cacheKey);
-  if (cachedContent !== null) {
-    return cachedContent;
-  }
-
   try {
+    const cacheKey = buildContentCacheKey(message);
+    const cachedContent = getCachedContent(cacheKey);
+    if (cachedContent !== null) {
+      return cachedContent;
+    }
+
     // 优先检查是否有保存的content字段
     const legacyContent = extractContentFromLegacy(message);
     if (legacyContent) {
