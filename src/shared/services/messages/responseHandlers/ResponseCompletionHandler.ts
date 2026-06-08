@@ -93,21 +93,38 @@ export class ResponseCompletionHandler {
   private async handleInterruptedCompletion(content: string, metadata: any, thinkingDurationMs?: number): Promise<void> {
     const now = metadata.interruptedAt;
 
-    // 1. 主块（追加中断提示）置终态
-    this.updateSingleBlock(this.blockId, content, now, undefined, metadata);
+    // 诊断：打印中断时这条消息的块构成，便于定位「计时不停」到底卡在哪个块。
+    const dbgMsg = store.getState().messages.entities[this.messageId];
+    const dbgBlocks = (dbgMsg?.blocks ?? []).map((id) => {
+      const b = store.getState().messageBlocks.entities[id];
+      return b ? `${id.slice(0, 6)}:${b.type}/${b.status}` : `${id.slice(0, 6)}:MISSING`;
+    });
+    console.log(`[ResponseCompletionHandler] 中断收尾 blockId=${this.blockId.slice(0, 6)} blocks=[${dbgBlocks.join(', ')}]`);
+
+    // 1. 主块收尾。
+    //    关键修复：初始块在「推理优先 / 纯思考」时可能本身就是思考块（initialBlockId 被
+    //    复用为 thinking 块）。此时绝不能用「正文中断内容」覆盖思考文本，否则思考内容丢失；
+    //    并且该思考块必须交给 finalize 统一收尾（盖 thinking_millsec），所以不放进 skip。
+    const mainBlock = store.getState().messageBlocks.entities[this.blockId];
+    const skipBlockIds: string[] = [];
+    if (mainBlock && mainBlock.type !== MessageBlockType.THINKING) {
+      this.updateSingleBlock(this.blockId, content, now, undefined, metadata);
+      skipBlockIds.push(this.blockId);
+    }
 
     // 2. 收尾不变量：把其余所有非终态块（思考块/文本块/工具块）一并结掉
     //    —— 这是「中断后思考计时不停」的根治点：不再只动 this.blockId
     await finalizeNonTerminalBlocks(this.messageId, {
       now,
       thinkingDurationMs,
-      skipBlockIds: [this.blockId]
+      skipBlockIds
     });
 
     this.updateStates(now, metadata);
 
     // 3. 批量保存主块/消息到数据库（其余块已在 finalize 中落库）
-    await this.saveInterruptedState(content, metadata);
+    //    主块仅在「非思考块」时写入中断内容，避免覆盖思考块文本。
+    await this.saveInterruptedState(content, metadata, skipBlockIds.includes(this.blockId));
 
     // 4. 发送事件
     this.emitEvents(content, true);
@@ -364,20 +381,24 @@ export class ResponseCompletionHandler {
   /**
    * 保存中断状态到数据库
    */
-  private async saveInterruptedState(content: string, metadata: any): Promise<void> {
-    await Promise.all([
-      dexieStorage.updateMessageBlock(this.blockId, {
-        content,
-        status: MessageBlockStatus.SUCCESS,
-        updatedAt: metadata.interruptedAt,
-        metadata
-      }),
+  private async saveInterruptedState(content: string, metadata: any, writeMainBlock: boolean = true): Promise<void> {
+    const ops: Promise<unknown>[] = [
       dexieStorage.updateMessage(this.messageId, {
         status: MessageBlockStatus.SUCCESS,
         updatedAt: metadata.interruptedAt,
         metadata
       })
-    ]);
+    ];
+    // 主块为思考块时不写正文中断内容（思考块已由 finalize 落库），避免覆盖思考文本。
+    if (writeMainBlock) {
+      ops.push(dexieStorage.updateMessageBlock(this.blockId, {
+        content,
+        status: MessageBlockStatus.SUCCESS,
+        updatedAt: metadata.interruptedAt,
+        metadata
+      }));
+    }
+    await Promise.all(ops);
   }
 
   /**
