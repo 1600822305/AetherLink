@@ -41,6 +41,12 @@ export interface ChunkProcessorView {
   readonly blockType: string;
   /** 非流式响应手动建块后回填文本块ID */
   setTextBlockId(blockId: string): void;
+  /**
+   * 取消所有待处理的节流/RAF 块更新。
+   * 中断/出错收尾前必须调用：否则迟到的节流 trailing + requestAnimationFrame
+   * 会在 finalize 之后把块重新写回 streaming，导致思考计时「死灰复燃」。
+   */
+  cancelPendingUpdates(): void;
 }
 
 // 1. 抽象内容累积器
@@ -466,6 +472,16 @@ export class ResponseChunkProcessor {
   ) {
     this.blockStateManager = new BlockStateManager(blockId);
     this.blockUpdater = new SmartThrottledBlockUpdater(stateService, storageService, throttleInterval);
+  }
+
+  /**
+   * 取消所有待处理的节流/RAF 块更新（中断/出错收尾前调用）。
+   * 正常完成时每个块走 forceUpdate(isComplete) 已逐块取消节流；中断没有完成 chunk，
+   * 末尾的 streaming 更新可能仍挂在 throttle/RAF 队列里，会在 finalize 之后触发回写，
+   * 把已收尾的块重新打回 streaming。此方法在收尾前清空这些待处理写入。
+   */
+  cancelPendingUpdates(): void {
+    this.blockUpdater.cancel();
   }
 
   handleChunk(chunk: Chunk): void {
