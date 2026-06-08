@@ -1,11 +1,8 @@
 /**
  * OpenAI API模块
- * 导出统一的API接口
+ * 导出非聊天能力（图像/视频/模型列表/多模态/客户端/工具格式）。
+ * 聊天实现已统一迁移到 AI SDK（见 api/openai-aisdk）；官方 SDK 聊天实现已删除。
  */
-
-// 导入必要的类型
-import type { Model, Message } from '../../types';
-import { OpenAIProvider } from './provider';
 
 // 导出客户端模块
 export {
@@ -17,9 +14,6 @@ export {
   testConnection,
   isAzureOpenAI
 } from './client';
-
-// 导入统一的聊天模块
-import { sendChatMessage } from './chat';
 
 // 导出模型管理模块
 export {
@@ -42,13 +36,6 @@ export {
   WEB_SEARCH_TOOL
 } from './tools';
 
-// 导出统一流式响应模块
-export {
-  unifiedStreamCompletion as streamCompletion,
-  createAdvancedStreamProcessor as OpenAIStreamProcessor,
-  createUnifiedStreamProcessor
-} from './unifiedStreamProcessor';
-
 // 导出图像生成模块
 export {
   generateImage,
@@ -62,12 +49,6 @@ export {
   type GeneratedVideo
 } from './video';
 
-// 导出Provider类
-export {
-  BaseOpenAIProvider,
-  OpenAIProvider
-} from './provider';
-
 // 导出统一参数适配器（推荐使用）
 export {
   OpenAIParameterAdapter,
@@ -77,77 +58,3 @@ export {
   type BaseAPIParameters,
   type CompleteAPIParameters as UnifiedCompleteAPIParameters
 } from '../parameters';
-
-
-// 导出统一聊天模块
-export {
-  sendChatMessage,
-  type ChatOptions,
-  type ChatResponse
-} from './chat';
-
-// 使用统一聊天模块的包装函数
-export async function sendChatRequest(
-  messages: any[],
-  model: Model,
-  options?: {
-    systemPrompt?: string;
-    onChunk?: (chunk: any) => void;
-    abortSignal?: AbortSignal;
-  }
-): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-  const systemPrompt = options?.systemPrompt || '';
-
-  console.log(`[openai/index.ts] 使用统一聊天模块 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
-
-  return sendChatMessage(messages, model, {
-    systemPrompt,
-    onChunk: options?.onChunk,
-    abortSignal: options?.abortSignal
-  });
-}
-
-/**
- * 创建OpenAI API适配器
- * @param model 模型配置
- * @returns OpenAI API适配器对象
- *
- * 使用方法:
- * ```
- * const api = createOpenAIAPI(model);
- * const response = await api.sendMessage(messages, {
- *   enableWebSearch: true,
- *   systemPrompt: "你是一个有用的助手"
- * });
- * ```
- */
-export function createOpenAIAPI(model: Model) {
-  console.log(`[openai/index.ts] 创建OpenAI API适配器 - 模型ID: ${model.id}`);
-  const provider = new OpenAIProvider(model);
-
-  return {
-    /**
-     * 发送消息并获取响应 - 使用统一聊天模块
-     */
-    sendMessage: (
-      messages: Message[],
-      options?: {
-        enableWebSearch?: boolean;
-        systemPrompt?: string;
-        enableTools?: boolean;
-        mcpTools?: import('../../types').MCPTool[];
-        mcpMode?: 'prompt' | 'function';
-        abortSignal?: AbortSignal;
-        assistant?: any;
-      }
-    ) => {
-      console.log(`[openai/index.ts] 通过统一聊天模块发送消息 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
-      return sendChatMessage(messages, model, options);
-    },
-
-    /**
-     * 测试API连接
-     */
-    testConnection: () => provider.testConnection()
-  };
-}
