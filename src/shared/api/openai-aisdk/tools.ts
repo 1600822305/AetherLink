@@ -1,48 +1,30 @@
 /**
  * AI SDK 工具调用模块
- * 将 MCP 工具转换为 AI SDK 的 ToolSet（Record<string, Tool>，供 streamText 使用）。
+ * 将 MCP 工具转换为 AI SDK 格式（使用 OpenAI Function Calling 兼容格式）
  */
-import { tool, jsonSchema } from 'ai';
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
 
 // 复用 openai/tools.ts 中的类型定义
 export { WEB_SEARCH_TOOL } from '../openai/tools';
 
 /**
- * 规范化工具的 JSON Schema：AI SDK 要求函数参数 schema 顶层为 `type: "object"`。
- * MCP 工具可能给出缺失/为 null 的 type，这里兜底，避免被 AI SDK 校验拒绝。
+ * 将 MCP 工具转换为 AI SDK 工具格式
+ * 返回 OpenAI Function Calling 兼容格式
  */
-function normalizeToolSchema(inputSchema: unknown): Record<string, any> {
-  if (!inputSchema || typeof inputSchema !== 'object') {
-    return { type: 'object', properties: {} };
-  }
-  const schema: Record<string, any> = { ...(inputSchema as Record<string, any>) };
-  if (schema.type == null) {
-    schema.type = 'object';
-  }
-  if (schema.type === 'object' && schema.properties == null) {
-    schema.properties = {};
-  }
-  return schema;
-}
-
-/**
- * 将 MCP 工具转换为 AI SDK 工具集（ToolSet）。
- * AI SDK 的 `streamText({ tools })` 需要 `Record<string, Tool>`（按工具名做 key，
- * 每个用 `tool()` 包装、参数用 `jsonSchema()` 描述），而非 OpenAI 的函数数组。
- */
-export function convertMcpToolsToAISDK(mcpTools: MCPTool[]): Record<string, any> {
-  const toolSet: Record<string, any> = {};
-  for (const mcpTool of mcpTools) {
+export function convertMcpToolsToAISDK(mcpTools: MCPTool[]): any[] {
+  return mcpTools.map(mcpTool => {
     const toolName = mcpTool.name || '';
-    if (!toolName) continue;
+    if (!toolName) return null;
 
-    toolSet[toolName] = tool({
-      description: mcpTool.description || '',
-      inputSchema: jsonSchema(normalizeToolSchema(mcpTool.inputSchema))
-    });
-  }
-  return toolSet;
+    return {
+      type: 'function' as const,
+      function: {
+        name: toolName,
+        description: mcpTool.description || '',
+        parameters: mcpTool.inputSchema || { type: 'object', properties: {} }
+      }
+    };
+  }).filter(Boolean);
 }
 
 /**
@@ -140,9 +122,6 @@ export function mcpToolCallResponseToOpenAIMessage(
   }
 
   // AI SDK 格式：返回 ToolModelMessage 格式
-  // AI SDK v6 的 ToolResultPart 要求用 `output: ToolResultOutput`（对象）承载结果，
-  // 而非旧的 `result: "<字符串>"`，否则多轮工具调用第 2 轮会报
-  // AI_InvalidPromptError（path:["output"] expected object）。
   // 参考：https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-text#toolmodelmessage
   return {
     role: 'tool',
@@ -150,9 +129,8 @@ export function mcpToolCallResponseToOpenAIMessage(
       type: 'tool-result',
       toolCallId: toolCallId,
       toolName: toolName,
-      output: resp.isError
-        ? { type: 'error-text' as const, value: content }
-        : { type: 'text' as const, value: content }
+      result: content,
+      isError: resp.isError || false
     }]
   };
 }

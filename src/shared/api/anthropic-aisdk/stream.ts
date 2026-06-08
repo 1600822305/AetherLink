@@ -6,32 +6,135 @@
 import { streamText, generateText } from 'ai';
 import type { AnthropicProvider as AISDKAnthropicProvider } from '@ai-sdk/anthropic';
 import { logApiRequest } from '../../services/infra/LoggerService';
+import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
-import type { Model } from '../../types';
+import type { Model, MCPTool } from '../../types';
 import { convertMcpToolsToAISDK } from './tools';
 import { supportsExtendedThinking, isClaudeReasoningModel } from './client';
-import { getAppropriateTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
-import {
-  ThinkTagParser,
-  accumulateToolCall,
-  emitStreamComplete,
-  emitStreamError,
-  detectAndEmitToolUseTags,
-  PROMPT_MODE_STOP_SEQUENCES,
-  type BaseStreamResult,
-  type BaseStreamParams,
-} from '../../ai/adapters/shared/streamShared';
+import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
+
+/**
+ * 解析推理标签内容（用于兼容非原生推理模式）
+ */
+class ThinkTagParser {
+  private contentBuffer = '';
+  private isInThinkTag = false;
+  private thinkBuffer = '';
+  private reasoningStartTime = 0;
+  private hasReasoningContent = false;
+  private openingTag: string;
+  private closingTag: string;
+
+  constructor(tag?: ReasoningTag) {
+    this.openingTag = tag?.openingTag || '<thinking>';
+    this.closingTag = tag?.closingTag || '</thinking>';
+  }
+
+  processChunk(text: string): { normalText: string; thinkText: string; isThinking: boolean } {
+    this.contentBuffer += text;
+    
+    let normalText = '';
+    let thinkText = '';
+    let processedAny = true;
+
+    while (processedAny && this.contentBuffer.length > 0) {
+      processedAny = false;
+
+      if (!this.isInThinkTag) {
+        const thinkStartIndex = this.contentBuffer.indexOf(this.openingTag);
+        if (thinkStartIndex !== -1) {
+          normalText += this.contentBuffer.substring(0, thinkStartIndex);
+          this.isInThinkTag = true;
+          if (!this.hasReasoningContent) {
+            this.hasReasoningContent = true;
+            this.reasoningStartTime = Date.now();
+          }
+          this.contentBuffer = this.contentBuffer.substring(thinkStartIndex + this.openingTag.length);
+          processedAny = true;
+        } else if (this.contentBuffer.length > this.openingTag.length + 5) {
+          const safeLength = this.contentBuffer.length - (this.openingTag.length + 5);
+          const safeContent = this.contentBuffer.substring(0, safeLength);
+          normalText += safeContent;
+          this.contentBuffer = this.contentBuffer.substring(safeLength);
+          processedAny = true;
+        }
+      } else {
+        const thinkEndIndex = this.contentBuffer.indexOf(this.closingTag);
+        if (thinkEndIndex !== -1) {
+          thinkText += this.contentBuffer.substring(0, thinkEndIndex);
+          this.thinkBuffer += this.contentBuffer.substring(0, thinkEndIndex);
+          this.isInThinkTag = false;
+          this.contentBuffer = this.contentBuffer.substring(thinkEndIndex + this.closingTag.length);
+          processedAny = true;
+        } else if (this.contentBuffer.length > this.closingTag.length + 5) {
+          const safeLength = this.contentBuffer.length - (this.closingTag.length + 5);
+          const safeThinkContent = this.contentBuffer.substring(0, safeLength);
+          thinkText += safeThinkContent;
+          this.thinkBuffer += safeThinkContent;
+          this.contentBuffer = this.contentBuffer.substring(safeLength);
+          processedAny = true;
+        }
+      }
+    }
+
+    return { normalText, thinkText, isThinking: this.isInThinkTag };
+  }
+
+  flush(): { normalText: string; thinkText: string } {
+    let normalText = '';
+    let thinkText = '';
+
+    if (this.contentBuffer.length > 0) {
+      if (this.isInThinkTag) {
+        thinkText = this.contentBuffer;
+        this.thinkBuffer += this.contentBuffer;
+      } else {
+        normalText = this.contentBuffer;
+      }
+      this.contentBuffer = '';
+    }
+
+    return { normalText, thinkText };
+  }
+
+  getFullThinkContent(): string {
+    return this.thinkBuffer;
+  }
+
+  getReasoningTime(): number {
+    return this.hasReasoningContent ? Date.now() - this.reasoningStartTime : 0;
+  }
+}
 
 /**
  * 流式响应结果类型
  */
-export interface StreamResult extends BaseStreamResult {}
+export interface StreamResult {
+  content: string;
+  reasoning?: string;
+  reasoningTime?: number;
+  hasToolCalls?: boolean;
+  nativeToolCalls?: any[];
+}
 
 /**
  * 流式请求参数
  */
-export interface StreamParams extends BaseStreamParams {
+export interface StreamParams {
+  messages?: any[];
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  tools?: any[];
+  tool_choice?: any;
+  signal?: AbortSignal;
+  enableTools?: boolean;
+  mcpTools?: MCPTool[];
+  mcpMode?: 'prompt' | 'function';
+  model?: Model;
+  /** 自定义请求体参数 */
+  extraBody?: Record<string, any>;
   /** 是否启用 Extended Thinking */
   enableThinking?: boolean;
   /** 思考预算 Token 数 */
@@ -100,7 +203,7 @@ export async function streamCompletion(
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
+    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
 
     // 准备 providerOptions
     let providerOptions: Record<string, any> = {};
@@ -205,7 +308,26 @@ export async function streamCompletion(
 
         case 'tool-call':
           console.log(`[Anthropic SDK Stream] 检测到工具调用: ${part.toolName}`);
-          accumulateToolCall(part, toolCalls, onChunk, { includeToolUseId: true });
+          const toolInput = (part as any).input || (part as any).args || {};
+          toolCalls.push({
+            id: part.toolCallId,
+            toolUseId: part.toolCallId,
+            type: 'function',
+            function: {
+              name: part.toolName,
+              arguments: JSON.stringify(toolInput)
+            }
+          });
+          
+          onChunk?.({
+            type: ChunkType.MCP_TOOL_CREATED,
+            responses: [{
+              id: part.toolCallId,
+              name: part.toolName,
+              arguments: toolInput,
+              status: 'pending'
+            }]
+          });
           break;
 
         case 'finish':
@@ -248,10 +370,22 @@ export async function streamCompletion(
     }
 
     // 发送全局事件
-    emitStreamComplete('anthropic-aisdk', modelId, fullContent, fullReasoning);
+    EventEmitter.emit(EVENT_NAMES.STREAM_COMPLETE, {
+      provider: 'anthropic-aisdk',
+      model: modelId,
+      content: fullContent,
+      reasoning: fullReasoning,
+      timestamp: Date.now()
+    });
 
     // 检查工具使用标签（XML 模式）
-    detectAndEmitToolUseTags(fullContent, modelId, 'Anthropic SDK Stream');
+    if (hasToolUseTags(fullContent)) {
+      console.log(`[Anthropic SDK Stream] 检测到 XML 工具使用标签`);
+      EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
+        content: fullContent,
+        model: modelId
+      });
+    }
 
     const endTime = Date.now();
     console.log(`[Anthropic SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
@@ -266,7 +400,14 @@ export async function streamCompletion(
 
   } catch (error: any) {
     console.error('[Anthropic SDK Stream] 流式响应失败:', error);
-    emitStreamError('anthropic-aisdk', modelId, error);
+
+    EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
+      provider: 'anthropic-aisdk',
+      model: modelId,
+      error: error.message,
+      timestamp: Date.now()
+    });
+
     throw error;
   }
 }
@@ -315,7 +456,7 @@ export async function nonStreamCompletion(
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
     const isPromptMode = !enableTools && mcpTools.length > 0;
-    const stopSequences = isPromptMode ? PROMPT_MODE_STOP_SEQUENCES : undefined;
+    const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
 
     // 准备 providerOptions
     let providerOptions: Record<string, any> = {};
