@@ -3,7 +3,7 @@
  * 导出统一的 API 接口
  */
 import type { Model, Message } from '../../types';
-import { sendChatMessage as openaiSendChatMessage } from '../openai/chat';
+import { OpenAIAISDKProvider } from '../openai-aisdk';
 import { getDashScopeCompatibleUrl } from './client';
 
 // 导出客户端模块
@@ -37,9 +37,10 @@ export async function sendChatRequest(
     baseUrl: getDashScopeCompatibleUrl(model)
   };
 
-  console.log(`[DashScope] sendChatRequest - 模型: ${model.id}, 使用兼容模式`);
+  console.log(`[DashScope] sendChatRequest - 模型: ${model.id}, 使用 OpenAI 兼容模式 (AI SDK)`);
 
-  return openaiSendChatMessage(messages as Message[], compatibleModel, {
+  const provider = new OpenAIAISDKProvider(compatibleModel);
+  return provider.sendChatMessage(messages as Message[], {
     systemPrompt: options?.systemPrompt
   });
 }
