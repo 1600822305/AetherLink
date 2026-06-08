@@ -215,6 +215,9 @@ src/shared/ai/
 
 - **Phase 0 — 护栏**
   给聊天链路补特征测试（characterization tests）：openai / anthropic / gemini 的流式 + 非流式 + 工具调用 + testConnection；mock SDK 输出，固定"输入 → Chunk 序列"快照（范式：`src/shared/api/openai/__tests__/tools.characterization.test.ts`）。CI 接 `type-check + lint + vitest`。
+  - **已完成（本 PR）**：`src/shared/api/openai-aisdk/__tests__/stream.characterization.test.ts` 钉死 AI SDK 流式路径 `fullStream parts → onChunk(Chunk)` 序列，覆盖纯文本（累积 TEXT_DELTA + 唯一 TEXT_COMPLETE）、推理（`reasoning-delta` / `raw.reasoning_content` → THINKING_DELTA/COMPLETE）、文本/推理交错顺序、工具调用（`tool-call` → MCP_TOOL_CREATED 且跳过 TEXT_COMPLETE）。新增 `.github/workflows/pr-test.yml`（PR 上跑 `npm test`）。
+  - **live 基线（DeepSeek，openai 兼容路径，2026-06-08）**：`deepseek-chat` 实际 `fullStream` part 类型 = `start/start-step/raw/text-start/text-delta/text-end/finish-step/finish`；`deepseek-reasoner` 额外产出大量 `raw`，其推理内容经 `raw.choices[0].delta.reasoning_content` 传递（**印证 §2.5 的 `raw → THINKING_DELTA` 映射**）。当前 `streamCompletion` 忽略 `start*/text-start/text-end/finish-step` 等 part（无 case，等价 no-op）。
+  - **待办**：补 `nonStreamCompletion`、anthropic/gemini-aisdk 与官方 `openai` 路径的特征测试；评估把 `lint` 接入 PR 门禁（先清存量再设只降不升基线）。
 - **Phase 1 — 版本对齐（零架构改动）**
   升级 `ai / @ai-sdk/*` 到最新 v6 并锁版本；`type-check` + 特征测试确认无回归。
 - **Phase 2 — 零风险清理**
@@ -235,7 +238,7 @@ src/shared/ai/
 | Phase | 名称 | 状态 | PR | 完成日期 | 备注 |
 |------:|------|:----:|----|----------|------|
 | — | 文档与计划（本文）| ✅ 完成 | 本 PR | 2026-06-08 | 建立 single source of truth |
-| 0 | 护栏（测试 + CI）| ⬜ 未开始 | | | |
+| 0 | 护栏（测试 + CI）| 🔵 进行中 | #PHASE0_PR | 2026-06-08 | AI SDK 流式 Chunk 契约特征测试 + PR Test(vitest) CI；lint 门禁待补 |
 | 1 | 版本对齐 v6 | ⬜ 未开始 | | | |
 | 2 | 零风险清理 | ⬜ 未开始 | | | 删 `api/providerFactory.ts` |
 | 3 | 立契约 + 合并基类 | ⬜ 未开始 | | | |
@@ -251,6 +254,7 @@ src/shared/ai/
 
 - **2026-06-08** — 建立本重构计划文档与进度追踪器；完成现状诊断、SDK 版本核实（确认在 v6 最新稳定线、v7 仍 beta）、"为何官方 OpenAI 未删"的根因调查（结论：兼容生态底座 + AI SDK 版为默认关闭的实验，未发现明确的 bug 回退提交）。
 - **2026-06-08** — 补充 §2 决策（保留 vs 删除官方 OpenAI：终态删、过渡先统一保留、例外按测试结果定）；新增 §2.5 `Chunk` 契约边界（论证 API 与信息块系统通过 Chunk 解耦，只要 Chunk 序列不变块系统不受影响，并列出高危改动让 Phase 0 测试覆盖）；新增 §2.6 信息块系统现状登记（~83 处 workaround，列为独立后续重构目标，不在本次 API 重构范围）。
+- **2026-06-08（Phase 0 启动）** — 新增 AI SDK 流式 Chunk 契约特征测试 `src/shared/api/openai-aisdk/__tests__/stream.characterization.test.ts`（6 例全绿，连同既有 tools 测试共 12 例）；新增 `.github/workflows/pr-test.yml` 把 vitest 接入 PR CI（此前仅有 type-check 与 build）；用 DeepSeek 临时 key 跑通 live 基线，证实 `raw.reasoning_content` 推理映射与契约一致。详见 §6 Phase 0。
 
 ---
 
