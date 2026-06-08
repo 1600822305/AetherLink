@@ -35,6 +35,7 @@ const ThinkingProcessSettings: React.FC = () => {
   // 获取思考过程相关设置
   const thinkingDisplayStyle = (settings as any).thinkingDisplayStyle || ThinkingDisplayStyle.COMPACT;
   const thoughtAutoCollapse = (settings as any).thoughtAutoCollapse !== false;
+  const thinkingToolInline = (settings as any).thinkingToolInline !== false;
 
   // 创建预览用的思考块数据
   const previewThinkingBlock: ThinkingMessageBlock = {
@@ -62,6 +63,12 @@ const ThinkingProcessSettings: React.FC = () => {
   const handleThoughtAutoCollapseChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(updateSettings({
       thoughtAutoCollapse: event.target.checked
+    }));
+  };
+
+  const handleThinkingToolInlineChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(updateSettings({
+      thinkingToolInline: event.target.checked
     }));
   };
 
@@ -204,6 +211,21 @@ const ThinkingProcessSettings: React.FC = () => {
               <CustomSwitch
                 checked={thoughtAutoCollapse}
                 onChange={handleThoughtAutoCollapseChange}
+              />
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mt: 1 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body1">
+                  {t('settings.appearance.thinkingProcess.display.toolInline')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}>
+                  {t('settings.appearance.thinkingProcess.display.toolInlineDescription')}
+                </Typography>
+              </Box>
+              <CustomSwitch
+                checked={thinkingToolInline}
+                onChange={handleThinkingToolInlineChange}
               />
             </Box>
 

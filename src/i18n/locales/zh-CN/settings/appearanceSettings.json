@@ -191,6 +191,8 @@
         "description": "自定义AI思考过程的显示方式和自动折叠行为",
         "styleLabel": "显示样式",
         "autoCollapse": "思考完成后自动折叠",
+        "toolInline": "思考过程内显示工具调用",
+        "toolInlineDescription": "将思考阶段发起的工具调用以简化样式内嵌进思考块；关闭后工具调用始终独立显示在消息下方",
         "styles": {
           "compact": "紧凑模式（可折叠）",
           "full": "完整模式（始终展开）",

@@ -64,6 +64,8 @@ export interface ThinkingCompactStyleProps {
   thinkingTime: number;
   content: string;
   copied: boolean;
+  /** 思考阶段内嵌工具节点（可选） */
+  inlineTools?: React.ReactNode;
   onToggleExpanded: () => void;
   onCopy: (e: React.MouseEvent) => void;
 }
@@ -85,6 +87,7 @@ const ThinkingCompactStyle: React.FC<ThinkingCompactStyleProps> = ({
   thinkingTime,
   content,
   copied,
+  inlineTools,
   onToggleExpanded,
   onCopy
 }) => {
@@ -328,6 +331,24 @@ const ThinkingCompactStyle: React.FC<ThinkingCompactStyleProps> = ({
           <Markdown content={content} allowHtml={false} />
         </Box>
       </Collapse>
+
+      {/* 思考阶段内嵌工具（始终可见，无需展开思考块） */}
+      {inlineTools && (
+        <Box
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            px: 1.5,
+            pb: 1.25,
+            pt: expanded ? 0 : 1.25,
+            borderTop: expanded
+              ? 'none'
+              : `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+            cursor: 'default',
+          }}
+        >
+          {inlineTools}
+        </Box>
+      )}
     </StyledPaper>
   );
 };
