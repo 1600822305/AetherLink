@@ -362,11 +362,13 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   // ChatScrollController 内部的 ResizeObserver 被动跟随，无需在此监听业务事件。
 
   // ⭐ 用户自己发送新消息时强制置底；AI 新消息仅在已贴底时跟随
+  // 取「本次新增的消息」判断而非仅看末条，避免用户/助手消息在同一渲染批次追加时漏判
   const prevMessagesLengthRef = useRef(messages.length);
   useEffect(() => {
-    if (messages.length > prevMessagesLengthRef.current) {
-      const last = messages[messages.length - 1];
-      if (last && last.role === 'user') {
+    const prevLength = prevMessagesLengthRef.current;
+    if (messages.length > prevLength) {
+      const added = messages.slice(prevLength);
+      if (added.some(m => m.role === 'user')) {
         controllerRef.current?.pinToBottom('auto');
       }
     }
