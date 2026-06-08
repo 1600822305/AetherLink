@@ -79,9 +79,9 @@
     "chevrotain": "11.0.3"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.47",
-    "@ai-sdk/google": "^3.0.33",
-    "@ai-sdk/openai": "^3.0.33",
+    "@ai-sdk/anthropic": "3.0.81",
+    "@ai-sdk/google": "3.0.80",
+    "@ai-sdk/openai": "3.0.68",
     "@capacitor-community/file-opener": "^7.0.1",
     "@capacitor-community/speech-recognition": "^7.0.0",
     "@capacitor-community/text-to-speech": "^6.1.0",
@@ -154,7 +154,7 @@
     "@uiw/codemirror-theme-vscode": "^4.25.3",
     "@uiw/react-codemirror": "^4.23.13",
     "@use-gesture/react": "^10.3.1",
-    "ai": "^6.0.103",
+    "ai": "6.0.197",
     "axios": "^1.13.5",
     "buffer": "6.0.3",
     "capacitor-advanced-file-manager": "^2.1.2",
