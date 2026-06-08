@@ -36,6 +36,18 @@ export const MessageBlockStatus = {
 
 export type MessageBlockStatus = typeof MessageBlockStatus[keyof typeof MessageBlockStatus];
 
+// 终态块状态：流结束后块必须落入其一（用于「收尾不变量」与计时冻结判断）
+export const TERMINAL_BLOCK_STATUSES: ReadonlySet<MessageBlockStatus> = new Set([
+  MessageBlockStatus.SUCCESS,
+  MessageBlockStatus.ERROR,
+  MessageBlockStatus.PAUSED
+]);
+
+/** 块是否处于终态（已结束，不应再被流式更新/计时） */
+export function isTerminalBlockStatus(status: MessageBlockStatus): boolean {
+  return TERMINAL_BLOCK_STATUSES.has(status);
+}
+
 // 基础消息块接口
 export interface BaseMessageBlock {
   id: string
@@ -65,7 +77,10 @@ export interface MainTextMessageBlock extends BaseMessageBlock {
 export interface ThinkingMessageBlock extends BaseMessageBlock {
   type: typeof MessageBlockType.THINKING
   content: string
+  /** 思考耗时（毫秒）。收尾时由「结束时刻 − 起始时刻」算出并定格 */
   thinking_millsec?: number
+  /** 思考起始时刻（epoch ms）。计时以时间戳派生，避免计数器累加漂移 */
+  thinkingStartTime?: number
 }
 
 // 图片消息块

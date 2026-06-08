@@ -608,13 +608,14 @@ export class TopicService {
           let needsUpdate = false;
           const updates: Partial<MessageBlock> = {};
 
-          //  修复：处理工具块状态恢复，考虑多个工具的情况
+          //  修复：处理块状态恢复，考虑多个工具的情况
           if (!block.status || (typeof block.status !== 'string')) {
             // 状态无效，修复为 success
             updates.status = 'success';
             needsUpdate = true;
-          } else if (block.type === 'tool' && (block.status === 'processing' || block.status === 'streaming' || block.status === 'pending')) {
-            //  关键修复：工具块在重启后如果还是未完成状态，应该设为已完成
+          } else if (block.status === 'processing' || block.status === 'streaming' || block.status === 'pending') {
+            //  关键修复（兜底）：任意类型的块在重启后若仍停留在非终态，应收尾为已完成，
+            //  避免历史脏数据导致思考块计时不停 / 块卡在流式态。
             updates.status = 'success';
             needsUpdate = true;
           }
