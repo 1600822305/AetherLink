@@ -241,24 +241,38 @@ export class ResponseCompletionHandler {
         }));
       }
     } else {
-      // 流式响应：使用原有逻辑
-      if (chunkProcessor.blockType === MessageBlockType.THINKING) {
-        updateOperations.push(messageBlockRepository.updateBlock(
-          this.blockId,
-          this.buildThinkingSuccessUpdate(thinkingContent, now, finalThinkingMillis)
-        ));
-      } else {
+      // 流式响应：各块内容已在流式阶段逐块写入（含 DB），收尾原则上只需定稿状态。
+      // ⭐ 修复（多轮思考 #116）：初始块 this.blockId 可能是更早已定稿的思考块（如「思考1」）。
+      //    旧逻辑无条件用末轮/累积 reasoning 或最终正文覆盖 this.blockId，在多轮场景下
+      //    会把第一段思考吞空（reasoning 已随轮重置为空）或串入别轮内容。
+      //    因此仅对「当前正文块 / 当前思考块」回填最新内容（其末帧可能尚未 flush），
+      //    其余块（含早期已定稿的思考块）保留既有内容、只置 SUCCESS——与 updateAllBlockStates 对齐。
+      const currentTextBlockId = chunkProcessor.textBlockId;
+      const currentThinkingBlockId = chunkProcessor.thinkingId;
+
+      if (this.blockId === currentTextBlockId) {
         updateOperations.push(messageBlockRepository.updateBlock(this.blockId, {
           type: MessageBlockType.MAIN_TEXT,
           content: content,
           status: MessageBlockStatus.SUCCESS,
           updatedAt: now
         }));
+      } else if (this.blockId === currentThinkingBlockId) {
+        updateOperations.push(messageBlockRepository.updateBlock(
+          this.blockId,
+          this.buildThinkingSuccessUpdate(thinkingContent, now, finalThinkingMillis)
+        ));
+      } else {
+        // 初始块为早期已定稿块：保留内容，只定稿状态（思考块补计时）。
+        updateOperations.push(messageBlockRepository.updateBlock(
+          this.blockId,
+          this.buildPreserveContentFinalize(this.blockId, now, finalThinkingMillis)
+        ));
       }
 
       // 更新新创建的主文本块
-      if (chunkProcessor.textBlockId && chunkProcessor.textBlockId !== this.blockId) {
-        updateOperations.push(messageBlockRepository.updateBlock(chunkProcessor.textBlockId, {
+      if (currentTextBlockId && currentTextBlockId !== this.blockId) {
+        updateOperations.push(messageBlockRepository.updateBlock(currentTextBlockId, {
           type: MessageBlockType.MAIN_TEXT,
           content: content,
           status: MessageBlockStatus.SUCCESS,
@@ -281,6 +295,24 @@ export class ResponseCompletionHandler {
     };
 
     if (typeof thinkingMillis === 'number') {
+      update.thinking_millsec = thinkingMillis;
+    }
+
+    return update;
+  }
+
+  /**
+   * 仅定稿状态、保留既有内容（不含 content/type，避免覆盖流式已写入的块内容）。
+   * 思考块补齐计时。用于收尾时已在流式阶段定稿的早期块（如多轮思考的「思考1」）。
+   */
+  private buildPreserveContentFinalize(blockId: string, now: string, thinkingMillis?: number): Partial<MessageBlock> {
+    const update: Partial<MessageBlock> = {
+      status: MessageBlockStatus.SUCCESS,
+      updatedAt: now
+    };
+
+    const existing = store.getState().messageBlocks.entities[blockId];
+    if (existing?.type === MessageBlockType.THINKING && typeof thinkingMillis === 'number') {
       update.thinking_millsec = thinkingMillis;
     }
 
