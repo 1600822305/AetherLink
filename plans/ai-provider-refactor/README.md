@@ -238,7 +238,7 @@ src/shared/ai/
 | Phase | 名称 | 状态 | PR | 完成日期 | 备注 |
 |------:|------|:----:|----|----------|------|
 | — | 文档与计划（本文）| ✅ 完成 | 本 PR | 2026-06-08 | 建立 single source of truth |
-| 0 | 护栏（测试 + CI）| 🔵 进行中 | #PHASE0_PR | 2026-06-08 | AI SDK 流式 Chunk 契约特征测试 + PR Test(vitest) CI；lint 门禁待补 |
+| 0 | 护栏（测试 + CI）| 🔵 进行中 | #89 | 2026-06-08 | AI SDK 流式 Chunk 契约特征测试 + PR Test(vitest) CI；lint 门禁待补 |
 | 1 | 版本对齐 v6 | ⬜ 未开始 | | | |
 | 2 | 零风险清理 | ⬜ 未开始 | | | 删 `api/providerFactory.ts` |
 | 3 | 立契约 + 合并基类 | ⬜ 未开始 | | | |
