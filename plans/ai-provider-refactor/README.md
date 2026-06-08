@@ -243,7 +243,7 @@ src/shared/ai/
 |------:|------|:----:|----|----------|------|
 | — | 文档与计划（本文）| ✅ 完成 | 本 PR | 2026-06-08 | 建立 single source of truth |
 | 0 | 护栏（测试 + CI）| ✅ 完成 | #89 | 2026-06-08 | 4 条聊天路径 Chunk 契约特征测试（32 用例）+ PR Test(vitest) CI；CI 全绿（type-check/test/build/SonarCloud）；lint 因存量 230 errors 暂不门禁，留待 Phase 6 |
-| 1 | 版本对齐 v6 | ⬜ 未开始 | | | |
+| 1 | 版本对齐 v6 | ✅ 完成 | [#90](https://github.com/1600822305/AetherLink/pull/90) | 2026-06-08 | `ai`/`@ai-sdk/*` 升至最新稳定 v6 并 pin 精确版本；零架构改动；官方 `openai` 不动（Phase 4 删）；type-check/test(32)/build 全绿 |
 | 2 | 零风险清理 | ⬜ 未开始 | | | 删 `api/providerFactory.ts` |
 | 3 | 立契约 + 合并基类 | ⬜ 未开始 | | | |
 | 4 | 适配器化（逐家）| ⬜ 未开始 | | | 删 `api/openai`、接 openai-compatible |
@@ -260,6 +260,7 @@ src/shared/ai/
 - **2026-06-08** — 补充 §2 决策（保留 vs 删除官方 OpenAI：终态删、过渡先统一保留、例外按测试结果定）；新增 §2.5 `Chunk` 契约边界（论证 API 与信息块系统通过 Chunk 解耦，只要 Chunk 序列不变块系统不受影响，并列出高危改动让 Phase 0 测试覆盖）；新增 §2.6 信息块系统现状登记（~83 处 workaround，列为独立后续重构目标，不在本次 API 重构范围）。
 - **2026-06-08（Phase 0）** — 为四条聊天路径补齐 Chunk 契约特征测试（openai-aisdk 流式+非流式、官方 openai `UnifiedStreamProcessor`、anthropic-aisdk、gemini-aisdk），连同既有 tools 测试共 **33 用例全绿**；新增 `.github/workflows/pr-test.yml` 把 vitest 接入 PR CI（此前仅有 type-check 与 build）；用 DeepSeek 临时 key 跑通 live 基线，证实 `raw.reasoning_content` 推理映射与契约一致；评估 lint 门禁（存量 230 errors，暂缓）。详见 §6 Phase 0。
 - **2026-06-08（Phase 0 完成）** — 为通过 SonarCloud 新代码重复率门禁，将三家同构 AI SDK 测试（曾各自独立、重复率 48.8%）抽出共享参数化套件 `__tests__/shared/aisdkStreamContract.ts` 并合并进单文件 `__tests__/aisdk-stream.characterization.test.ts`（循环跑公共契约 + 各家特有推理用例），重复率降至达标；合并后 **32 用例全绿**，PR #89 CI 全绿（type-check / test / build / SonarCloud）。**Phase 0 标记完成**，可开始 Phase 1（版本对齐）。
+- **2026-06-08（Phase 1 完成）** — 版本对齐（零架构/逻辑改动）：把 `ai` `^6.0.103→6.0.197`、`@ai-sdk/openai` `^3.0.33→3.0.68`、`@ai-sdk/anthropic` `^3.0.47→3.0.81`、`@ai-sdk/google` `^3.0.33→3.0.80` 升至 npm 最新稳定 v6，并按"锁版本"要求 **pin 成精确版本（去 `^`）**；v7 仍 beta 未升。官方 `openai`（6.25.0）**保持不动**（Phase 4 删除目标，且本 Phase 范围仅含 `ai`/`@ai-sdk/*`）。`package-lock.json` 改动仅落在 `ai`/`@ai-sdk/*` 子树（含传递依赖 `@ai-sdk/provider`/`provider-utils`/`gateway`、`@vercel/oidc`、`eventsource-parser`），无不相关包变动。本机验证全绿：`type-check`（增量 + `tsc --noEmit` 全量）、`npm test` 32/32（Phase 0 Chunk 契约护栏未回归）、`vite build`（7990 modules）。PR [#90](https://github.com/1600822305/AetherLink/pull/90)。
 
 ---
 
