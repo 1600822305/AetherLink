@@ -6,6 +6,7 @@
  */
 
 import { memoryService } from './MemoryService';
+import { universalFetch } from '../../utils/universalFetch';
 import {
   updateMemorySystemPrompt,
   getFactRetrievalMessages,
@@ -196,10 +197,18 @@ export class MemoryProcessor {
         return result;
       }
 
-      // 解析更新决策
+      // 解析更新决策，失败时降级为直接添加新事实，避免静默丢数据
       const parsed = parseJsonSafe<MemoryUpdateResult>(response);
       if (!parsed || !Array.isArray(parsed)) {
-        console.warn('[MemoryProcessor] 无法解析更新决策');
+        console.warn('[MemoryProcessor] 无法解析更新决策，降级为直接添加事实');
+        for (const fact of facts) {
+          const memory = await memoryService.add(fact, {
+            userId: this.config.userId,
+            assistantId: this.config.assistantId,
+            metadata: { source: 'auto' },
+          });
+          if (memory) result.addedCount++;
+        }
         return result;
       }
 
@@ -279,7 +288,7 @@ export class MemoryProcessor {
       const baseUrl = model.baseUrl || 'https://api.openai.com/v1';
       const url = `${baseUrl}/chat/completions`;
 
-      const response = await fetch(url, {
+      const response = await universalFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

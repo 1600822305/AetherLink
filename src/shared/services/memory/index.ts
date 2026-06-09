@@ -8,7 +8,7 @@ export { MemoryProcessor, createMemoryProcessor } from './MemoryProcessor';
 
 // 提示词
 export {
-  factExtractionPrompt,
+  getFactExtractionPrompt,
   updateMemorySystemPrompt,
   updateMemoryUserPromptTemplate,
   getFactRetrievalMessages,
