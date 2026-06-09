@@ -659,17 +659,28 @@ export class TopicService {
     }
   }
 
-  // 节流更新块内容 - 添加清理机制
-  private static throttledBlockUpdate = throttle(async (id: string, blockUpdate: Partial<MessageBlock>) => {
-    store.dispatch(updateOneBlock({ id, changes: blockUpdate }));
-    await dexieStorage.message_blocks.update(id, blockUpdate);
-  }, 150);
+  // Per-block 节流器，避免共享 throttle 丢弃其他块的更新
+  private static blockThrottleMap = new Map<string, ReturnType<typeof throttle>>();
+
+  private static getBlockThrottler(id: string) {
+    let fn = this.blockThrottleMap.get(id);
+    if (!fn) {
+      fn = throttle(async (blockUpdate: Partial<MessageBlock>) => {
+        store.dispatch(updateOneBlock({ id, changes: blockUpdate }));
+        await dexieStorage.message_blocks.update(id, blockUpdate);
+      }, 150);
+      this.blockThrottleMap.set(id, fn);
+    }
+    return fn;
+  }
 
   // 清理节流函数，防止内存泄漏
   static cleanup(): void {
-    if (this.throttledBlockUpdate && typeof this.throttledBlockUpdate.cancel === 'function') {
-      this.throttledBlockUpdate.cancel();
+    for (const fn of this.blockThrottleMap.values()) {
+      fn.flush();
+      fn.cancel();
     }
+    this.blockThrottleMap.clear();
   }
 
   /**
@@ -678,8 +689,8 @@ export class TopicService {
   static async updateMessageBlock(block: MessageBlock): Promise<void> {
     try {
       const { id, ...blockUpdate } = block;
-      // 使用节流函数更新块内容
-      await this.throttledBlockUpdate(id, blockUpdate);
+      // 使用 per-block 节流函数更新块内容
+      await this.getBlockThrottler(id)(blockUpdate);
     } catch (error) {
       console.error(`[TopicService] 更新消息块失败:`, error);
       throw error;

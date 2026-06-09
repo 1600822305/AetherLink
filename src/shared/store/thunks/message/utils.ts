@@ -53,18 +53,41 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
   }
 };
 
-// P0修复：创建可刷新的节流器
-const _throttledBlockUpdate = throttle(async (id: string, blockUpdate: Partial<MessageBlock>) => {
-  // 只更新数据库，Redux状态由ResponseHandler处理
-  await dexieStorage.updateMessageBlock(id, blockUpdate);
-}, 150);
+// Per-block 节流器，避免共享 throttle 在窗口内丢弃其他块的更新
+const blockThrottleMap = new Map<string, ReturnType<typeof throttle>>();
 
-export const throttledBlockUpdate = _throttledBlockUpdate;
+const getBlockThrottler = (id: string) => {
+  let fn = blockThrottleMap.get(id);
+  if (!fn) {
+    fn = throttle(async (blockUpdate: Partial<MessageBlock>) => {
+      await dexieStorage.updateMessageBlock(id, blockUpdate);
+    }, 150);
+    blockThrottleMap.set(id, fn);
+  }
+  return fn;
+};
+
+export const throttledBlockUpdate = (id: string, blockUpdate: Partial<MessageBlock>) => {
+  return getBlockThrottler(id)(blockUpdate);
+};
 
 /**
- * 刷新节流器中所有待处理的更新
- * P0修复：在应用退出前调用，确保数据不丢失
+ * 刷新所有块节流器中待处理的更新
  */
 export const flushThrottledUpdates = () => {
-  _throttledBlockUpdate.flush();
+  for (const fn of blockThrottleMap.values()) {
+    fn.flush();
+  }
+};
+
+/**
+ * 清理不再需要的块节流器，防止内存泄漏
+ */
+export const clearBlockThrottler = (id: string) => {
+  const fn = blockThrottleMap.get(id);
+  if (fn) {
+    fn.flush();
+    fn.cancel();
+    blockThrottleMap.delete(id);
+  }
 };

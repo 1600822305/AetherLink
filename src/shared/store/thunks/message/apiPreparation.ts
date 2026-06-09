@@ -194,32 +194,18 @@ export const prepareMessagesForApi = async (
     console.log(`[prepareMessagesForApi] 使用缓存的消息列表，消息数: ${messages.length}`);
   }
 
-  // 按创建时间排序消息，确保顺序正确
-  const sortedMessages = [...messages].sort((a, b) => {
-    const timeA = new Date(a.createdAt).getTime();
-    const timeB = new Date(b.createdAt).getTime();
-    return timeA - timeB; // 升序排列，最早的在前面
-  });
+  // messages 已按 topic.messageIds 插入顺序排列（getTopicMessages），无需再按时间戳排序
 
-  // 4. 获取当前助手消息
-  const assistantMessage = sortedMessages.find((msg: Message) => msg.id === assistantMessageId);
-  if (!assistantMessage) {
+  // 4. 按位置截断：取助手消息之前的所有消息作为上下文
+  const assistantIndex = messages.findIndex((msg: Message) => msg.id === assistantMessageId);
+  if (assistantIndex === -1) {
     throw new Error(`找不到助手消息 ${assistantMessageId}`);
   }
 
-  // 获取当前助手消息的创建时间
-  const assistantMessageTime = new Date(assistantMessage.createdAt).getTime();
-
   // 5. 应用上下文消息数量限制（参考 cherry-studio 的 filterContextMessages）
-  // 首先过滤掉当前助手消息和时间更晚的消息，以及 clear 消息之后的内容
-  let contextFilteredMessages = sortedMessages.filter((msg: Message) => {
-    // 排除当前助手消息
-    if (msg.id === assistantMessageId) return false;
-    // 排除 system 消息
+  // 取助手消息之前的消息，排除 system 消息
+  let contextFilteredMessages = messages.slice(0, assistantIndex).filter((msg: Message) => {
     if (msg.role === 'system') return false;
-    // 排除创建时间晚于当前助手消息的消息
-    const messageTime = new Date(msg.createdAt).getTime();
-    if (messageTime >= assistantMessageTime) return false;
     return true;
   });
   
@@ -246,7 +232,7 @@ export const prepareMessagesForApi = async (
     ? contextFilteredMessages  // 无限制
     : contextFilteredMessages.slice(-actualMessageCount);
   
-  console.log(`[prepareMessagesForApi] 消息轮数限制: 原始消息数=${sortedMessages.length}, 过滤后消息数=${contextFilteredMessages.length}, 限制后消息数=${limitedMessages.length}, 设置轮数=${contextCount}`);
+  console.log(`[prepareMessagesForApi] 消息轮数限制: 原始消息数=${messages.length}, 过滤后消息数=${contextFilteredMessages.length}, 限制后消息数=${limitedMessages.length}, 设置轮数=${contextCount}`);
 
   // 类似 Roo Code：如果设置了上下文窗口大小，应用 Token 限制
   if (contextWindowSize > 0) {
