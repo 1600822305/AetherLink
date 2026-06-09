@@ -162,13 +162,21 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
     prevProps.height === nextProps.height &&
     prevProps.itemHeight === nextProps.itemHeight &&
     prevProps.title === nextProps.title &&
-    // 检查话题数组是否真的发生了变化（浅比较ID）
-    prevProps.topics.every((topic, index) =>
-      topic.id === nextProps.topics[index]?.id &&
-      topic.name === nextProps.topics[index]?.name &&
-      topic.title === nextProps.topics[index]?.title &&
-      topic.pinned === nextProps.topics[index]?.pinned
-    )
+    // 检查话题数组是否真的发生了变化（按影响渲染的字段逐项比较）
+    // 注意：必须包含 lastMessagePreview / messageCount / messageIds 长度，否则未加载话题
+    // 收到新消息后预览/有无消息状态变了但这些字段未被比较 → 误判「跳过重渲染」→ 侧栏预览不刷新。
+    prevProps.topics.every((topic, index) => {
+      const next = nextProps.topics[index];
+      return (
+        topic.id === next?.id &&
+        topic.name === next?.name &&
+        topic.title === next?.title &&
+        topic.pinned === next?.pinned &&
+        topic.lastMessagePreview === next?.lastMessagePreview &&
+        topic.messageCount === next?.messageCount &&
+        (topic.messageIds?.length ?? 0) === (next?.messageIds?.length ?? 0)
+      );
+    })
   );
 
   return shouldSkipRender;
