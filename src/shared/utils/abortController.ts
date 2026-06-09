@@ -22,9 +22,12 @@ export const addAbortController = (id: string, abortFn: () => void) => {
  */
 export const removeAbortController = (id: string, abortFn: () => void) => {
   const callbackArr = abortMap.get(id);
-  if (abortFn) {
-    callbackArr?.splice(callbackArr?.indexOf(abortFn), 1);
-  } else {
+  if (!callbackArr) return;
+  const idx = callbackArr.indexOf(abortFn);
+  if (idx !== -1) {
+    callbackArr.splice(idx, 1);
+  }
+  if (callbackArr.length === 0) {
     abortMap.delete(id);
   }
 };

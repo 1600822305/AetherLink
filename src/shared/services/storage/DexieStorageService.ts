@@ -1059,14 +1059,20 @@ export class DexieStorageService extends Dexie {
   }
 
   /**
-   * 添加节流更新方法
+   * Per-block 节流更新，避免共享 throttle 丢弃其他块的写入
    */
-  throttledUpdateBlock = throttle(
-    async (blockId: string, changes: any) => {
-      return this.updateMessageBlock(blockId, changes);
-    },
-    300 // 增加到300ms节流时间，减少数据库写入频率
-  );
+  private _blockThrottleMap = new Map<string, ReturnType<typeof throttle>>();
+
+  throttledUpdateBlock = (blockId: string, changes: any) => {
+    let fn = this._blockThrottleMap.get(blockId);
+    if (!fn) {
+      fn = throttle(async (c: any) => {
+        return this.updateMessageBlock(blockId, c);
+      }, 300);
+      this._blockThrottleMap.set(blockId, fn);
+    }
+    return fn(changes);
+  };
 
   /**
    * 模型组合相关方法
