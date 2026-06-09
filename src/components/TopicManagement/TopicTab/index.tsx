@@ -39,7 +39,6 @@ import { removeTopic, addTopic } from '../../../shared/store/slices/assistantsSl
 import GroupDialog from '../GroupDialog';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
 import { EventEmitter, EVENT_NAMES } from '../../../shared/services/infra/EventService';
-import { getMainTextContent } from '../../../shared/utils/blockUtils';
 import type { ChatTopic } from '../../../shared/types';
 import type { Assistant } from '../../../shared/types/Assistant';
 import { useTopicGroups } from './hooks/useTopicGroups';
@@ -168,25 +167,16 @@ export default function TopicTab({
     }
   }, [sortedTopics, currentTopic?.id, onSelectTopic]);
 
-  // 筛选话题 - 使用防抖搜索查询
+  // 筛选话题 - 按标题与持久化的最近消息预览匹配（话题对象不含完整 messages，
+  // 内容检索改用持久化的 lastMessagePreview 字段）
   const filteredTopics = useMemo(() => {
-    if (!debouncedSearchQuery) return sortedTopics;
+    const query = debouncedSearchQuery.trim().toLowerCase();
+    if (!query) return sortedTopics;
     return sortedTopics.filter(topic => {
-      // 检查名称或标题
-      if ((topic.name && topic.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) ||
-          (topic.title && topic.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))) {
-        return true;
-      }
-
-      // 检查消息内容
-      return (topic.messages || []).some(message => {
-        // 使用getMainTextContent获取消息内容
-        const content = getMainTextContent(message);
-        if (content) {
-          return content.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
-        }
-        return false;
-      });
+      const name = topic.name?.toLowerCase() ?? '';
+      const title = topic.title?.toLowerCase() ?? '';
+      const preview = topic.lastMessagePreview?.toLowerCase() ?? '';
+      return name.includes(query) || title.includes(query) || preview.includes(query);
     });
   }, [debouncedSearchQuery, sortedTopics]);
 
@@ -718,10 +708,8 @@ export default function TopicTab({
         onDeleteTopic={handleTopicDelete}
         title="未分组话题"
         height="calc(100vh - 400px)" // 动态计算高度
-        emptyMessage="暂无未分组话题"
+        emptyMessage={debouncedSearchQuery ? `没有找到包含 "${debouncedSearchQuery}" 的话题` : '暂无未分组话题'}
         itemHeight={64} // 更新为64px以包含margin-bottom空间
-        searchQuery={debouncedSearchQuery}
-        getMainTextContent={getMainTextContent}
       />
 
       {/* 分组对话框 */}

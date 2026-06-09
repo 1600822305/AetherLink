@@ -21,8 +21,6 @@ interface VirtualizedTopicListProps {
   height?: number | string;
   emptyMessage?: string;
   itemHeight?: number;
-  searchQuery?: string;
-  getMainTextContent?: (message: any) => string | null;
 }
 
 /**
@@ -38,33 +36,8 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
   title,
   height = VIRTUALIZATION_CONFIG.CONTAINER_HEIGHT.DEFAULT,
   emptyMessage = '暂无话题',
-  itemHeight = getItemHeight('topic'),
-  searchQuery = '',
-  getMainTextContent
+  itemHeight = getItemHeight('topic')
 }: VirtualizedTopicListProps) {
-
-  // 过滤话题（搜索功能）
-  const filteredTopics = useMemo(() => {
-    if (!searchQuery) return topics;
-    
-    return topics.filter(topic => {
-      // 检查名称或标题
-      if ((topic.name && topic.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (topic.title && topic.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
-        return true;
-      }
-      
-      // 检查消息内容
-      if (getMainTextContent) {
-        return (topic.messages || []).some(message => {
-          const content = getMainTextContent(message);
-          return content ? content.toLowerCase().includes(searchQuery.toLowerCase()) : false;
-        });
-      }
-      
-      return false;
-    });
-  }, [topics, searchQuery, getMainTextContent]);
 
   // 🚀 优化：移除 currentTopicId 依赖，TopicItem 内部订阅 Redux 状态
   // 这样切换话题时 renderTopicItem 不会重建，只有选中/取消选中的两个 TopicItem 会重渲染
@@ -86,11 +59,11 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
 
   // 计算是否需要虚拟化（使用配置文件的阈值）
   const shouldVirtualize = useMemo(() => {
-    return shouldEnableVirtualization(filteredTopics.length, 'topic');
-  }, [filteredTopics.length]);
+    return shouldEnableVirtualization(topics.length, 'topic');
+  }, [topics.length]);
 
   // 如果话题列表为空，显示空状态
-  if (filteredTopics.length === 0) {
+  if (topics.length === 0) {
     return (
       <Box>
         {title && (
@@ -108,7 +81,7 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
             fontSize: '0.875rem',
           }}
         >
-          {searchQuery ? `没有找到包含 "${searchQuery}" 的话题` : emptyMessage}
+          {emptyMessage}
         </Box>
       </Box>
     );
@@ -125,12 +98,12 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
       {shouldVirtualize ? (
         // 使用虚拟化渲染大量话题（TanStack 动态测高，行高自适应）
         <VirtualList<ChatTopic>
-          items={filteredTopics}
+          items={topics}
           estimateItemHeight={itemHeight}
           renderItem={renderTopicItem}
           itemKey={getTopicKey}
           height={height}
-          overscan={getOverscanCount(filteredTopics.length)} // 根据列表大小动态调整预渲染数量
+          overscan={getOverscanCount(topics.length)} // 根据列表大小动态调整预渲染数量
           style={{
             border: '1px solid',
             borderColor: 'divider',
@@ -157,7 +130,7 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
             },
           }}
         >
-          {filteredTopics.map((topic, index) => (
+          {topics.map((topic, index) => (
             <Box key={topic.id}>
               {renderTopicItem(topic, index)}
             </Box>
@@ -176,8 +149,7 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
           fontSize: '0.75rem'
         }}
       >
-        共 {filteredTopics.length} 个话题
-        {topics.length !== filteredTopics.length && ` (已过滤 ${topics.length - filteredTopics.length} 个)`}
+        共 {topics.length} 个话题
         {shouldVirtualize && ' (已启用虚拟化)'}
       </Typography>
     </Box>
@@ -190,7 +162,6 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
     prevProps.height === nextProps.height &&
     prevProps.itemHeight === nextProps.itemHeight &&
     prevProps.title === nextProps.title &&
-    prevProps.searchQuery === nextProps.searchQuery &&
     // 检查话题数组是否真的发生了变化（浅比较ID）
     prevProps.topics.every((topic, index) =>
       topic.id === nextProps.topics[index]?.id &&
