@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { ImageContent, FileContent } from '../types';
 import type { FileStatus } from '../../components/preview/FilePreview';
-import { toastManager } from '../../components/EnhancedToast';
 
 /**
  * 文件状态记录类型
@@ -32,10 +31,6 @@ export interface UseInputStateReturn {
   fileStatuses: Record<string, FileStatusRecord>;
   setFileStatuses: React.Dispatch<React.SetStateAction<Record<string, FileStatusRecord>>>;
   
-  // Toast消息
-  toastMessages: any[];
-  setToastMessages: React.Dispatch<React.SetStateAction<any[]>>;
-  
   // 知识库刷新标记
   knowledgeRefreshKey: number;
   setKnowledgeRefreshKey: React.Dispatch<React.SetStateAction<number>>;
@@ -63,17 +58,8 @@ export function useInputState(): UseInputStateReturn {
   // 文件状态管理
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatusRecord>>({});
   
-  // Toast消息管理
-  const [toastMessages, setToastMessages] = useState<any[]>([]);
-  
   // 知识库状态刷新标记
   const [knowledgeRefreshKey, setKnowledgeRefreshKey] = useState(0);
-
-  // Toast消息订阅
-  useEffect(() => {
-    const unsubscribe = toastManager.subscribe(setToastMessages);
-    return unsubscribe;
-  }, []);
 
   // 知识库选择状态现在通过 Redux knowledgeSelectionSlice 管理
   // 状态变化会自动触发组件重渲染，无需手动监听事件
@@ -110,10 +96,6 @@ export function useInputState(): UseInputStateReturn {
     // 文件状态管理
     fileStatuses,
     setFileStatuses,
-    
-    // Toast消息
-    toastMessages,
-    setToastMessages,
     
     // 知识库刷新标记
     knowledgeRefreshKey,

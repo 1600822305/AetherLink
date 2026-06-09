@@ -122,7 +122,8 @@ const ModelProviderSettings: React.FC = () => {
     openModelManagementDialog,
     setOpenModelManagementDialog,
     testResult,
-    setTestResult,
+    testSnackbarOpen,
+    setTestSnackbarOpen,
     testResultDialogOpen,
     setTestResultDialogOpen,
     openEditProviderDialog,
@@ -988,9 +989,10 @@ const ModelProviderSettings: React.FC = () => {
 
         {/* 测试结果提示条 */}
         <TestResultSnackbar
+          open={testSnackbarOpen}
           testResult={testResult}
           testResultDialogOpen={testResultDialogOpen}
-          onClose={() => setTestResult(null)}
+          onClose={() => setTestSnackbarOpen(false)}
           onOpenDialog={() => setTestResultDialogOpen(true)}
         />
 

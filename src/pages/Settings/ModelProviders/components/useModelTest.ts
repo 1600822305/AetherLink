@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Model } from '../../../../shared/types';
 import { testApiConnection } from '../../../../shared/api';
 import ApiKeyManager from '../../../../shared/services/ai/ApiKeyManager';
@@ -48,8 +49,12 @@ export function useModelTest(
   baseUrl: string,
   multiKeyEnabled: boolean
 ) {
+  const { t } = useTranslation();
   // 单一状态源
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  // 提示条可见性与内容分离：关闭时只收起提示条，保留 testResult，
+  // 避免退场动画期间内容被清空导致成功/失败文案闪烁
+  const [testSnackbarOpen, setTestSnackbarOpen] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResultDialogOpen, setTestResultDialogOpen] = useState(false);
 
@@ -94,10 +99,10 @@ export function useModelTest(
       if (keySelection.key) {
         return keySelection.key.key;
       }
-      throw new Error('没有可用的 API Key。请检查多 Key 配置。');
+      throw new Error(t('modelSettings.provider.noAvailableKey'));
     }
     return apiKey;
-  }, [provider, apiKey, multiKeyEnabled, keyManager]);
+  }, [provider, apiKey, multiKeyEnabled, keyManager, t]);
 
   // ========================================================================
   // 测试单个模型连接
@@ -110,8 +115,15 @@ export function useModelTest(
     if (isTestingRef.current) return;
     isTestingRef.current = true;
 
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     // 更新 UI 状态
     testingModelId.value = model.id;
+    setTestSnackbarOpen(false);
     setTestResult(null);
 
     try {
@@ -128,28 +140,38 @@ export function useModelTest(
 
       const success = await testApiConnection(testModel);
 
+      // 检查是否被取消
+      if (abortControllerRef.current?.signal.aborted) return;
+
       if (success) {
         setTestResult({
           success: true,
-          message: `模型 ${model.name} 连接成功！`
+          message: t('modelSettings.provider.testModelSuccess', { name: model.name })
         });
       } else {
         setTestResult({
           success: false,
-          message: `模型 ${model.name} 连接失败，请检查API密钥和基础URL是否正确。`
+          message: t('modelSettings.provider.testModelFailed', { name: model.name })
         });
       }
+      setTestSnackbarOpen(true);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+
       console.error('测试模型连接时出错:', error);
       setTestResult({
         success: false,
-        message: `连接错误: ${error instanceof Error ? error.message : String(error)}`
+        message: t('modelSettings.provider.connectionError', {
+          error: error instanceof Error ? error.message : String(error)
+        })
       });
+      setTestSnackbarOpen(true);
     } finally {
       testingModelId.value = null;
       isTestingRef.current = false;
+      abortControllerRef.current = null;
     }
-  }, [provider, baseUrl, resolveApiKey]);
+  }, [provider, baseUrl, resolveApiKey, t]);
 
   // ========================================================================
   // 测试供应商连接（整体）
@@ -169,6 +191,7 @@ export function useModelTest(
     abortControllerRef.current = new AbortController();
 
     setIsTesting(true);
+    setTestSnackbarOpen(false);
     setTestResult(null);
 
     try {
@@ -192,30 +215,35 @@ export function useModelTest(
       if (abortControllerRef.current?.signal.aborted) return;
 
       if (success) {
-        setTestResult({ success: true, message: '连接成功！API配置有效。' });
+        setTestResult({ success: true, message: t('modelSettings.provider.connectionSuccess') });
       } else {
-        setTestResult({ success: false, message: '连接失败，请检查API密钥和基础URL是否正确。' });
+        setTestResult({ success: false, message: t('modelSettings.provider.connectionFailed') });
       }
+      setTestSnackbarOpen(true);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
 
       console.error('测试API连接时出错:', error);
       setTestResult({
         success: false,
-        message: `连接错误: ${error instanceof Error ? error.message : String(error)}`
+        message: t('modelSettings.provider.connectionError', {
+          error: error instanceof Error ? error.message : String(error)
+        })
       });
+      setTestSnackbarOpen(true);
     } finally {
       setIsTesting(false);
       isTestingRef.current = false;
       abortControllerRef.current = null;
     }
-  }, [provider, baseUrl, resolveApiKey]);
+  }, [provider, baseUrl, resolveApiKey, t]);
 
   // ========================================================================
   // 清除测试结果
   // ========================================================================
 
   const clearTestResult = useCallback(() => {
+    setTestSnackbarOpen(false);
     setTestResult(null);
   }, []);
 
@@ -223,6 +251,8 @@ export function useModelTest(
     // 状态
     testResult,
     setTestResult,
+    testSnackbarOpen,
+    setTestSnackbarOpen,
     isTesting,
     testResultDialogOpen,
     setTestResultDialogOpen,
