@@ -57,12 +57,41 @@ import { exportTopicToNotion } from '../../../utils/notionExport';
 import { toastManager } from '../../EnhancedToast';
 
 // 扁平化行模型：分组头 / 分组内项 / 分组空态 / 未分组标题 / 未分组空态
+// 行在所属「内框块」中的位置，用于把相邻条目行拼接成一个连续边框（恢复分组内框样式）
+type FramePos = 'single' | 'first' | 'middle' | 'last';
+
 type TopicRow =
   | { kind: 'group-header'; key: string; group: Group; count: number }
   | { kind: 'group-empty'; key: string }
-  | { kind: 'item'; key: string; topic: ChatTopic }
+  | { kind: 'item'; key: string; topic: ChatTopic; frame: FramePos }
   | { kind: 'subheader'; key: string; label: string }
   | { kind: 'note'; key: string; label: string };
+
+// 给条目行拼接「内框」：左右边框常驻，首行加顶边框+上圆角，末行加底边框+下圆角，
+// 使虚拟器中相邻的绝对定位行在视觉上连成一个带边框/圆角/背景的盒子。
+const itemFrameSx = (frame: FramePos) => ({
+  borderLeft: '1px solid',
+  borderRight: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+  px: 0.5,
+  pb: 1,
+  ...(frame === 'first' || frame === 'single'
+    ? { borderTop: '1px solid', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', pt: 1 }
+    : {}),
+  ...(frame === 'last' || frame === 'single'
+    ? { borderBottom: '1px solid', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', mb: 1.5 }
+    : {}),
+});
+
+// 将一组条目压入扁平行数组，并标注各自在内框块中的位置
+const pushFramedTopics = (out: TopicRow[], topics: ChatTopic[]) => {
+  topics.forEach((t, i) => {
+    const frame: FramePos =
+      topics.length === 1 ? 'single' : i === 0 ? 'first' : i === topics.length - 1 ? 'last' : 'middle';
+    out.push({ kind: 'item', key: t.id, topic: t, frame });
+  });
+};
 
 interface TopicTabProps {
   currentAssistant: ({
@@ -620,7 +649,7 @@ export default function TopicTab({
         if (groupTopics.length === 0) {
           out.push({ kind: 'group-empty', key: `ge-${group.id}` });
         } else {
-          for (const t of groupTopics) out.push({ kind: 'item', key: t.id, topic: t });
+          pushFramedTopics(out, groupTopics);
         }
       }
     }
@@ -632,7 +661,7 @@ export default function TopicTab({
         label: debouncedSearchQuery ? `没有找到包含 "${debouncedSearchQuery}" 的话题` : '暂无未分组话题'
       });
     } else {
-      for (const t of ungroupedTopics) out.push({ kind: 'item', key: t.id, topic: t });
+      pushFramedTopics(out, ungroupedTopics);
     }
     return out;
   }, [topicGroups, filteredTopics, topicGroupMap, ungroupedTopics, debouncedSearchQuery, collapsed]);
@@ -668,7 +697,7 @@ export default function TopicTab({
         );
       case 'item':
         return (
-          <Box sx={{ pb: 1 }}>
+          <Box sx={itemFrameSx(row.frame)}>
             <TopicItem
               topic={row.topic}
               onSelectTopic={handleSelectTopic}
@@ -687,13 +716,15 @@ export default function TopicTab({
         );
       case 'group-empty':
         return (
-          <Typography
-            variant="body2"
-            color="textSecondary"
-            sx={{ py: 1, px: 1, textAlign: 'center', fontStyle: 'italic', fontSize: '0.85rem' }}
-          >
-            此分组暂无话题，请从未分组话题中添加
-          </Typography>
+          <Box sx={itemFrameSx('single')}>
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              sx={{ py: 1, px: 1, textAlign: 'center', fontStyle: 'italic', fontSize: '0.85rem' }}
+            >
+              此分组暂无话题，请从未分组话题中添加
+            </Typography>
+          </Box>
         );
       case 'note':
         return (
