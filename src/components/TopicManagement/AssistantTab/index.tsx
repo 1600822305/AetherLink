@@ -372,6 +372,7 @@ const AssistantTab = React.memo(function AssistantTab({
         assistantName={editAssistantName}
         assistantPrompt={editAssistantPrompt}
         assistantAvatar={editAssistantAvatar}
+        modelId={editingAssistant?.model}
         onNameChange={handleEditNameChange}
         onPromptChange={handleEditPromptChange}
         onAvatarClick={handleOpenAvatarUploader}
