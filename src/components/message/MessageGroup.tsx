@@ -1,105 +1,30 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
-import { Box, Paper, Typography, useTheme } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { ChevronDown as ExpandMoreIcon } from 'lucide-react';
-import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
+import { Box, useTheme } from '@mui/material';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import MessageItem from './MessageItem';
 import MultiModelMessageGroup from './MultiModelMessageGroup';
 import ConversationDivider from './ConversationDivider';
+import ChatDateHeader from './ChatDateHeader';
 import type { Message } from '../../shared/types/newMessage';
 import { getMessageDividerSetting, shouldShowConversationDivider } from '../../shared/utils/settingsUtils';
+import {
+  groupMessagesByAskId,
+  isMultiModelGroup,
+  type MessageOrGroup,
+} from './utils/askIdGrouping';
 
-// 全局设置 dayjs 语言
-dayjs.locale('zh-cn');
 
-/**
- * 将消息按 askId 分组，识别多模型响应
- * 返回一个数组，每个元素是：
- * - 单条消息（普通消息）
- * - 多模型分组对象 { userMessage, assistantMessages }
- */
-interface MultiModelGroup {
-  type: 'multi-model';
-  userMessage: Message;
-  assistantMessages: Message[];
-}
-
-type MessageOrGroup = Message | MultiModelGroup;
-
-interface GroupingResult {
-  groupedMessages: MessageOrGroup[];
-  messageIndexMap: Map<string, number>;
-}
-
-const groupMessagesByAskId = (messages: Message[]): GroupingResult => {
-  const result: MessageOrGroup[] = [];
-  const processedIds = new Set<string>();
-  const messageIndexMap = new Map<string, number>();
-
-  // 预构建 askId 到助手消息的映射，提升性能
-  const assistantsByAskId = new Map<string, Message[]>();
-  const messagesById = new Map<string, Message>();
-
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    messagesById.set(msg.id, msg);
-    messageIndexMap.set(msg.id, i);
-    if (msg.role === 'assistant' && msg.askId) {
-      const existing = assistantsByAskId.get(msg.askId) || [];
-      existing.push(msg);
-      assistantsByAskId.set(msg.askId, existing);
-    }
-  }
-
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-
-    // 如果已处理过，跳过
-    if (processedIds.has(message.id)) continue;
-
-    // 检查是否是用户消息且有 mentions（多模型发送）
-    if (message.role === 'user' && message.mentions && message.mentions.length > 0) {
-      // 使用预构建的映射 O(1) 查找
-      const assistantMessages = assistantsByAskId.get(message.id) || [];
-
-      if (assistantMessages.length > 1) {
-        // 多模型分组
-        result.push({
-          type: 'multi-model',
-          userMessage: message,
-          assistantMessages
-        });
-
-        // 标记所有相关消息为已处理
-        processedIds.add(message.id);
-        assistantMessages.forEach(m => processedIds.add(m.id));
-        continue;
-      }
-    }
-
-    // 检查是否是助手消息且属于多模型分组（已被上面处理）
-    if (message.role === 'assistant' && message.askId) {
-      const userMessage = messagesById.get(message.askId);
-      if (userMessage?.mentions && userMessage.mentions.length > 0) {
-        // 这条消息属于多模型分组，跳过（会在用户消息处理时一起处理）
-        continue;
-      }
-    }
-
-    // 普通消息
-    result.push(message);
-    processedIds.add(message.id);
-  }
-
-  return { groupedMessages: result, messageIndexMap };
-};
-
-const isMultiModelGroup = (item: MessageOrGroup): item is MultiModelGroup => {
-  return (item as MultiModelGroup).type === 'multi-model';
-};
+// askId 多模型分组逻辑已抽到 ./utils/askIdGrouping（纯函数，便于单测与虚拟化复用）
+export {
+  groupMessagesByAskId,
+  isMultiModelGroup,
+} from './utils/askIdGrouping';
+export type {
+  MultiModelGroup,
+  MessageOrGroup,
+  GroupingResult,
+} from './utils/askIdGrouping';
 
 interface MessageGroupProps {
   date: string;
@@ -175,15 +100,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
     };
   }, []);
 
-  // 格式化日期 - locale已全局设置
-  const formattedDate = useMemo(() => {
-    try {
-      return dayjs(date).format('YYYY年MM月DD日 dddd');
-    } catch (error) {
-      return date;
-    }
-  }, [date]);
-
   // 将消息按 askId 分组，识别多模型响应，并获取索引映射
   const { groupedMessages, messageIndexMap } = useMemo(
     () => groupMessagesByAskId(messages),
@@ -243,28 +159,12 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
   return (
     <Box sx={{ mb: 3 }}>
       {/* 日期标题 */}
-      <DateHeader
-        onClick={onToggleExpand}
-        sx={{
-          cursor: onToggleExpand ? 'pointer' : 'default',
-          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-        }}
-      >
-        <Typography variant="body2" color="text.primary">
-          {formattedDate}
-        </Typography>
-
-        {onToggleExpand && (
-          <ExpandMoreIcon
-            size={20}
-            style={{
-              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s ease',
-              color: '#757575'
-            }}
-          />
-        )}
-      </DateHeader>
+      <ChatDateHeader
+        date={date}
+        isDarkMode={isDarkMode}
+        expanded={expanded}
+        onToggleExpand={onToggleExpand}
+      />
 
       {/* 消息列表 */}
       {expanded && (
@@ -275,17 +175,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
     </Box>
   );
 };
-
-// 样式化组件
-const DateHeader = styled(Paper)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: theme.spacing(1, 2),
-  marginBottom: theme.spacing(1),
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: 'none',
-}));
 
 // 使用默认 memo()，依赖 Redux 状态更新时产生的新对象引用
 // 参考 cherry-studio 的实现方式

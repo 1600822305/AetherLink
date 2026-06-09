@@ -16,6 +16,8 @@ export function useSettingsManagement() {
   const messageNavigation = useAppSelector(state => (state.settings as any).messageNavigation || 'none');
   // 获取上下文Token指示器设置
   const showContextTokenIndicator = useAppSelector(state => (state.settings as any).showContextTokenIndicator ?? true);
+  // 获取实验特性：虚拟化消息列表
+  const experimentalVirtualizedList = useAppSelector(state => (state.settings as any).experimentalVirtualizedList === true);
 
   // 应用设置
   const [settings, setSettings] = useState({
@@ -30,6 +32,8 @@ export function useSettingsManagement() {
     messageNavigation: messageNavigation, // 从Redux获取对话导航设置
     // 上下文Token指示器设置
     showContextTokenIndicator: showContextTokenIndicator, // 从Redux获取Token指示器设置
+    // 实验特性：虚拟化消息列表
+    experimentalVirtualizedList: experimentalVirtualizedList, // 从Redux获取虚拟化开关
     contextLength: 16000, // 设置为16K，适合大多数模型
     contextCount: 20,     // 默认上下文消息数量设置为20条
     mathRenderer: 'KaTeX' as const,
@@ -56,6 +60,7 @@ export function useSettingsManagement() {
     { id: 'messageStyle', name: '消息样式', defaultValue: settings.messageStyle, description: '选择聊天消息的显示样式', type: 'select' as const, options: messageStyleOptions},
     { id: 'messageNavigation', name: '对话导航', defaultValue: settings.messageNavigation, description: '显示上下按钮快速跳转到上一条/下一条消息（对呼吸灯左滑显示）', type: 'select' as const, options: messageNavigationOptions},
     { id: 'showContextTokenIndicator', name: 'Token用量指示', defaultValue: settings.showContextTokenIndicator, description: '在右侧显示上下文Token用量呼吸灯（与对话导航一起左滑显示）' },
+    { id: 'experimentalVirtualizedList', name: '虚拟化消息列表（实验）', defaultValue: settings.experimentalVirtualizedList, description: '开启带回收的虚拟化渲染，长会话只渲染可视区，显著降低 DOM 数量。实验特性，默认关闭' },
   ];
 
   // 设置相关函数
@@ -97,6 +102,14 @@ export function useSettingsManagement() {
       const newValue = value as boolean;
       dispatch(updateSettings({ showContextTokenIndicator: newValue } as any));
       setSettings(prev => ({ ...prev, showContextTokenIndicator: newValue }));
+      return;
+    }
+
+    // 特殊处理实验特性：虚拟化消息列表
+    if (settingId === 'experimentalVirtualizedList') {
+      const newValue = value as boolean;
+      dispatch(updateSettings({ experimentalVirtualizedList: newValue } as any));
+      setSettings(prev => ({ ...prev, experimentalVirtualizedList: newValue }));
       return;
     }
 
