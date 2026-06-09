@@ -24,6 +24,7 @@ import CustomSwitch from '../CustomSwitch';
 import type { ProviderType } from '../../shared/api/parameters/types';
 import {
   getParametersForProvider,
+  getReasoningEffortOptions,
   type ParameterMetadata
 } from '../../shared/config/parameterMetadata';
 
@@ -37,6 +38,8 @@ interface CustomParameter {
 interface ParameterEditorProps {
   /** 供应商类型 */
   providerType: ProviderType;
+  /** 当前模型 ID（用于按模型动态生成「推理努力程度」等选项） */
+  modelId?: string;
   /** 当前参数值 */
   values: Record<string, any>;
   /** 已启用的参数 */
@@ -118,12 +121,17 @@ const ParameterRow: React.FC<{
           </Box>
         );
 
-      case 'select':
+      case 'select': {
+        // 当前值不在选项中时（如切换到仅支持 关闭/高/最高 的模型），回退到默认档位，避免空白下拉
+        const optionValues = param.options?.map(o => o.value) ?? [];
+        const selectValue = optionValues.includes(currentValue)
+          ? currentValue
+          : (optionValues.includes(param.defaultValue) ? param.defaultValue : (param.options?.[0]?.value ?? ''));
         return (
           <Box sx={{ width: '100%', mt: 1, px: 1 }}>
             <FormControl size="small" fullWidth>
               <Select
-                value={currentValue ?? ''}
+                value={selectValue}
                 onChange={(e) => onChange(e.target.value)}
                 variant="outlined"
               >
@@ -136,6 +144,7 @@ const ParameterRow: React.FC<{
             </FormControl>
           </Box>
         );
+      }
 
       case 'text':
         return (
@@ -268,6 +277,7 @@ const ParameterRow: React.FC<{
  */
 const ParameterEditor: React.FC<ParameterEditorProps> = ({
   providerType,
+  modelId,
   values: externalValues = {},
   enabledParams: externalEnabledParams = {},
   onChange,
@@ -298,10 +308,26 @@ const ParameterEditor: React.FC<ParameterEditorProps> = ({
     setInternalValues(externalValues);
   }, [externalValues]);
 
-  // 获取所有参数
+  // 获取所有参数（按模型动态覆盖推理努力程度的可选项）
   const allParams = useMemo(() => {
-    return getParametersForProvider(providerType);
-  }, [providerType]);
+    const params = getParametersForProvider(providerType);
+    const reasoningEffortOptions = getReasoningEffortOptions(modelId);
+    return params.map(param => {
+      if (param.key !== 'reasoningEffort') return param;
+      // 若全局默认值（medium）不在当前模型的档位中，回退到首个非「关闭/默认」档位，
+      // 避免下拉出现空白（例如 DeepSeek V4 仅有 关闭/高/最高）。
+      const hasGlobalDefault = reasoningEffortOptions.some(o => o.value === param.defaultValue);
+      const fallbackDefault =
+        reasoningEffortOptions.find(o => o.value !== 'none' && o.value !== 'default')?.value ??
+        reasoningEffortOptions[0]?.value ??
+        param.defaultValue;
+      return {
+        ...param,
+        options: reasoningEffortOptions,
+        defaultValue: hasGlobalDefault ? param.defaultValue : fallbackDefault
+      };
+    });
+  }, [providerType, modelId]);
   
   // 处理开关切换
   const handleToggle = (key: string, enabled: boolean) => {

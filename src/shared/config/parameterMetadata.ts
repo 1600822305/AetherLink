@@ -4,6 +4,8 @@
  */
 
 import type { ProviderType } from '../api/parameters/types';
+import type { Model } from '../types';
+import { getModelSupportedReasoningEffort } from '../../config/models';
 
 /**
  * 参数类型
@@ -270,7 +272,7 @@ export const PARAMETER_METADATA: ParameterMetadata[] = [
       { value: 32768, label: '32K' }
     ],
     unit: 'tokens',
-    showWhen: { key: 'reasoningEffort', value: ['low', 'medium', 'high'] }
+    showWhen: { key: 'reasoningEffort', value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'auto'] }
   },
   {
     key: 'includeThoughts',
@@ -280,7 +282,7 @@ export const PARAMETER_METADATA: ParameterMetadata[] = [
     defaultValue: true,
     category: 'reasoning',
     providers: ['gemini'],
-    showWhen: { key: 'reasoningEffort', value: ['low', 'medium', 'high'] }
+    showWhen: { key: 'reasoningEffort', value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'auto'] }
   },
 
   // ==================== Anthropic 特有参数 ====================
@@ -354,6 +356,44 @@ export const PARAMETER_METADATA: ParameterMetadata[] = [
     ]
   }
 ];
+
+/**
+ * 推理努力程度各档位的中文标签
+ */
+const REASONING_EFFORT_LABELS: Record<string, string> = {
+  default: '默认',
+  none: '关闭',
+  off: '关闭',
+  minimal: '极简',
+  low: '低',
+  medium: '中 (推荐)',
+  high: '高',
+  xhigh: '最高',
+  auto: '自动'
+};
+
+/** 无模型信息时的回退选项（与旧静态选项保持一致） */
+const DEFAULT_REASONING_EFFORT_OPTIONS: Array<{ value: any; label: string }> = [
+  { value: 'off', label: '关闭' },
+  { value: 'low', label: '低' },
+  { value: 'medium', label: '中 (推荐)' },
+  { value: 'high', label: '高' }
+];
+
+/**
+ * 根据具体模型获取「推理努力程度」可选项（单一事实源：config/models 能力表）。
+ * 例如 DeepSeek V4 只暴露 关闭 / 高 / 最高；GPT-5 暴露 极简/低/中/高 等。
+ * 未提供 modelId 时回退到静态默认选项。
+ */
+export function getReasoningEffortOptions(modelId?: string): Array<{ value: any; label: string }> {
+  if (!modelId) return DEFAULT_REASONING_EFFORT_OPTIONS;
+  const efforts = getModelSupportedReasoningEffort({ id: modelId } as Model);
+  if (!efforts || efforts.length === 0) return DEFAULT_REASONING_EFFORT_OPTIONS;
+  return efforts.map(effort => ({
+    value: effort,
+    label: REASONING_EFFORT_LABELS[effort] ?? effort
+  }));
+}
 
 /**
  * 获取供应商支持的参数

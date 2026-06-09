@@ -1,5 +1,6 @@
 import type { Model } from '../../../types';
 import type { UnifiedParameters } from '../types';
+import { encodeReasoningParams } from '../reasoning/encodeReasoning';
 
 /**
  * OpenAI 参数格式转换器
@@ -7,7 +8,7 @@ import type { UnifiedParameters } from '../types';
  */
 export class OpenAIParameterFormatter {
   /** 将统一参数转换为 OpenAI API 请求体格式 */
-  static toAPIFormat(unified: UnifiedParameters, _model: Model): Record<string, any> {
+  static toAPIFormat(unified: UnifiedParameters, model: Model): Record<string, any> {
     const params: Record<string, any> = {};
 
     // 基础参数
@@ -42,15 +43,20 @@ export class OpenAIParameterFormatter {
       params.user = user;
     }
 
-    // 推理参数：从扩展参数中读取
+    // 推理参数：统一交给推理编码层处理，按模型 / 供应商产出
+    // reasoning_effort / thinking(enable|disable) 等。这样 DeepSeek V4 等混合
+    // 推理模型在正式聊天里也能正确开启/关闭思考并选择「最高」强度。
     const reasoningEffort = (unified as any).reasoningEffort;
-    if (reasoningEffort) {
-      params.reasoning_effort = reasoningEffort;
-    }
+    const reasoningParams = encodeReasoningParams(model, reasoningEffort, {
+      api: 'chat',
+      maxTokens: unified.maxOutputTokens
+    });
+    Object.assign(params, reasoningParams);
 
     // 思考预算：OpenAI 兼容 API 使用 thinking 格式（类似 Anthropic）
+    // 仅当推理编码层未产出 thinking 时才回退到预算式 thinking，避免互相覆盖。
     const thinkingBudget = (unified as any).thinkingBudget;
-    if (thinkingBudget) {
+    if (thinkingBudget && params.thinking === undefined) {
       params.thinking = {
         type: 'enabled',
         budget_tokens: thinkingBudget

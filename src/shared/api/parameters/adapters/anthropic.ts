@@ -15,6 +15,7 @@ import { UnifiedParameterManager } from '../UnifiedParameterManager';
 import { isClaudeReasoningModel } from '../../../../config/models';
 import { findTokenLimit } from '../../../config/constants';
 import { getDefaultThinkingEffort } from '../../../utils/settingsUtils';
+import { isDisabledEffort } from '../reasoning/encodeReasoning';
 
 /**
  * Anthropic 参数适配器
@@ -145,8 +146,8 @@ export class AnthropicParameterAdapter implements ParameterAdapter<'anthropic'> 
 
     const reasoningEffort = assistant?.settings?.reasoning_effort || getDefaultThinkingEffort();
 
-    // 检查是否禁用
-    if (reasoningEffort === 'disabled' || reasoningEffort === 'none' || reasoningEffort === 'off') {
+    // 检查是否禁用（与统一推理编码层使用同一套关闭语义判定）
+    if (isDisabledEffort(reasoningEffort)) {
       return { type: 'disabled' };
     }
 
