@@ -56,7 +56,7 @@ export function useSidebarState() {
 
   // 🚀 优化：使用 useMemo 直接从 assistantWithTopics.topics 计算 currentTopic
   // 移除复杂的 useEffect 和异步逻辑，避免状态重复维护
-  // 注意：子组件 (VirtualizedTopicList, VirtualizedTopicGroups) 已经直接从 Redux 获取 currentTopicId
+  // 注意：列表项 (TopicItem / AssistantItem) 已经直接从 Redux 获取 currentTopicId
   const currentTopic = useMemo(() => {
     if (!currentTopicId) return null;
     // 直接从已加载的话题列表中查找，无需额外的数据库查询
