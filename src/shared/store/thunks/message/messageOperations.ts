@@ -4,6 +4,7 @@ import { removeManyBlocks } from '../../slices/messageBlocksSlice';
 import { DataRepository } from '../../../services/storage/DataRepository';
 import { createAssistantMessage } from '../../../utils/messageUtils';
 import { saveMessageAndBlocksToDB } from './utils';
+import { refreshTopicPreview } from '../../../services/topics/TopicPreviewService';
 import { processAssistantResponse } from './assistantResponse';
 import { versionService } from '../../../services/messages/VersionService';
 import { getMainTextContent } from '../../../utils/blockUtils';
@@ -86,6 +87,9 @@ export const deleteMessage = (messageId: string, topicId: string) => async (disp
         await dexieStorage.topics.put(topic);
       }
     });
+
+    // 删除后刷新话题预览（条数/最后消息可能已变）
+    void refreshTopicPreview(topicId);
 
     return true;
   } catch (error) {

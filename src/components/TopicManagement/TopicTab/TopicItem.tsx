@@ -8,11 +8,10 @@ import {
 } from '@mui/material';
 import { MoreVertical, Trash, Pin, AlertTriangle } from 'lucide-react';
 import { useSelector } from 'react-redux';
-import { createSelector } from '@reduxjs/toolkit';
-import { getMainTextContent } from '../../../shared/utils/blockUtils';
 import type { ChatTopic } from '../../../shared/types';
 import type { RootState } from '../../../shared/store';
-import { selectMessagesForTopic, selectTopicStreaming } from '../../../shared/store/selectors/messageSelectors';
+import { selectTopicStreaming } from '../../../shared/store/selectors/messageSelectors';
+import { refreshTopicPreview } from '../../../shared/services/topics/TopicPreviewService';
 
 interface TopicItemProps {
   topic: ChatTopic;
@@ -87,21 +86,6 @@ const TopicItem = React.memo(function TopicItem({
     };
   }, []);
 
-  // 创建记忆化的 selector 来避免不必要的重新渲染
-  const selectTopicMessages = useMemo(
-    () => createSelector(
-      [
-        (state: RootState) => state,
-        () => topic.id
-      ],
-      (state, topicId) => selectMessagesForTopic(state, topicId) || []
-    ),
-    [topic.id] // 只有当 topic.id 改变时才重新创建 selector
-  );
-
-  // 从Redux状态获取该话题的最新消息
-  const messages = useSelector(selectTopicMessages);
-
   const selectTopicStreamingState = useMemo(
     () => (state: RootState) => Boolean(selectTopicStreaming(state, topic.id)),
     [topic.id]
@@ -112,20 +96,31 @@ const TopicItem = React.memo(function TopicItem({
   // 获取话题的显示名称
   const displayName = topic.name || topic.title || '无标题话题';
 
-  // 获取话题的最后一条消息内容 - 从Redux状态实时获取
+  // 是否有消息：以话题自身持久化的元数据为准（messageCount / messageIds），
+  // 不依赖消息是否已加载进 Redux —— 这是修复「未打开的话题误显示无消息」的关键。
+  const messageCount = topic.messageCount ?? topic.messageIds?.length ?? 0;
+  const hasMessages = messageCount > 0;
+
+  // 旧话题可能尚未回填预览字段：懒触发一次后台刷新，自愈式补全。
+  React.useEffect(() => {
+    if (hasMessages && topic.lastMessagePreview === undefined) {
+      void refreshTopicPreview(topic.id);
+    }
+  }, [topic.id, hasMessages, topic.lastMessagePreview]);
+
+  // 获取话题的最后一条消息内容 - 读持久化预览快照
   const getLastMessageContent = () => {
-    if (!messages || messages.length === 0) {
+    if (!hasMessages) {
       return '无消息';
     }
-
-    const lastMessage = messages[messages.length - 1];
-    const content = getMainTextContent(lastMessage);
-
-    if (!content) {
+    // undefined = 预览尚未回填（旧话题），回填中显示占位
+    if (topic.lastMessagePreview === undefined) {
+      return '…';
+    }
+    if (topic.lastMessagePreview === '') {
       return '无文本内容';
     }
-
-    return content.length > 30 ? `${content.substring(0, 30)}...` : content;
+    return topic.lastMessagePreview;
   };
 
   // 格式化创建时间

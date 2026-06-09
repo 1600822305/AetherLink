@@ -273,6 +273,7 @@ export interface ChatTopic {
 
   // 可选字段
   lastMessageTime?: string;// 最后消息时间
+  lastMessagePreview?: string; // 最后一条消息的文本预览（持久化，供侧边栏列表展示，与消息是否加载进 Redux 解耦）
   inputTemplate?: string;  // 输入模板
   messageCount?: number;   // 消息计数
   tokenCount?: number;     // token计数

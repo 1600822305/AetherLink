@@ -8,6 +8,7 @@ import { updateOneBlock } from '../../../store/slices/messageBlocksSlice';
 import { v4 as uuid } from 'uuid';
 import { globalToolTracker } from '../../../utils/toolExecutionSync';
 import { TopicNamingService } from '../../topics/TopicNamingService';
+import { refreshTopicPreview } from '../../topics/TopicPreviewService';
 import type { ChunkProcessorView } from './ResponseChunkProcessor';
 import { finalizeNonTerminalBlocks } from './blockFinalization';
 import { messageBlockRepository } from '../MessageBlockRepository';
@@ -132,6 +133,9 @@ export class ResponseCompletionHandler {
     //    主块仅在「非思考块」时写入中断内容，避免覆盖思考块文本。
     await this.saveInterruptedState(content, metadata, skipBlockIds.includes(this.blockId));
 
+    // 中断也需刷新话题预览，使侧边栏反映已落库的内容
+    void refreshTopicPreview(this.topicId);
+
     // 4. 发送事件
     this.emitEvents(content, true);
 
@@ -164,6 +168,8 @@ export class ResponseCompletionHandler {
     if (!interrupted) {
       await this.batchSaveToDatabase(chunkProcessor, content, now, accumulatedReasoning);
       this.triggerTopicNaming();
+      // 助手回复落库后刷新话题预览，使侧边栏列表显示最终文本
+      void refreshTopicPreview(this.topicId);
     }
 
     // 4. 收尾不变量兑现（幂等安全网）：确保没有任何块被遗漏在非终态

@@ -103,6 +103,7 @@ export interface ChatTopic {
   createdAt: string;
   updatedAt: string;
   lastMessageTime?: string;
+  lastMessagePreview?: string; // 最后一条消息的文本预览（持久化，供侧边栏列表展示）
   assistantId: string;
   prompt?: string;
   messageIds: string[]; // 消息ID数组，替代原来的messages数组
