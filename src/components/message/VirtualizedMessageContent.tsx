@@ -16,10 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Box, Paper, Typography, useTheme } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
+import { Box, useTheme } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import type { Message } from '../../shared/types/newMessage';
 import type { MessageGroupingType } from '../../shared/utils/messageGrouping';
@@ -33,13 +30,12 @@ import { VirtualizerCore, type VirtualRange } from '../../shared/services/chat/v
 import MessageItem from './MessageItem';
 import MultiModelMessageGroup from './MultiModelMessageGroup';
 import ConversationDivider from './ConversationDivider';
+import ChatDateHeader from './ChatDateHeader';
 import { getMessageDividerSetting } from '../../shared/utils/settingsUtils';
 import { useAppSelector } from '../../shared/store';
 import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
 import { upsertManyBlocks } from '../../shared/store/slices/messageBlocksSlice';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
-
-dayjs.locale('zh-cn');
 
 // 估高（仅初值，ResizeObserver 会很快校正为实测值）
 const ESTIMATE_DATE_HEADER = 56;
@@ -47,16 +43,6 @@ const ESTIMATE_UNIT_SINGLE = 300;
 const ESTIMATE_UNIT_MULTI = 420;
 // 可视区上下各预渲染的像素
 const OVERSCAN_PX = 800;
-
-const DateHeader = styled(Paper)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: theme.spacing(1, 2),
-  marginBottom: theme.spacing(1),
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: 'none',
-}));
 
 interface VirtualizedMessageContentProps {
   messages: Message[];
@@ -314,15 +300,7 @@ const VirtualizedMessageContent: React.FC<VirtualizedMessageContentProps> = ({
         return (
           <MeasuredRow key={row.key} rowKey={row.key} index={index} onMeasure={handleMeasure}>
             {row.kind === 'date-header' ? (
-              <DateHeader
-                sx={{
-                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                }}
-              >
-                <Typography variant="body2" color="text.primary">
-                  {formatDateHeader(row.date)}
-                </Typography>
-              </DateHeader>
+              <ChatDateHeader date={row.date} isDarkMode={isDarkMode} />
             ) : (
               renderUnit(row)
             )}
@@ -333,14 +311,6 @@ const VirtualizedMessageContent: React.FC<VirtualizedMessageContentProps> = ({
     </Box>
   );
 };
-
-function formatDateHeader(date: string): string {
-  try {
-    return dayjs(date).format('YYYY年MM月DD日 dddd');
-  } catch {
-    return date;
-  }
-}
 
 interface MeasuredRowProps {
   rowKey: string;

@@ -1,14 +1,11 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
-import { Box, Paper, Typography, useTheme } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { ChevronDown as ExpandMoreIcon } from 'lucide-react';
-import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
+import { Box, useTheme } from '@mui/material';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import MessageItem from './MessageItem';
 import MultiModelMessageGroup from './MultiModelMessageGroup';
 import ConversationDivider from './ConversationDivider';
+import ChatDateHeader from './ChatDateHeader';
 import type { Message } from '../../shared/types/newMessage';
 import { getMessageDividerSetting, shouldShowConversationDivider } from '../../shared/utils/settingsUtils';
 import {
@@ -17,8 +14,6 @@ import {
   type MessageOrGroup,
 } from './utils/askIdGrouping';
 
-// 全局设置 dayjs 语言
-dayjs.locale('zh-cn');
 
 // askId 多模型分组逻辑已抽到 ./utils/askIdGrouping（纯函数，便于单测与虚拟化复用）
 export {
@@ -105,15 +100,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
     };
   }, []);
 
-  // 格式化日期 - locale已全局设置
-  const formattedDate = useMemo(() => {
-    try {
-      return dayjs(date).format('YYYY年MM月DD日 dddd');
-    } catch (error) {
-      return date;
-    }
-  }, [date]);
-
   // 将消息按 askId 分组，识别多模型响应，并获取索引映射
   const { groupedMessages, messageIndexMap } = useMemo(
     () => groupMessagesByAskId(messages),
@@ -173,28 +159,12 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
   return (
     <Box sx={{ mb: 3 }}>
       {/* 日期标题 */}
-      <DateHeader
-        onClick={onToggleExpand}
-        sx={{
-          cursor: onToggleExpand ? 'pointer' : 'default',
-          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-        }}
-      >
-        <Typography variant="body2" color="text.primary">
-          {formattedDate}
-        </Typography>
-
-        {onToggleExpand && (
-          <ExpandMoreIcon
-            size={20}
-            style={{
-              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s ease',
-              color: '#757575'
-            }}
-          />
-        )}
-      </DateHeader>
+      <ChatDateHeader
+        date={date}
+        isDarkMode={isDarkMode}
+        expanded={expanded}
+        onToggleExpand={onToggleExpand}
+      />
 
       {/* 消息列表 */}
       {expanded && (
@@ -205,17 +175,6 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
     </Box>
   );
 };
-
-// 样式化组件
-const DateHeader = styled(Paper)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: theme.spacing(1, 2),
-  marginBottom: theme.spacing(1),
-  borderRadius: theme.shape.borderRadius,
-  boxShadow: 'none',
-}));
 
 // 使用默认 memo()，依赖 Redux 状态更新时产生的新对象引用
 // 参考 cherry-studio 的实现方式
