@@ -202,6 +202,7 @@ const TopicItem = React.memo(function TopicItem({
             {isStreaming && (
               <Box
                 component="span"
+                aria-hidden="true"
                 sx={{
                   width: 8,
                   height: 8,
@@ -274,6 +275,8 @@ const TopicItem = React.memo(function TopicItem({
           <IconButton
             size="small"
             onClick={handleOpenMenu}
+            aria-label={`话题选项：${displayName}`}
+            aria-haspopup="true"
             sx={{ opacity: 0.6, padding: '2px' }}
           >
             <MoreVertical size={16} />
@@ -289,6 +292,7 @@ const TopicItem = React.memo(function TopicItem({
               transition: 'all 0.2s ease-in-out'
             }}
             title={pendingDelete ? '再次点击确认删除' : '删除话题'}
+            aria-label={pendingDelete ? `再次点击确认删除话题：${displayName}` : `删除话题：${displayName}`}
           >
             {pendingDelete ? <AlertTriangle size={16} /> : <Trash size={16} />}
           </IconButton>

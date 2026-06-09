@@ -178,7 +178,7 @@ const AssistantTab = React.memo(function AssistantTab({
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleCloseSearch}>
+                    <IconButton size="small" onClick={handleCloseSearch} aria-label="关闭搜索">
                       <X size={18} />
                     </IconButton>
                   </InputAdornment>
@@ -190,7 +190,7 @@ const AssistantTab = React.memo(function AssistantTab({
           <>
             <Typography variant="subtitle1" fontWeight="medium" sx={{ flexShrink: 0 }}>所有助手</Typography>
             <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
-              <IconButton size="small" onClick={handleSearchClick} sx={{ mr: 0.5 }}>
+              <IconButton size="small" onClick={handleSearchClick} aria-label="搜索助手" sx={{ mr: 0.5 }}>
                 <Search size={18} />
               </IconButton>
               <Tooltip title="创建分组">
