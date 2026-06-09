@@ -19,6 +19,8 @@ export interface Memory {
   hash?: string;
   /** 向量嵌入（用于语义检索） */
   embedding?: number[];
+  /** 生成该向量的嵌入模型 ID（跨模型向量不可比，检索时按模型隔离） */
+  embeddingModelId?: string;
   /** 用户ID（多用户隔离） */
   userId?: string;
   /** 助手ID（可选） */

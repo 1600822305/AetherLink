@@ -7,6 +7,7 @@
 
 import { v4 as uuid } from 'uuid';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { universalFetch } from '../../utils/universalFetch';
 import type {
   MemorySearchResult,
   AddMemoryOptions,
@@ -25,11 +26,14 @@ type MemoryItem = Memory & { memory: string };
 // 常量配置
 // ========================================================================
 
-/** 相似度阈值（用于去重） */
-const SIMILARITY_THRESHOLD = 0.85;
+/** 默认去重相似度阈值 */
+const DEFAULT_DEDUP_THRESHOLD = 0.85;
 
-/** 统一向量维度 */
-const UNIFIED_DIMENSION = 1536;
+/** 默认搜索相似度阈值 */
+const DEFAULT_SEARCH_THRESHOLD = 0.5;
+
+/** 嵌入缓存条数上限 */
+const EMBEDDING_CACHE_MAX_SIZE = 200;
 
 // ========================================================================
 // MemoryService 类
@@ -116,7 +120,8 @@ class MemoryService {
         
         // 检查向量相似度去重
         if (embedding) {
-          const similar = await this.findSimilar(embedding, userId, SIMILARITY_THRESHOLD);
+          const dedupThreshold = this.config.similarityThreshold ?? DEFAULT_DEDUP_THRESHOLD;
+          const similar = await this.findSimilar(embedding, userId, dedupThreshold);
           if (similar) {
             console.log('[MemoryService] 发现高度相似的记忆，跳过添加');
             return similar;
@@ -131,6 +136,7 @@ class MemoryService {
         memory,
         hash,
         embedding,
+        embeddingModelId: embedding ? this.config.embeddingModel?.id : undefined,
         type: 'memory',
         createdAt: now,
         updatedAt: now,
@@ -189,11 +195,13 @@ class MemoryService {
       const hash = await createHash(memory);
       // 重新生成失败时保留旧向量，避免记忆从向量搜索中消失
       let embedding: number[] | undefined = existing.embedding;
+      let embeddingModelId: string | undefined = existing.embeddingModelId;
       
       if (this.config.embeddingModel) {
         const newEmbedding = await this.getEmbedding(memory);
         if (newEmbedding) {
           embedding = newEmbedding;
+          embeddingModelId = this.config.embeddingModel.id;
         }
       }
 
@@ -202,6 +210,7 @@ class MemoryService {
         memory,
         hash,
         embedding,
+        embeddingModelId,
         type: 'memory',
         updatedAt: new Date().toISOString(),
         metadata: metadata ? { ...existing.metadata, ...metadata } : existing.metadata,
@@ -279,9 +288,8 @@ class MemoryService {
       // 支持 assistantId 或后向兼容的 userId
       const filterKey = options.assistantId || options.userId || 'default';
 
-      const allMemories = await dexieStorage.memories.toArray();
-      const filtered = allMemories.filter(m => 
-        m.userId === filterKey && 
+      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
+      const filtered = userMemories.filter(m => 
         !m.isDeleted && 
         m.type === 'memory' &&
         m.memory
@@ -314,7 +322,8 @@ class MemoryService {
     options: MemorySearchOptions = {}
   ): Promise<MemorySearchResult> {
     try {
-      const { limit = 10, threshold = 0.5 } = options;
+      const limit = options.limit ?? 10;
+      const threshold = options.threshold ?? this.config.similarityThreshold ?? DEFAULT_SEARCH_THRESHOLD;
       // 支持 assistantId 或后向兼容的 userId
       const filterKey = options.assistantId || options.userId || 'default';
 
@@ -324,14 +333,15 @@ class MemoryService {
         return this.textSearch(query, options);
       }
 
-      // 获取助手的所有记忆
-      const allMemories = await dexieStorage.memories.toArray();
-      const validMemories = allMemories.filter(m => 
-        m.userId === filterKey && 
+      // 获取助手的所有记忆（仅比较同一嵌入模型生成的向量，跨模型向量不可比）
+      const currentModelId = this.config.embeddingModel?.id;
+      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
+      const validMemories = userMemories.filter(m => 
         !m.isDeleted && 
         !!m.embedding &&
         m.type === 'memory' &&
-        m.memory
+        m.memory &&
+        (!m.embeddingModelId || m.embeddingModelId === currentModelId)
       );
 
       // 计算相似度并排序
@@ -367,9 +377,8 @@ class MemoryService {
       const filterKey = options.assistantId || options.userId || 'default';
       const lowerQuery = query.toLowerCase();
 
-      const allMemories = await dexieStorage.memories.toArray();
-      const filtered = allMemories.filter(m => 
-        m.userId === filterKey && 
+      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
+      const filtered = userMemories.filter(m => 
         !m.isDeleted && 
         m.type === 'memory' &&
         m.memory &&
@@ -467,10 +476,9 @@ class MemoryService {
    */
   private async findByHash(hash: string, userId: string): Promise<MemoryItem | null> {
     try {
-      const allMemories = await dexieStorage.memories.toArray();
-      const memory = allMemories.find(m => 
+      const userMemories = await dexieStorage.memories.where('userId').equals(userId).toArray();
+      const memory = userMemories.find(m => 
         m.hash === hash && 
-        m.userId === userId && 
         !m.isDeleted &&
         m.memory
       );
@@ -489,12 +497,13 @@ class MemoryService {
     threshold: number
   ): Promise<MemoryItem | null> {
     try {
-      const allMemories = await dexieStorage.memories.toArray();
-      const memories = allMemories.filter(m => 
-        m.userId === userId && 
+      const currentModelId = this.config.embeddingModel?.id;
+      const userMemories = await dexieStorage.memories.where('userId').equals(userId).toArray();
+      const memories = userMemories.filter(m => 
         !m.isDeleted && 
         !!m.embedding &&
-        m.memory
+        m.memory &&
+        (!m.embeddingModelId || m.embeddingModelId === currentModelId)
       );
 
       for (const memory of memories) {
@@ -513,29 +522,33 @@ class MemoryService {
    * 获取文本的向量嵌入
    */
   private async getEmbedding(text: string): Promise<number[] | undefined> {
-    // 检查缓存
-    const cached = this.embeddingCache.get(text);
-    if (cached) {
-      return cached;
-    }
-
     if (!this.config.embeddingModel) {
       console.warn('[MemoryService] 未配置嵌入模型');
       return undefined;
     }
 
+    // 缓存键包含模型 ID，避免切换嵌入模型后命中旧模型的向量
+    const cacheKey = `${this.config.embeddingModel.id}::${text}`;
+    const cached = this.embeddingCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
-      // 调用嵌入服务
+      // 调用嵌入服务（保留原始维度，不做截断/补零）
       const embedding = await this.callEmbeddingAPI(text);
       
       if (embedding) {
-        // 归一化到统一维度
-        const normalized = this.normalizeEmbedding(embedding);
+        // FIFO 淘汰，限制缓存大小
+        if (this.embeddingCache.size >= EMBEDDING_CACHE_MAX_SIZE) {
+          const oldestKey = this.embeddingCache.keys().next().value;
+          if (oldestKey !== undefined) {
+            this.embeddingCache.delete(oldestKey);
+          }
+        }
+        this.embeddingCache.set(cacheKey, embedding);
         
-        // 缓存结果
-        this.embeddingCache.set(text, normalized);
-        
-        return normalized;
+        return embedding;
       }
     } catch (error) {
       console.error('[MemoryService] 获取嵌入失败:', error);
@@ -555,7 +568,7 @@ class MemoryService {
       const baseUrl = model.baseUrl || 'https://api.openai.com/v1';
       const url = `${baseUrl}/embeddings`;
 
-      const response = await fetch(url, {
+      const response = await universalFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -577,25 +590,6 @@ class MemoryService {
       console.error('[MemoryService] 嵌入 API 调用失败:', error);
       return undefined;
     }
-  }
-
-  /**
-   * 归一化嵌入向量到统一维度
-   */
-  private normalizeEmbedding(embedding: number[]): number[] {
-    const targetDim = this.config.embeddingDimensions || UNIFIED_DIMENSION;
-    
-    if (embedding.length === targetDim) {
-      return embedding;
-    }
-
-    if (embedding.length > targetDim) {
-      // 截断
-      return embedding.slice(0, targetDim);
-    }
-
-    // 填充
-    return [...embedding, ...new Array(targetDim - embedding.length).fill(0)];
   }
 
   /**

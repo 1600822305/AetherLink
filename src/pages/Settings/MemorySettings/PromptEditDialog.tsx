@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, IconButton, AppBar, Toolbar } from '@mui/material';
 import { RotateCcw, ArrowLeft } from 'lucide-react';
 import BackButtonDialog from '../../../components/common/BackButtonDialog';
-import { factExtractionPrompt } from '../../../shared/services/memory/prompts';
+import { getFactExtractionPrompt } from '../../../shared/services/memory/prompts';
 
 interface PromptEditDialogProps {
   open: boolean;
@@ -24,12 +24,12 @@ const PromptEditDialog: React.FC<PromptEditDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      setPromptText(currentPrompt || factExtractionPrompt);
+      setPromptText(currentPrompt || getFactExtractionPrompt());
     }
   }, [open, currentPrompt]);
 
   const handleReset = () => {
-    setPromptText(factExtractionPrompt);
+    setPromptText(getFactExtractionPrompt());
   };
 
   const handleSave = () => {
