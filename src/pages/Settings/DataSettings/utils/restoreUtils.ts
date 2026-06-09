@@ -541,6 +541,86 @@ export async function restoreLocalStorageItems(items: Record<string, any>): Prom
 }
 
 /**
+ * 将 data URL 转回 Blob（用于恢复图片二进制）。
+ */
+function dataURLToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(',');
+  const mimeMatch = /data:([^;]+);base64/.exec(header);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * 通用：批量恢复一张 Dexie 表的数据（按主键 put，存在即覆盖）。
+ * 返回成功写入的条目数；任意条目失败不会中断其余条目。
+ */
+async function restoreTableRecords(
+  table: { put: (item: any) => Promise<any> },
+  items: any[] | undefined,
+  label: string
+): Promise<number> {
+  if (!Array.isArray(items) || items.length === 0) {
+    return 0;
+  }
+
+  let count = 0;
+  for (const item of items) {
+    try {
+      await table.put(item);
+      count++;
+    } catch (error) {
+      console.error(`恢复${label}单条记录失败:`, error);
+    }
+  }
+  console.log(`${label}恢复完成，成功: ${count}/${items.length}`);
+  return count;
+}
+
+/**
+ * 恢复额外的核心数据类别（知识库/记忆/快捷短语/技能/文件/图片）。
+ * 基于备份内容的“存在即恢复”，无需额外选项；未包含的类别自动跳过。
+ */
+export async function restoreExtendedData(data: any): Promise<void> {
+  // 知识库及其文档
+  await restoreTableRecords(dexieStorage.knowledge_bases, data.knowledgeBases, '知识库');
+  await restoreTableRecords(dexieStorage.knowledge_documents, data.knowledgeDocuments, '知识库文档');
+
+  // 长期记忆 / 知识图谱
+  await restoreTableRecords(dexieStorage.memories, data.memories, '记忆');
+
+  // 快捷短语
+  await restoreTableRecords(dexieStorage.quick_phrases, data.quickPhrases, '快捷短语');
+
+  // 技能
+  await restoreTableRecords(dexieStorage.skills, data.skills, '技能');
+
+  // 文件（记录内联了 base64Data，直接写回即可）
+  await restoreTableRecords(dexieStorage.files, data.files, '文件');
+
+  // 图片：data URL 需转回 Blob 后再写入
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    let imageCount = 0;
+    for (const img of data.images) {
+      try {
+        if (img && typeof img.id === 'string' && typeof img.dataUrl === 'string') {
+          await dexieStorage.images.put({ id: img.id, blob: dataURLToBlob(img.dataUrl) });
+          imageCount++;
+        }
+      } catch (error) {
+        console.error('恢复图片单条记录失败:', error);
+      }
+    }
+    console.log(`图片恢复完成，成功: ${imageCount}/${data.images.length}`);
+  }
+  await restoreTableRecords(dexieStorage.imageMetadata, data.imageMetadata, '图片元数据');
+}
+
+/**
  * 执行完整备份恢复（支持选择性备份）
  */
 export async function performFullRestore(
@@ -634,6 +714,12 @@ export async function performFullRestore(
     const localStorageCount = processedData.localStorage ?
       await restoreLocalStorageItems(processedData.localStorage) :
       0;
+
+    onProgress?.('恢复知识库/记忆/文件等', 0.88);
+
+    // 恢复额外的核心数据类别（知识库/记忆/快捷短语/技能/文件/图片）
+    // 基于备份内容“存在即恢复”，旧备份不含这些字段时自动跳过
+    await restoreExtendedData(processedData);
 
     onProgress?.('完成恢复', 0.95);
 

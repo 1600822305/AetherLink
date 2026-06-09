@@ -50,8 +50,76 @@ const AdvancedBackupPage: React.FC = () => {
     includeChats: true,
     includeAssistants: true,
     includeSettings: true,
-    includeLocalStorage: true
+    includeLocalStorage: true,
+    // 额外的核心数据类别：轻量类默认开启，文件/图片体积大默认关闭
+    includeKnowledge: true,
+    includeMemories: true,
+    includeQuickPhrases: true,
+    includeSkills: true,
+    includeFiles: false,
+    includeImages: false
   });
+
+  // 备份类别配置（数据驱动渲染开关列表，便于维护与扩展）
+  const backupOptionConfigs: {
+    key: keyof typeof backupOptions;
+    label: string;
+    description: string;
+  }[] = [
+    {
+      key: 'includeChats',
+      label: t('dataSettings.advancedBackup.fullBackup.chats.label'),
+      description: t('dataSettings.advancedBackup.fullBackup.chats.description')
+    },
+    {
+      key: 'includeAssistants',
+      label: t('dataSettings.advancedBackup.fullBackup.assistants.label'),
+      description: t('dataSettings.advancedBackup.fullBackup.assistants.description')
+    },
+    {
+      key: 'includeSettings',
+      label: t('dataSettings.advancedBackup.fullBackup.settings.label'),
+      description: t('dataSettings.advancedBackup.fullBackup.settings.description')
+    },
+    {
+      key: 'includeLocalStorage',
+      label: t('dataSettings.advancedBackup.fullBackup.localStorage.label'),
+      description: t('dataSettings.advancedBackup.fullBackup.localStorage.description')
+    },
+    {
+      key: 'includeKnowledge',
+      label: t('dataSettings.advancedBackup.fullBackup.knowledge.label', { defaultValue: '知识库' }),
+      description: t('dataSettings.advancedBackup.fullBackup.knowledge.description', { defaultValue: '知识库及其文档' })
+    },
+    {
+      key: 'includeMemories',
+      label: t('dataSettings.advancedBackup.fullBackup.memories.label', { defaultValue: '长期记忆' }),
+      description: t('dataSettings.advancedBackup.fullBackup.memories.description', { defaultValue: '助手长期记忆 / 知识图谱' })
+    },
+    {
+      key: 'includeQuickPhrases',
+      label: t('dataSettings.advancedBackup.fullBackup.quickPhrases.label', { defaultValue: '快捷短语' }),
+      description: t('dataSettings.advancedBackup.fullBackup.quickPhrases.description', { defaultValue: '快捷短语列表' })
+    },
+    {
+      key: 'includeSkills',
+      label: t('dataSettings.advancedBackup.fullBackup.skills.label', { defaultValue: '技能' }),
+      description: t('dataSettings.advancedBackup.fullBackup.skills.description', { defaultValue: '技能配置' })
+    },
+    {
+      key: 'includeFiles',
+      label: t('dataSettings.advancedBackup.fullBackup.files.label', { defaultValue: '文件（体积较大）' }),
+      description: t('dataSettings.advancedBackup.fullBackup.files.description', { defaultValue: '已上传文件的完整内容，默认关闭以控制备份体积' })
+    },
+    {
+      key: 'includeImages',
+      label: t('dataSettings.advancedBackup.fullBackup.images.label', { defaultValue: '图片（体积较大）' }),
+      description: t('dataSettings.advancedBackup.fullBackup.images.description', { defaultValue: '图片二进制数据，默认关闭以控制备份体积' })
+    }
+  ];
+
+  // 是否至少选择了一个类别
+  const hasAnySelected = Object.values(backupOptions).some(Boolean);
 
   // 返回上一级页面
   const handleBack = () => {
@@ -87,7 +155,15 @@ const AdvancedBackupPage: React.FC = () => {
 
       // 复用与手动备份一致的完整备份数据：
       // 话题已加载消息/消息块、设置取自 Redux store、localStorage 已过滤敏感项、备份版本号正确(5)
-      const fullData = await prepareFullBackupData();
+      // 额外类别（知识库/记忆/快捷短语/技能/文件/图片）按用户勾选按需加载，避免无谓体积开销
+      const fullData = await prepareFullBackupData({
+        includeKnowledge: backupOptions.includeKnowledge,
+        includeMemories: backupOptions.includeMemories,
+        includeQuickPhrases: backupOptions.includeQuickPhrases,
+        includeSkills: backupOptions.includeSkills,
+        includeFiles: backupOptions.includeFiles,
+        includeImages: backupOptions.includeImages
+      });
 
       // 按用户选择的类别过滤
       const backupData: Record<string, any> = {
@@ -102,6 +178,15 @@ const AdvancedBackupPage: React.FC = () => {
       }
       if (backupOptions.includeLocalStorage) backupData.localStorage = fullData.localStorage;
 
+      // 扩展类别已按 options 决定是否加载，存在即写入备份
+      const extendedKeys = [
+        'knowledgeBases', 'knowledgeDocuments', 'memories',
+        'quickPhrases', 'skills', 'files', 'images', 'imageMetadata'
+      ] as const;
+      for (const key of extendedKeys) {
+        if (fullData[key] !== undefined) backupData[key] = fullData[key];
+      }
+
       // 创建文件名 - 包含更多详细信息
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupTypes = [];
@@ -109,6 +194,12 @@ const AdvancedBackupPage: React.FC = () => {
       if (backupOptions.includeAssistants) backupTypes.push('Assistants');
       if (backupOptions.includeSettings) backupTypes.push('Settings');
       if (backupOptions.includeLocalStorage) backupTypes.push('LocalStorage');
+      if (backupOptions.includeKnowledge) backupTypes.push('Knowledge');
+      if (backupOptions.includeMemories) backupTypes.push('Memories');
+      if (backupOptions.includeQuickPhrases) backupTypes.push('QuickPhrases');
+      if (backupOptions.includeSkills) backupTypes.push('Skills');
+      if (backupOptions.includeFiles) backupTypes.push('Files');
+      if (backupOptions.includeImages) backupTypes.push('Images');
 
       const fileName = `AetherLink_FullBackup_${backupTypes.join('_')}_${timestamp}.json`;
 
@@ -240,165 +331,53 @@ const AdvancedBackupPage: React.FC = () => {
             </Typography>
 
             <List sx={{ mb: 3 }}>
-              <Paper
-                elevation={0}
-                sx={{
-                  mb: 2,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
-                  }
-                }}
-              >
-                <ListItem sx={{ p: 0 }}>
-                  <FormControlLabel
-                    control={
-                      <Box sx={{ ml: 2 }}>
-                        <CustomSwitch
-                          checked={backupOptions.includeChats}
-                          onChange={handleOptionChange('includeChats')}
-                        />
-                      </Box>
+              {backupOptionConfigs.map((option) => (
+                <Paper
+                  key={option.key}
+                  elevation={0}
+                  sx={{
+                    mb: 2,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    overflow: 'hidden',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
+                      borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
                     }
-                    label={
-                      <Box sx={{ py: 1 }}>
-                        <Typography variant="body1" fontWeight={500}>{t('dataSettings.advancedBackup.fullBackup.chats.label')}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('dataSettings.advancedBackup.fullBackup.chats.description')}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{ width: '100%' }}
-                  />
-                </ListItem>
-              </Paper>
-
-              <Paper
-                elevation={0}
-                sx={{
-                  mb: 2,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
-                  }
-                }}
-              >
-                <ListItem sx={{ p: 0 }}>
-                  <FormControlLabel
-                    control={
-                      <Box sx={{ ml: 2 }}>
-                        <CustomSwitch
-                          checked={backupOptions.includeAssistants}
-                          onChange={handleOptionChange('includeAssistants')}
-                        />
-                      </Box>
-                    }
-                    label={
-                      <Box sx={{ py: 1 }}>
-                        <Typography variant="body1" fontWeight={500}>{t('dataSettings.advancedBackup.fullBackup.assistants.label')}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('dataSettings.advancedBackup.fullBackup.assistants.description')}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{ width: '100%' }}
-                  />
-                </ListItem>
-              </Paper>
-
-              <Paper
-                elevation={0}
-                sx={{
-                  mb: 2,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
-                  }
-                }}
-              >
-                <ListItem sx={{ p: 0 }}>
-                  <FormControlLabel
-                    control={
-                      <Box sx={{ ml: 2 }}>
-                        <CustomSwitch
-                          checked={backupOptions.includeSettings}
-                          onChange={handleOptionChange('includeSettings')}
-                        />
-                      </Box>
-                    }
-                    label={
-                      <Box sx={{ py: 1 }}>
-                        <Typography variant="body1" fontWeight={500}>{t('dataSettings.advancedBackup.fullBackup.settings.label')}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('dataSettings.advancedBackup.fullBackup.settings.description')}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{ width: '100%' }}
-                  />
-                </ListItem>
-              </Paper>
-
-              <Paper
-                elevation={0}
-                sx={{
-                  mb: 2,
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
-                    borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
-                  }
-                }}
-              >
-                <ListItem sx={{ p: 0 }}>
-                  <FormControlLabel
-                    control={
-                      <Box sx={{ ml: 2 }}>
-                        <CustomSwitch
-                          checked={backupOptions.includeLocalStorage}
-                          onChange={handleOptionChange('includeLocalStorage')}
-                        />
-                      </Box>
-                    }
-                    label={
-                      <Box sx={{ py: 1 }}>
-                        <Typography variant="body1" fontWeight={500}>{t('dataSettings.advancedBackup.fullBackup.localStorage.label')}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('dataSettings.advancedBackup.fullBackup.localStorage.description')}
-                        </Typography>
-                      </Box>
-                    }
-                    sx={{ width: '100%' }}
-                  />
-                </ListItem>
-              </Paper>
+                  }}
+                >
+                  <ListItem sx={{ p: 0 }}>
+                    <FormControlLabel
+                      control={
+                        <Box sx={{ ml: 2 }}>
+                          <CustomSwitch
+                            checked={backupOptions[option.key]}
+                            onChange={handleOptionChange(option.key)}
+                          />
+                        </Box>
+                      }
+                      label={
+                        <Box sx={{ py: 1 }}>
+                          <Typography variant="body1" fontWeight={500}>{option.label}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.description}
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ width: '100%' }}
+                    />
+                  </ListItem>
+                </Paper>
+              ))}
             </List>
 
             <Button
               variant="contained"
               startIcon={isLoading ? <CircularProgress size={24} color="inherit" /> : <BackupIcon />}
               onClick={createFullBackup}
-              disabled={isLoading || (!backupOptions.includeChats && !backupOptions.includeAssistants &&
-                                    !backupOptions.includeSettings && !backupOptions.includeLocalStorage)}
+              disabled={isLoading || !hasAnySelected}
               fullWidth
               sx={{
                 py: 1.5,

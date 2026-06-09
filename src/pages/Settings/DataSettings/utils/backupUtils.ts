@@ -16,6 +16,124 @@ export const DEFAULT_BACKUP_DIRECTORY = 'AetherLink/backups';
 export const CURRENT_BACKUP_VERSION = 5;
 
 /**
+ * 完整备份的可选数据类别。
+ *
+ * topics/assistants/settings/localStorage 始终包含；这里仅控制额外的核心数据类别。
+ * 文件(files)与图片(images)体积较大，默认不包含，由用户按需开启。
+ */
+export interface FullBackupOptions {
+  /** 知识库及其文档（knowledge_bases + knowledge_documents） */
+  includeKnowledge?: boolean;
+  /** 长期记忆 / 知识图谱（memories） */
+  includeMemories?: boolean;
+  /** 快捷短语（quick_phrases） */
+  includeQuickPhrases?: boolean;
+  /** 技能（skills） */
+  includeSkills?: boolean;
+  /** 文件（files，含 base64 内容，体积大） */
+  includeFiles?: boolean;
+  /** 图片（images 二进制 + imageMetadata，体积大） */
+  includeImages?: boolean;
+}
+
+/** 完整备份默认选项：包含轻量类别，排除体积较大的文件/图片 */
+export const DEFAULT_FULL_BACKUP_OPTIONS: Required<FullBackupOptions> = {
+  includeKnowledge: true,
+  includeMemories: true,
+  includeQuickPhrases: true,
+  includeSkills: true,
+  includeFiles: false,
+  includeImages: false,
+};
+
+/** 备份中图片记录的可序列化形式（Blob 转为 data URL） */
+export interface SerializedImage {
+  id: string;
+  dataUrl: string;
+}
+
+/**
+ * 将 Blob 转为 data URL，便于写入 JSON 备份。
+ */
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('读取图片数据失败'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * 按选项加载额外的核心数据类别。
+ * 任意类别加载失败不会中断整体备份，仅记录日志并跳过该类别。
+ */
+async function loadExtendedBackupData(
+  options: Required<FullBackupOptions>
+): Promise<Record<string, any>> {
+  const extended: Record<string, any> = {};
+
+  if (options.includeKnowledge) {
+    try {
+      extended.knowledgeBases = await dexieStorage.knowledge_bases.toArray();
+      extended.knowledgeDocuments = await dexieStorage.knowledge_documents.toArray();
+    } catch (error) {
+      console.error('备份知识库数据失败:', error);
+    }
+  }
+
+  if (options.includeMemories) {
+    try {
+      extended.memories = await dexieStorage.memories.toArray();
+    } catch (error) {
+      console.error('备份记忆数据失败:', error);
+    }
+  }
+
+  if (options.includeQuickPhrases) {
+    try {
+      extended.quickPhrases = await dexieStorage.quick_phrases.toArray();
+    } catch (error) {
+      console.error('备份快捷短语失败:', error);
+    }
+  }
+
+  if (options.includeSkills) {
+    try {
+      extended.skills = await dexieStorage.skills.toArray();
+    } catch (error) {
+      console.error('备份技能数据失败:', error);
+    }
+  }
+
+  if (options.includeFiles) {
+    try {
+      // files 记录内联了 base64Data，本身即包含文件内容
+      extended.files = await dexieStorage.files.toArray();
+    } catch (error) {
+      console.error('备份文件数据失败:', error);
+    }
+  }
+
+  if (options.includeImages) {
+    try {
+      const images = await dexieStorage.images.toArray();
+      extended.images = await Promise.all(
+        images.map(async (img): Promise<SerializedImage> => ({
+          id: img.id,
+          dataUrl: await blobToDataURL(img.blob),
+        }))
+      );
+      extended.imageMetadata = await dexieStorage.imageMetadata.toArray();
+    } catch (error) {
+      console.error('备份图片数据失败:', error);
+    }
+  }
+
+  return extended;
+}
+
+/**
  * 获取备份存储类型（external或documents）
  */
 export async function getBackupStorageType(): Promise<'external' | 'documents'> {
@@ -348,10 +466,8 @@ export async function prepareBasicBackupData(): Promise<{
   }
 }
 
-/**
- * 准备完整备份数据
- */
-export async function prepareFullBackupData(): Promise<{
+/** 完整备份数据结构 */
+export interface FullBackupData {
   topics: ChatTopic[];
   assistants: Assistant[];
   settings: any;
@@ -359,7 +475,31 @@ export async function prepareFullBackupData(): Promise<{
   localStorage: Record<string, any>;
   timestamp: number;
   appInfo: any;
-}> {
+  // 额外的核心数据类别（按选项包含，故均为可选）
+  knowledgeBases?: any[];
+  knowledgeDocuments?: any[];
+  memories?: any[];
+  quickPhrases?: any[];
+  skills?: any[];
+  files?: any[];
+  images?: SerializedImage[];
+  imageMetadata?: any[];
+}
+
+/**
+ * 准备完整备份数据
+ *
+ * @param options 控制额外核心数据类别（知识库/记忆/快捷短语/技能/文件/图片）是否包含。
+ *                未指定的类别使用 DEFAULT_FULL_BACKUP_OPTIONS（文件/图片默认不含）。
+ */
+export async function prepareFullBackupData(
+  options: FullBackupOptions = {}
+): Promise<FullBackupData> {
+  const resolvedOptions: Required<FullBackupOptions> = {
+    ...DEFAULT_FULL_BACKUP_OPTIONS,
+    ...options,
+  };
+
   try {
     // 获取基础备份数据
     const basicData = await prepareBasicBackupData();
@@ -390,15 +530,21 @@ export async function prepareFullBackupData(): Promise<{
 
     const localStorageItems = await getLocalStorageItems(excludeKeys);
 
+    // 按选项加载额外的核心数据类别（知识库/记忆/快捷短语/技能/文件/图片）
+    const extendedData = await loadExtendedBackupData(resolvedOptions);
+
     // 构建完整备份数据
-    const fullBackupData = {
+    const fullBackupData: FullBackupData = {
       ...basicData,
       settings: appSettings,
       backupSettings,
       localStorage: localStorageItems,
+      ...extendedData,
       appInfo: {
         ...basicData.appInfo,
-        fullBackup: true
+        fullBackup: true,
+        // 记录本次备份实际包含的额外类别，便于诊断与恢复提示
+        backupContents: resolvedOptions
       }
     };
 
