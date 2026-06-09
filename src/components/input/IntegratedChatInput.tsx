@@ -13,7 +13,6 @@ import type { IntegratedChatInputProps } from '../../shared/types/inputProps';
 
 import FileUploadManager, { type FileUploadManagerRef } from './ChatInput/FileUploadManager';
 import InputTextArea from './ChatInput/InputTextArea';
-import EnhancedToast, { toastManager } from '../EnhancedToast';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { toggleWebSearchEnabled, setWebSearchProvider } from '../../shared/store/slices/webSearchSlice';
@@ -59,7 +58,6 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
     setUploadingMedia,
     fileStatuses,
     setFileStatuses,
-    toastMessages,
     knowledgeRefreshKey,
     refreshKnowledge
   } = useInputState();
@@ -450,13 +448,6 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
 
       {/* 菜单组件 */}
       {menuManager.renderMenus()}
-
-      {/* Toast通知 */}
-      <EnhancedToast
-        messages={toastMessages}
-        onClose={(id) => toastManager.remove(id)}
-        maxVisible={3}
-      />
     </>
   );
 };

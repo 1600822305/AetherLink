@@ -283,4 +283,21 @@ class ToastManager {
 }
 
 export const toastManager = new ToastManager();
+
+// 全局 Toast 容器 - 在应用根部挂载一次，使 toastManager 在任何页面都能显示通知
+export const GlobalToastContainer: React.FC = () => {
+  const [messages, setMessages] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    return toastManager.subscribe(setMessages);
+  }, []);
+
+  return (
+    <EnhancedToast
+      messages={messages}
+      onClose={(id) => toastManager.remove(id)}
+    />
+  );
+};
+
 export default EnhancedToast;

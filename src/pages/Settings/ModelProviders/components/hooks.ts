@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../../../shared/store';
 import { updateProvider, deleteProvider } from '../../../../shared/store/settingsSlice';
 import type { Model } from '../../../../shared/types';
@@ -7,6 +8,7 @@ import type { ApiKeyConfig, LoadBalanceStrategy } from '../../../../shared/confi
 import { isValidUrl } from '../../../../shared/utils';
 import ApiKeyManager from '../../../../shared/services/ai/ApiKeyManager';
 import { modelMatchesIdentity } from '../../../../shared/utils/modelUtils';
+import { toastManager } from '../../../../components/EnhancedToast';
 import { CONSTANTS, STYLES, useDebounce } from './constants';
 import { 
   testingModelId, 
@@ -57,6 +59,7 @@ interface Provider {
 
 export const useProviderSettings = (provider: Provider | undefined) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
 
 
@@ -154,6 +157,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
   const {
     testResult,
     setTestResult,
+    testSnackbarOpen,
+    setTestSnackbarOpen,
     isTesting,
     testResultDialogOpen,
     setTestResultDialogOpen,
@@ -475,7 +480,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
 
       if (modelExists) {
         logModelOperation('添加失败 - 模型已存在', { modelId: newModelValue });
-        setTestResult({ success: false, message: '模型已存在，请勿重复添加' });
+        toastManager.error(t('modelSettings.provider.modelExists'));
         return;
       }
 
@@ -499,7 +504,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         setNewModelName('');
         setNewModelValue('');
         setOpenAddModelDialog(false);
-        setTestResult({ success: true, message: '模型添加成功' });
+        toastManager.success(t('modelSettings.provider.modelAdded'));
       }
     }
   };
@@ -691,6 +696,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
     isTesting,
     testResult,
     setTestResult,
+    testSnackbarOpen,
+    setTestSnackbarOpen,
     testingModelId: testingModelId.value, // 从 Signals 导出
     testResultDialogOpen,
     setTestResultDialogOpen,

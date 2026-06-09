@@ -14,6 +14,7 @@ import store, { persistor } from './shared/store';
 import KnowledgeProvider from './components/KnowledgeManagement/KnowledgeProvider';
 import { CodeStyleProvider } from './context/CodeStyleProvider';
 import AppContent from './components/AppContent';
+import { GlobalToastContainer } from './components/EnhancedToast';
 import LoggerService from './shared/services/infra/LoggerService';
 
 // 初始化日志拦截器
@@ -36,6 +37,7 @@ function App() {
             <HashRouter>
               <AppContent />
             </HashRouter>
+            <GlobalToastContainer />
           </SnackbarProvider>
         </CodeStyleProvider>
       </KnowledgeProvider>

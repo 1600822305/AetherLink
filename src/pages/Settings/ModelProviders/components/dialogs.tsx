@@ -116,6 +116,7 @@ interface CustomEndpointDialogProps {
 }
 
 interface TestResultSnackbarProps {
+  open: boolean;
   testResult: { success: boolean; message: string } | null;
   testResultDialogOpen: boolean;
   onClose: () => void;
@@ -1246,17 +1247,18 @@ export const CustomEndpointDialog: React.FC<CustomEndpointDialogProps> = ({
 // ============================================================================
 
 export const TestResultSnackbar: React.FC<TestResultSnackbarProps> = ({
+  open,
   testResult,
   testResultDialogOpen,
   onClose,
   onOpenDialog
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <Snackbar
-      open={testResult !== null && !testResultDialogOpen}
-      autoHideDuration={1000}
+      open={open && testResult !== null && !testResultDialogOpen}
+      autoHideDuration={3000}
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       sx={{ bottom: 'calc(var(--content-bottom-padding, 16px) + 8px) !important' }}
@@ -1288,7 +1290,7 @@ export const TestResultDialog: React.FC<TestResultDialogProps> = ({
   testResult
 }) => {
   const { t } = useTranslation();
-  
+
   return (
     <BackButtonDialog open={open} onClose={onClose} maxWidth="md" slotProps={{ paper: { sx: { width: '100%', maxWidth: 500, borderRadius: 2 } } }}>
       <DialogTitle sx={{
