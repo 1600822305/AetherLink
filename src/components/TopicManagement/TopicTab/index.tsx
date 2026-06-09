@@ -478,7 +478,7 @@ export default function TopicTab({
 
       if (!updatedTopic.messageIds || updatedTopic.messageIds.length === 0) {
         try {
-          const messages = await dexieStorage.getMessagesByTopicId(topic.id);
+          const messages = await dexieStorage.getTopicMessages(topic.id);
           if (messages && messages.length > 0) {
             updatedTopic = {
               ...updatedTopic,

@@ -930,10 +930,6 @@ export class DexieStorageService extends Dexie {
     return messages.filter(message => message !== undefined) as Message[];
   }
 
-  async getMessagesByTopicId(topicId: string): Promise<Message[]> {
-    return await this.messages.where('topicId').equals(topicId).toArray();
-  }
-
   /**
    * 获取所有消息
    * @returns 所有消息的数组
@@ -960,7 +956,7 @@ export class DexieStorageService extends Dexie {
   }
 
   async deleteMessagesByTopicId(topicId: string): Promise<void> {
-    const messages = await this.getMessagesByTopicId(topicId);
+    const messages = await this.messages.where('topicId').equals(topicId).toArray();
 
     for (const message of messages) {
       if (message.blocks && message.blocks.length > 0) {

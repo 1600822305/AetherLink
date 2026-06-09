@@ -17,7 +17,7 @@ export const MessageContext = {
 
     // 获取当前主题的所有消息
     // 直接从数据库获取消息
-    const messages = await dexieStorage.getMessagesByTopicId(topicId) || [];
+    const messages = await dexieStorage.getTopicMessages(topicId) || [];
 
     // 应用上下文限制
     const limitedMessages = applyContextLimits(
@@ -42,7 +42,7 @@ export const MessageContext = {
    */
   async getLastUserMessage(topicId: string) {
     // 从数据库获取消息
-    const messages = await dexieStorage.getMessagesByTopicId(topicId) || [];
+    const messages = await dexieStorage.getTopicMessages(topicId) || [];
 
     // 从后向前查找第一条用户消息
     for (let i = messages.length - 1; i >= 0; i--) {

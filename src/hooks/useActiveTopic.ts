@@ -129,7 +129,7 @@ export const TopicManager = {
 
   async getTopicMessages(id: string) {
     try {
-      const messages = await dexieStorage.getMessagesByTopicId(id);
+      const messages = await dexieStorage.getTopicMessages(id);
       return messages || [];
     } catch (error) {
       console.error(`[TopicManager] 获取话题 ${id} 的消息失败:`, error);
