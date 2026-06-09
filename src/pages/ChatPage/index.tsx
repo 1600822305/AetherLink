@@ -21,6 +21,7 @@ import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
 import { addTopic } from '../../shared/store/slices/assistantsSlice';
 import { useActiveTopic } from '../../hooks/useActiveTopic';
 import ChatSearchInterface from '../../components/search/ChatSearchInterface';
+import { scrollToMessage } from '../../shared/utils/scrollToMessage';
 
 const EMPTY_MESSAGES_ARRAY: any[] = [];
 
@@ -132,10 +133,9 @@ const ChatPage: React.FC = () => {
   }, [dispatch]);
 
   const handleMessageSelect = useCallback((topicId: string, messageId: string) => {
-    // 切换到对应话题并滚动到对应消息
+    // 切换到对应话题并滚动定位到对应消息
     dispatch(newMessagesActions.setCurrentTopicId(topicId));
-    // TODO: 添加滚动到特定消息的逻辑，使用 messageId
-    console.log(`[ChatPage] 切换到话题 ${topicId}，消息 ${messageId}`);
+    scrollToMessage(messageId);
   }, [dispatch]);
 
   // 消息处理钩子
