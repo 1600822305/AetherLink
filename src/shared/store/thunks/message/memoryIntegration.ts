@@ -5,32 +5,56 @@
 import store from '../../index';
 import { memoryService } from '../../../services/memory/MemoryService';
 import { MemoryProcessor, type MemoryProcessorConfig } from '../../../services/memory/MemoryProcessor';
-
-// 记忆处理器实例（延迟初始化）
-let memoryProcessor: MemoryProcessor | null = null;
+import { setCurrentAssistantId } from '../../slices/memorySlice';
 
 /**
- * 获取或创建 MemoryProcessor 实例
+ * 创建 MemoryProcessor 实例
+ * 每次调用都从 Redux 读取最新配置，避免单例缓存陈旧的 config/userId
  */
 function getMemoryProcessor(userId: string): MemoryProcessor | null {
   const state = store.getState();
   const memoryConfig = state.memory?.memoryConfig;
-  
+
   if (!memoryConfig?.llmModel || !memoryConfig?.embeddingModel) {
     return null;
   }
-  
-  // 构建配置
+
   const config: MemoryProcessorConfig = {
     memoryConfig: memoryConfig,
     userId: userId,
   };
-  
-  if (!memoryProcessor) {
-    memoryProcessor = new MemoryProcessor(config);
+
+  return new MemoryProcessor(config);
+}
+
+/**
+ * 从 Redux 同步配置到 MemoryService 单例
+ * 页面刷新后单例内部配置为空，写入记忆前必须同步，否则记忆会缺失 embedding
+ */
+export function syncMemoryServiceConfig(): void {
+  const memoryConfig = store.getState().memory?.memoryConfig;
+  if (memoryConfig) {
+    memoryService.setConfig(memoryConfig);
   }
-  
-  return memoryProcessor;
+}
+
+/**
+ * 检查助手是否允许使用记忆
+ * 仅在助手显式关闭（memoryEnabled === false）时禁用；未设置时遵循全局开关
+ */
+export function isMemoryAllowedForAssistant(assistant?: { memoryEnabled?: boolean } | null): boolean {
+  return assistant?.memoryEnabled !== false;
+}
+
+/**
+ * 设置当前活跃的记忆助手（与聊天中实际使用的助手联动）
+ * 保证记忆工具（create_memory 等）的读写与当前对话助手同一个隔离桶
+ */
+export function setActiveMemoryAssistant(assistantId: string): void {
+  const state = store.getState();
+  if (state.memory?.currentAssistantId !== assistantId) {
+    store.dispatch(setCurrentAssistantId(assistantId));
+  }
 }
 
 /**
@@ -84,7 +108,8 @@ export function getCurrentAssistantId(): string {
  */
 export async function searchRelevantMemories(
   userContent: string,
-  limit: number = 5
+  limit: number = 5,
+  assistantIdOverride?: string
 ): Promise<string[]> {
   if (!isMemoryEnabled()) {
     return [];
@@ -93,13 +118,9 @@ export async function searchRelevantMemories(
   try {
     // 🔧 关键：从 Redux store 同步配置到 MemoryService
     // 因为 MemoryService 是单例，页面刷新后内部配置会丢失
-    const state = store.getState();
-    const memoryConfig = state.memory?.memoryConfig;
-    if (memoryConfig) {
-      memoryService.setConfig(memoryConfig);
-    }
+    syncMemoryServiceConfig();
     
-    const assistantId = getCurrentAssistantId();
+    const assistantId = assistantIdOverride || getCurrentAssistantId();
     const results = await memoryService.search(userContent, {
       assistantId,
       limit,
@@ -142,13 +163,17 @@ ${memoryList}
  */
 export async function extractAndSaveMemories(
   userContent: string,
-  assistantContent: string
+  assistantContent: string,
+  assistantIdOverride?: string
 ): Promise<void> {
   if (!isMemoryEnabled()) {
     return;
   }
   
-  const assistantId = getCurrentAssistantId();
+  // 写入前同步配置，保证新记忆能生成 embedding
+  syncMemoryServiceConfig();
+  
+  const assistantId = assistantIdOverride || getCurrentAssistantId();
   const processor = getMemoryProcessor(assistantId);
   if (!processor) {
     console.log('[Memory] MemoryProcessor 未初始化，跳过记忆提取');

@@ -16,7 +16,7 @@ import { EventEmitter, EVENT_NAMES } from '../../../services/infra/EventService'
 import { getContextSettings, estimateMessagesTokenCount, truncateConversation } from '../../../services/messages/messageService';
 import { applyRegexRulesForSending } from '../../../utils/regexUtils';
 import type { AssistantRegex } from '../../../types/Assistant';
-import { searchRelevantMemories, buildMemoryPrompt, isMemoryEnabled } from './memoryIntegration';
+import { searchRelevantMemories, buildMemoryPrompt, isMemoryEnabled, isMemoryAllowedForAssistant, setActiveMemoryAssistant } from './memoryIntegration';
 import { SkillPromptBuilder } from '../../../services/skills/SkillPromptBuilder';
 import { SkillManager } from '../../../services/skills/SkillManager';
 
@@ -572,14 +572,17 @@ export const prepareMessagesForApi = async (
   const variableConfig = currentState.settings.systemPromptVariables;
   let processedSystemPrompt = injectSystemPromptVariables(systemPrompt, variableConfig || {});
 
-  // 🧠 记忆系统集成：搜索相关记忆并注入到系统提示词
-  if (isMemoryEnabled()) {
+  // 🧠 记忆系统集成：搜索相关记忆并注入到系统提示词（按当前对话助手隔离）
+  if (isMemoryEnabled() && isMemoryAllowedForAssistant(assistant)) {
     try {
+      if (assistant?.id) {
+        setActiveMemoryAssistant(assistant.id);
+      }
       const lastUserMessage = limitedMessages.filter(m => m.role === 'user').pop();
       if (lastUserMessage) {
         const userContent = getMainTextContent(lastUserMessage);
         if (userContent) {
-          const memories = await searchRelevantMemories(userContent, 5);
+          const memories = await searchRelevantMemories(userContent, 5, assistant?.id);
           if (memories.length > 0) {
             const memoryPrompt = buildMemoryPrompt(memories);
             processedSystemPrompt = processedSystemPrompt + '\n' + memoryPrompt;

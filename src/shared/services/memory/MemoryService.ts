@@ -187,10 +187,14 @@ class MemoryService {
       }
 
       const hash = await createHash(memory);
-      let embedding: number[] | undefined;
+      // 重新生成失败时保留旧向量，避免记忆从向量搜索中消失
+      let embedding: number[] | undefined = existing.embedding;
       
       if (this.config.embeddingModel) {
-        embedding = await this.getEmbedding(memory);
+        const newEmbedding = await this.getEmbedding(memory);
+        if (newEmbedding) {
+          embedding = newEmbedding;
+        }
       }
 
       const updated: Memory = {
