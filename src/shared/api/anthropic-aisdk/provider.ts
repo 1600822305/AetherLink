@@ -264,6 +264,17 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
               content: contentParts
             });
           }
+        } else if (Array.isArray(content)) {
+          // 已展平的多模态内容（OpenAI 格式 parts）→ 转换为 AI SDK 格式
+          // 注意：上游 prepareMessagesForApi 会把带图片/文件的消息展平成数组，
+          // 这里必须处理，否则整条消息（含用户文本）都会被丢弃
+          const contentParts = this.convertOpenAIPartsToAISDK(content);
+          if (contentParts.length > 0) {
+            apiMessages.push({
+              role: message.role,
+              content: contentParts
+            });
+          }
         } else if (content && typeof content === 'string' && content.trim()) {
           // 纯文本消息
           apiMessages.push({
@@ -285,6 +296,56 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
     }
 
     return apiMessages;
+  }
+
+  /**
+   * 将上游展平的 OpenAI 格式 parts 转换为 AI SDK（Anthropic）格式
+   * - text         → { type: 'text', text }
+   * - image_url    → { type: 'image', image: <url|dataURL> }
+   * - file（PDF等） → { type: 'file', data: <base64>, mediaType }
+   */
+  private convertOpenAIPartsToAISDK(parts: any[]): any[] {
+    const result: any[] = [];
+    for (const part of parts) {
+      if (!part || typeof part !== 'object') continue;
+
+      if (part.type === 'text') {
+        if (typeof part.text === 'string' && part.text.length > 0) {
+          result.push({ type: 'text', text: part.text });
+        }
+        continue;
+      }
+
+      // OpenAI 图片格式
+      if (part.type === 'image_url' && part.image_url?.url) {
+        result.push({ type: 'image', image: part.image_url.url });
+        continue;
+      }
+
+      // 已是 AI SDK 图片格式
+      if (part.type === 'image' && part.image) {
+        result.push(part);
+        continue;
+      }
+
+      // OpenAI 文件格式（如 PDF）：Claude 原生支持 document
+      if (part.type === 'file' && part.file) {
+        const rawData = part.file.file_data || part.file.url || part.file.data;
+        const mediaType = part.file.media_type || part.file.mimeType || 'application/pdf';
+        if (typeof rawData === 'string' && rawData) {
+          const base64 = rawData.includes(',') ? rawData.split(',')[1] : rawData;
+          result.push({ type: 'file', data: base64, mediaType });
+        }
+        continue;
+      }
+
+      // 已是 AI SDK 文件格式
+      if (part.type === 'file' && part.data) {
+        result.push(part);
+        continue;
+      }
+    }
+    return result;
   }
 
   /**

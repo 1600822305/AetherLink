@@ -17,7 +17,8 @@ import {
   convertToolCallsToMcpResponses
 } from './tools';
 import { ChunkType, type Chunk } from '../../types/chunk';
-import { getMainTextContent } from '../../utils/blockUtils';
+import { getMainTextContent, findImageBlocks, findFileBlocks } from '../../utils/blockUtils';
+import { readFileContent, getFileTypeByExtension, FileTypes } from '../../utils/fileUtils';
 import { UnifiedParameterManager } from '../parameters/UnifiedParameterManager';
 import { GeminiParameterFormatter } from '../parameters/formatters';
 
@@ -123,20 +124,70 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
         continue;
       }
       try {
-        // 优先使用 getMainTextContent 从 blocks 中提取内容
-        // 如果消息已经有 content 属性（API 格式消息），则直接使用
-        let content = (message as any).content;
-        if (content === undefined) {
-          // 尝试从 blocks 中提取
-          content = getMainTextContent(message);
+        const content = (message as any).content;
+
+        // 已是 API 格式消息（字符串或展平的多模态数组），直接使用
+        if (content !== undefined) {
+          if (typeof content === 'string') {
+            if (content.trim()) {
+              apiMessages.push({ role: message.role, content });
+            }
+          } else if (Array.isArray(content)) {
+            const parts = this.convertOpenAIPartsToAISDK(content);
+            if (parts.length > 0) {
+              apiMessages.push({ role: message.role, content: parts });
+            }
+          }
+          continue;
         }
-        
-        if (content && typeof content === 'string' && content.trim()) {
-          apiMessages.push({
-            role: message.role,
-            content: content
-          });
+
+        // 从 blocks 中提取文本、图片与文件
+        const text = getMainTextContent(message);
+        const imageBlocks = findImageBlocks(message);
+        const fileBlocks = findFileBlocks(message);
+
+        // 无附件：纯文本
+        if (imageBlocks.length === 0 && fileBlocks.length === 0) {
+          if (text && text.trim()) {
+            apiMessages.push({ role: message.role, content: text });
+          }
+          continue;
         }
+
+        // 多模态：构建 AI SDK parts（文本 + 图片 + 文档文本）
+        const parts: any[] = [{ type: 'text', text: text || '' }];
+
+        for (const imageBlock of imageBlocks) {
+          if (imageBlock.url) {
+            parts.push({ type: 'image', image: imageBlock.url });
+          } else if (imageBlock.file && imageBlock.file.base64Data) {
+            let base64Data = imageBlock.file.base64Data;
+            if (typeof base64Data === 'string' && base64Data.includes(',')) {
+              base64Data = base64Data.split(',')[1];
+            }
+            const mimeType = imageBlock.file.mimeType || 'image/jpeg';
+            parts.push({ type: 'image', image: `data:${mimeType};base64,${base64Data}` });
+          }
+        }
+
+        for (const fileBlock of fileBlocks) {
+          if (!fileBlock.file) continue;
+          const fileType = getFileTypeByExtension(fileBlock.file.name || fileBlock.file.origin_name || '');
+          // 文本/代码/文档：提取文本（文档由文件解析服务提取，避免二进制乱码）
+          if (fileType === FileTypes.TEXT || fileType === FileTypes.CODE || fileType === FileTypes.DOCUMENT) {
+            try {
+              const fileContent = await readFileContent(fileBlock.file);
+              if (fileContent) {
+                const fileName = fileBlock.file.origin_name || fileBlock.file.name || '未知文件';
+                parts.push({ type: 'text', text: `${fileName}\n${fileContent}` });
+              }
+            } catch (error) {
+              console.error('[Gemini AI SDK Provider] 读取文件内容失败:', error);
+            }
+          }
+        }
+
+        apiMessages.push({ role: message.role, content: parts });
       } catch (error) {
         console.error(`[Gemini AI SDK Provider] 处理消息失败:`, error);
       }
@@ -151,6 +202,52 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
     }
 
     return apiMessages;
+  }
+
+  /**
+   * 将上游展平的 OpenAI 格式 parts 转换为 AI SDK（Gemini）格式
+   * - text         → { type: 'text', text }
+   * - image_url    → { type: 'image', image: <url|dataURL> }
+   * - file（PDF等） → { type: 'file', data: <base64>, mediaType }
+   */
+  private convertOpenAIPartsToAISDK(parts: any[]): any[] {
+    const result: any[] = [];
+    for (const part of parts) {
+      if (!part || typeof part !== 'object') continue;
+
+      if (part.type === 'text') {
+        if (typeof part.text === 'string' && part.text.length > 0) {
+          result.push({ type: 'text', text: part.text });
+        }
+        continue;
+      }
+
+      if (part.type === 'image_url' && part.image_url?.url) {
+        result.push({ type: 'image', image: part.image_url.url });
+        continue;
+      }
+
+      if (part.type === 'image' && part.image) {
+        result.push(part);
+        continue;
+      }
+
+      if (part.type === 'file' && part.file) {
+        const rawData = part.file.file_data || part.file.url || part.file.data;
+        const mediaType = part.file.media_type || part.file.mimeType || 'application/pdf';
+        if (typeof rawData === 'string' && rawData) {
+          const base64 = rawData.includes(',') ? rawData.split(',')[1] : rawData;
+          result.push({ type: 'file', data: base64, mediaType });
+        }
+        continue;
+      }
+
+      if (part.type === 'file' && part.data) {
+        result.push(part);
+        continue;
+      }
+    }
+    return result;
   }
 
   /**
