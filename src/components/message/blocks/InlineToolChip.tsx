@@ -5,6 +5,7 @@ import { keyframes } from '@mui/material/styles';
 
 import { MessageBlockStatus } from '../../../shared/types/newMessage';
 import type { ToolMessageBlock } from '../../../shared/types/newMessage';
+import { getCompactScrollbarStyles } from '../../../shared/utils/scrollbarStyles';
 
 interface Props {
   block: ToolMessageBlock;
@@ -158,9 +159,10 @@ const InlineToolChip: React.FC<Props> = ({ block }) => {
                     backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)',
                     fontSize: '0.68rem',
                     lineHeight: 1.4,
-                    overflowX: 'auto',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
+                    // 限高 + 内部滚动，避免长参数/结果把思考面板撑得过长
+                    ...getCompactScrollbarStyles(theme),
                   }}
                 >
                   {params}
@@ -182,9 +184,10 @@ const InlineToolChip: React.FC<Props> = ({ block }) => {
                     backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.04)',
                     fontSize: '0.68rem',
                     lineHeight: 1.4,
-                    overflowX: 'auto',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
+                    // 限高 + 内部滚动，避免长参数/结果把思考面板撑得过长
+                    ...getCompactScrollbarStyles(theme),
                   }}
                 >
                   {result}
