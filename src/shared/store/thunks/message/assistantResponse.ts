@@ -240,16 +240,19 @@ export const processAssistantResponse = async (
       assistant
     });
 
-    // 8. 准备消息（参考 Cherry-Studio：一次加载，多格式输出）
+    // 8. 先执行知识库搜索，再构建API消息，确保检索结果注入到本轮提问
+    const knowledgeReferences = await performKnowledgeSearchIfNeeded(topicId, assistantMessage.id);
+
+    // 9. 准备消息（参考 Cherry-Studio：一次加载，多格式输出）
     // 只加载一次消息列表
     const messages = await dexieStorage.getTopicMessages(topicId);
     console.log(`[processAssistantResponse] 加载消息列表，消息数: ${messages.length}`);
-    
+
     // 传递给两个函数，避免重复查询
-    const apiMessages = await prepareMessagesForApi(topicId, assistantMessage.id, mcpTools, { 
-      skipKnowledgeSearch: true,
+    const apiMessages = await prepareMessagesForApi(topicId, assistantMessage.id, mcpTools, {
       assistant,  // 传入已获取的 assistant 信息
-      messages    // 传入已加载的消息列表
+      messages,   // 传入已加载的消息列表
+      knowledgeReferences: knowledgeReferences || undefined
     });
     const filteredOriginalMessages = await prepareOriginalMessages(topicId, assistantMessage, messages);
 
@@ -264,9 +267,6 @@ export const processAssistantResponse = async (
       toolNames: mcpTools.map(t => t.name || t.id).filter((n): n is string => !!n),
       mcpTools
     });
-
-    // 12. 执行知识库搜索
-    await performKnowledgeSearchIfNeeded(topicId, assistantMessage.id);
 
     // 13. 检查是否为图像生成模型
     const isImageModel = isImageGenerationModel(model);

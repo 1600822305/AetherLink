@@ -20,10 +20,33 @@ import { searchRelevantMemories, buildMemoryPrompt, isMemoryEnabled, isMemoryAll
 import { SkillPromptBuilder } from '../../../services/skills/SkillPromptBuilder';
 import { SkillManager } from '../../../services/skills/SkillManager';
 
+/** 知识库搜索引用，用于注入到当前用户提问 */
+export interface KnowledgeSearchReference {
+  id: number;
+  content: string;
+  type: 'file';
+  similarity: number;
+  knowledgeBaseId: string;
+  knowledgeBaseName: string;
+  sourceUrl: string;
+}
+
+/** 将知识库引用以 REFERENCE_PROMPT 格式包装到用户提问中 */
+const applyKnowledgeReferences = (content: string, references: KnowledgeSearchReference[]): string => {
+  const referenceContent = `\`\`\`json\n${JSON.stringify(references, null, 2)}\n\`\`\``;
+  return REFERENCE_PROMPT
+    .replace('{question}', content)
+    .replace('{references}', referenceContent);
+};
+
 /**
- * 在API调用前检查是否需要进行知识库搜索（风格：新模式）
+ * 在构建API消息之前执行知识库搜索，返回引用列表供 prepareMessagesForApi 注入
+ * @returns 搜索到的引用；未选中知识库或无结果时返回null
  */
-export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantMessageId: string) => {
+export const performKnowledgeSearchIfNeeded = async (
+  topicId: string,
+  assistantMessageId: string
+): Promise<KnowledgeSearchReference[] | null> => {
   try {
     console.log('[performKnowledgeSearchIfNeeded] 开始检查知识库选择状态...');
 
@@ -34,7 +57,7 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
 
     if (selectedKBs.length === 0 && !contextData) {
       console.log('[performKnowledgeSearchIfNeeded] 没有选中知识库，直接返回');
-      return;
+      return null;
     }
 
     // 确定要搜索的知识库列表
@@ -42,7 +65,7 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
       ? selectedKBs
       : contextData ? [contextData.knowledgeBase] : [];
 
-    if (knowledgeBasesToSearch.length === 0) return;
+    if (knowledgeBasesToSearch.length === 0) return null;
 
     console.log(`[performKnowledgeSearchIfNeeded] 检测到 ${knowledgeBasesToSearch.length} 个知识库，开始并行搜索...`);
 
@@ -58,7 +81,7 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
     const messages = await dexieStorage.getTopicMessages(topicId);
     if (!messages || messages.length === 0) {
       console.warn('[performKnowledgeSearchIfNeeded] 无法获取话题消息');
-      return;
+      return null;
     }
 
     // 找到最后一条用户消息
@@ -68,14 +91,14 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
 
     if (!userMessage) {
       console.warn('[performKnowledgeSearchIfNeeded] 未找到用户消息');
-      return;
+      return null;
     }
 
     // 获取用户消息的文本内容
     const userContent = getMainTextContent(userMessage);
     if (!userContent) {
       console.warn('[performKnowledgeSearchIfNeeded] 用户消息内容为空');
-      return;
+      return null;
     }
 
     console.log('[performKnowledgeSearchIfNeeded] 用户消息内容:', userContent);
@@ -102,15 +125,7 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
 
     // 合并所有结果并按相似度降序排列
     let globalIndex = 1;
-    const allReferences: Array<{
-      id: number;
-      content: string;
-      type: 'file';
-      similarity: number;
-      knowledgeBaseId: string;
-      knowledgeBaseName: string;
-      sourceUrl: string;
-    }> = [];
+    const allReferences: KnowledgeSearchReference[] = [];
 
     for (const { kb, results } of allSearchResults) {
       for (const result of results) {
@@ -134,12 +149,6 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
     console.log(`[performKnowledgeSearchIfNeeded] 并行搜索完成: ${knowledgeBasesToSearch.length} 个知识库, ${totalResults} 个结果`);
 
     if (totalResults > 0) {
-      // 缓存搜索结果（用于API注入）
-      const cacheKey = `knowledge-search-${userMessage.id}`;
-      window.sessionStorage.setItem(cacheKey, JSON.stringify(allReferences));
-
-      console.log(`[performKnowledgeSearchIfNeeded] 知识库搜索结果已缓存: ${cacheKey}`);
-
       // 发送知识库搜索完成事件
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_SEARCH_COMPLETED, {
         messageId: assistantMessageId,
@@ -149,16 +158,16 @@ export const performKnowledgeSearchIfNeeded = async (topicId: string, assistantM
         searchResults: allSearchResults.flatMap(r => r.results),
         references: allReferences
       });
-
-      console.log(`[performKnowledgeSearchIfNeeded] 已发送知识库搜索完成事件，结果数量: ${totalResults}`);
     }
 
     // 清除知识库选择状态
     store.dispatch(clearSelectedKnowledgeBase());
 
+    return totalResults > 0 ? allReferences : null;
   } catch (error) {
     console.error('[performKnowledgeSearchIfNeeded] 知识库搜索失败:', error);
     store.dispatch(clearSelectedKnowledgeBase());
+    return null;
   }
 };
 
@@ -166,24 +175,15 @@ export const prepareMessagesForApi = async (
   topicId: string,
   assistantMessageId: string,
   _mcpTools?: MCPTool[], // 添加下划线前缀表示未使用的参数
-  options?: { 
-    skipKnowledgeSearch?: boolean;
-    assistant?: any; // 新增：支持传入缓存的 assistant 信息
-    messages?: Message[]; // 新增：支持传入缓存的消息列表，避免重复查询
+  options?: {
+    assistant?: any; // 支持传入缓存的 assistant 信息
+    messages?: Message[]; // 支持传入缓存的消息列表，避免重复查询
+    knowledgeReferences?: KnowledgeSearchReference[]; // 提前搜索好的知识库引用，注入到当前用户提问
   }
 ) => {
-  console.log('[prepareMessagesForApi] 开始准备API消息', { topicId, assistantMessageId, options });
+  console.log('[prepareMessagesForApi] 开始准备API消息', { topicId, assistantMessageId });
 
-  // 1. 首先检查是否需要进行知识库搜索（风格：在API调用前搜索）
-  if (!options?.skipKnowledgeSearch) {
-    console.log('[prepareMessagesForApi] 调用知识库搜索检查...');
-    await performKnowledgeSearchIfNeeded(topicId, assistantMessageId);
-    console.log('[prepareMessagesForApi] 知识库搜索检查完成');
-  } else {
-    console.log('[prepareMessagesForApi] 跳过知识库搜索检查');
-  }
-
-  // 2. 获取上下文设置（类似 Roo Code 的 manageContext）
+  // 获取上下文设置（类似 Roo Code 的 manageContext）
   const { contextCount, contextWindowSize, maxOutputTokens } = await getContextSettings();
   console.log(`[prepareMessagesForApi] 上下文设置: contextCount=${contextCount}, contextWindowSize=${contextWindowSize}, maxOutputTokens=${maxOutputTokens}`);
 
@@ -352,8 +352,10 @@ export const prepareMessagesForApi = async (
     console.log(`[prepareMessagesForApi] 检测到 ${regexRules.length} 条正则规则`);
   }
 
+  // 知识库引用注入到上下文中最后一条用户消息（即当前提问）
+  const lastUserMessageId = [...limitedMessages].reverse().find((m) => m.role === 'user')?.id;
+
   for (const message of limitedMessages) {
-    // 获取消息内容 - 检查是否有知识库缓存（风格）
     let content = getMainTextContent(message);
 
     // 应用正则规则（非 visualOnly 的规则，用于发送）
@@ -366,74 +368,15 @@ export const prepareMessagesForApi = async (
       }
     }
 
-    // 如果是用户消息，检查是否有知识库搜索结果或选中的知识库
-    if (message.role === 'user') {
-      const fallbackContextData = getKnowledgeSelectionFromStore(store.getState());
-      const cacheKey = `knowledge-search-${message.id}`;
-      const cachedReferences = window.sessionStorage.getItem(cacheKey);
-
-      if (cachedReferences && content) {
-        try {
-          const references = JSON.parse(cachedReferences);
-          if (references && references.length > 0) {
-            // 应用REFERENCE_PROMPT格式（风格）
-            const referenceContent = `\`\`\`json\n${JSON.stringify(references, null, 2)}\n\`\`\``;
-            content = REFERENCE_PROMPT
-              .replace('{question}', content)
-              .replace('{references}', referenceContent);
-
-            console.log(`[prepareMessagesForApi] 为消息 ${message.id} 应用了知识库上下文，引用数量: ${references.length}`);
-
-            // 清除缓存
-            window.sessionStorage.removeItem(cacheKey);
-          }
-        } catch (error) {
-          console.error('[prepareMessagesForApi] 解析知识库缓存失败:', error);
-        }
-      } else {
-        // 检查是否有选中的知识库但没有缓存的搜索结果
-        if (fallbackContextData && content) {
-          try {
-            if (fallbackContextData.isSelected && fallbackContextData.searchOnSend) {
-              console.log(`[prepareMessagesForApi] 检测到选中的知识库但没有缓存结果，进行实时搜索...`);
-
-              // 使用已导入的知识库服务
-              const knowledgeService = MobileKnowledgeService.getInstance();
-
-              // 搜索知识库
-              const searchResults = await knowledgeService.search({
-                knowledgeBaseId: fallbackContextData.knowledgeBase.id,
-                query: content.trim(),
-                threshold: 0.6,
-                limit: fallbackContextData.knowledgeBase.documentCount || 5 // 使用知识库配置的文档数量
-              });
-
-              if (searchResults.length > 0) {
-                // 转换为引用格式
-                const references = searchResults.map((result: any, index: number) => ({
-                  id: index + 1,
-                  content: result.content,
-                  type: 'file' as const,
-                  similarity: result.similarity,
-                  knowledgeBaseId: fallbackContextData.knowledgeBase.id,
-                  knowledgeBaseName: fallbackContextData.knowledgeBase.name,
-                  sourceUrl: `knowledge://${fallbackContextData.knowledgeBase.id}/${result.documentId}`
-                }));
-
-                // 应用REFERENCE_PROMPT格式
-                const referenceContent = `\`\`\`json\n${JSON.stringify(references, null, 2)}\n\`\`\``;
-                content = REFERENCE_PROMPT
-                  .replace('{question}', content)
-                  .replace('{references}', referenceContent);
-
-                console.log(`[prepareMessagesForApi] 实时搜索并应用了知识库上下文，引用数量: ${references.length}`);
-              }
-            }
-          } catch (error) {
-            console.error('[prepareMessagesForApi] 实时知识库搜索失败:', error);
-          }
-        }
-      }
+    // 将知识库引用注入到当前提问（上下文中最后一条用户消息）
+    if (
+      message.role === 'user' &&
+      message.id === lastUserMessageId &&
+      content &&
+      options?.knowledgeReferences?.length
+    ) {
+      content = applyKnowledgeReferences(content, options.knowledgeReferences);
+      console.log(`[prepareMessagesForApi] 为消息 ${message.id} 注入知识库引用，数量: ${options.knowledgeReferences.length}`);
     }
 
     // 检查是否有文件或图片块
