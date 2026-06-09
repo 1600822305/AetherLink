@@ -1,0 +1,241 @@
+/* WebSearchProviderSelector - SolidJS 版本样式 */
+/* 使用 CSS Variables 主题系统，风格与 MultiModelSelector 保持一致 */
+
+/* 背景遮罩 */
+.solid-wsp-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  animation: solidWspFadeIn 0.2s ease-out;
+}
+
+@keyframes solidWspFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 对话框容器 */
+.solid-wsp-dialog {
+  background-color: var(--theme-bg-paper);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2),
+              0 24px 38px 3px rgba(0, 0, 0, 0.14),
+              0 9px 46px 8px rgba(0, 0, 0, 0.12);
+  animation: solidWspSlideUp 0.2s ease-out;
+}
+
+.solid-wsp-dialog.fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+@keyframes solidWspSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 标题栏 */
+.solid-wsp-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--theme-border-default);
+  flex-shrink: 0;
+}
+
+.solid-wsp-dialog.fullscreen .solid-wsp-dialog-header {
+  padding-top: max(16px, var(--titlebar-height, 0px), env(safe-area-inset-top, 16px));
+}
+
+.solid-wsp-dialog-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--theme-text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.solid-wsp-dialog-title svg {
+  color: var(--theme-primary);
+}
+
+.solid-wsp-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.solid-wsp-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--theme-text-secondary);
+  transition: background-color 0.2s;
+}
+
+.solid-wsp-icon-btn:hover {
+  background-color: var(--theme-hover-bg);
+}
+
+/* 对话框内容 */
+.solid-wsp-dialog-content {
+  padding: 8px 16px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.solid-wsp-dialog.fullscreen .solid-wsp-dialog-content {
+  padding-bottom: max(16px, calc(env(safe-area-inset-bottom, 16px) + 16px));
+}
+
+/* 分隔线 */
+.solid-wsp-divider {
+  height: 1px;
+  background-color: var(--theme-border-default);
+  margin: 8px 0;
+}
+
+/* 分组标签 */
+.solid-wsp-section-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  padding: 4px 12px 8px;
+}
+
+/* 提供商列表项 */
+.solid-wsp-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background-color: transparent;
+  margin-bottom: 4px;
+}
+
+.solid-wsp-item:hover {
+  background-color: var(--theme-hover-bg);
+}
+
+.solid-wsp-item.selected {
+  background-color: var(--theme-selected-bg);
+}
+
+.solid-wsp-item.selected:hover {
+  background-color: var(--theme-active-bg);
+}
+
+/* 列表项图标 */
+.solid-wsp-item-icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--theme-text-secondary);
+}
+
+.solid-wsp-item-icon.muted {
+  background-color: var(--theme-bg-elevated, rgba(102, 102, 102, 0.1));
+  opacity: 0.8;
+}
+
+/* 列表项信息 */
+.solid-wsp-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.solid-wsp-item-name {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  margin-bottom: 2px;
+  color: var(--theme-text-primary);
+}
+
+.solid-wsp-item.selected .solid-wsp-item-name {
+  font-weight: 500;
+}
+
+.solid-wsp-item-description {
+  font-size: 0.75rem;
+  color: var(--theme-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.solid-wsp-item-description.available {
+  color: var(--theme-success, #4caf50);
+}
+
+.solid-wsp-item-description.unavailable {
+  color: var(--theme-warning, #ff9800);
+}
+
+/* 选中勾选标记 */
+.solid-wsp-item-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--theme-primary);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+  .solid-wsp-dialog:not(.fullscreen) {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .solid-wsp-dialog-header {
+    padding: 12px 16px;
+  }
+
+  .solid-wsp-dialog-content {
+    padding: 8px 12px 12px;
+  }
+}
