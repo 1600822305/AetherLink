@@ -133,10 +133,13 @@ export class UnifiedParameterManager {
         defaultValue: '', 
         validator: (v) => typeof v === 'string' && v.trim().length > 0 
       },
-      { 
-        key: 'reasoningEffort', 
+      {
+        // 推理努力程度：原样透传（含 'off'/'none'），由推理编码层（encodeReasoningParams）
+        // 按模型决定是开启/关闭思考还是跳过。此处不再静默丢弃 'off'，否则 DeepSeek V4 等
+        // 支持显式关闭思考的模型将无法真正关闭。
+        key: 'reasoningEffort',
         defaultValue: 'medium',
-        validator: (v) => v && v !== 'off' && v !== 'disabled' && v !== 'none'
+        validator: (v) => typeof v === 'string' && v.trim().length > 0
       },
       { key: 'thinkingBudget', defaultValue: 1024, validator: (v) => !!v }
     ];

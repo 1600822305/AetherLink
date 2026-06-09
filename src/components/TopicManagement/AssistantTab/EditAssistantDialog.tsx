@@ -405,6 +405,7 @@ const EditAssistantDialog: React.FC<EditAssistantDialogProps> = ({
           <Box sx={{ height: '100%', overflow: 'auto' }}>
             <ParameterEditor
               providerType={providerType}
+              modelId={modelId}
               values={localParamValues}
               enabledParams={localEnabledParams}
               onChange={handleParamChange}

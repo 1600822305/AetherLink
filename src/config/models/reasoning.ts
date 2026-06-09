@@ -87,8 +87,10 @@ export const MODEL_SUPPORTED_OPTIONS: Record<ThinkingModelType, readonly Reasoni
   hunyuan: ['default', 'none', ...MODEL_SUPPORTED_REASONING_EFFORT.hunyuan],
   zhipu: ['default', 'none', ...MODEL_SUPPORTED_REASONING_EFFORT.zhipu],
   perplexity: ['default', ...MODEL_SUPPORTED_REASONING_EFFORT.perplexity],
-  // V4 混合模型支持显式禁用思考（thinking.type=disabled）
-  deepseek_hybrid: ['default', 'none', ...MODEL_SUPPORTED_REASONING_EFFORT.deepseek_hybrid]
+  // DeepSeek V4 混合模型：UI 仅暴露 关闭 / 高 / 最高 三档
+  // （low/medium 服务端会映射到 high，故不单独展示；xhigh 映射到 max 即「最高」）。
+  // 关闭通过 thinking.type=disabled 真正关闭思考。
+  deepseek_hybrid: ['none', 'high', 'xhigh']
 };
 
 /**

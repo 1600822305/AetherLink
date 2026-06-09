@@ -306,6 +306,7 @@ export default function DynamicContextSettings({
           {/* 使用共享的 ParameterEditor 组件 */}
           <ParameterEditor
             providerType={providerType}
+            modelId={modelId}
             values={paramValues}
             enabledParams={enabledParams}
             onChange={handleParamChange}
@@ -349,6 +350,7 @@ export default function DynamicContextSettings({
         <DialogContent dividers sx={{ p: 2 }}>
           <ParameterEditor
             providerType={providerType}
+            modelId={modelId}
             values={paramValues}
             enabledParams={enabledParams}
             onChange={handleParamChange}

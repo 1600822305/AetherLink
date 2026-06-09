@@ -12,17 +12,8 @@ import type {
   OpenAISpecificParameters
 } from '../types';
 import { UnifiedParameterManager } from '../UnifiedParameterManager';
-import {
-  isReasoningModel,
-  isOpenAIReasoningModel,
-  isClaudeReasoningModel,
-  isGeminiReasoningModel,
-  isQwenReasoningModel,
-  isGrokReasoningModel,
-  isDeepSeekReasoningModel,
-  isDeepSeekHybridReasoningModel
-} from '../../../../config/models';
-import { EFFORT_RATIO, DEFAULT_MAX_TOKENS, findTokenLimit } from '../../../config/constants';
+import { isReasoningModel } from '../../../../config/models';
+import { encodeReasoningParams, type ReasoningApiFlavor } from '../reasoning/encodeReasoning';
 import { getDefaultThinkingEffort, getAppSettings } from '../../../utils/settingsUtils';
 
 /**
@@ -270,354 +261,31 @@ export class OpenAIParameterAdapter implements ParameterAdapter<'openai'> {
    * 获取推理参数 - Chat Completions API 格式
    */
   getReasoningParameters(): ReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const assistant = this.unifiedManager.getAssistant();
-
-    if (!isReasoningModel(model)) {
-      return {};
-    }
-
-    const reasoningEffort = assistant?.settings?.reasoning_effort || getDefaultThinkingEffort();
-
-    console.log(`[OpenAIParameterAdapter] 模型 ${model.id} 推理努力程度: ${reasoningEffort}`);
-
-    if (reasoningEffort === 'disabled' || reasoningEffort === 'none' || reasoningEffort === 'off') {
-      return this.getDisabledReasoningParameters();
-    }
-
-    return this.getEnabledReasoningParameters(reasoningEffort);
+    return this.encodeReasoning('chat');
   }
 
   /**
    * 获取 Responses API 格式的推理参数
    */
   getResponsesAPIReasoningParameters(): ResponsesAPIReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const assistant = this.unifiedManager.getAssistant();
+    return this.encodeReasoning('responses');
+  }
 
+  /**
+   * 统一推理参数编码：读取 effort 与 maxTokens 后交给共享的 encodeReasoningParams。
+   * 所有按模型 / 供应商的差异化逻辑都收敛在 encodeReasoning 模块中（单一事实源）。
+   */
+  private encodeReasoning(api: ReasoningApiFlavor): Record<string, any> {
+    const model = this.unifiedManager.getModel();
     if (!isReasoningModel(model)) {
       return {};
     }
-
+    const assistant = this.unifiedManager.getAssistant();
     const reasoningEffort = assistant?.settings?.reasoning_effort || getDefaultThinkingEffort();
-
-    console.log(`[OpenAIParameterAdapter] Responses API 模型 ${model.id} 推理努力程度: ${reasoningEffort}`);
-
-    if (reasoningEffort === 'disabled' || reasoningEffort === 'none' || reasoningEffort === 'off') {
-      return this.getDisabledResponsesAPIReasoningParameters();
-    }
-
-    return this.getEnabledResponsesAPIReasoningParameters(reasoningEffort);
-  }
-
-  /**
-   * 获取禁用推理的参数 - Chat Completions API 格式
-   */
-  private getDisabledReasoningParameters(): ReasoningParameters {
-    const model = this.unifiedManager.getModel();
-
-    // Qwen 模型
-    if (isQwenReasoningModel(model)) {
-      return { enable_thinking: false };
-    }
-
-    // Claude 模型
-    if (isClaudeReasoningModel(model)) {
-      return { thinking: { type: 'disabled' } };
-    }
-
-    // Gemini 模型
-    if (isGeminiReasoningModel(model)) {
-      return { reasoning_effort: 'none' };
-    }
-
-    // DeepSeek V4 混合模型：通过 thinking.type=disabled 显式关闭思考模式
-    if (isDeepSeekHybridReasoningModel(model)) {
-      return { thinking: { type: 'disabled' } };
-    }
-
-    // DeepSeek legacy、OpenAI、Grok 模型：不支持禁用推理
-    if (isDeepSeekReasoningModel(model) ||
-        isOpenAIReasoningModel(model) ||
-        isGrokReasoningModel(model)) {
-      console.log(`[OpenAIParameterAdapter] ${model.id} 模型不支持禁用推理，跳过推理参数`);
-      return {};
-    }
-
-    return {};
-  }
-
-  /**
-   * 获取禁用推理的参数 - Responses API 格式
-   */
-  private getDisabledResponsesAPIReasoningParameters(): ResponsesAPIReasoningParameters {
-    const model = this.unifiedManager.getModel();
-
-    // Qwen 模型
-    if (isQwenReasoningModel(model)) {
-      return { enable_thinking: false };
-    }
-
-    // Claude 模型
-    if (isClaudeReasoningModel(model)) {
-      return { thinking: { type: 'disabled' } };
-    }
-
-    // OpenAI 推理模型：Responses API 不支持禁用推理
-    if (isOpenAIReasoningModel(model)) {
-      console.log(`[OpenAIParameterAdapter] Responses API ${model.id} 模型不支持禁用推理，跳过推理参数`);
-      return {};
-    }
-
-    return {};
-  }
-
-  /**
-   * 获取启用推理的参数 - Chat Completions API 格式
-   */
-  private getEnabledReasoningParameters(reasoningEffort: string): ReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const effortRatio = EFFORT_RATIO[reasoningEffort as keyof typeof EFFORT_RATIO] || 0.3;
-    const tokenLimit = findTokenLimit(model.id);
-
-    if (!tokenLimit) {
-      return this.getDefaultReasoningParameters(reasoningEffort);
-    }
-
-    const budgetTokens = Math.floor(
-      (tokenLimit.max - tokenLimit.min) * effortRatio + tokenLimit.min
-    );
-
-    return this.getModelSpecificReasoningParameters(reasoningEffort, budgetTokens, effortRatio);
-  }
-
-  /**
-   * 获取启用推理的参数 - Responses API 格式
-   */
-  private getEnabledResponsesAPIReasoningParameters(reasoningEffort: string): ResponsesAPIReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const effortRatio = EFFORT_RATIO[reasoningEffort as keyof typeof EFFORT_RATIO] || 0.3;
-    const tokenLimit = findTokenLimit(model.id);
-
-    if (!tokenLimit) {
-      return this.getDefaultResponsesAPIReasoningParameters(reasoningEffort);
-    }
-
-    const budgetTokens = Math.floor(
-      (tokenLimit.max - tokenLimit.min) * effortRatio + tokenLimit.min
-    );
-
-    return this.getModelSpecificResponsesAPIReasoningParameters(reasoningEffort, budgetTokens, effortRatio);
-  }
-
-  /**
-   * 获取默认推理参数（当找不到 token 限制时）
-   */
-  private getDefaultReasoningParameters(reasoningEffort: string): ReasoningParameters {
-    const model = this.unifiedManager.getModel();
-
-    // DeepSeek V4 混合模型：启用思考 + effort 映射
-    // 服务端映射规则：low/medium -> high, xhigh -> max
-    if (isDeepSeekHybridReasoningModel(model)) {
-      const mappedEffort = this.mapDeepSeekV4Effort(reasoningEffort);
-      return {
-        thinking: { type: 'enabled' },
-        reasoning_effort: mappedEffort
-      };
-    }
-
-    if (isDeepSeekReasoningModel(model)) {
-      const supportedEffort = reasoningEffort === 'medium' ? 'high' : reasoningEffort;
-      if (supportedEffort === 'low' || supportedEffort === 'high') {
-        return { reasoning_effort: supportedEffort };
-      }
-      console.log(`[OpenAIParameterAdapter] DeepSeek 模型不支持推理努力程度 ${reasoningEffort}，跳过推理参数`);
-      return {};
-    }
-
-    return { reasoning_effort: reasoningEffort };
-  }
-
-  /**
-   * 将通用 effort 值映射为 DeepSeek V4 服务端接受的值
-   * V4 规则：low/medium -> high，xhigh -> max，high -> high、max -> max
-   */
-  private mapDeepSeekV4Effort(effort: string): string {
-    if (effort === 'low' || effort === 'medium') return 'high';
-    if (effort === 'xhigh') return 'max';
-    if (effort === 'high' || effort === 'max') return effort;
-    return 'high';
-  }
-
-  /**
-   * 获取默认 Responses API 推理参数
-   */
-  private getDefaultResponsesAPIReasoningParameters(reasoningEffort: string): ResponsesAPIReasoningParameters {
-    const model = this.unifiedManager.getModel();
-
-    // OpenAI 推理模型使用 Responses API 格式
-    if (isOpenAIReasoningModel(model)) {
-      return {
-        reasoning: {
-          effort: reasoningEffort,
-          summary: 'auto'
-        }
-      };
-    }
-
-    // DeepSeek V4 混合模型（Responses API 路径）
-    if (isDeepSeekHybridReasoningModel(model)) {
-      const mappedEffort = this.mapDeepSeekV4Effort(reasoningEffort);
-      return {
-        thinking: { type: 'enabled' },
-        reasoning_effort: mappedEffort
-      };
-    }
-
-    if (isDeepSeekReasoningModel(model)) {
-      const supportedEffort = reasoningEffort === 'medium' ? 'high' : reasoningEffort;
-      if (supportedEffort === 'low' || supportedEffort === 'high') {
-        return { reasoning_effort: supportedEffort };
-      }
-      console.log(`[OpenAIParameterAdapter] DeepSeek 模型不支持推理努力程度 ${reasoningEffort}，跳过推理参数`);
-      return {};
-    }
-
-    return { reasoning_effort: reasoningEffort };
-  }
-
-  /**
-   * 获取特定模型的推理参数 - Chat Completions API 格式
-   */
-  private getModelSpecificReasoningParameters(
-    reasoningEffort: string,
-    budgetTokens: number,
-    effortRatio: number
-  ): ReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const assistant = this.unifiedManager.getAssistant();
-
-    // OpenAI 模型
-    if (isOpenAIReasoningModel(model)) {
-      return { reasoning_effort: reasoningEffort };
-    }
-
-    // DeepSeek V4 混合模型（优先判定）
-    if (isDeepSeekHybridReasoningModel(model)) {
-      const mappedEffort = this.mapDeepSeekV4Effort(reasoningEffort);
-      return {
-        thinking: { type: 'enabled' },
-        reasoning_effort: mappedEffort
-      };
-    }
-
-    // DeepSeek legacy 推理模型
-    if (isDeepSeekReasoningModel(model)) {
-      const supportedEffort = reasoningEffort === 'medium' ? 'high' : reasoningEffort;
-      if (supportedEffort === 'low' || supportedEffort === 'high') {
-        return { reasoning_effort: supportedEffort };
-      }
-      console.log(`[OpenAIParameterAdapter] DeepSeek 模型不支持推理努力程度 ${reasoningEffort}，跳过推理参数`);
-      return {};
-    }
-
-    // Qwen 模型
-    if (isQwenReasoningModel(model)) {
-      return {
-        enable_thinking: true,
-        thinking_budget: budgetTokens
-      };
-    }
-
-    // Grok 模型
-    if (isGrokReasoningModel(model)) {
-      const supportedEffort = reasoningEffort === 'medium' ? 'high' : reasoningEffort;
-      if (supportedEffort === 'low' || supportedEffort === 'high') {
-        return { reasoning_effort: supportedEffort };
-      }
-      console.log(`[OpenAIParameterAdapter] Grok 模型不支持推理努力程度 ${reasoningEffort}，跳过推理参数`);
-      return {};
-    }
-
-    // Gemini 模型
-    if (isGeminiReasoningModel(model)) {
-      return { reasoning_effort: reasoningEffort };
-    }
-
-    // Claude 模型
-    if (isClaudeReasoningModel(model)) {
-      const maxTokens = assistant?.settings?.maxTokens;
-      return {
-        thinking: {
-          type: 'enabled',
-          budget_tokens: Math.max(1024, Math.min(budgetTokens, (maxTokens || DEFAULT_MAX_TOKENS) * effortRatio))
-        }
-      };
-    }
-
-    return {};
-  }
-
-  /**
-   * 获取特定模型的推理参数 - Responses API 格式
-   */
-  private getModelSpecificResponsesAPIReasoningParameters(
-    reasoningEffort: string,
-    budgetTokens: number,
-    effortRatio: number
-  ): ResponsesAPIReasoningParameters {
-    const model = this.unifiedManager.getModel();
-    const assistant = this.unifiedManager.getAssistant();
-
-    // OpenAI 模型 - 使用 Responses API 格式
-    if (isOpenAIReasoningModel(model)) {
-      return {
-        reasoning: {
-          effort: reasoningEffort,
-          summary: 'auto'
-        }
-      };
-    }
-
-    // DeepSeek V4 混合模型（优先判定，Responses API 路径）
-    if (isDeepSeekHybridReasoningModel(model)) {
-      const mappedEffort = this.mapDeepSeekV4Effort(reasoningEffort);
-      return {
-        thinking: { type: 'enabled' },
-        reasoning_effort: mappedEffort
-      };
-    }
-
-    // DeepSeek legacy 推理模型
-    if (isDeepSeekReasoningModel(model)) {
-      const supportedEffort = reasoningEffort === 'medium' ? 'high' : reasoningEffort;
-      if (supportedEffort === 'low' || supportedEffort === 'high') {
-        return { reasoning_effort: supportedEffort };
-      }
-      console.log(`[OpenAIParameterAdapter] DeepSeek 模型不支持推理努力程度 ${reasoningEffort}，跳过推理参数`);
-      return {};
-    }
-
-    // Qwen 模型
-    if (isQwenReasoningModel(model)) {
-      return {
-        enable_thinking: true,
-        thinking_budget: budgetTokens
-      };
-    }
-
-    // Claude 模型
-    if (isClaudeReasoningModel(model)) {
-      const maxTokens = assistant?.settings?.maxTokens;
-      return {
-        thinking: {
-          type: 'enabled',
-          budget_tokens: Math.max(1024, Math.min(budgetTokens, (maxTokens || DEFAULT_MAX_TOKENS) * effortRatio))
-        }
-      };
-    }
-
-    return {};
+    return encodeReasoningParams(model, reasoningEffort, {
+      api,
+      maxTokens: assistant?.settings?.maxTokens
+    });
   }
 
   /**
