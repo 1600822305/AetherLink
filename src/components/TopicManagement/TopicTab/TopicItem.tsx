@@ -8,10 +8,11 @@ import {
 } from '@mui/material';
 import { MoreVertical, Trash, Pin, AlertTriangle } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { getMainTextContent } from '../../../shared/utils/blockUtils';
 import type { ChatTopic } from '../../../shared/types';
 import type { RootState } from '../../../shared/store';
-import { selectTopicStreaming } from '../../../shared/store/selectors/messageSelectors';
-import { refreshTopicPreview } from '../../../shared/services/topics/TopicPreviewService';
+import { selectTopicStreaming, selectMessagesForTopic } from '../../../shared/store/selectors/messageSelectors';
+import { formatPreviewText } from '../../../shared/services/topics/TopicPreviewService';
 
 interface TopicItemProps {
   topic: ChatTopic;
@@ -93,27 +94,35 @@ const TopicItem = React.memo(function TopicItem({
 
   const isStreaming = useSelector(selectTopicStreamingState);
 
+  // 已加载进 Redux 的消息（仅打开过/正在使用的话题非空）。
+  // selectMessagesForTopic 内部带缓存，未加载时稳定返回空数组，不会触发额外重渲染。
+  const reduxMessages = useSelector((state: RootState) => selectMessagesForTopic(state, topic.id));
+  const isLoaded = reduxMessages.length > 0;
+
   // 获取话题的显示名称
   const displayName = topic.name || topic.title || '无标题话题';
 
-  // 是否有消息：以话题自身持久化的元数据为准（messageCount / messageIds），
+  // 未加载话题是否有消息：以话题自身持久化的元数据为准（messageCount / messageIds），
   // 不依赖消息是否已加载进 Redux —— 这是修复「未打开的话题误显示无消息」的关键。
-  const messageCount = topic.messageCount ?? topic.messageIds?.length ?? 0;
-  const hasMessages = messageCount > 0;
+  // （已加载话题在 getLastMessageContent 中走 isLoaded 分支，不经过这里。）
+  const hasMessages = (topic.messageCount ?? topic.messageIds?.length ?? 0) > 0;
 
-  // 旧话题可能尚未回填预览字段：懒触发一次后台刷新，自愈式补全。
-  React.useEffect(() => {
-    if (hasMessages && topic.lastMessagePreview === undefined) {
-      void refreshTopicPreview(topic.id);
-    }
-  }, [topic.id, hasMessages, topic.lastMessagePreview]);
-
-  // 获取话题的最后一条消息内容 - 读持久化预览快照
+  // 获取话题的最后一条消息内容
+  // - 已加载话题：直接读 Redux 实时内容（发消息即时更新，无需逐条派发刷新）
+  // - 未加载话题：读持久化预览快照（启动时已由 migrateTopicPreviews 全量回填）
   const getLastMessageContent = () => {
+    if (isLoaded) {
+      const lastMessage = reduxMessages[reduxMessages.length - 1];
+      const content = getMainTextContent(lastMessage);
+      if (!content || !content.trim()) {
+        return '无文本内容';
+      }
+      return formatPreviewText(content);
+    }
     if (!hasMessages) {
       return '无消息';
     }
-    // undefined = 预览尚未回填（旧话题），回填中显示占位
+    // undefined = 预览尚未回填（迁移完成前的瞬态），显示占位
     if (topic.lastMessagePreview === undefined) {
       return '…';
     }
