@@ -8,6 +8,7 @@ import { TopicService } from './TopicService';
 import { EventEmitter, EVENT_NAMES } from '../infra/EventService';
 import { updateTopic } from '../../store/slices/assistantsSlice';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { stripMarkdown } from '../tts-v2/utils/textProcessor';
 
 export class TopicNamingService {
   static shouldNameTopic(topic: ChatTopic): boolean {
@@ -125,6 +126,9 @@ export class TopicNamingService {
       if (newTitle.startsWith('"') && newTitle.endsWith('"')) {
         newTitle = newTitle.slice(1, -1).trim();
       }
+      // 模型可能返回带 Markdown 的标题（如 **加粗**、`代码`），标题在侧栏按纯文本渲染，
+      // 需剥离格式，避免把 ** 等标记原样显示。
+      newTitle = stripMarkdown(newTitle);
 
       const currentName = topic.name || topic.title || '';
       if (!newTitle || newTitle === currentName || newTitle.length === 0) return null;

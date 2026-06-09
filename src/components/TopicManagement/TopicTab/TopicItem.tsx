@@ -13,6 +13,7 @@ import type { ChatTopic } from '../../../shared/types';
 import type { RootState } from '../../../shared/store';
 import { selectTopicStreaming, selectMessagesForTopic } from '../../../shared/store/selectors/messageSelectors';
 import { formatPreviewText } from '../../../shared/services/topics/TopicPreviewService';
+import { stripMarkdown } from '../../../shared/services/tts-v2/utils/textProcessor';
 
 interface TopicItemProps {
   topic: ChatTopic;
@@ -99,8 +100,11 @@ const TopicItem = React.memo(function TopicItem({
   const reduxMessages = useSelector((state: RootState) => selectMessagesForTopic(state, topic.id));
   const isLoaded = reduxMessages.length > 0;
 
-  // 获取话题的显示名称
-  const displayName = topic.name || topic.title || '无标题话题';
+  // 获取话题的显示名称（标题按纯文本渲染，剥离历史数据里可能残留的 Markdown 标记，如 **加粗**）
+  const displayName = useMemo(() => {
+    const raw = topic.name || topic.title || '无标题话题';
+    return stripMarkdown(raw) || raw;
+  }, [topic.name, topic.title]);
 
   // 未加载话题是否有消息：以话题自身持久化的元数据为准（messageCount / messageIds），
   // 不依赖消息是否已加载进 Redux —— 这是修复「未打开的话题误显示无消息」的关键。
