@@ -17,7 +17,7 @@ import BackButtonDialog from '../../common/BackButtonDialog';
 import { ChevronDown, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { updateGroup, deleteGroup } from '../../../shared/store/slices/groupsSlice';
-import VirtualScroller from '../../common/VirtualScroller';
+import VirtualList from '../../common/VirtualList';
 import TopicItem from './TopicItem';
 import type { ChatTopic } from '../../../shared/types';
 import type { Group } from '../../../shared/types';
@@ -95,14 +95,14 @@ const VirtualizedTopicGroups = memo(function VirtualizedTopicGroups({
       >
         {groupTopics.length > 0 ? (
           shouldVirtualize ? (
-            // 使用虚拟化渲染大量话题
-            <VirtualScroller
+            // 使用虚拟化渲染大量话题（TanStack 动态测高）
+            <VirtualList<ChatTopic>
               items={groupTopics}
-              itemHeight={64} // 话题项高度，包含margin-bottom
+              estimateItemHeight={64}
               renderItem={renderTopicItem}
               itemKey={getTopicKey}
               height={300} // 限制分组内容的最大高度
-              overscanCount={3}
+              overscan={3}
               style={{
                 border: '1px solid',
                 borderColor: 'divider',

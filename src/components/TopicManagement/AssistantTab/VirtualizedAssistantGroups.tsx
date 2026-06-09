@@ -17,7 +17,7 @@ import BackButtonDialog from '../../common/BackButtonDialog';
 import { ChevronDown, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { updateGroup, deleteGroup } from '../../../shared/store/slices/groupsSlice';
-import VirtualScroller from '../../common/VirtualScroller';
+import VirtualList from '../../common/VirtualList';
 import AssistantItem from './AssistantItem';
 import type { Assistant } from '../../../shared/types/Assistant';
 import type { Group } from '../../../shared/types';
@@ -95,14 +95,14 @@ const VirtualizedAssistantGroups = memo(function VirtualizedAssistantGroups({
       >
         {groupAssistants.length > 0 ? (
           shouldVirtualize ? (
-            // 使用虚拟化渲染大量助手
-            <VirtualScroller
+            // 使用虚拟化渲染大量助手（TanStack 动态测高）
+            <VirtualList<Assistant>
               items={groupAssistants}
-              itemHeight={72}
+              estimateItemHeight={72}
               renderItem={renderAssistantItem}
               itemKey={getAssistantKey}
               height={300} // 限制分组内容的最大高度
-              overscanCount={3}
+              overscan={3}
               style={{
                 border: '1px solid',
                 borderColor: 'divider',

@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { Box, Typography } from '@mui/material';
-import VirtualScroller from '../../common/VirtualScroller';
+import VirtualList from '../../common/VirtualList';
 import AssistantItem from './AssistantItem';
 import {
   shouldEnableVirtualization,
@@ -95,14 +95,14 @@ const VirtualizedAssistantList = memo(function VirtualizedAssistantList({
       )}
 
       {shouldVirtualize ? (
-        // 使用虚拟化渲染大量助手
-        <VirtualScroller<Assistant>
+        // 使用虚拟化渲染大量助手（TanStack 动态测高，行高自适应）
+        <VirtualList<Assistant>
           items={assistants}
-          itemHeight={itemHeight}
+          estimateItemHeight={itemHeight}
           renderItem={renderAssistantItem}
           itemKey={getAssistantKey}
           height={height}
-          overscanCount={getOverscanCount(assistants.length)} // 根据列表大小动态调整预渲染数量
+          overscan={getOverscanCount(assistants.length)} // 根据列表大小动态调整预渲染数量
           style={{
             border: '1px solid',
             borderColor: 'divider',
@@ -130,7 +130,7 @@ const VirtualizedAssistantList = memo(function VirtualizedAssistantList({
           }}
         >
           {assistants.map((assistant) => (
-            <Box key={assistant.id} sx={{ height: itemHeight }}>
+            <Box key={assistant.id}>
               {renderAssistantItem(assistant, 0)}
             </Box>
           ))}
