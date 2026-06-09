@@ -7,32 +7,10 @@ import type { CustomParameter } from '../../types/Assistant';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
 
-// 内存缓存
-let settingsCache: Record<string, any> | null = null;
-let cacheInitialized = false;
-
-// 初始化缓存
-async function initCache(): Promise<void> {
-  if (cacheInitialized) return;
-  try {
-    settingsCache = await getStorageItem<Record<string, any>>('appSettings') || {};
-    cacheInitialized = true;
-  } catch {
-    settingsCache = {};
-    cacheInitialized = true;
-  }
-}
-
-// 异步保存（防抖）
-let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-function debouncedSaveSettings(): void {
-  if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(async () => {
-    if (settingsCache) {
-      await setStorageItem('appSettings', settingsCache);
-    }
-  }, 300);
-}
+// 持久化防抖间隔（毫秒）
+const SAVE_DEBOUNCE_MS = 300;
+// 持久化键名
+const STORAGE_KEY = 'appSettings';
 
 // 参数同步服务 - 用于在侧边栏和助手设置之间同步参数
 
@@ -140,44 +118,135 @@ export const PARAMETER_EVENT_MAP: Record<SyncableParameterKey, string> = {
 
 /**
  * 参数同步服务
+ *
+ * 设置持久化在 Dexie/IndexedDB 中，需异步加载。为兼容大量同步读取的调用点，
+ * 服务在内存中维护一份缓存，并提供显式的初始化生命周期：
+ * - {@link ensureInitialized} 保证缓存已从存储完成加载（幂等、可并发等待）；
+ * - {@link isReady} 表示缓存是否就绪；
+ * - {@link subscribe} 配合 {@link getVersion} 让 React 组件可响应式订阅设置变化。
+ *
+ * 这样消费方（如设置面板）不会在缓存就绪前读取到空对象，从而避免「重启后开关被
+ * 重置为默认值」之类的问题。
  */
 class ParameterSyncService {
+  /** 设置内存缓存 */
+  private cache: Record<string, any> = {};
+  /** 缓存是否已从存储加载完成 */
+  private ready = false;
+  /** 进行中的初始化 Promise（用于并发去重） */
+  private initPromise: Promise<void> | null = null;
+  /** 防抖保存定时器 */
+  private saveTimeout: ReturnType<typeof setTimeout> | null = null;
+  /** 版本号，每次设置变化递增，供 useSyncExternalStore 使用 */
+  private version = 0;
+  /** 按参数键划分的监听器 */
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  /** 全局变化监听器（任意设置变化都会触发） */
+  private globalListeners: Set<() => void> = new Set();
+
+  constructor() {
+    // 应用启动即开始加载缓存，确保后续同步读取时缓存已就绪
+    void this.ensureInitialized();
+  }
+
+  /**
+   * 确保设置缓存已从存储加载完成。幂等：重复调用复用同一 Promise。
+   */
+  ensureInitialized(): Promise<void> {
+    if (this.ready) return Promise.resolve();
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      try {
+        const stored = await getStorageItem<Record<string, any>>(STORAGE_KEY);
+        // 以存储值为基底，叠加初始化期间可能已发生的写入，避免丢失这些写入
+        this.cache = { ...(stored || {}), ...this.cache };
+      } catch (error) {
+        console.error('[ParameterSyncService] 初始化设置缓存失败:', error);
+      } finally {
+        this.ready = true;
+        // 通知订阅者：缓存已就绪，需要用真实持久化数据重新渲染
+        this.notifyChange();
+      }
+    })();
+
+    return this.initPromise;
+  }
+
+  /** 缓存是否就绪 */
+  get isReady(): boolean {
+    return this.ready;
+  }
+
+  /** 当前版本号（每次变化递增） */
+  getVersion = (): number => {
+    return this.version;
+  };
+
+  /**
+   * 订阅设置变化。返回取消订阅函数。
+   * 与 {@link getVersion} 搭配可用于 React 的 useSyncExternalStore。
+   */
+  subscribe = (listener: () => void): (() => void) => {
+    this.globalListeners.add(listener);
+    return () => {
+      this.globalListeners.delete(listener);
+    };
+  };
+
+  /** 递增版本号并通知所有全局订阅者 */
+  private notifyChange(): void {
+    this.version++;
+    this.globalListeners.forEach(listener => listener());
+  }
+
+  /** 防抖持久化当前缓存 */
+  private schedulePersist(): void {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      void setStorageItem(STORAGE_KEY, this.cache);
+    }, SAVE_DEBOUNCE_MS);
+  }
 
   /**
    * 获取 appSettings（同步，使用缓存）
+   *
+   * 注意：应用刚启动、缓存尚未就绪时可能返回不完整数据。需要可靠数据的场景请先
+   * await {@link ensureInitialized} 或使用 {@link getSettingsAsync}/响应式 Hook。
    */
   getSettings(): Record<string, any> {
-    if (!cacheInitialized) {
-      initCache();
+    if (!this.ready && !this.initPromise) {
+      void this.ensureInitialized();
     }
-    return settingsCache || {};
+    return this.cache;
   }
 
   /**
-   * 保存 appSettings
+   * 保存 appSettings（内存即时生效，磁盘防抖持久化）
    */
   saveSettings(settings: Record<string, any>): void {
-    settingsCache = settings;
-    debouncedSaveSettings();
+    this.cache = settings;
+    this.ready = true;
+    this.schedulePersist();
+    this.notifyChange();
   }
 
   /**
-   * 异步获取 appSettings
+   * 异步获取 appSettings（保证缓存已就绪）
    */
   async getSettingsAsync(): Promise<Record<string, any>> {
-    const stored = await getStorageItem<Record<string, any>>('appSettings');
-    settingsCache = stored || {};
-    cacheInitialized = true;
-    return settingsCache;
+    await this.ensureInitialized();
+    return { ...this.cache };
   }
 
   /**
-   * 异步保存 appSettings
+   * 异步保存 appSettings（立即写入存储）
    */
   async saveSettingsAsync(settings: Record<string, any>): Promise<void> {
-    settingsCache = settings;
-    await setStorageItem('appSettings', settings);
+    this.cache = settings;
+    this.ready = true;
+    await setStorageItem(STORAGE_KEY, settings);
+    this.notifyChange();
   }
 
   /**

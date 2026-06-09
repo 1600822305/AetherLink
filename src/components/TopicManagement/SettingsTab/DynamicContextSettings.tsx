@@ -2,7 +2,7 @@
  * 动态上下文设置组件
  * 上下文窗口和消息数常驻，参数使用共享的 ParameterEditor 组件
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -26,7 +26,8 @@ import { collapsibleHeaderStyle } from './scrollOptimization';
 import type { ProviderType } from '../../../shared/api/parameters/types';
 import { detectProviderFromModel } from '../../../shared/config/parameterMetadata';
 import ParameterEditor from '../../ParameterEditor/ParameterEditor';
-import { parameterSyncService, PARAMETER_EVENT_MAP, type SyncableParameterKey } from '../../../shared/services/assistant/ParameterSyncService';
+import { parameterSyncService } from '../../../shared/services/assistant/ParameterSyncService';
+import { useParameterSettings, type ParameterConfigItem } from '../../../shared/hooks/useParameterSettings';
 
 interface DynamicContextSettingsProps {
   /** 当前模型 ID */
@@ -76,28 +77,7 @@ export default function DynamicContextSettings({
 }: DynamicContextSettingsProps) {
   const [expanded, setExpanded] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  
-  // 使用 useMemo 计算初始值，避免在 useState 初始化中调用 setState
-  const initialData = useMemo(() => {
-    const params = parameterSyncService.getCustomParameters();
-    const types: Record<string, CustomParameterType> = {};
-    params.forEach(p => {
-      types[p.name] = p.type;
-    });
-    const editorParams = params.map(p => ({
-      key: p.name,
-      value: typeof p.value === 'object' ? JSON.stringify(p.value) : String(p.value),
-      enabled: true
-    }));
-    return { types, editorParams };
-  }, []);
-  
-  // 保存原始类型信息的映射
-  const [typeMap, setTypeMap] = useState<Record<string, CustomParameterType>>(initialData.types);
-  
-  // 自定义参数状态
-  const [customParams, setCustomParams] = useState<EditorCustomParameter[]>(initialData.editorParams);
-  
+
   // 推断参数类型
   const inferType = useCallback((value: string, existingType?: CustomParameterType): CustomParameterType => {
     // 如果有现有类型，保留它
@@ -112,39 +92,6 @@ export default function DynamicContextSettings({
     return 'string';
   }, []);
   
-  // 处理自定义参数变化
-  const handleCustomParamsChange = useCallback((params: EditorCustomParameter[]) => {
-    setCustomParams(params);
-    // 转换为 Assistant 格式并保存，保留类型信息
-    const syncParams: AssistantCustomParameter[] = params.map(p => {
-      const paramType = inferType(p.value, typeMap[p.key]);
-      let parsedValue: string | number | boolean | object = p.value;
-      
-      // 根据类型转换值
-      if (paramType === 'number') {
-        parsedValue = Number(p.value);
-      } else if (paramType === 'boolean') {
-        parsedValue = p.value === 'true';
-      } else if (paramType === 'json') {
-        try {
-          parsedValue = JSON.parse(p.value);
-        } catch {
-          parsedValue = p.value;
-        }
-      }
-      
-      // 更新类型映射
-      setTypeMap(prev => ({ ...prev, [p.key]: paramType }));
-      
-      return {
-        name: p.key,
-        value: parsedValue,
-        type: paramType
-      };
-    });
-    parameterSyncService.setCustomParameters(syncParams);
-  }, [typeMap, inferType]);
-  
   // 检测供应商类型
   const providerType = useMemo(() => detectProviderFromModel(modelId), [modelId]);
   
@@ -156,8 +103,8 @@ export default function DynamicContextSettings({
     'openai-compatible': '兼容 API'
   };
 
-  // 参数配置列表（统一管理）
-  const paramConfig = [
+  // 参数配置列表（统一管理）。用 useMemo 固定引用，仅在 maxOutputTokens 默认值变化时重建。
+  const paramConfig = useMemo<ParameterConfigItem[]>(() => [
     { key: 'temperature', defaultValue: 0.7, defaultEnabled: false },
     { key: 'topP', defaultValue: 1.0, defaultEnabled: false },
     { key: 'maxOutputTokens', defaultValue: maxOutputTokens, defaultEnabled: true },
@@ -172,88 +119,82 @@ export default function DynamicContextSettings({
     { key: 'thinkingBudget', defaultValue: 1024, defaultEnabled: false },
     { key: 'reasoningEffort', defaultValue: 'medium', defaultEnabled: false },
     { key: 'streamOutput', defaultValue: true, defaultEnabled: true },
-  ];
+  ], [maxOutputTokens]);
 
-  // 参数值状态（从 parameterSyncService 加载）
-  const [paramValues, setParamValues] = useState<Record<string, any>>(() => {
-    const settings = parameterSyncService.getSettings();
-    return Object.fromEntries(
-      paramConfig.map(({ key, defaultValue }) => [key, settings[key] ?? defaultValue])
-    );
-  });
-
-  // 参数启用状态
-  const [enabledParams, setEnabledParams] = useState<Record<string, boolean>>(() => {
-    const settings = parameterSyncService.getSettings();
-    return Object.fromEntries(
-      paramConfig.map(({ key, defaultEnabled }) => {
-        const enableKey = `enable${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-        return [key, settings[enableKey] ?? defaultEnabled];
-      })
-    );
-  });
+  // 响应式订阅参数设置：缓存从存储加载完成或任意参数变化时自动重渲染，
+  // 从根本上避免「同步读取未就绪缓存导致开关被重置」的问题。
+  const {
+    values: paramValues,
+    enabled: enabledParams,
+    version: settingsVersion,
+    setValue: setParamValue,
+    setEnabled: setParamEnabled,
+  } = useParameterSettings(paramConfig);
 
   // 处理参数值变化
   const handleParamChange = useCallback((key: string, value: any) => {
-    setParamValues(prev => ({ ...prev, [key]: value }));
-    parameterSyncService.setParameter(key as SyncableParameterKey, value, enabledParams[key]);
-    
+    setParamValue(key, value, enabledParams[key]);
+
     // 特殊处理 maxOutputTokens
     if (key === 'maxOutputTokens') {
       onMaxOutputTokensChange(value);
     }
-  }, [enabledParams, onMaxOutputTokensChange]);
+  }, [enabledParams, onMaxOutputTokensChange, setParamValue]);
 
   // 处理参数启用状态变化
   const handleParamToggle = useCallback((key: string, enabled: boolean) => {
-    setEnabledParams(prev => ({ ...prev, [key]: enabled }));
-    parameterSyncService.setParameterEnabled(key as SyncableParameterKey, enabled);
-    
+    setParamEnabled(key, enabled);
+
     // 特殊处理 maxOutputTokens
     if (key === 'maxOutputTokens') {
       onEnableMaxOutputTokensChange(enabled);
     }
-  }, [onEnableMaxOutputTokensChange]);
+  }, [onEnableMaxOutputTokensChange, setParamEnabled]);
 
-  // 监听外部参数变化（从其他组件同步过来）
-  useEffect(() => {
-    const handleParamChanged = (e: CustomEvent) => {
-      const { key, value, enabled } = e.detail;
-      if (key) {
-        if (value !== undefined) {
-          setParamValues(prev => ({ ...prev, [key]: value }));
-        }
-        if (enabled !== undefined) {
-          setEnabledParams(prev => ({ ...prev, [key]: enabled }));
+  // 自定义参数同样持久化在异步存储中，按版本号从服务派生，确保缓存就绪后正确显示。
+  const { customParams, typeMap } = useMemo(() => {
+    const params = parameterSyncService.getCustomParameters();
+    const types: Record<string, CustomParameterType> = {};
+    const editorParams: EditorCustomParameter[] = params.map(p => {
+      types[p.name] = p.type;
+      return {
+        key: p.name,
+        value: typeof p.value === 'object' ? JSON.stringify(p.value) : String(p.value),
+        enabled: true,
+      };
+    });
+    return { customParams: editorParams, typeMap: types };
+    // settingsVersion 参与依赖：自定义参数变化或缓存就绪时重新派生
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsVersion]);
+
+  // 处理自定义参数变化
+  const handleCustomParamsChange = useCallback((params: EditorCustomParameter[]) => {
+    // 转换为 Assistant 格式并保存，保留类型信息（持久化后会通过版本号触发重新派生）
+    const syncParams: AssistantCustomParameter[] = params.map(p => {
+      const paramType = inferType(p.value, typeMap[p.key]);
+      let parsedValue: string | number | boolean | object = p.value;
+
+      if (paramType === 'number') {
+        parsedValue = Number(p.value);
+      } else if (paramType === 'boolean') {
+        parsedValue = p.value === 'true';
+      } else if (paramType === 'json') {
+        try {
+          parsedValue = JSON.parse(p.value);
+        } catch {
+          parsedValue = p.value;
         }
       }
-    };
 
-    window.addEventListener('parameterChanged', handleParamChanged as EventListener);
-
-    // 监听特定参数变化事件
-    const eventHandlers: Array<[string, EventListener]> = [];
-    Object.entries(PARAMETER_EVENT_MAP).forEach(([key, eventName]) => {
-      const handler = ((e: CustomEvent) => {
-        const { value, enabled } = e.detail;
-        if (value !== undefined) {
-          setParamValues(prev => ({ ...prev, [key]: value }));
-        }
-        if (enabled !== undefined) {
-          setEnabledParams(prev => ({ ...prev, [key]: enabled }));
-        }
-      }) as EventListener;
-      window.addEventListener(eventName, handler);
-      eventHandlers.push([eventName, handler]);
+      return {
+        name: p.key,
+        value: parsedValue,
+        type: paramType,
+      };
     });
-
-    return () => {
-      window.removeEventListener('parameterChanged', handleParamChanged as EventListener);
-      eventHandlers.forEach(([eventName, handler]) => {
-        window.removeEventListener(eventName, handler);
-      });
-    };
-  }, []);
+    parameterSyncService.setCustomParameters(syncParams);
+  }, [typeMap, inferType]);
 
   // 处理上下文窗口大小变化
   const handleContextWindowSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
