@@ -55,7 +55,7 @@ export interface SettingsState {
   renderUserInputAsMarkdown: boolean; // 是否渲染用户输入的markdown
   // 聊天界面自动滚动控制
   autoScrollToBottom: boolean; // 是否自动滚动到底部
-  // 实验特性：消息列表带回收的虚拟化渲染（默认关闭，灰度验证用）
+  // 实验特性：消息列表带回收的虚拟化渲染（默认开启，可关闭回退到旧列表作 kill-switch）
   experimentalVirtualizedList?: boolean;
   // 顶部工具栏设置
   topToolbar: {

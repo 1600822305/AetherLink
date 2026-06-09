@@ -85,8 +85,8 @@ export const getInitialState = (): SettingsState => {
     renderUserInputAsMarkdown: true, // 默认渲染用户输入的markdown
     // 默认开启自动滚动
     autoScrollToBottom: true,
-    // 实验特性：虚拟化消息列表，默认关闭（灰度验证通过后再开启）
-    experimentalVirtualizedList: false,
+    // 实验特性：虚拟化消息列表，默认开启；保留开关作为 kill-switch，可关闭回退到旧的切片+加载更多列表
+    experimentalVirtualizedList: true,
     // 顶部工具栏默认设置
     topToolbar: {
       showSettingsButton: true, // 默认显示设置按钮
