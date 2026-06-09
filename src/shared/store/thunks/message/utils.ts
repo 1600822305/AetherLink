@@ -1,6 +1,7 @@
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
 import { throttle } from 'lodash';
 import type { Message, MessageBlock } from '../../../types/newMessage';
+import { refreshTopicPreview } from '../../../services/topics/TopicPreviewService';
 
 export const saveMessageAndBlocksToDB = async (message: Message, blocks: MessageBlock[]) => {
   try {
@@ -42,6 +43,10 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
         console.log(`[saveMessageAndBlocksToDB] 话题 ${topic.id} 现有 ${topic.messageIds.length} 条消息`);
       }
     });
+
+    // 刷新话题预览元数据（条数/最后消息预览），供侧边栏列表展示。
+    // 与消息主流程解耦，失败不影响保存。
+    void refreshTopicPreview(message.topicId);
   } catch (error) {
     console.error('保存消息和块到数据库失败:', error);
     throw error;
