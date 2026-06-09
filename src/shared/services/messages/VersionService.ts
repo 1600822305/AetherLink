@@ -77,11 +77,28 @@ class VersionService {
       const versionId = uuid();
       const now = new Date().toISOString();
 
+      // 克隆所有当前块，生成独立的块副本供版本持有
+      // 这样 resetAssistantMessageForRegenerate 删除当前块时不会影响版本数据
+      const clonedBlockIds: string[] = [];
+      if (messageBlocks.length > 0) {
+        const clonedBlocks: MessageBlock[] = messageBlocks.map(block => {
+          const newBlockId = uuid();
+          clonedBlockIds.push(newBlockId);
+          return {
+            ...block,
+            id: newBlockId,
+            createdAt: now,
+            updatedAt: now
+          };
+        });
+        await dexieStorage.bulkSaveMessageBlocks(clonedBlocks);
+      }
+
       // 增强版本元数据，记录更多上下文信息
       const newVersion: MessageVersion = {
         id: versionId,
         messageId: messageId,
-        blocks: message.blocks ? [...message.blocks] : [], // 复制块ID列表，避免引用污染
+        blocks: clonedBlockIds, // 使用克隆的块ID，与当前块完全独立
         createdAt: now,
         modelId: model?.id || message.modelId,
         model: model || message.model,
@@ -104,20 +121,25 @@ class VersionService {
       // 添加新版本
       versions.push(newVersion);
       
-      // 如果版本数量超过限制，清理最旧的版本
+      // 如果版本数量超过限制，清理最旧的版本及其克隆块
       if (versions.length > this.MAX_VERSIONS_PER_MESSAGE) {
-        const versionsToKeep = versions
-          .sort((a, b) => {
-            // 排序规则：按创建时间降序
-            const timeA = new Date(a.createdAt).getTime();
-            const timeB = new Date(b.createdAt).getTime();
-            return timeB - timeA;
-          })
-          .slice(0, this.MAX_VERSIONS_PER_MESSAGE);
+        const sorted = [...versions].sort((a, b) => {
+          const timeA = new Date(a.createdAt).getTime();
+          const timeB = new Date(b.createdAt).getTime();
+          return timeB - timeA;
+        });
+        const versionsToKeep = sorted.slice(0, this.MAX_VERSIONS_PER_MESSAGE);
+        const versionsToRemove = sorted.slice(this.MAX_VERSIONS_PER_MESSAGE);
+
+        // 删除被淘汰版本持有的克隆块
+        const blockIdsToDelete = versionsToRemove.flatMap(v => v.blocks || []);
+        if (blockIdsToDelete.length > 0) {
+          await dexieStorage.deleteMessageBlocksByIds(blockIdsToDelete);
+        }
         
         console.log(`[VersionService] 清理旧版本，从 ${versions.length} 减少到 ${versionsToKeep.length}`);
-        versions.length = 0; // 清空数组
-        versions.push(...versionsToKeep); // 添加要保留的版本
+        versions.length = 0;
+        versions.push(...versionsToKeep);
       }
 
       // 更新消息
@@ -237,40 +259,66 @@ class VersionService {
         }
       }
 
-      // 更新消息块内容
-      const mainTextBlock = currentBlocks.find(block => block.type === 'main_text');
-
-      if (mainTextBlock) {
-        // 创建一个新块而不是修改现有块，确保完全隔离
-        const updatedBlock = {
-          ...mainTextBlock,
-          content: contentSnapshot as string,
-          updatedAt: new Date().toISOString()
-        };
-
-        // 更新块内容
-        await dexieStorage.updateMessageBlock(mainTextBlock.id, updatedBlock);
-
-        // 同步更新 Redux 中的块
-        store.dispatch(updateOneBlock({
-          id: mainTextBlock.id,
-          changes: {
-            content: contentSnapshot,
-            updatedAt: new Date().toISOString()
-          }
-        }));
-      } else {
-        console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
-        return false;
+      // 尝试从版本的克隆块恢复完整内容（包括工具块、图片块等）
+      const versionBlockIds = targetVersion.blocks || [];
+      let versionBlocks: MessageBlock[] = [];
+      if (versionBlockIds.length > 0) {
+        const results = await dexieStorage.message_blocks.bulkGet(versionBlockIds);
+        versionBlocks = results.filter((b): b is MessageBlock => b !== undefined);
       }
 
-      const thinkingSnapshot = (targetVersion.metadata as any)?.thinkingSnapshot;
-      await this.applyThinkingSnapshot({
-        messageId,
-        targetMessage,
-        thinkingBlocks,
-        thinkingSnapshot
-      });
+      if (versionBlocks.length > 0) {
+        // 版本有独立的块副本：删除当前块，用版本块替换
+        if (currentBlocks.length > 0) {
+          const currentBlockIds = currentBlocks.map(b => b.id);
+          await dexieStorage.deleteMessageBlocksByIds(currentBlockIds);
+          store.dispatch(removeManyBlocks(currentBlockIds));
+        }
+
+        // 克隆版本块为新的当前块（保留版本块不动，供再次切换）
+        const newCurrentBlocks: MessageBlock[] = [];
+        const newCurrentBlockIds: string[] = [];
+        for (const block of versionBlocks) {
+          const newId = uuid();
+          newCurrentBlockIds.push(newId);
+          newCurrentBlocks.push({ ...block, id: newId, updatedAt: new Date().toISOString() });
+        }
+        await dexieStorage.bulkSaveMessageBlocks(newCurrentBlocks);
+        store.dispatch(upsertManyBlocks(newCurrentBlocks));
+
+        // 更新消息的 blocks 列表
+        await dexieStorage.updateMessage(messageId, { blocks: newCurrentBlockIds });
+        store.dispatch(newMessagesActions.updateMessage({
+          id: messageId,
+          changes: { blocks: newCurrentBlockIds }
+        }));
+      } else {
+        // 兜底：版本没有块副本（旧版本数据），用 contentSnapshot 恢复 main_text
+        const mainTextBlock = currentBlocks.find(block => block.type === 'main_text');
+        if (mainTextBlock) {
+          const updatedBlock = {
+            ...mainTextBlock,
+            content: contentSnapshot as string,
+            updatedAt: new Date().toISOString()
+          };
+          await dexieStorage.updateMessageBlock(mainTextBlock.id, updatedBlock);
+          store.dispatch(updateOneBlock({
+            id: mainTextBlock.id,
+            changes: { content: contentSnapshot, updatedAt: new Date().toISOString() }
+          }));
+        } else {
+          console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
+          return false;
+        }
+
+        const thinkingSnapshot = (targetVersion.metadata as any)?.thinkingSnapshot;
+        await this.applyThinkingSnapshot({
+          messageId,
+          targetMessage,
+          thinkingBlocks,
+          thinkingSnapshot
+        });
+      }
 
       const versionModel = targetVersion.model || null;
       const resolvedModelId = targetVersion.modelId
@@ -690,6 +738,12 @@ class VersionService {
         await this.switchToLatest(targetMessage.id);
       }
       
+      // 删除版本持有的克隆块
+      const versionToDelete = targetMessage.versions?.find(v => v.id === versionId);
+      if (versionToDelete?.blocks && versionToDelete.blocks.length > 0) {
+        await dexieStorage.deleteMessageBlocksByIds(versionToDelete.blocks);
+      }
+
       // 更新版本列表，移除指定版本
       const updatedVersions = (targetMessage.versions || []).filter(v => v.id !== versionId);
       
