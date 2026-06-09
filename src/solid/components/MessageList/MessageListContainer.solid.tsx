@@ -7,7 +7,6 @@ import { onCleanup } from 'solid-js';
 export interface MessageListContainerProps {
   children?: any;
   themeMode?: 'light' | 'dark';
-  onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void;
   onScrollToTop?: () => void;
   chatBackground?: {
     enabled: boolean;
@@ -15,7 +14,7 @@ export interface MessageListContainerProps {
 }
 
 // 注：自动下滑（贴底跟随）已统一收敛到 React 侧的 ChatScrollController，
-// 这里仅负责滚动 DOM 本体、滚动事件转发与「接近顶部加载更多」检测。
+// 这里仅负责滚动 DOM 本体与「接近顶部加载更多」检测。
 export function MessageListContainer(props: MessageListContainerProps) {
   let containerRef: HTMLDivElement | undefined;
 
@@ -38,16 +37,13 @@ export function MessageListContainer(props: MessageListContainerProps) {
       
       if (!containerRef) return;
       
-      const { scrollTop: st, scrollHeight, clientHeight } = containerRef;
+      const st = containerRef.scrollTop;
       
       // 检查是否真的滚动了（避免无意义的更新）
       if (st === lastScrollTop) return;
       lastScrollTop = st;
       
-      // 回调
-      props.onScroll?.(st, scrollHeight, clientHeight);
-      
-      // 检查是否接近顶部，触发加载更多
+      // 接近顶部时触发加载更多
       if (st < TOP_THRESHOLD) {
         props.onScrollToTop?.();
       }
