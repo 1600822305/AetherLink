@@ -175,7 +175,7 @@ export class TopicService {
         }
 
         // 2. 获取所有消息
-        const messages = await dexieStorage.getMessagesByTopicId(topicId);
+        const messages = await dexieStorage.getTopicMessages(topicId);
         console.log(`[TopicService] 找到 ${messages.length} 条消息`);
 
         // 3. 清理消息块和关联文件

@@ -115,7 +115,7 @@ export class DataRepository {
      */
     async getByTopicId(topicId: string): Promise<Message[]> {
       try {
-        return await dexieStorage.getMessagesByTopicId(topicId);
+        return await dexieStorage.getTopicMessages(topicId);
       } catch (error) {
         handleError(error, 'DataRepository.messages.getByTopicId', {
           additionalData: { topicId }

@@ -211,7 +211,7 @@ async function getTargetAssistantMessages(
   }
 
   // 查找关联的助手消息
-  const allMessages = await dexieStorage.getMessagesByTopicId(topicId);
+  const allMessages = await dexieStorage.getTopicMessages(topicId);
   const associatedAssistants = allMessages.filter((msg: Message) =>
     msg.role === 'assistant' && msg.askId === messageId
   );
