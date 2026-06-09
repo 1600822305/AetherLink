@@ -124,6 +124,8 @@ const AssistantModelSettings: React.FC = () => {
   // 初始化上下文设置
   useEffect(() => {
     const loadContextSettings = async () => {
+      // 确保设置缓存已从存储加载完成，避免读取到未就绪的空缓存
+      await parameterSyncService.ensureInitialized();
       // 使用统一参数服务获取应用级设置
       setContextLength(parameterSyncService.getParameter('contextLength', 16000));
       setContextCount(parameterSyncService.getParameter('contextCount', 5));
