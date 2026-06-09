@@ -102,11 +102,10 @@ const TopicItem = React.memo(function TopicItem({
   // 获取话题的显示名称
   const displayName = topic.name || topic.title || '无标题话题';
 
-  // 是否有消息：已加载的话题以 Redux 为准，否则以持久化元数据为准
-  // （messageCount / messageIds），不依赖消息是否已加载进 Redux ——
-  // 这是修复「未打开的话题误显示无消息」的关键。
-  const persistedCount = topic.messageCount ?? topic.messageIds?.length ?? 0;
-  const hasMessages = isLoaded || persistedCount > 0;
+  // 未加载话题是否有消息：以话题自身持久化的元数据为准（messageCount / messageIds），
+  // 不依赖消息是否已加载进 Redux —— 这是修复「未打开的话题误显示无消息」的关键。
+  // （已加载话题在 getLastMessageContent 中走 isLoaded 分支，不经过这里。）
+  const hasMessages = (topic.messageCount ?? topic.messageIds?.length ?? 0) > 0;
 
   // 获取话题的最后一条消息内容
   // - 已加载话题：直接读 Redux 实时内容（发消息即时更新，无需逐条派发刷新）
