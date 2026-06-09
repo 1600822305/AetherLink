@@ -60,7 +60,7 @@ export function useSettingsManagement() {
     { id: 'messageStyle', name: '消息样式', defaultValue: settings.messageStyle, description: '选择聊天消息的显示样式', type: 'select' as const, options: messageStyleOptions},
     { id: 'messageNavigation', name: '对话导航', defaultValue: settings.messageNavigation, description: '显示上下按钮快速跳转到上一条/下一条消息（对呼吸灯左滑显示）', type: 'select' as const, options: messageNavigationOptions},
     { id: 'showContextTokenIndicator', name: 'Token用量指示', defaultValue: settings.showContextTokenIndicator, description: '在右侧显示上下文Token用量呼吸灯（与对话导航一起左滑显示）' },
-    { id: 'experimentalVirtualizedList', name: '虚拟化消息列表（实验）', defaultValue: settings.experimentalVirtualizedList, description: '开启带回收的虚拟化渲染，长会话只渲染可视区，显著降低 DOM 数量。实验特性，默认关闭' },
+    { id: 'experimentalVirtualizedList', name: '虚拟化消息列表（实验）', defaultValue: settings.experimentalVirtualizedList, description: '带回收的虚拟化渲染，长会话只渲染可视区，显著降低 DOM 数量。实验特性，默认开启；如遇异常可关闭回退到旧列表' },
   ];
 
   // 设置相关函数
