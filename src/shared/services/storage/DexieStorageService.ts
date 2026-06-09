@@ -797,15 +797,16 @@ export class DexieStorageService extends Dexie {
   }
 
   async deleteAllTopics(): Promise<void> {
-    await this.message_blocks.clear();
+    await this.transaction('rw', [this.topics, this.messages, this.message_blocks, this.assistants], async () => {
+      await this.message_blocks.clear();
+      await this.messages.clear();
+      await this.topics.clear();
 
-    await this.topics.clear();
-
-    const assistants = await this.getAllAssistants();
-    for (const assistant of assistants) {
-      assistant.topicIds = [];
-      await this.saveAssistant(assistant);
-    }
+      const assistants = await this.assistants.toArray();
+      for (const assistant of assistants) {
+        await this.assistants.update(assistant.id, { topicIds: [] });
+      }
+    });
   }
 
   async createMessageBlocksTable(): Promise<void> {

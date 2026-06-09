@@ -202,6 +202,7 @@ export class TopicManager {
       const success = await dexieStorage.transaction('rw', [
         dexieStorage.topics,
         dexieStorage.messages,
+        dexieStorage.message_blocks,
         dexieStorage.assistants
       ], async () => {
         // 1. 删除所有相关的话题和消息
