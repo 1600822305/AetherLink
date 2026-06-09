@@ -74,7 +74,7 @@ interface SettingsTabProps {
 export default function SettingsTab({
   settings,
   onSettingChange,
-  modelId = 'gpt-4',
+  modelId,
   mcpMode = 'function',
   toolsEnabled = true,
   onMCPModeChange,

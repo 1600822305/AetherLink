@@ -428,7 +428,9 @@ export function getCategoriesForProvider(providerType: ProviderType): ParameterC
 /**
  * 根据模型ID检测供应商类型
  */
-export function detectProviderFromModel(modelId: string): ProviderType {
+export function detectProviderFromModel(modelId?: string): ProviderType {
+  // 缺少模型信息时回退到中性的通用供应商，而非「假装是某个具体模型」。
+  if (!modelId) return 'openai-compatible';
   const id = modelId.toLowerCase();
   
   if (id.includes('claude') || id.includes('anthropic')) {
