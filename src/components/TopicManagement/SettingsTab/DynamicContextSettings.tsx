@@ -255,6 +255,36 @@ export default function DynamicContextSettings({
     };
   }, []);
 
+  // 启动后异步加载持久化设置并回填状态
+  // parameterSyncService.getSettings() 使用的是同步内存缓存，应用刚启动时
+  // 缓存尚未从 Dexie 加载完成（返回空对象），导致非默认开启的参数（如推理努力程度）
+  // 在初始化时被错误地重置为默认关闭状态。这里在缓存就绪后重新读取并同步 UI。
+  useEffect(() => {
+    let cancelled = false;
+    parameterSyncService.getSettingsAsync().then((settings) => {
+      if (cancelled) return;
+      setParamValues(prev => {
+        const next = { ...prev };
+        paramConfig.forEach(({ key, defaultValue }) => {
+          next[key] = settings[key] ?? defaultValue;
+        });
+        return next;
+      });
+      setEnabledParams(prev => {
+        const next = { ...prev };
+        paramConfig.forEach(({ key, defaultEnabled }) => {
+          const enableKey = `enable${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+          next[key] = settings[enableKey] ?? defaultEnabled;
+        });
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 处理上下文窗口大小变化
   const handleContextWindowSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

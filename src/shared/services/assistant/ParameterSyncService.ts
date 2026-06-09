@@ -15,9 +15,13 @@ let cacheInitialized = false;
 async function initCache(): Promise<void> {
   if (cacheInitialized) return;
   try {
-    settingsCache = await getStorageItem<Record<string, any>>('appSettings') || {};
+    const stored = await getStorageItem<Record<string, any>>('appSettings') || {};
+    // 若在异步读取期间已有写入初始化了缓存，则不覆盖，避免丢失刚写入的开关状态
+    if (cacheInitialized) return;
+    settingsCache = stored;
     cacheInitialized = true;
   } catch {
+    if (cacheInitialized) return;
     settingsCache = {};
     cacheInitialized = true;
   }
@@ -144,6 +148,12 @@ export const PARAMETER_EVENT_MAP: Record<SyncableParameterKey, string> = {
 class ParameterSyncService {
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
+  constructor() {
+    // 应用启动时预热缓存，避免首次同步读取 getSettings() 时缓存未就绪
+    // 返回空对象，从而丢失已持久化的参数开关状态（如推理努力程度）
+    void initCache();
+  }
+
   /**
    * 获取 appSettings（同步，使用缓存）
    */
@@ -159,6 +169,8 @@ class ParameterSyncService {
    */
   saveSettings(settings: Record<string, any>): void {
     settingsCache = settings;
+    // 标记缓存已就绪，防止仍在进行中的 initCache 用旧数据覆盖刚写入的设置
+    cacheInitialized = true;
     debouncedSaveSettings();
   }
 
