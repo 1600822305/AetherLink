@@ -158,8 +158,9 @@
   opacity: 0.5;
 }
 
-/* ==================== 加载和空状态 ==================== */
+/* ==================== 加载、错误和空状态 ==================== */
 .model-drawer-loading,
+.model-drawer-error,
 .model-drawer-empty {
   display: flex;
   flex-direction: column;
@@ -187,9 +188,30 @@
 }
 
 .model-drawer-loading p,
+.model-drawer-error p,
 .model-drawer-empty p {
   margin: 0;
   font-size: 14px;
+}
+
+.model-drawer-error p {
+  color: var(--theme-error);
+  word-break: break-all;
+}
+
+.model-drawer-retry-btn {
+  margin-top: 16px;
+  padding: 8px 24px;
+  border: 1px solid var(--theme-border-default);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.model-drawer-retry-btn:hover {
+  background: var(--theme-hover-bg);
 }
 
 /* ==================== 分组列表 ==================== */

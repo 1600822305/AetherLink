@@ -109,6 +109,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
 
   // 防抖处理的URL输入
   const debouncedBaseUrl = useDebounce(baseUrl, CONSTANTS.DEBOUNCE_DELAY);
+  // 防抖处理的API Key输入
+  const debouncedApiKey = useDebounce(apiKey, CONSTANTS.DEBOUNCE_DELAY);
 
   // 优化的样式对象
   const buttonStyles = useMemo(() => ({
@@ -135,7 +137,14 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       // 初始化 Responses API 开关状态
       setUseResponsesAPI(!!(provider as any).useResponsesAPI);
     }
-  }, [provider]);
+    // 仅在切换供应商时重置本地表单状态，避免其他字段的 updateProvider 覆盖未保存的输入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider?.id]);
+
+  // 多 Key 配置变化时同步开关状态（非文本输入，不存在覆盖输入问题）
+  useEffect(() => {
+    setMultiKeyEnabled(!!(provider?.apiKeys && provider.apiKeys.length > 0));
+  }, [provider?.apiKeys]);
 
   // 组件卸载时重置 Signals
   useEffect(() => {
@@ -147,10 +156,32 @@ export const useProviderSettings = (provider: Provider | undefined) => {
   // 防抖URL验证
   useEffect(() => {
     if (debouncedBaseUrl && !isValidUrl(debouncedBaseUrl)) {
-      setBaseUrlError('请输入有效的URL');
+      setBaseUrlError(t('modelSettings.provider.invalidUrl'));
     } else {
       setBaseUrlError('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedBaseUrl]);
+
+  // API Key 防抖自动保存（多 Key 模式下该字段由 handleApiKeysChange 独占维护）
+  useEffect(() => {
+    if (!provider) return;
+    if (multiKeyEnabled) return;
+    if (debouncedApiKey !== apiKey) return;
+    if (debouncedApiKey === (provider.apiKey || '')) return;
+    dispatch(updateProvider({ id: provider.id, updates: { apiKey: debouncedApiKey } }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedApiKey]);
+
+  // 基础URL 防抖自动保存（非法 URL 不保存，错误提示由上方验证 effect 处理）
+  useEffect(() => {
+    if (!provider) return;
+    if (debouncedBaseUrl !== baseUrl) return;
+    const trimmed = debouncedBaseUrl.trim();
+    if (trimmed === (provider.baseUrl || '')) return;
+    if (trimmed && !isValidUrl(trimmed)) return;
+    dispatch(updateProvider({ id: provider.id, updates: { baseUrl: trimmed } }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedBaseUrl]);
 
   // 模型测试连接 - 使用独立模块
@@ -253,30 +284,46 @@ export const useProviderSettings = (provider: Provider | undefined) => {
 
     // 验证baseUrl是否有效（如果已输入）
     if (baseUrl && !isValidUrl(baseUrl)) {
-      setBaseUrlError('请输入有效的URL');
+      setBaseUrlError(t('modelSettings.provider.invalidUrl'));
       return false;
     }
 
     try {
+      const providerUpdates: Record<string, any> = {
+        baseUrl: baseUrl.trim(),
+        isEnabled,
+        extraHeaders,
+        extraBody,
+        useResponsesAPI, // 保存 Responses API 开关状态
+        ...updates
+      };
+      // 多 Key 模式下不写单 Key 字段（由 handleApiKeysChange 独占维护）
+      if (!multiKeyEnabled) {
+        providerUpdates.apiKey = apiKey;
+      }
       dispatch(updateProvider({
         id: provider.id,
-        updates: {
-          apiKey,
-          baseUrl: baseUrl.trim(),
-          isEnabled,
-          extraHeaders,
-          extraBody,
-          useResponsesAPI, // 保存 Responses API 开关状态
-          ...updates
-        }
+        updates: providerUpdates
       }));
       return true;
     } catch (error) {
       console.error('保存配置失败:', error);
-      setBaseUrlError('保存配置失败，请重试');
+      setBaseUrlError(t('modelSettings.provider.saveConfigFailed'));
       return false;
     }
-  }, [provider, baseUrl, apiKey, isEnabled, extraHeaders, extraBody, useResponsesAPI, dispatch]);
+  }, [provider, baseUrl, apiKey, isEnabled, extraHeaders, extraBody, useResponsesAPI, multiKeyEnabled, dispatch, t]);
+
+  // 只更新模型列表，不隐式保存连接配置
+  const updateProviderModels = useCallback((updatedModels: Model[]): boolean => {
+    if (!provider) return false;
+    try {
+      dispatch(updateProvider({ id: provider.id, updates: { models: updatedModels } }));
+      return true;
+    } catch (error) {
+      console.error('保存模型失败:', error);
+      return false;
+    }
+  }, [provider, dispatch]);
 
   // 保存并返回
   const handleSave = useCallback(() => {
@@ -441,24 +488,21 @@ export const useProviderSettings = (provider: Provider | undefined) => {
 
     // 验证URL是否完整
     if (!endpoint) {
-      setCustomEndpointError('请输入端点URL');
+      setCustomEndpointError(t('modelSettings.provider.endpointRequired'));
       return;
     }
 
     if (!isValidUrl(endpoint)) {
-      setCustomEndpointError('请输入有效的完整URL');
+      setCustomEndpointError(t('modelSettings.provider.invalidEndpointUrl'));
       return;
     }
 
     // 保存自定义端点并打开模型管理对话框
+    // 同时保存当前连接配置，保证打开对话框前 Redux 是最新值
     if (provider) {
-      // 临时保存自定义端点到provider中
-      dispatch(updateProvider({
-        id: provider.id,
-        updates: {
-          customModelEndpoint: endpoint
-        }
-      }));
+      if (!validateAndUpdateProvider({ customModelEndpoint: endpoint })) {
+        return;
+      }
 
       setOpenCustomEndpointDialog(false);
       setOpenModelManagementDialog(true);
@@ -497,8 +541,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       // 创建更新后的模型数组
       const updatedModels = [...provider.models, newModel];
 
-      // 验证并更新所有配置
-      if (validateAndUpdateProvider({ models: updatedModels })) {
+      // 只保存模型列表
+      if (updateProviderModels(updatedModels)) {
         logModelOperation('添加成功', { modelId: newModel.id, totalModels: updatedModels.length });
         // 清理状态
         setNewModelName('');
@@ -518,8 +562,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         modelMatchesIdentity(m, modelToEdit, provider.id) ? updatedModel : m
       );
 
-      // 验证并更新所有配置
-      if (validateAndUpdateProvider({ models: updatedModels })) {
+      // 只保存模型列表
+      if (updateProviderModels(updatedModels)) {
         logModelOperation('编辑成功', { modelId: updatedModel.id });
         // 清理状态
         setModelToEdit(undefined);
@@ -544,8 +588,8 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         deleted: beforeCount - updatedModels.length 
       });
 
-      // 验证并更新所有配置
-      validateAndUpdateProvider({ models: updatedModels });
+      // 只保存模型列表
+      updateProviderModels(updatedModels);
     }
   };
 
@@ -578,10 +622,10 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       // 创建更新后的模型数组
       const updatedModels = [...provider.models, newModel];
 
-      // 验证并更新所有配置
-      validateAndUpdateProvider({ models: updatedModels });
+      // 只保存模型列表
+      updateProviderModels(updatedModels);
     }
-  }, [provider, validateAndUpdateProvider]);
+  }, [provider, updateProviderModels]);
 
   // 批量添加多个模型
   const handleBatchAddModels = useCallback((addedModels: Model[]) => {
@@ -610,10 +654,10 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       // 创建更新后的模型数组
       const updatedModels = [...provider.models, ...newModels];
 
-      // 验证并更新所有配置
-      validateAndUpdateProvider({ models: updatedModels });
+      // 只保存模型列表
+      updateProviderModels(updatedModels);
     }
-  }, [provider, validateAndUpdateProvider]);
+  }, [provider, updateProviderModels]);
 
   // 批量删除多个模型
   const handleBatchRemoveModels = useCallback((modelIds: string[]) => {
@@ -633,35 +677,26 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         deleted: beforeCount - updatedModels.length 
       });
 
-      // 验证并更新所有配置
-      validateAndUpdateProvider({ models: updatedModels });
+      // 只保存模型列表
+      updateProviderModels(updatedModels);
     }
-  }, [provider, validateAndUpdateProvider]);
+  }, [provider, updateProviderModels]);
 
 
   const handleOpenModelManagement = () => {
     // 验证URL有效性
     if (baseUrl && !isValidUrl(baseUrl)) {
-      setBaseUrlError('请输入有效的URL');
-      alert('请输入有效的基础URL');
+      setBaseUrlError(t('modelSettings.provider.invalidUrl'));
+      toastManager.error(t('modelSettings.provider.invalidUrl'));
       return;
     }
-    
+
     // 在打开对话框前，先保存当前输入的配置到 Redux
     // 这样 ModelManagementDialog 就能使用最新的 apiKey 和 baseUrl
-    if (provider) {
-      dispatch(updateProvider({
-        id: provider.id,
-        updates: {
-          apiKey,
-          baseUrl: baseUrl.trim(),
-          isEnabled,
-          extraHeaders,
-          extraBody
-        }
-      }));
+    if (!validateAndUpdateProvider({})) {
+      return;
     }
-    
+
     setOpenModelManagementDialog(true);
   };
 

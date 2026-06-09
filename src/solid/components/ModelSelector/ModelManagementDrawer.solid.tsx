@@ -16,6 +16,9 @@ export interface ModelManagementDrawerProps {
   provider: any;
   models: Model[];
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  retryText?: string;
   existingModels: Model[];
   onAddModel: (model: Model) => void;
   onAddModels?: (models: Model[]) => void;
@@ -110,7 +113,7 @@ function TactileButton(props: { children: any; class?: string }) {
 export function ModelManagementDrawer(props: ModelManagementDrawerProps) {
   // 使用 splitProps 分离本地和传递的 props，保持响应性
   const [local, handlers] = splitProps(props, 
-    ['open', 'provider', 'models', 'loading', 'existingModels', 'themeMode'],
+    ['open', 'provider', 'models', 'loading', 'error', 'retryText', 'existingModels', 'themeMode'],
   );
 
   const [searchTerm, setSearchTerm] = createSignal('');
@@ -361,6 +364,21 @@ export function ModelManagementDrawer(props: ModelManagementDrawerProps) {
                 }
               >
                 <Show
+                  when={!local.error}
+                  fallback={
+                    <div class="model-drawer-error">
+                      <p>{local.error}</p>
+                      <button
+                        type="button"
+                        class="model-drawer-retry-btn"
+                        onClick={() => handlers.onRetry?.()}
+                      >
+                        {local.retryText || '重试'}
+                      </button>
+                    </div>
+                  }
+                >
+                <Show
                   when={sortedGroups().length > 0}
                   fallback={
                     <div class="model-drawer-empty">
@@ -468,6 +486,7 @@ export function ModelManagementDrawer(props: ModelManagementDrawerProps) {
                       }}
                     </For>
                   </div>
+                </Show>
                 </Show>
               </Show>
             </div>
