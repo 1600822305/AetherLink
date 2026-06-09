@@ -63,7 +63,6 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
   // 🚀 性能优化：预热标志 - 桌面端直接渲染，移动端延迟预热
   // 桌面端需要立即显示侧边栏内容，否则路由切换会有白屏闪烁
   const [isPrewarmed, setIsPrewarmed] = useState(!isSmallScreen);
-  const prewarmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 获取触觉反馈设置
   const hapticSettings = useAppSelector((state) => state.settings.hapticFeedback);
@@ -128,19 +127,32 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
   }, [isSmallScreen]);
 
   // 🚀 性能优化：预热侧边栏内容
-  // 桌面端已在初始化时预热，移动端延迟预热
+  // 桌面端已在初始化时预热；移动端在主线程空闲时尽早预热，
+  // 并在用户从屏幕左缘触摸时立即兜底预热，避免内容树在拖拽动画期间挂载
   useEffect(() => {
-    if (!isPrewarmed && isSmallScreen) {
-      // 移动端延迟 500ms 后标记为已预热
-      prewarmTimeoutRef.current = setTimeout(() => {
-        setIsPrewarmed(true);
-      }, 500);
+    if (isPrewarmed || !isSmallScreen) return;
+
+    let idleId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    if (typeof requestIdleCallback === 'function') {
+      idleId = requestIdleCallback(() => setIsPrewarmed(true), { timeout: 300 });
+    } else {
+      timeoutId = setTimeout(() => setIsPrewarmed(true), 100);
     }
-    
-    return () => {
-      if (prewarmTimeoutRef.current) {
-        clearTimeout(prewarmTimeoutRef.current);
+
+    // 兜底：用户从左缘开始触摸（可能要滑出侧边栏）时立即预热
+    const handleEdgeTouch = (e: TouchEvent) => {
+      if (e.touches[0]?.clientX <= 30) {
+        setIsPrewarmed(true);
       }
+    };
+    document.addEventListener('touchstart', handleEdgeTouch, { passive: true });
+
+    return () => {
+      if (idleId !== null) cancelIdleCallback(idleId);
+      if (timeoutId !== null) clearTimeout(timeoutId);
+      document.removeEventListener('touchstart', handleEdgeTouch);
     };
   }, [isPrewarmed, isSmallScreen]);
 
@@ -326,6 +338,20 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
 
     return () => observer?.disconnect();
   }, []); // 注意：依赖改为 []，内部用函数式 setState 避免依赖 portalContainer
+
+  // 🚀 光栅化预热：内容挂载后强制一次 layout，让浏览器提前把屏幕外的
+  // 侧边栏图层画好，避免首次打开动画时现场光栅化导致掉帧
+  const isRasterWarmedRef = useRef(false);
+  useEffect(() => {
+    if (!isPrewarmed || !portalContainer || isRasterWarmedRef.current) return;
+    const rafId = requestAnimationFrame(() => {
+      // portalContainer 的父节点是 Solid 渲染的侧边栏根元素
+      const sidebarEl = portalContainer.parentElement ?? portalContainer;
+      void sidebarEl.getBoundingClientRect();
+      isRasterWarmedRef.current = true;
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [isPrewarmed, portalContainer]);
 
   // 移动端和桌面端都使用 SolidJS AppSidebar
   // 移动端：启用手势支持
