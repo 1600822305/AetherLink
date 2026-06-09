@@ -136,9 +136,14 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
 
   // 处理提供商选择
   const handleProviderSelect = (providerId: string) => {
-    if (providerId && toggleWebSearch) {
-      // 选择了提供商，激活搜索模式
-      toggleWebSearch();
+    if (toggleWebSearch) {
+      if (providerId && !webSearchActive) {
+        // 选择了提供商且搜索未激活，激活搜索模式
+        toggleWebSearch();
+      } else if (!providerId && webSearchActive) {
+        // 选择了"不使用网络搜索"且搜索已激活，关闭搜索模式
+        toggleWebSearch();
+      }
     }
     onClose();
   };

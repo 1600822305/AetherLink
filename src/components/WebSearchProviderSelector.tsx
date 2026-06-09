@@ -1,32 +1,16 @@
-import React from 'react';
-import {
-  Box,
-  DialogTitle,
-  DialogContent,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Typography,
-  Divider,
-  alpha
-} from '@mui/material';
-import BackButtonDialog from './common/BackButtonDialog';
-import {
-  Globe as LanguageIcon,
-  Settings as SettingsIcon,
-  Check as CheckIcon,
-  X as CloseIcon,
-  RefreshCw as RefreshIcon
-} from 'lucide-react';
+/**
+ * WebSearchProviderSelector - React 桥接组件
+ * 包装 SolidJS 版本的网络搜索提供商选择器，在 React 中使用
+ */
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTheme, useMediaQuery } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { SolidBridge } from '../shared/bridges/SolidBridge';
 import type { RootState } from '../shared/store';
 import { setWebSearchProvider, refreshProviders, setActiveProviderId } from '../shared/store/slices/webSearchSlice';
 import type { WebSearchProviderConfig } from '../shared/types';
+import type { ProviderItem } from '../solid/components/WebSearchProviderSelector/WebSearchProviderSelector.solid';
 
 interface WebSearchProviderSelectorProps {
   open: boolean;
@@ -34,12 +18,66 @@ interface WebSearchProviderSelectorProps {
   onProviderSelect?: (providerId: string) => void;
 }
 
-// 创建稳定的空数组引用
-const EMPTY_PROVIDERS_ARRAY: any[] = [];
+// 免费提供商，无需任何配置
+const FREE_PROVIDERS = ['bing-free', 'bing', 'local-google', 'local-bing'];
+
+const getProviderIcon = (providerId: string): string => {
+  switch (providerId) {
+    case 'bing-free':
+      return '🆓';
+    case 'tavily':
+      return '🔍';
+    case 'bing':
+      return '🔎';
+    case 'searxng':
+      return '🌐';
+    case 'exa':
+      return '🎯';
+    case 'bocha':
+      return '🤖';
+    case 'firecrawl':
+      return '🔥';
+    case 'cloudflare-ai-search':
+      return '☁️';
+    default:
+      return '🔍';
+  }
+};
+
+const getProviderStatus = (
+  provider: WebSearchProviderConfig,
+  apiKeys: Record<string, string> | undefined
+): { available: boolean; label: string } => {
+  // 免费搜索引擎无需配置，直接可用
+  if (FREE_PROVIDERS.includes(provider.id)) {
+    return { available: true, label: '免费可用' };
+  }
+
+  const apiKey = provider.apiKey?.trim() || apiKeys?.[provider.id]?.trim();
+
+  // Cloudflare AI Search 需要 API 密钥、Account ID 和 AutoRAG 名称
+  if (provider.id === 'cloudflare-ai-search') {
+    if (apiKey && provider.accountId?.trim() && provider.autoragName?.trim()) {
+      return { available: true, label: 'API密钥' };
+    }
+    return { available: false, label: '需要配置' };
+  }
+
+  if (apiKey) {
+    return { available: true, label: 'API密钥' };
+  }
+
+  // 基础认证（用于 Searxng 等自托管服务）
+  if (provider.basicAuthUsername?.trim() && provider.basicAuthPassword?.trim()) {
+    return { available: true, label: '基础认证' };
+  }
+
+  return { available: false, label: '需要配置' };
+};
 
 /**
- * 网络搜索提供商选择器
- * 类似最佳实例的快捷面板，适配移动端UI
+ * 网络搜索提供商选择器（React 桥接版）
+ * 内部使用 SolidJS 实现，通过桥接层在 React 中使用
  */
 const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
   open,
@@ -48,263 +86,93 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const themeMode = theme.palette.mode;
 
   const webSearchSettings = useSelector((state: RootState) => state.webSearch);
 
-  // 安全地解构，使用稳定的空数组引用
-  const providers = webSearchSettings?.providers || EMPTY_PROVIDERS_ARRAY;
-  const currentProvider = webSearchSettings?.provider || 'bing-free';
-  const enabled = webSearchSettings?.enabled || false;
+  // 动态加载 SolidJS 组件
+  const [SolidComponent, setSolidComponent] = useState<any>(null);
 
-  // 如果providers为空，显示加载状态
-  if (!providers || providers.length === 0) {
-    return (
-      <BackButtonDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>加载中...</DialogTitle>
-        <DialogContent>
-          <Typography>正在加载搜索提供商...</Typography>
-        </DialogContent>
-      </BackButtonDialog>
-    );
-  }
+  useEffect(() => {
+    import('../solid/components/WebSearchProviderSelector/WebSearchProviderSelector.solid').then((mod) => {
+      setSolidComponent(() => mod.WebSearchProviderSelectorSolid);
+    });
+  }, []);
 
-  const handleProviderSelect = (providerId: string) => {
+  const providerItems = useMemo<ProviderItem[]>(() => {
+    const providers = webSearchSettings?.providers || [];
+    return providers.map((provider) => {
+      const status = getProviderStatus(provider, webSearchSettings?.apiKeys);
+      return {
+        id: provider.id,
+        name: provider.name,
+        icon: getProviderIcon(provider.id),
+        available: status.available,
+        statusLabel: status.label
+      };
+    });
+  }, [webSearchSettings?.providers, webSearchSettings?.apiKeys]);
+
+  const handleSelectProvider = useCallback((providerId: string) => {
     dispatch(setWebSearchProvider(providerId as any));
-    // 🚀 设置 activeProviderId，标记用户已经点击搜索按钮并选择了引擎
+    // 设置 activeProviderId，标记用户已经选择了搜索引擎
     dispatch(setActiveProviderId(providerId));
     onProviderSelect?.(providerId);
     onClose();
-  };
+  }, [dispatch, onProviderSelect, onClose]);
 
-  const handleDisableWebSearch = () => {
-    dispatch(setWebSearchProvider('custom' as any)); // 设置为无效提供商来禁用
-    // 🚀 清除 activeProviderId，标记用户已经关闭了搜索
+  const handleDisable = useCallback(() => {
+    // 清除 activeProviderId 即可禁用搜索，不修改持久化的 provider 设置
     dispatch(setActiveProviderId(undefined));
     onProviderSelect?.('');
     onClose();
-  };
+  }, [dispatch, onProviderSelect, onClose]);
 
-  const handleOpenSettings = () => {
+  const handleOpenSettings = useCallback(() => {
     onClose();
     navigate('/settings/web-search');
-  };
+  }, [onClose, navigate]);
 
-  const handleRefreshProviders = () => {
+  const handleRefresh = useCallback(() => {
     dispatch(refreshProviders());
-  };
+  }, [dispatch]);
 
-  const getProviderIcon = (providerId: string) => {
-    switch (providerId) {
-      case 'bing-free':
-        return '🆓'; // 免费Bing搜索图标
-      case 'tavily':
-        return '🔍';
-      case 'bing':
-        return '🔎'; // 🚀 免费网络搜索引擎图标
-      case 'searxng':
-        return '🌐';
-      case 'exa':
-        return '🎯';
-      case 'bocha':
-        return '🤖';
-      case 'firecrawl':
-        return '';
-      default:
-        return '🔍';
-    }
-  };
+  const solidProps = useMemo(() => ({
+    open,
+    onClose,
+    providers: providerItems,
+    activeProviderId: webSearchSettings?.activeProviderId,
+    onSelectProvider: handleSelectProvider,
+    onDisable: handleDisable,
+    onOpenSettings: handleOpenSettings,
+    onRefresh: handleRefresh,
+    themeMode: themeMode as 'light' | 'dark',
+    fullScreen
+  }), [
+    open,
+    onClose,
+    providerItems,
+    webSearchSettings?.activeProviderId,
+    handleSelectProvider,
+    handleDisable,
+    handleOpenSettings,
+    handleRefresh,
+    themeMode,
+    fullScreen
+  ]);
 
-  const getProviderStatus = (provider: WebSearchProviderConfig) => {
-    // 🚀 免费搜索引擎（WebSearch）无需配置，直接可用
-    if (provider.id === 'bing-free' || provider.id === 'bing') {
-      return { available: true, label: '免费可用' };
-    }
-
-    // 检查API密钥
-    if (provider.apiKey && provider.apiKey.trim()) {
-      return { available: true, label: 'API密钥' };
-    }
-
-    // 检查自托管服务（如Searxng）
-    if (provider.apiHost && provider.apiHost.trim()) {
-      return { available: true, label: '自托管' };
-    }
-
-    // 检查基础认证（用于Searxng）
-    if ('basicAuthUsername' in provider && 'basicAuthPassword' in provider) {
-      if (provider.basicAuthUsername && provider.basicAuthPassword) {
-        return { available: true, label: '基础认证' };
-      }
-    }
-
-    return { available: false, label: '需要配置' };
-  };
-
-  // 🚀 显示所有提供商，不再区分可用和不可用
-  const allProviders = providers;
+  if (!open || !SolidComponent) {
+    return null;
+  }
 
   return (
-    <BackButtonDialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          maxHeight: '80vh'
-        }
-      }}
-    >
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          pb: 1
-        }}
-      >
-        <LanguageIcon color="#1976d2" />
-        <Typography variant="h6" component="span">
-          选择搜索提供商
-        </Typography>
-        <Box sx={{ flexGrow: 1 }} />
-        <IconButton onClick={handleRefreshProviders} size="small" title="刷新提供商列表">
-          <RefreshIcon />
-        </IconButton>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ px: 0, pb: 2 }}>
-        {/* 禁用网络搜索选项 */}
-        <List dense>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleDisableWebSearch}
-              selected={!enabled || !currentProvider}
-              sx={{
-                mx: 2,
-                borderRadius: 2,
-                mb: 1
-              }}
-            >
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: alpha('#666', 0.1),
-                    fontSize: '16px'
-                  }}
-                >
-                  🚫
-                </Box>
-              </ListItemIcon>
-              <ListItemText
-                primary="不使用网络搜索"
-                secondary="禁用网络搜索功能"
-              />
-              {(!enabled || !currentProvider) && (
-                <ListItemSecondaryAction>
-                  <CheckIcon color="#1976d2" />
-                </ListItemSecondaryAction>
-              )}
-            </ListItemButton>
-          </ListItem>
-        </List>
-
-        <Divider sx={{ my: 1 }} />
-
-        {/* 🚀 所有搜索提供商 */}
-        {allProviders.length > 0 && (
-          <>
-            <Typography
-              variant="subtitle2"
-              color="text.secondary"
-              sx={{ px: 2, py: 1 }}
-            >
-              搜索提供商
-            </Typography>
-            <List dense>
-              {allProviders.map((provider) => {
-                const status = getProviderStatus(provider);
-                const isSelected = enabled && currentProvider === provider.id;
-
-                return (
-                  <ListItem key={provider.id} disablePadding>
-                    <ListItemButton
-                      onClick={() => handleProviderSelect(provider.id)}
-                      selected={isSelected}
-                      sx={{
-                        mx: 2,
-                        borderRadius: 2,
-                        mb: 0.5
-                      }}
-                    >
-                      <ListItemIcon>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            bgcolor: status.available ? alpha('#3b82f6', 0.1) : alpha('#666', 0.1),
-                            fontSize: '16px',
-                            opacity: status.available ? 1 : 0.6
-                          }}
-                        >
-                          {getProviderIcon(provider.id)}
-                        </Box>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={provider.name}
-                        secondary={status.available ? `✓ ${status.label}` : `⚠️ ${status.label}`}
-                      />
-                      {isSelected && (
-                        <ListItemSecondaryAction>
-                          <CheckIcon color="#1976d2" />
-                        </ListItemSecondaryAction>
-                      )}
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
-            </List>
-          </>
-        )}
-
-        <Divider sx={{ my: 1 }} />
-
-        {/* 设置按钮 */}
-        <List dense>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={handleOpenSettings}
-              sx={{
-                mx: 2,
-                borderRadius: 2
-              }}
-            >
-              <ListItemIcon>
-                <SettingsIcon color="#757575" />
-              </ListItemIcon>
-              <ListItemText
-                primary="搜索设置"
-                secondary="配置搜索提供商和选项"
-              />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </DialogContent>
-    </BackButtonDialog>
+    <SolidBridge
+      component={SolidComponent}
+      props={solidProps}
+      debugName="WebSearchProviderSelector"
+    />
   );
 };
 
