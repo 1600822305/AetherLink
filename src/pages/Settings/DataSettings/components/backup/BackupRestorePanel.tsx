@@ -36,6 +36,7 @@ import {
   readJSONFromFile,
   performFullRestore,
 } from '../../utils/restoreUtils';
+import type { RestoreMode } from '../../utils/restoreUtils';
 import { dexieStorage } from '../../../../../shared/services/storage/DexieStorageService';
 import type { WebDavConfig } from '../../../../../shared/types';
 import { WebDavBackupService } from '../../../../../shared/services/storage/WebDavBackupService';
@@ -57,6 +58,10 @@ const BackupRestorePanel: React.FC = () => {
     message: '',
     severity: 'info' as 'success' | 'error' | 'info' | 'warning'
   });
+
+  // 恢复模式：true=替换（清空备份所含类别后写入，默认），false=合并（保留现有数据）
+  const [restoreReplaceMode, setRestoreReplaceMode] = useState(true);
+  const restoreMode: RestoreMode = restoreReplaceMode ? 'replace' : 'merge';
 
   // 备份文件列表刷新触发器
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -267,7 +272,7 @@ const BackupRestorePanel: React.FC = () => {
               stage,
               progress
             });
-          });
+          }, restoreMode);
 
           // 处理恢复结果
           if (result.success) {
@@ -469,7 +474,7 @@ const BackupRestorePanel: React.FC = () => {
           stage,
           progress
         });
-      });
+      }, restoreMode);
 
       if (result.success) {
         showMessage(t('dataSettings.messages.webdavRestoreSuccess'), 'success');
@@ -533,6 +538,19 @@ const BackupRestorePanel: React.FC = () => {
           description={t('dataSettings.backupAndRestore.selectiveBackup.description')}
           icon={<Settings size={24} />}
           onClick={openSelectiveBackupDialog}
+          disabled={isLoading}
+          showArrow={false}
+        />
+        <SettingItem
+          title={t('dataSettings.backupAndRestore.restoreMode.title', { defaultValue: '恢复模式' })}
+          description={restoreReplaceMode
+            ? t('dataSettings.backupAndRestore.restoreMode.replaceDescription', { defaultValue: '替换：恢复前清空备份所含的数据类别，恢复后等于备份快照（推荐）' })
+            : t('dataSettings.backupAndRestore.restoreMode.mergeDescription', { defaultValue: '合并：保留设备现有数据，仅按 ID 覆盖同项' })}
+          icon={<RotateCcw size={24} />}
+          value={restoreReplaceMode
+            ? t('dataSettings.backupAndRestore.restoreMode.replace', { defaultValue: '替换' })
+            : t('dataSettings.backupAndRestore.restoreMode.merge', { defaultValue: '合并' })}
+          onClick={() => setRestoreReplaceMode(prev => !prev)}
           disabled={isLoading}
           showArrow={false}
         />
@@ -609,6 +627,7 @@ const BackupRestorePanel: React.FC = () => {
         onRestoreError={handleBackupError}
         onFileDeleted={handleFileDeleted}
         refreshTrigger={refreshTrigger}
+        restoreMode={restoreMode}
       />
 
       {/* 选择性备份对话框 */}

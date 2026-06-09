@@ -240,6 +240,52 @@ export async function clearAssistants(): Promise<void> {
 }
 
 /**
+ * 恢复模式：
+ * - 'replace' 替换：恢复前清空“备份中包含的类别”，恢复后等于备份快照（默认）；
+ * - 'merge'   合并：不清空，按主键写入，保留设备上已有数据。
+ */
+export type RestoreMode = 'replace' | 'merge';
+
+/**
+ * 替换模式下，按“备份是否包含该类别”有选择地清空对应表。
+ *
+ * 关键：仅清空备份中实际包含的类别，避免误删备份未覆盖的数据
+ * （例如用户备份时未勾选文件/图片，则不应清空设备上的文件/图片）。
+ */
+export async function clearDataForReplace(data: any): Promise<void> {
+  const clearIfPresent = async (
+    table: { clear: () => Promise<void> },
+    present: boolean,
+    label: string
+  ) => {
+    if (!present) return;
+    try {
+      await table.clear();
+      console.log(`替换模式：已清空${label}`);
+    } catch (error) {
+      console.error(`替换模式：清空${label}失败:`, error);
+    }
+  };
+
+  // 话题：连同消息与消息块一并清空，避免遗留孤立消息
+  if (Array.isArray(data.topics)) {
+    await clearIfPresent(dexieStorage.topics, true, '话题');
+    await clearIfPresent(dexieStorage.messages, true, '消息');
+    await clearIfPresent(dexieStorage.message_blocks, true, '消息块');
+  }
+
+  await clearIfPresent(dexieStorage.assistants, Array.isArray(data.assistants), '助手');
+  await clearIfPresent(dexieStorage.knowledge_bases, Array.isArray(data.knowledgeBases), '知识库');
+  await clearIfPresent(dexieStorage.knowledge_documents, Array.isArray(data.knowledgeDocuments), '知识库文档');
+  await clearIfPresent(dexieStorage.memories, Array.isArray(data.memories), '记忆');
+  await clearIfPresent(dexieStorage.quick_phrases, Array.isArray(data.quickPhrases), '快捷短语');
+  await clearIfPresent(dexieStorage.skills, Array.isArray(data.skills), '技能');
+  await clearIfPresent(dexieStorage.files, Array.isArray(data.files), '文件');
+  await clearIfPresent(dexieStorage.images, Array.isArray(data.images), '图片');
+  await clearIfPresent(dexieStorage.imageMetadata, Array.isArray(data.imageMetadata), '图片元数据');
+}
+
+/**
  * 恢复话题数据
  * @param topics 要恢复的话题数组
  * @returns 恢复成功的话题数量
@@ -625,7 +671,8 @@ export async function restoreExtendedData(data: any): Promise<void> {
  */
 export async function performFullRestore(
   backupData: any,
-  onProgress?: (stage: string, progress: number) => void
+  onProgress?: (stage: string, progress: number) => void,
+  mode: RestoreMode = 'replace'
 ): Promise<{
   success: boolean;
   topicsCount: number;
@@ -650,6 +697,12 @@ export async function performFullRestore(
 
     // 处理备份数据的版本兼容性
     const processedData = processBackupDataForVersion(backupData);
+
+    // 替换模式：恢复前清空“备份中包含的类别”，使恢复后等于备份快照
+    if (mode === 'replace') {
+      onProgress?.('清空待替换的数据', 0.18);
+      await clearDataForReplace(processedData);
+    }
 
     // 从 Redux store 获取当前设置
     const currentSettings = store.getState().settings || {};
