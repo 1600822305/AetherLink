@@ -40,13 +40,11 @@ import GroupDialog from '../GroupDialog';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
 import { EventEmitter, EVENT_NAMES } from '../../../shared/services/infra/EventService';
 import { getMainTextContent } from '../../../shared/utils/blockUtils';
-import type { ChatTopic, Group } from '../../../shared/types';
+import type { ChatTopic } from '../../../shared/types';
 import type { Assistant } from '../../../shared/types/Assistant';
 import { useTopicGroups } from './hooks/useTopicGroups';
-import TopicItem from './TopicItem';
-import GroupedVirtualList from '../../common/GroupedVirtualList';
-import SidebarGroupHeader from '../common/SidebarGroupHeader';
-import { useCollapsedGroups } from '../common/useCollapsedGroups';
+import VirtualizedTopicGroups from './VirtualizedTopicGroups';
+import VirtualizedTopicList from './VirtualizedTopicList';
 import type { RootState } from '../../../shared/store';
 import store from '../../../shared/store';
 import { TopicService } from '../../../shared/services/topics/TopicService';
@@ -55,43 +53,6 @@ import { TopicManager } from '../../../shared/services/assistant/TopicManager';
 import { exportTopicAsMarkdown, exportTopicAsDocx, copyTopicAsMarkdown } from '../../../utils/exportUtils';
 import { exportTopicToNotion } from '../../../utils/notionExport';
 import { toastManager } from '../../EnhancedToast';
-
-// 扁平化行模型：分组头 / 分组内项 / 分组空态 / 未分组标题 / 未分组空态
-// 行在所属「内框块」中的位置，用于把相邻条目行拼接成一个连续边框（恢复分组内框样式）
-type FramePos = 'single' | 'first' | 'middle' | 'last';
-
-type TopicRow =
-  | { kind: 'group-header'; key: string; group: Group; count: number }
-  | { kind: 'group-empty'; key: string }
-  | { kind: 'item'; key: string; topic: ChatTopic; frame: FramePos }
-  | { kind: 'subheader'; key: string; label: string }
-  | { kind: 'note'; key: string; label: string };
-
-// 给条目行拼接「内框」：左右边框常驻，首行加顶边框+上圆角，末行加底边框+下圆角，
-// 使虚拟器中相邻的绝对定位行在视觉上连成一个带边框/圆角/背景的盒子。
-const itemFrameSx = (frame: FramePos) => ({
-  borderLeft: '1px solid',
-  borderRight: '1px solid',
-  borderColor: 'divider',
-  bgcolor: 'background.paper',
-  px: 0.5,
-  pb: 1,
-  ...(frame === 'first' || frame === 'single'
-    ? { borderTop: '1px solid', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', pt: 1 }
-    : {}),
-  ...(frame === 'last' || frame === 'single'
-    ? { borderBottom: '1px solid', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', mb: 1.5 }
-    : {}),
-});
-
-// 将一组条目压入扁平行数组，并标注各自在内框块中的位置
-const pushFramedTopics = (out: TopicRow[], topics: ChatTopic[]) => {
-  topics.forEach((t, i) => {
-    const frame: FramePos =
-      topics.length === 1 ? 'single' : i === 0 ? 'first' : i === topics.length - 1 ? 'last' : 'middle';
-    out.push({ kind: 'item', key: t.id, topic: t, frame });
-  });
-};
 
 interface TopicTabProps {
   currentAssistant: ({
@@ -231,9 +192,6 @@ export default function TopicTab({
 
   // 使用话题分组钩子
   const { topicGroups, topicGroupMap, ungroupedTopics } = useTopicGroups(filteredTopics, currentAssistant?.id);
-
-  // 分组折叠/展开状态（扁平化列表按需展开子项）
-  const collapsed = useCollapsedGroups();
 
   // 优化的话题选择函数 - 使用React 18的startTransition
   const handleSelectTopic = useCallback((topic: ChatTopic) => {
@@ -637,113 +595,6 @@ export default function TopicTab({
     handleCloseMenu();
   };
 
-  // 扁平化所有行（分组头 + 分组项 + 未分组标题 + 未分组项），交给单一虚拟器渲染
-  const rows = useMemo<TopicRow[]>(() => {
-    const out: TopicRow[] = [];
-    for (const group of topicGroups) {
-      const groupTopics = filteredTopics.filter(
-        t => t && t.id && topicGroupMap[t.id] === group.id
-      );
-      out.push({ kind: 'group-header', key: `gh-${group.id}`, group, count: groupTopics.length });
-      if (!collapsed.isCollapsed(group)) {
-        if (groupTopics.length === 0) {
-          out.push({ kind: 'group-empty', key: `ge-${group.id}` });
-        } else {
-          pushFramedTopics(out, groupTopics);
-        }
-      }
-    }
-    out.push({ kind: 'subheader', key: 'sub-ungrouped', label: '未分组话题' });
-    if (ungroupedTopics.length === 0) {
-      out.push({
-        kind: 'note',
-        key: 'empty-ungrouped',
-        label: debouncedSearchQuery ? `没有找到包含 "${debouncedSearchQuery}" 的话题` : '暂无未分组话题'
-      });
-    } else {
-      pushFramedTopics(out, ungroupedTopics);
-    }
-    return out;
-  }, [topicGroups, filteredTopics, topicGroupMap, ungroupedTopics, debouncedSearchQuery, collapsed]);
-
-  const getRowKey = useCallback((index: number) => rows[index].key, [rows]);
-
-  const estimateRowSize = useCallback((index: number) => {
-    switch (rows[index].kind) {
-      case 'group-header': return 56;
-      case 'subheader': return 40;
-      case 'item': return 64;
-      default: return 44; // group-empty / note
-    }
-  }, [rows]);
-
-  const isStickyHeader = useCallback((index: number) => {
-    const kind = rows[index].kind;
-    return kind === 'group-header' || kind === 'subheader';
-  }, [rows]);
-
-  const renderRow = useCallback((index: number) => {
-    const row = rows[index];
-    switch (row.kind) {
-      case 'group-header':
-        return (
-          <SidebarGroupHeader
-            group={row.group}
-            count={row.count}
-            collapsed={collapsed.isCollapsed(row.group)}
-            onToggle={() => collapsed.toggle(row.group.id, collapsed.isCollapsed(row.group))}
-            itemNoun="话题"
-          />
-        );
-      case 'item':
-        return (
-          <Box sx={itemFrameSx(row.frame)}>
-            <TopicItem
-              topic={row.topic}
-              onSelectTopic={handleSelectTopic}
-              onOpenMenu={handleOpenMenu}
-              onDeleteTopic={handleTopicDelete}
-            />
-          </Box>
-        );
-      case 'subheader':
-        return (
-          <Box sx={{ backgroundColor: 'background.paper', pt: 1, pb: 0.5 }}>
-            <Typography variant="body2" color="textSecondary">
-              {row.label}
-            </Typography>
-          </Box>
-        );
-      case 'group-empty':
-        return (
-          <Box sx={itemFrameSx('single')}>
-            <Typography
-              variant="body2"
-              color="textSecondary"
-              sx={{ py: 1, px: 1, textAlign: 'center', fontStyle: 'italic', fontSize: '0.85rem' }}
-            >
-              此分组暂无话题，请从未分组话题中添加
-            </Typography>
-          </Box>
-        );
-      case 'note':
-        return (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: 44,
-              color: 'text.secondary',
-              fontSize: '0.875rem'
-            }}
-          >
-            {row.label}
-          </Box>
-        );
-    }
-  }, [rows, collapsed, handleSelectTopic, handleOpenMenu, handleTopicDelete]);
-
   return (
     <Box sx={{
       height: '100%',
@@ -847,17 +698,31 @@ export default function TopicTab({
         </Box>
       )}
 
-      {/* 分组 + 未分组：单一滚动容器 + 单一虚拟器（扁平化行，分组头吸顶） */}
-      <Box sx={{ flex: 1, minHeight: 0, mt: 1 }}>
-        <GroupedVirtualList
-          count={rows.length}
-          estimateSize={estimateRowSize}
-          getKey={getRowKey}
-          isStickyHeader={isStickyHeader}
-          renderRow={renderRow}
-          overscan={8}
-        />
-      </Box>
+      {/* 分组区域 */}
+      <VirtualizedTopicGroups
+        topicGroups={topicGroups}
+        topics={filteredTopics}
+        topicGroupMap={topicGroupMap}
+        currentTopic={currentTopic}
+        onSelectTopic={handleSelectTopic}
+        onOpenMenu={handleOpenMenu}
+        onDeleteTopic={handleTopicDelete}
+      />
+
+      {/* 未分组话题列表 - 使用虚拟化组件 */}
+      <VirtualizedTopicList
+        topics={ungroupedTopics}
+        currentTopic={currentTopic}
+        onSelectTopic={handleSelectTopic}
+        onOpenMenu={handleOpenMenu}
+        onDeleteTopic={handleTopicDelete}
+        title="未分组话题"
+        height="calc(100vh - 400px)" // 动态计算高度
+        emptyMessage="暂无未分组话题"
+        itemHeight={64} // 更新为64px以包含margin-bottom空间
+        searchQuery={debouncedSearchQuery}
+        getMainTextContent={getMainTextContent}
+      />
 
       {/* 分组对话框 */}
       <GroupDialog
