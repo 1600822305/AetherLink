@@ -95,7 +95,9 @@ class MemoryService {
     options: AddMemoryOptions = {}
   ): Promise<MemoryItem | null> {
     try {
-      const { userId = 'default-user', assistantId, metadata } = options;
+      const { assistantId, metadata } = options;
+      // 统一存储键：assistantId 优先，与 list/search 的过滤键保持一致
+      const userId = options.assistantId || options.userId || 'default';
 
       // 计算哈希值用于去重
       const hash = await createHash(memory);
@@ -269,9 +271,9 @@ class MemoryService {
    */
   public async list(options: MemoryListOptions = {}): Promise<MemorySearchResult> {
     try {
-      const { assistantId = 'default', userId, limit = 100, offset = 0 } = options;
+      const { limit = 100, offset = 0 } = options;
       // 支持 assistantId 或后向兼容的 userId
-      const filterKey = assistantId || userId || 'default';
+      const filterKey = options.assistantId || options.userId || 'default';
 
       const allMemories = await dexieStorage.memories.toArray();
       const filtered = allMemories.filter(m => 
@@ -308,9 +310,9 @@ class MemoryService {
     options: MemorySearchOptions = {}
   ): Promise<MemorySearchResult> {
     try {
-      const { assistantId = 'default', userId, limit = 10, threshold = 0.5 } = options;
+      const { limit = 10, threshold = 0.5 } = options;
       // 支持 assistantId 或后向兼容的 userId
-      const filterKey = assistantId || userId || 'default';
+      const filterKey = options.assistantId || options.userId || 'default';
 
       // 获取查询向量
       const queryEmbedding = await this.getEmbedding(query);
@@ -357,8 +359,8 @@ class MemoryService {
     options: MemorySearchOptions = {}
   ): Promise<MemorySearchResult> {
     try {
-      const { assistantId = 'default', userId, limit = 10 } = options;
-      const filterKey = assistantId || userId || 'default';
+      const { limit = 10 } = options;
+      const filterKey = options.assistantId || options.userId || 'default';
       const lowerQuery = query.toLowerCase();
 
       const allMemories = await dexieStorage.memories.toArray();

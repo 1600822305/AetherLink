@@ -11,6 +11,7 @@ import { newMessagesActions } from '../../slices/newMessagesSlice';
 import { prepareMessagesForApi, performKnowledgeSearchIfNeeded } from './apiPreparation';
 import { assertModelSupportsApiMessages } from './apiMessageValidation';
 import { extractAndSaveMemories, isAutoAnalyzeEnabled } from './memoryIntegration';
+import { getMainTextContent } from '../../../utils/blockUtils';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
 
 import type { Message } from '../../../types/newMessage';
@@ -329,10 +330,7 @@ export const processAssistantResponse = async (
           const userMessages = filteredOriginalMessages.filter(m => m.role === 'user');
           const lastUserMessage = userMessages[userMessages.length - 1];
           if (lastUserMessage) {
-            const userContent = lastUserMessage.blocks
-              ?.map((b: any) => typeof b === 'string' ? b : b.content)
-              .filter(Boolean)
-              .join('\n') || '';
+            const userContent = getMainTextContent(lastUserMessage);
             if (userContent) {
               // 异步提取记忆，不阻塞响应
               extractAndSaveMemories(userContent, finalContent).catch(err => {
