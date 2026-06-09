@@ -143,7 +143,21 @@ const ChatSearchInterface: React.FC<ChatSearchInterfaceProps> = ({
         sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}
       >
         {/* 头部 */}
-        <Box sx={{ p: isMobile ? 2 : 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box
+          sx={{
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            ...(isMobile
+              ? {
+                  // 顶部安全区(刘海/状态栏/自定义标题栏),与全屏页面一致
+                  pt: 'calc(max(var(--titlebar-height, 0px), var(--safe-area-top, 0px)) + 16px)',
+                  pb: 2,
+                  pl: 'calc(16px + var(--safe-area-left, 0px))',
+                  pr: 'calc(16px + var(--safe-area-right, 0px))',
+                }
+              : { p: 3 }),
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main', flexGrow: 1 }}>
               搜索话题和消息
@@ -221,7 +235,22 @@ const ChatSearchInterface: React.FC<ChatSearchInterfaceProps> = ({
         </Box>
 
         {/* 结果区 */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: isMobile ? 2 : 3, minHeight: 0 }}>
+        <Box
+          sx={{
+            flex: 1,
+            overflow: 'auto',
+            minHeight: 0,
+            ...(isMobile
+              ? {
+                  pt: 2,
+                  // 底部安全区(home indicator),避免末条结果被遮挡
+                  pb: 'calc(var(--safe-area-bottom-computed, 0px) + 16px)',
+                  pl: 'calc(16px + var(--safe-area-left, 0px))',
+                  pr: 'calc(16px + var(--safe-area-right, 0px))',
+                }
+              : { p: 3 }),
+          }}
+        >
           {showRecent && (
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
