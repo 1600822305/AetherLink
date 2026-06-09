@@ -71,7 +71,13 @@
     "corsCompatibilityMode": "移动端 CORS 兼容模式",
     "corsCompatibilityDesc": "仅在移动端遇到跨域问题时启用。启用后会使用 CORS 插件绕过跨域限制，现已支持流式输出。",
     "enableCorsPlugin": "启用 CORS 兼容插件",
-    "corsPluginNote": "默认关闭以使用标准请求"
+    "corsPluginNote": "默认关闭以使用标准请求",
+    "invalidUrl": "请输入有效的URL",
+    "saveConfigFailed": "保存配置失败，请重试",
+    "endpointRequired": "请输入端点URL",
+    "invalidEndpointUrl": "请输入有效的完整URL",
+    "fetchModelsFailed": "获取模型列表失败：{{error}}",
+    "retry": "重试"
   },
   "defaultModel": {
     "title": "辅助模型设置",

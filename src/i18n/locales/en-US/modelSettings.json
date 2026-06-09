@@ -71,7 +71,13 @@
     "corsCompatibilityMode": "Mobile CORS Compatibility",
     "corsCompatibilityDesc": "Enable only when encountering CORS issues on mobile. Uses CORS plugin to bypass restrictions with streaming support.",
     "enableCorsPlugin": "Enable CORS Plugin",
-    "corsPluginNote": "Disabled by default for standard requests"
+    "corsPluginNote": "Disabled by default for standard requests",
+    "invalidUrl": "Please enter a valid URL",
+    "saveConfigFailed": "Failed to save configuration, please retry",
+    "endpointRequired": "Please enter the endpoint URL",
+    "invalidEndpointUrl": "Please enter a valid full URL",
+    "fetchModelsFailed": "Failed to fetch models: {{error}}",
+    "retry": "Retry"
   },
   "defaultModel": {
     "title": "Assistant Model Settings",

@@ -201,6 +201,6 @@ export async function fetchModels(provider: any): Promise<Model[]> {
       provider: provider.id,
       error: error instanceof Error ? error.message : '未知错误'
     });
-    return [];
+    throw error;
   }
 }

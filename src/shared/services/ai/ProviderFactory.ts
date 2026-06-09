@@ -370,7 +370,9 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
     const { key: apiKey, config: keyConfig } = availableKeys[i];
     
     try {
-      console.log(`[fetchModelsFromEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || apiKey.substring(0, 8)}...`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[fetchModelsFromEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
+      }
       
       // 创建一个带有apiKey的provider副本
       const providerWithKey = {
@@ -549,7 +551,9 @@ async function fetchModelsFromCustomEndpoint(customEndpoint: string, provider: a
     const { key: apiKey, config: keyConfig } = availableKeys[i];
     
     try {
-      console.log(`[fetchModelsFromCustomEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || apiKey.substring(0, 8)}...`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[fetchModelsFromCustomEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
+      }
       
       // 构建请求头 - 参考 Cherry Studio 的请求头配置
       const headers: Record<string, string> = {

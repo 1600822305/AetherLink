@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTheme, alpha } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { SolidBridge } from '../../shared/bridges/SolidBridge';
 import { ModelManagementDrawer } from '../../solid/components/ModelSelector/ModelManagementDrawer.solid';
 import { fetchModels } from '../../shared/services/network/APIService';
@@ -41,8 +42,10 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
   existingModels
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState<boolean>(false);
   const [models, setModels] = useState<Model[]>([]);
+  const [error, setError] = useState<string | null>(null);
   // 单调递增的请求序号，用来丢弃乱序回来的旧请求结果，避免快速重开/切换 provider
   // 时旧响应覆盖新响应
   const latestRequestRef = useRef(0);
@@ -55,14 +58,16 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
     if (!provider) return;
     const requestId = ++latestRequestRef.current;
     setLoading(true);
+    setError(null);
     try {
       const fetchedModels = await fetchModels(provider);
       if (requestId !== latestRequestRef.current) return;
       setModels(fetchedModels);
-    } catch (error) {
+    } catch (err) {
       if (requestId !== latestRequestRef.current) return;
-      console.error('加载模型失败:', error);
+      console.error('加载模型失败:', err);
       setModels([]);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       if (requestId === latestRequestRef.current) {
         setLoading(false);
@@ -76,6 +81,11 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
     if (open && provider) {
       loadModels();
     }
+    // cleanup：递增请求序号，使关闭/切换后返回的结果被丢弃，避免状态污染
+    const requestRef = latestRequestRef;
+    return () => {
+      requestRef.current++;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, provider?.id, provider?.apiKey, provider?.baseUrl]);
 
@@ -112,6 +122,9 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
         provider,
         models,
         loading,
+        error: error ? t('modelSettings.provider.fetchModelsFailed', { error }) : null,
+        onRetry: loadModels,
+        retryText: t('modelSettings.provider.retry'),
         existingModels,
         onAddModel,
         onAddModels,
