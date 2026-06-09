@@ -22,7 +22,12 @@ const TabPanel = React.memo(function TabPanel(props: TabPanelProps) {
       sx={{
         padding: '10px',
         pb: 0, // 底部安全区域由外层翻译按钮处理
-        display: value === index ? 'block' : 'none',
+        // 激活的面板填满父级（SidebarTabsContent 为确定高度的 flex 列），
+        // 让子 Tab 的 height:100% / flex:1 生效，使其内部单滚动容器可正确测高并滚动。
+        display: value === index ? 'flex' : 'none',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
         // 性能优化 - 简化样式，减少重排计算
         transform: 'translateZ(0)', // 启用硬件加速
         // 防止过度滚动
