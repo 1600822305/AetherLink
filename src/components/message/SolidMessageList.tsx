@@ -52,8 +52,6 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const renderCount = useRef(0);
-  renderCount.current += 1;
 
   // 错误处理状态
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +66,6 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
 
   // 显示状态
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isNearTop, setIsNearTop] = useState(false);
 
   // 话题和助手信息
   const [currentTopic, setCurrentTopic] = useState<ChatTopic | null>(null);
@@ -104,14 +100,14 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     state.settings.autoScrollToBottom !== false
   );
   const messageGroupingType = useSelector((state: RootState) =>
-    (state.settings as any).messageGrouping || 'byDate'
+    state.settings.messageGrouping || 'byDate'
   );
   const chatBackground = useSelector((state: RootState) =>
     state.settings.chatBackground || { enabled: false }
   );
-  // 实验特性：带回收的虚拟化消息列表（默认关闭）。开启后走窗口化渲染路径，旧的切片+加载更多保持并存。
+  // 实验特性：带回收的虚拟化消息列表（默认开启）。关闭后回退到旧的切片+加载更多路径（kill-switch）。
   const virtualized = useSelector((state: RootState) =>
-    (state.settings as any).experimentalVirtualizedList === true
+    state.settings.experimentalVirtualizedList === true
   );
 
   // 计算显示的消息
@@ -227,9 +223,9 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
         return;
       }
 
-      const validBlocks = blocks.filter(Boolean) as any[];
+      const validBlocks = blocks.filter((b): b is NonNullable<typeof b> => Boolean(b));
       if (validBlocks.length > 0) {
-        dispatch(upsertManyBlocks(validBlocks as any));
+        dispatch(upsertManyBlocks(validBlocks));
       }
     };
 
@@ -275,31 +271,25 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     };
   }, []);
 
-  // 处理滚动事件
-  const handleScroll = useCallback((scrollTop: number, _scrollHeight: number, _clientHeight: number) => {
-    setIsNearTop(scrollTop < 100);
-  }, []);
-
   // 记录加载前的滚动高度，用于保持位置
   const prevScrollHeightRef = useRef<number | null>(null);
   const prevDisplayCountRef = useRef(displayCount);
+  // 防止滚到顶时同一手势内重复触发加载（同步守卫，加载并补偿滚动位置后在 layout effect 复位）
+  const isLoadingMoreRef = useRef(false);
 
-  // 加载更多消息
+  // 加载更多消息：滚到顶时由 Solid 外壳的 onScrollToTop 自动触发，同步切片（无人为延迟）
   const loadMoreMessages = useCallback(() => {
-    if (!hasMore || isLoadingMore) return;
+    if (!hasMore || isLoadingMoreRef.current) return;
 
-    // 记录当前滚动高度
+    // 记录当前滚动高度，供加载后补偿位置
     const container = document.getElementById('messageList');
     prevScrollHeightRef.current = container?.scrollHeight || null;
 
-    setIsLoadingMore(true);
-    setTimeout(() => {
-      setDisplayCount(prev => prev + LOAD_MORE_COUNT);
-      setIsLoadingMore(false);
-    }, 300);
-  }, [hasMore, isLoadingMore]);
+    isLoadingMoreRef.current = true;
+    setDisplayCount(prev => prev + LOAD_MORE_COUNT);
+  }, [hasMore]);
 
-  // ⭐ 加载更多后保持滚动位置
+  // ⭐ 加载更多后保持滚动位置（prepend 历史不跳屏），并复位重入守卫
   useLayoutEffect(() => {
     if (prevScrollHeightRef.current !== null && displayCount > prevDisplayCountRef.current) {
       const container = document.getElementById('messageList');
@@ -310,6 +300,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
       prevScrollHeightRef.current = null;
     }
     prevDisplayCountRef.current = displayCount;
+    isLoadingMoreRef.current = false;
   }, [displayCount, displayMessages]);
 
   // 处理提示词气泡点击
@@ -417,10 +408,9 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   // SolidJS 组件的 props
   const solidProps = useMemo(() => ({
     themeMode: theme.palette.mode,
-    onScroll: handleScroll,
     onScrollToTop: loadMoreMessages,
     chatBackground
-  }), [theme.palette.mode, handleScroll, loadMoreMessages, chatBackground]);
+  }), [theme.palette.mode, loadMoreMessages, chatBackground]);
 
   // React 内容
   const messageContent = useMemo(() => (
@@ -514,83 +504,25 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
           onResend={onResend}
         />
       ) : (
-        <>
-          {/* 加载更多按钮 */}
-          {hasMore && isNearTop && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', padding: '16px 0', position: 'sticky', top: 0, zIndex: 10, bgcolor: chatBackground.enabled ? 'transparent' : theme.palette.background.default }}>
-              <Box
-                onClick={loadMoreMessages}
-                sx={{
-                  cursor: isLoadingMore ? 'not-allowed' : 'pointer',
-                  padding: '8px 24px',
-                  borderRadius: '20px',
-                  border: '1px solid',
-                  borderColor: theme.palette.divider,
-                  bgcolor: theme.palette.background.paper,
-                  color: theme.palette.text.primary,
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s ease',
-                  opacity: isLoadingMore ? 0.6 : 1,
-                  backdropFilter: chatBackground.enabled ? 'blur(10px)' : 'none',
-                  '&:hover': {
-                    bgcolor: isLoadingMore ? theme.palette.background.paper : theme.palette.action.hover,
-                    borderColor: isLoadingMore ? theme.palette.divider : theme.palette.primary.main,
-                    transform: isLoadingMore ? 'none' : 'translateY(-1px)',
-                    boxShadow: isLoadingMore ? 'none' : '0 2px 8px rgba(0,0,0,0.1)'
-                  }
-                }}
-              >
-                {isLoadingMore ? (
-                  <>
-                    <Box sx={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2px solid',
-                      borderColor: theme.palette.primary.main,
-                      borderTopColor: 'transparent',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      '@keyframes spin': {
-                        '0%': { transform: 'rotate(0deg)' },
-                        '100%': { transform: 'rotate(360deg)' }
-                      }
-                    }} />
-                    <span>加载中...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>↑</span>
-                    <span>加载更多消息</span>
-                  </>
-                )}
-              </Box>
-            </Box>
-          )}
-
-          {/* 消息分组 */}
-          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-            {groupedMessages.map(([date, msgs]) => {
-              const previousMessagesCount = groupStartIndices.get(date) || 0;
-              return (
-                <MessageGroup
-                  key={date}
-                  date={date}
-                  messages={msgs}
-                  expanded={true}
-                  startIndex={previousMessagesCount}
-                  onRegenerate={onRegenerate}
-                  onDelete={onDelete}
-                  onSwitchVersion={onSwitchVersion}
-                  onResend={onResend}
-                />
-              );
-            })}
-          </Box>
-        </>
+        /* 旧路径（kill-switch）：按日期分组渲染；滚到顶由外壳 onScrollToTop 自动加载更多 */
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {groupedMessages.map(([date, msgs]) => {
+            const previousMessagesCount = groupStartIndices.get(date) || 0;
+            return (
+              <MessageGroup
+                key={date}
+                date={date}
+                messages={msgs}
+                expanded={true}
+                startIndex={previousMessagesCount}
+                onRegenerate={onRegenerate}
+                onDelete={onDelete}
+                onSwitchVersion={onSwitchVersion}
+                onResend={onResend}
+              />
+            );
+          })}
+        </Box>
       )}
 
       {/* 底部占位 */}
@@ -600,8 +532,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     error, isRecovering, recoverFromError,
     showSystemPromptBubble, currentTopic, currentAssistant, handlePromptBubbleClick,
     promptDialogOpen, handlePromptDialogClose, handlePromptSave,
-    displayMessages.length, theme, hasMore, isNearTop, chatBackground,
-    loadMoreMessages, isLoadingMore, groupedMessages, groupStartIndices,
+    displayMessages.length, theme, groupedMessages, groupStartIndices,
     onRegenerate, onDelete, onSwitchVersion, onResend,
     virtualized, messages, messageGroupingType, portalContainer
   ]);

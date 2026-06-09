@@ -31,15 +31,6 @@ interface SolidBridgeProps<T extends Record<string, any>> {
   debugName?: string;
   /** 错误回调 */
   onError?: (error: Error) => void;
-  /** 事件总线（用于 SolidJS → React 通信） */
-  eventBus?: EventBus;
-}
-
-/** 事件总线接口 */
-export interface EventBus {
-  on(event: string, handler: (data: any) => void): () => void;
-  emit(event: string, data?: any): void;
-  off(event: string, handler: (data: any) => void): void;
 }
 
 // ==================== 工具函数 ====================
@@ -93,41 +84,6 @@ function wrapCallback(callback: (...args: any[]) => any): (...args: any[]) => an
   };
 }
 
-/**
- * 创建事件总线实例
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export function createEventBus(): EventBus {
-  const listeners = new Map<string, Set<(data: any) => void>>();
-
-  return {
-    on(event: string, handler: (data: any) => void) {
-      if (!listeners.has(event)) {
-        listeners.set(event, new Set());
-      }
-      listeners.get(event)!.add(handler);
-
-      return () => {
-        listeners.get(event)?.delete(handler);
-      };
-    },
-
-    emit(event: string, data?: any) {
-      listeners.get(event)?.forEach((handler) => {
-        try {
-          handler(data);
-        } catch (error) {
-          console.error(`[EventBus] 事件处理失败 (${event}):`, error);
-        }
-      });
-    },
-
-    off(event: string, handler: (data: any) => void) {
-      listeners.get(event)?.delete(handler);
-    },
-  };
-}
-
 // ==================== 核心桥接组件 ====================
 
 /**
@@ -169,7 +125,6 @@ export function SolidBridge<T extends Record<string, any>>({
   debug = false,
   debugName = 'SolidBridge',
   onError,
-  eventBus,
 }: SolidBridgeProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const disposeRef = useRef<(() => void) | null>(null);
@@ -227,12 +182,7 @@ export function SolidBridge<T extends Record<string, any>>({
       // 渲染 SolidJS 组件，传入响应式 store
       disposeRef.current = render(() => {
         try {
-          // 注入事件总线到 props（如果提供）
-          const enhancedProps = eventBus
-            ? { ...propsStoreRef.current.store, $eventBus: eventBus }
-            : propsStoreRef.current.store;
-
-          return SolidComponentToRender(enhancedProps as T);
+          return SolidComponentToRender(propsStoreRef.current.store as T);
         } catch (err) {
           handleError(err as Error);
           return null;
@@ -359,168 +309,3 @@ export function SolidBridge<T extends Record<string, any>>({
     />
   );
 }
-
-// ==================== 性能优化版本 ====================
-
-/**
- * 性能优化版本：使用 React.memo 避免不必要的重渲染
- * 
- * @example
- * ```tsx
- * <MemoizedSolidBridge
- *   component={DialogModelSelector}
- *   props={{ count, onSelect }}
- * />
- * ```
- */
-export const MemoizedSolidBridge = React.memo(SolidBridge, (prevProps, nextProps) => {
-  // 比较关键属性
-  if (prevProps.component !== nextProps.component) return false;
-  if (prevProps.className !== nextProps.className) return false;
-  if (prevProps.debug !== nextProps.debug) return false;
-  if (prevProps.debugName !== nextProps.debugName) return false;
-
-  // 使用自定义比较函数或默认的浅比较
-  const compare = nextProps.propsAreEqual || shallowEqual;
-  return compare(prevProps.props || {}, nextProps.props || {});
-}) as typeof SolidBridge;
-
-// ==================== 惰性加载版本 ====================
-
-/**
- * 惰性加载的 SolidJS 组件桥接
- * 用于代码分割和按需加载，支持 React.lazy 类似的使用方式
- * 
- * @example
- * ```tsx
- * <LazySolidBridge
- *   loader={() => import('@/solid/components/HeavyComponent.solid')}
- *   props={{ data }}
- *   fallback={<div>Loading...</div>}
- *   debug
- *   debugName="HeavyComponent"
- * />
- * ```
- */
-interface LazySolidBridgeProps<T extends Record<string, any>> {
-  /** 返回 SolidJS 组件的 Promise */
-  loader: () => Promise<{ default: SolidComponent<T> }>;
-  /** 传递给组件的 props */
-  props?: T;
-  /** 加载中的占位组件 */
-  fallback?: React.ReactNode;
-  /** 容器样式 */
-  style?: React.CSSProperties;
-  /** 容器类名 */
-  className?: string;
-  /** 是否启用调试模式 */
-  debug?: boolean;
-  /** 组件名称（用于调试） */
-  debugName?: string;
-  /** 错误回调 */
-  onError?: (error: Error) => void;
-  /** 自定义 props 比较函数 */
-  propsAreEqual?: (prev: T, next: T) => boolean;
-  /** 事件总线 */
-  eventBus?: EventBus;
-}
-
-export function LazySolidBridge<T extends Record<string, any>>({
-  loader,
-  props,
-  fallback = <div style={{ padding: '20px', textAlign: 'center' }}>⏳ 加载 SolidJS 组件中...</div>,
-  style,
-  className,
-  debug = false,
-  debugName = 'LazySolidBridge',
-  onError,
-  propsAreEqual,
-  eventBus,
-}: LazySolidBridgeProps<T>) {
-  const [component, setComponent] = useState<SolidComponent<T> | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (debug) {
-      console.log(`[${debugName}] 开始加载 SolidJS 组件`);
-    }
-
-    const startTime = performance.now();
-
-    loader()
-      .then((module) => {
-        const loadTime = performance.now() - startTime;
-        if (debug) {
-          console.log(`[${debugName}] 组件加载成功 (耗时: ${loadTime.toFixed(2)}ms)`);
-        }
-        setComponent(() => module.default);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        const loadTime = performance.now() - startTime;
-        console.error(`[${debugName}] 加载组件失败 (耗时: ${loadTime.toFixed(2)}ms):`, err);
-        setError(err);
-        setIsLoading(false);
-        onError?.(err);
-      });
-  }, [loader, debug, debugName, onError]);
-
-  // 错误状态
-  if (error) {
-    return (
-      <div
-        className={className}
-        style={{
-          ...style,
-          padding: '20px',
-          backgroundColor: '#fee',
-          border: '2px solid #c33',
-          borderRadius: '8px',
-          color: '#c33',
-        }}
-      >
-        <h3 style={{ margin: '0 0 10px 0' }}>❌ 组件加载失败</h3>
-        <p style={{ margin: 0, fontSize: '14px' }}>
-          <strong>{debugName}:</strong> {error.message}
-        </p>
-        {debug && (
-          <pre
-            style={{
-              marginTop: '10px',
-              padding: '10px',
-              backgroundColor: '#fff',
-              border: '1px solid #c33',
-              borderRadius: '4px',
-              fontSize: '12px',
-              overflow: 'auto',
-            }}
-          >
-            {error.stack}
-          </pre>
-        )}
-      </div>
-    );
-  }
-
-  // 加载中状态
-  if (isLoading || !component) {
-    return <>{fallback}</>;
-  }
-
-  // 渲染加载完成的组件
-  return (
-    <SolidBridge
-      component={component}
-      props={props}
-      style={style}
-      className={className}
-      debug={debug}
-      debugName={debugName}
-      onError={onError}
-      propsAreEqual={propsAreEqual}
-      eventBus={eventBus}
-    />
-  );
-}
-
