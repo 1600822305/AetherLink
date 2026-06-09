@@ -10,7 +10,7 @@ import { createAbortController } from '../../../utils/abortController';
 import { newMessagesActions } from '../../slices/newMessagesSlice';
 import { prepareMessagesForApi, performKnowledgeSearchIfNeeded } from './apiPreparation';
 import { assertModelSupportsApiMessages } from './apiMessageValidation';
-import { extractAndSaveMemories, isAutoAnalyzeEnabled } from './memoryIntegration';
+import { extractAndSaveMemories, isAutoAnalyzeEnabled, isMemoryAllowedForAssistant } from './memoryIntegration';
 import { getMainTextContent } from '../../../utils/blockUtils';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
 
@@ -323,8 +323,8 @@ export const processAssistantResponse = async (
         return await responseHandler.completeWithInterruption();
       }
 
-      // 自动记忆提取：在响应完成后提取并保存事实（仅当开启自动分析时）
-      if (isAutoAnalyzeEnabled() && finalContent) {
+      // 自动记忆提取：在响应完成后提取并保存事实（仅当开启自动分析且助手允许记忆时）
+      if (isAutoAnalyzeEnabled() && isMemoryAllowedForAssistant(assistant) && finalContent) {
         try {
           // 获取用户最后一条消息内容
           const userMessages = filteredOriginalMessages.filter(m => m.role === 'user');
@@ -333,7 +333,7 @@ export const processAssistantResponse = async (
             const userContent = getMainTextContent(lastUserMessage);
             if (userContent) {
               // 异步提取记忆，不阻塞响应
-              extractAndSaveMemories(userContent, finalContent).catch(err => {
+              extractAndSaveMemories(userContent, finalContent, assistant?.id).catch(err => {
                 console.error('[Memory] 自动记忆提取失败:', err);
               });
             }

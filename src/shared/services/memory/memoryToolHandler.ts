@@ -20,6 +20,12 @@ export async function handleMemoryToolCall(
   // 获取当前助手 ID
   const state = store.getState();
   const assistantId = state.memory?.currentAssistantId || 'default';
+
+  // 同步配置到单例：页面刷新后单例配置为空，不同步会导致新记忆缺失 embedding
+  const memoryConfig = state.memory?.memoryConfig;
+  if (memoryConfig) {
+    memoryService.setConfig(memoryConfig);
+  }
   
   try {
     switch (toolName) {
