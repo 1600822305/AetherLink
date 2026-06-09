@@ -614,7 +614,7 @@ export default function TopicTab({
               ),
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleCloseSearch}>
+                  <IconButton size="small" onClick={handleCloseSearch} aria-label="关闭搜索">
                     <X size={18} />
                   </IconButton>
                 </InputAdornment>
@@ -632,13 +632,14 @@ export default function TopicTab({
               )}
             </Box>
             <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-              <IconButton size="small" onClick={() => setShowSearch(true)} sx={{ mr: 0.5 }}>
+              <IconButton size="small" onClick={() => setShowSearch(true)} aria-label="搜索话题" sx={{ mr: 0.5 }}>
                 <Search size={18} />
               </IconButton>
               <Tooltip title="创建话题分组">
                 <IconButton
                   size="small"
                   onClick={() => setDialogState(prev => ({ ...prev, group: { isOpen: true } }))}
+                  aria-label="创建话题分组"
                   sx={{
                     color: 'text.primary',
                     border: '1px solid',

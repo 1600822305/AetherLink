@@ -293,6 +293,8 @@ function AssistantItem({
         <IconButton
           size="small"
           onClick={handleOpenMenu}
+          aria-label={`助手选项：${assistant.name}`}
+          aria-haspopup="true"
           sx={{ opacity: 0.6 }}
         >
           <MoreVertical size={16} />
@@ -307,6 +309,7 @@ function AssistantItem({
             transition: 'all 0.2s ease-in-out'
           }}
           title={pendingDelete ? '再次点击确认删除' : '删除助手'}
+          aria-label={pendingDelete ? `再次点击确认删除助手：${assistant.name}` : `删除助手：${assistant.name}`}
         >
           {pendingDelete ? <AlertTriangle size={16} /> : <Trash size={16} />}
         </IconButton>
