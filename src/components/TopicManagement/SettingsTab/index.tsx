@@ -145,7 +145,8 @@ export default function SettingsTab({
       <ListItem
         sx={{
           px: 2,
-          py: 0.75,
+          pt: 0,
+          pb: 0.75,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
@@ -157,7 +158,7 @@ export default function SettingsTab({
           sx={{
             flex: 1,
             px: 0,
-            py: 0.5,
+            py: 0,
             '&:hover': {
               backgroundColor: 'rgba(25, 118, 210, 0.04)',
             },
@@ -167,6 +168,7 @@ export default function SettingsTab({
             <Cog size={20} color="#1976d2" />
           </ListItemIcon>
           <ListItemText
+            sx={{ my: 0 }}
             primary={
               <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.95rem', lineHeight: 1.2 }}>
                 设置
