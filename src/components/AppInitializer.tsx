@@ -10,6 +10,7 @@ import { setCurrentAssistant, setAssistants } from '../shared/store/slices/assis
 import { initGroups } from '../shared/store/slices/groupsSlice';
 import { useModelComboSync } from '../shared/hooks/useModelComboSync';
 import { unifiedFileManager } from '../shared/services/files/UnifiedFileManagerService';
+import { migrateTopicPreviews } from '../shared/services/topics/TopicPreviewService';
 
 // 全局初始化标志，防止多个组件实例同时初始化
 let globalInitialized = false;
@@ -176,8 +177,10 @@ const AppInitializer = () => {
 
     // 🔥 移除不再使用的 selectFirstAssistant 函数，逻辑已内联
 
-    // 执行初始化
-    initializeApp();
+    // 执行初始化；完成后在后台对历史话题做一次性预览回填（不阻塞启动）
+    initializeApp().finally(() => {
+      void migrateTopicPreviews();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]); // 🔥 修复：移除会导致循环的依赖项，仅在组件挂载时执行一次
 

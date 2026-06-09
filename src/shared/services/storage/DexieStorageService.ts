@@ -313,6 +313,25 @@ export class DexieStorageService extends Dexie {
     }
   }
 
+  /**
+   * 批量更新话题（仅元数据更新场景，如预览回填）。
+   * 与 saveTopic 一致地补齐 _lastMessageTimeNum 索引字段，但不处理 messages 兼容字段，
+   * 使用单次 bulkPut 写入，避免 N 次独立写库。
+   */
+  async bulkUpdateTopics(topics: ChatTopic[]): Promise<void> {
+    if (!topics || topics.length === 0) return;
+    const toStore = topics.map(topic => {
+      const lastMessageTime = topic.lastMessageTime || topic.updatedAt || new Date().toISOString();
+      const clone = {
+        ...topic,
+        _lastMessageTimeNum: new Date(lastMessageTime).getTime()
+      };
+      delete (clone as any).messages;
+      return clone;
+    });
+    await this.topics.bulkPut(toStore);
+  }
+
   async deleteTopic(id: string): Promise<void> {
     try {
       await this.transaction('rw', [this.topics, this.messages, this.message_blocks], async () => {
