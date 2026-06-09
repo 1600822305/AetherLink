@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { WebDavConfig, WebDavSyncState } from '../../../../../shared/types';
 import { WebDavBackupService } from '../../../../../shared/services/storage/WebDavBackupService';
+import { ensureWebDavBackupProvider } from '../../utils/webdavAutoSync';
 import CustomSwitch from '../../../../../components/CustomSwitch';
 import {
   saveWebDavConfig,
@@ -107,6 +108,8 @@ const WebDavSettings: React.FC<WebDavSettingsProps> = ({ onConfigChange }) => {
       // 如果是自动同步设置变更
       if (field === 'autoSync' || field === 'syncInterval') {
         if (newSyncState.autoSync && newSyncState.syncInterval > 0) {
+          // 确保自动备份的数据来源已注册，否则定时任务无法获取备份数据
+          ensureWebDavBackupProvider();
           await webdavService.startAutoSync(config, newSyncState.syncInterval);
         } else {
           await webdavService.stopAutoSync();

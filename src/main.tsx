@@ -138,7 +138,11 @@ async function initializeInBackground() {
       Promise.all([
         cleanupPromise,
         initStorageService().then(() => console.log('Dexie存储服务初始化成功')),
-        initializeServices().then(() => console.log('所有服务初始化完成'))
+        initializeServices().then(() => console.log('所有服务初始化完成')),
+        // 恢复 WebDAV 自动同步（注入备份数据来源 + 根据持久化状态续跑定时备份）
+        import('./pages/Settings/DataSettings/utils/webdavAutoSync')
+          .then(({ initWebDavAutoSync }) => initWebDavAutoSync())
+          .then(() => console.log('WebDAV 自动同步初始化完成'))
       ]).then(() => {
         console.log('[App] 后台初始化完成');
         if (Capacitor.isNativePlatform()) {
