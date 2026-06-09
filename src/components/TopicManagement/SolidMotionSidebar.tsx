@@ -38,7 +38,11 @@ const areSolidMotionSidebarPropsEqual = (
     prevProps.mobileOpen === nextProps.mobileOpen &&
     prevProps.desktopOpen === nextProps.desktopOpen &&
     prevProps.mcpMode === nextProps.mcpMode &&
-    prevProps.toolsEnabled === nextProps.toolsEnabled
+    prevProps.toolsEnabled === nextProps.toolsEnabled &&
+    prevProps.onMobileToggle === nextProps.onMobileToggle &&
+    prevProps.onDesktopToggle === nextProps.onDesktopToggle &&
+    prevProps.onMCPModeChange === nextProps.onMCPModeChange &&
+    prevProps.onToolsToggle === nextProps.onToolsToggle
   );
 };
 
@@ -155,11 +159,11 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
   // 计算最终的打开状态
   const finalOpen = useMemo(() => {
     if (isSmallScreen) {
-      return onMobileToggleRef.current ? mobileOpen : showSidebar;
+      return onMobileToggle ? mobileOpen : showSidebar;
     } else {
-      return onDesktopToggleRef.current ? desktopOpen : showSidebar;
+      return onDesktopToggle ? desktopOpen : showSidebar;
     }
-  }, [isSmallScreen, mobileOpen, showSidebar, desktopOpen]);
+  }, [isSmallScreen, mobileOpen, showSidebar, desktopOpen, onMobileToggle, onDesktopToggle]);
 
   // 监听侧边栏打开/关闭状态变化，触发触觉反馈
   useEffect(() => {
@@ -289,22 +293,39 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
 
   // 持续监听 Portal 容器（移动端和桌面端都需要）
   useEffect(() => {
+    let observer: MutationObserver | null = null;
+
+    const startObserving = () => {
+      observer = new MutationObserver(checkContainer);
+      observer.observe(document.body, { childList: true, subtree: true });
+    };
+
     const checkContainer = () => {
       const container = document.getElementById('solid-sidebar-content');
-      if (container !== portalContainer) {
-        setPortalContainer(container);
+      setPortalContainer((prev) => (container !== prev ? container : prev));
+      if (container) {
+        // 已找到容器，停止全局监听；改为只监听容器是否被移除
+        observer?.disconnect();
+        observer = null;
+        const removalObserver = new MutationObserver(() => {
+          if (!document.contains(container)) {
+            removalObserver.disconnect();
+            setPortalContainer(null);
+            startObserving(); // 容器没了，恢复全局监听等待重建
+          }
+        });
+        removalObserver.observe(container.parentNode ?? document.body, { childList: true });
+        observer = removalObserver;
       }
     };
 
-    // 初始检查
     checkContainer();
+    if (!document.getElementById('solid-sidebar-content')) {
+      startObserving();
+    }
 
-    // 使用 MutationObserver 监听 DOM 变化
-    const observer = new MutationObserver(checkContainer);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => observer.disconnect();
-  }, [portalContainer]);
+    return () => observer?.disconnect();
+  }, []); // 注意：依赖改为 []，内部用函数式 setState 避免依赖 portalContainer
 
   // 移动端和桌面端都使用 SolidJS AppSidebar
   // 移动端：启用手势支持

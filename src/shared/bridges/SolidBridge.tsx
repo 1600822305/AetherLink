@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { render } from 'solid-js/web';
-import { createStore } from 'solid-js/store';
+import { createStore, unwrap } from 'solid-js/store';
 import type { JSX } from 'solid-js';
 
 // ==================== 类型定义 ====================
@@ -58,17 +58,11 @@ function shallowEqual<T extends Record<string, any>>(obj1: T, obj2: T): boolean 
 function serializeValue(value: any): any {
   if (value === null || value === undefined) return value;
   if (typeof value !== 'object') return value;
-  if (value instanceof Date) return value;
-  if (value instanceof Error) return value;
-  if (typeof value === 'function') return value;
-  if (value instanceof Array) return value.map(serializeValue);
-  
+  // unwrap 只移除 Solid store 代理，保留 Date/函数/Map/Set 等原始结构
   try {
-    // 使用 JSON 序列化/反序列化来移除 SolidJS 代理
-    return JSON.parse(JSON.stringify(value));
-  } catch (error) {
-    // 如果序列化失败，返回浅拷贝
-    return { ...value };
+    return unwrap(value);
+  } catch {
+    return value;
   }
 }
 
@@ -148,6 +142,12 @@ export function SolidBridge<T extends Record<string, any>>({
   const handleError = useCallback(
     (err: Error) => {
       console.error(`[${debugName}] 错误:`, err);
+      // 出错时立即销毁 Solid 根，避免组件继续挂在游离 DOM 节点上
+      if (disposeRef.current) {
+        disposeRef.current();
+        disposeRef.current = null;
+      }
+      propsStoreRef.current = null;
       setError(err);
       onError?.(err);
     },

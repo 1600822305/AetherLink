@@ -2,7 +2,7 @@
  * AppSidebar - 使用 Solid UI 的侧边栏组件
  * 🚀 性能优化版：使用 requestAnimationFrame 节流 + 直接 DOM 操作
  */
-import { createSignal, createEffect, onCleanup } from 'solid-js';
+import { createSignal, createEffect, onCleanup, batch } from 'solid-js';
 import { Portal } from 'solid-js/web';
 
 export interface AppSidebarProps {
@@ -29,6 +29,7 @@ export function AppSidebar(props: AppSidebarProps) {
   let touchStartY = 0;
   let currentDragOffset = 0;
   let rafId: number | null = null;
+  let pendingOpenFromGesture: boolean | null = null;
   
   // 只用 signal 存储需要触发 UI 更新的状态
   const [isDragging, setIsDragging] = createSignal(false);
@@ -146,39 +147,45 @@ export function AppSidebar(props: AppSidebarProps) {
     const offset = currentDragOffset;
     const threshold = width() * swipeThreshold;
     const wasOpen = isOpen();
-    
-    // 🚀 先重置状态，防止 createEffect 中的条件判断出错
-    setIsDragging(false);
     currentDragOffset = 0;
-    setIsValidSwipe(false);
     
     // 🚀 恢复 CSS transition
     if (sidebarRef) {
       sidebarRef.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
     }
     
+    // 1) 先手动把 DOM 设置到动画目标位置
+    let nextOpen = wasOpen;
     if (wasOpen) {
       if (Math.abs(offset) > threshold) {
-        // 关闭侧边栏 - 先手动设置动画目标位置，再通知 React
         if (sidebarRef) sidebarRef.style.transform = `translateX(-${width()}px) translateZ(0)`;
         if (maskRef) maskRef.style.backgroundColor = 'rgba(0, 0, 0, 0)';
-        props.onOpenChange(false);
+        nextOpen = false;
       } else {
-        // 弹回打开位置
         if (sidebarRef) sidebarRef.style.transform = 'translateX(0) translateZ(0)';
         if (maskRef) maskRef.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
       }
     } else {
       if (offset > threshold) {
-        // 打开侧边栏 - 先手动设置动画目标位置，再通知 React
         if (sidebarRef) sidebarRef.style.transform = 'translateX(0) translateZ(0)';
         if (maskRef) maskRef.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-        props.onOpenChange(true);
+        nextOpen = true;
       } else {
-        // 弹回关闭位置
         if (sidebarRef) sidebarRef.style.transform = `translateX(-${width()}px) translateZ(0)`;
         if (maskRef) maskRef.style.backgroundColor = 'rgba(0, 0, 0, 0)';
       }
+    }
+    
+    // 2) 再批量重置信号状态，避免 createEffect 在 props.open 更新前用旧值覆盖 transform
+    batch(() => {
+      setIsDragging(false);
+      setIsValidSwipe(false);
+    });
+    
+    // 3) 最后通知 React 更新 open 状态
+    if (nextOpen !== wasOpen) {
+      pendingOpenFromGesture = nextOpen;
+      props.onOpenChange(nextOpen);
     }
   };
   
@@ -209,6 +216,15 @@ export function AppSidebar(props: AppSidebarProps) {
   createEffect(() => {
     const open = isOpen();
     const dragging = isDragging();
+    
+    // 手势刚结束、等待 React 回传新 open 值期间：
+    // DOM 已手动设置到目标位置，跳过本次同步，直到 props.open 追上
+    if (pendingOpenFromGesture !== null) {
+      if (open === pendingOpenFromGesture) {
+        pendingOpenFromGesture = null; // React 已确认，恢复正常同步
+      }
+      return;
+    }
     
     // 只在非拖动状态下响应 props.open 变化
     if (!dragging) {
