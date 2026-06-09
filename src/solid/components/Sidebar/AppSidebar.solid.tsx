@@ -176,15 +176,21 @@ export function AppSidebar(props: AppSidebarProps) {
       }
     }
     
-    // 2) 再批量重置信号状态，避免 createEffect 在 props.open 更新前用旧值覆盖 transform
+    // 2) 设置 pending 标志，必须在重置信号之前：
+    //    batch 结束会同步触发 createEffect，此时 props.open 还是旧值，
+    //    pending 守卫可阻止 effect 用旧值覆盖已设置好的 transform
+    if (nextOpen !== wasOpen) {
+      pendingOpenFromGesture = nextOpen;
+    }
+
+    // 3) 批量重置信号状态
     batch(() => {
       setIsDragging(false);
       setIsValidSwipe(false);
     });
-    
-    // 3) 最后通知 React 更新 open 状态
+
+    // 4) 最后通知 React 更新 open 状态
     if (nextOpen !== wasOpen) {
-      pendingOpenFromGesture = nextOpen;
       props.onOpenChange(nextOpen);
     }
   };
