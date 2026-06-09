@@ -52,26 +52,6 @@ export interface ParameterMetadata {
 }
 
 /**
- * 参数分类
- */
-export interface ParameterCategory {
-  key: string;
-  label: string;
-  description: string;
-  icon?: string;
-}
-
-/**
- * 参数分类定义
- */
-export const PARAMETER_CATEGORIES: ParameterCategory[] = [
-  { key: 'basic', label: '基础参数', description: '控制生成质量和长度' },
-  { key: 'advanced', label: '高级参数', description: '微调模型行为' },
-  { key: 'reasoning', label: '推理参数', description: '控制思考过程' },
-  { key: 'tools', label: '工具参数', description: '配置内置工具' }
-];
-
-/**
  * 所有参数元数据
  */
 export const PARAMETER_METADATA: ParameterMetadata[] = [
@@ -248,13 +228,9 @@ export const PARAMETER_METADATA: ParameterMetadata[] = [
     inputType: 'select',
     defaultValue: 'medium',
     category: 'reasoning',
-    providers: ['openai', 'anthropic', 'gemini', 'openai-compatible'],
-    options: [
-      { value: 'off', label: '关闭' },
-      { value: 'low', label: '低' },
-      { value: 'medium', label: '中 (推荐)' },
-      { value: 'high', label: '高' }
-    ]
+    // 档位选项按模型动态生成（getReasoningEffortOptions），由 ParameterEditor 注入；
+    // 无模型信息时回退到 DEFAULT_REASONING_EFFORT_OPTIONS，故此处不再维护静态 options。
+    providers: ['openai', 'anthropic', 'gemini', 'openai-compatible']
   },
   {
     key: 'thinkingBudget',
@@ -402,33 +378,13 @@ export function getParametersForProvider(providerType: ProviderType): ParameterM
   return PARAMETER_METADATA.filter(param => param.providers.includes(providerType));
 }
 
-/**
- * 按分类获取参数
- */
-export function getParametersByCategory(
-  providerType: ProviderType,
-  category: 'basic' | 'advanced' | 'reasoning' | 'tools'
-): ParameterMetadata[] {
-  return PARAMETER_METADATA.filter(
-    param => param.providers.includes(providerType) && param.category === category
-  );
-}
-
-/**
- * 获取供应商支持的分类
- */
-export function getCategoriesForProvider(providerType: ProviderType): ParameterCategory[] {
-  const supportedParams = getParametersForProvider(providerType);
-  const categories = new Set(supportedParams.map(p => p.category));
-  return PARAMETER_CATEGORIES.filter(cat => 
-    categories.has(cat.key as 'basic' | 'advanced' | 'reasoning' | 'tools')
-  );
-}
 
 /**
  * 根据模型ID检测供应商类型
  */
-export function detectProviderFromModel(modelId: string): ProviderType {
+export function detectProviderFromModel(modelId?: string): ProviderType {
+  // 缺少模型信息时回退到中性的通用供应商，而非「假装是某个具体模型」。
+  if (!modelId) return 'openai-compatible';
   const id = modelId.toLowerCase();
   
   if (id.includes('claude') || id.includes('anthropic')) {

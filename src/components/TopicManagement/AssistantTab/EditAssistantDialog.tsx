@@ -169,7 +169,7 @@ const EditAssistantDialog: React.FC<EditAssistantDialogProps> = ({
   assistantName,
   assistantPrompt,
   assistantAvatar,
-  modelId = 'gpt-4',
+  modelId,
   parameterValues: externalParamValues = {},
   enabledParams: externalEnabledParams = {},
   onNameChange,

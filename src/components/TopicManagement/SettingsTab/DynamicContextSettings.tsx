@@ -66,7 +66,7 @@ import type { CustomParameter as AssistantCustomParameter, CustomParameterType }
 export type { EditorCustomParameter as CustomParameter };
 
 export default function DynamicContextSettings({
-  modelId = 'gpt-4',
+  modelId,
   contextWindowSize,
   contextCount,
   maxOutputTokens,
