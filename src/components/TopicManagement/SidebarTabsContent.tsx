@@ -11,6 +11,7 @@ import { Bot, MessageSquare, Settings, FileText, FolderOpen, Languages } from 'l
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { updateSettings } from '../../shared/store/settingsSlice';
+import { parseModelIdentityKey } from '../../shared/utils/modelUtils';
 import { ENABLE_NOTE_SIDEBAR_KEY, simpleNoteService } from '../../shared/services/notes/SimpleNoteService';
 import { workspaceService, ENABLE_WORKSPACE_SIDEBAR_KEY } from '../../shared/services/files/WorkspaceService';
 import { useNavigate } from 'react-router-dom';
@@ -23,6 +24,13 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
   const dispatch = useDispatch();
   const showNoteTab = useSelector((state: RootState) => (state.settings as any)[ENABLE_NOTE_SIDEBAR_KEY]);
   const showWorkspaceTab = useSelector((state: RootState) => (state.settings as any)[ENABLE_WORKSPACE_SIDEBAR_KEY]);
+  // 当前选中的模型 ID（存储为身份标识 key，需解析出真实 model.id），
+  // 供设置页按模型动态生成「推理努力程度」档位（如 DeepSeek V4 仅 关闭/高/最高）。
+  const currentModelId = useSelector((state: RootState) => state.settings.currentModelId);
+  const currentModelBaseId = React.useMemo(
+    () => parseModelIdentityKey(currentModelId)?.id,
+    [currentModelId]
+  );
 
   // 启动时从 dexie 同步侧边栏开关状态到 Redux
   // 修复：redux-persist 的 throttle 可能导致关闭后未持久化，重启后恢复旧值
@@ -381,6 +389,7 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
             <SettingsTab
               settings={settingsArray}
               onSettingChange={handleSettingChange}
+              modelId={currentModelBaseId}
               initialContextLength={settings.contextLength}
               onContextLengthChange={handleContextLengthChange}
               initialContextCount={settings.contextCount}
