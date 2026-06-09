@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { Box, Typography } from '@mui/material';
-import VirtualScroller from '../../common/VirtualScroller';
+import VirtualList from '../../common/VirtualList';
 import TopicItem from './TopicItem';
 import {
   shouldEnableVirtualization,
@@ -123,14 +123,14 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
       )}
 
       {shouldVirtualize ? (
-        // 使用虚拟化渲染大量话题
-        <VirtualScroller<ChatTopic>
+        // 使用虚拟化渲染大量话题（TanStack 动态测高，行高自适应）
+        <VirtualList<ChatTopic>
           items={filteredTopics}
-          itemHeight={itemHeight}
+          estimateItemHeight={itemHeight}
           renderItem={renderTopicItem}
           itemKey={getTopicKey}
           height={height}
-          overscanCount={getOverscanCount(filteredTopics.length)} // 根据列表大小动态调整预渲染数量
+          overscan={getOverscanCount(filteredTopics.length)} // 根据列表大小动态调整预渲染数量
           style={{
             border: '1px solid',
             borderColor: 'divider',
@@ -158,7 +158,7 @@ const VirtualizedTopicList = memo(function VirtualizedTopicList({
           }}
         >
           {filteredTopics.map((topic, index) => (
-            <Box key={topic.id} sx={{ height: itemHeight }}>
+            <Box key={topic.id}>
               {renderTopicItem(topic, index)}
             </Box>
           ))}
