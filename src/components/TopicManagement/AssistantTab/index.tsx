@@ -48,12 +48,41 @@ import AvatarUploader from '../../settings/AvatarUploader';
 import EditAssistantDialog from './EditAssistantDialog';
 
 // 扁平化行模型：分组头 / 分组内项 / 分组空态 / 未分组标题 / 未分组空态
+// 行在所属「内框块」中的位置，用于把相邻条目行拼接成一个连续边框（恢复分组内框样式）
+type FramePos = 'single' | 'first' | 'middle' | 'last';
+
 type AssistantRow =
   | { kind: 'group-header'; key: string; group: Group; count: number }
   | { kind: 'group-empty'; key: string }
-  | { kind: 'item'; key: string; assistant: Assistant }
+  | { kind: 'item'; key: string; assistant: Assistant; frame: FramePos }
   | { kind: 'subheader'; key: string; label: string }
   | { kind: 'note'; key: string; label: string };
+
+// 给条目行拼接「内框」：左右边框常驻，首行加顶边框+上圆角，末行加底边框+下圆角，
+// 使虚拟器中相邻的绝对定位行在视觉上连成一个带边框/圆角/背景的盒子。
+const itemFrameSx = (frame: FramePos) => ({
+  borderLeft: '1px solid',
+  borderRight: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+  px: 0.5,
+  pb: 1,
+  ...(frame === 'first' || frame === 'single'
+    ? { borderTop: '1px solid', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', pt: 1 }
+    : {}),
+  ...(frame === 'last' || frame === 'single'
+    ? { borderBottom: '1px solid', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', mb: 1.5 }
+    : {}),
+});
+
+// 将一组助手压入扁平行数组，并标注各自在内框块中的位置
+const pushFramedAssistants = (out: AssistantRow[], assistants: Assistant[]) => {
+  assistants.forEach((a, i) => {
+    const frame: FramePos =
+      assistants.length === 1 ? 'single' : i === 0 ? 'first' : i === assistants.length - 1 ? 'last' : 'middle';
+    out.push({ kind: 'item', key: a.id, assistant: a, frame });
+  });
+};
 
 
 
@@ -184,7 +213,7 @@ const AssistantTab = React.memo(function AssistantTab({
         if (groupAssistants.length === 0) {
           out.push({ kind: 'group-empty', key: `ge-${group.id}` });
         } else {
-          for (const a of groupAssistants) out.push({ kind: 'item', key: a.id, assistant: a });
+          pushFramedAssistants(out, groupAssistants);
         }
       }
     }
@@ -193,7 +222,7 @@ const AssistantTab = React.memo(function AssistantTab({
     if (ungrouped.length === 0) {
       out.push({ kind: 'note', key: 'empty-ungrouped', label: '暂无未分组助手' });
     } else {
-      for (const a of ungrouped) out.push({ kind: 'item', key: a.id, assistant: a });
+      pushFramedAssistants(out, ungrouped);
     }
     return out;
   }, [assistantGroups, assistantGroupMap, filteredUserAssistants, ungroupedAssistants, collapsed]);
@@ -229,7 +258,7 @@ const AssistantTab = React.memo(function AssistantTab({
         );
       case 'item':
         return (
-          <Box sx={{ pb: 1 }}>
+          <Box sx={itemFrameSx(row.frame)}>
             <AssistantItem
               assistant={row.assistant}
               isSelected={currentAssistant?.id === row.assistant.id}
@@ -249,13 +278,15 @@ const AssistantTab = React.memo(function AssistantTab({
         );
       case 'group-empty':
         return (
-          <Typography
-            variant="body2"
-            color="textSecondary"
-            sx={{ py: 1, px: 1, textAlign: 'center', fontStyle: 'italic', fontSize: '0.85rem' }}
-          >
-            此分组暂无助手，请从未分组助手中添加
-          </Typography>
+          <Box sx={itemFrameSx('single')}>
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              sx={{ py: 1, px: 1, textAlign: 'center', fontStyle: 'italic', fontSize: '0.85rem' }}
+            >
+              此分组暂无助手，请从未分组助手中添加
+            </Typography>
+          </Box>
         );
       case 'note':
         return (
