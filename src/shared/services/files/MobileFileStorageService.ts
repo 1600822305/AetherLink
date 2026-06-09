@@ -116,7 +116,9 @@ export class MobileFileStorageService {
   private async compressImage(base64Data: string, mimeType: string): Promise<string> {
     try {
       // 如果不是在浏览器环境或数据太小，直接返回
-      if (!window.HTMLCanvasElement || base64Data.length < IMAGE_COMPRESS_THRESHOLD) {
+      // 用实际字节大小（base64 长度约为字节数的 4/3）判断，避免阈值被放大
+      const approxBytes = Math.floor((base64Data.length * 3) / 4);
+      if (!window.HTMLCanvasElement || approxBytes < IMAGE_COMPRESS_THRESHOLD) {
         return base64Data;
       }
 
@@ -210,8 +212,8 @@ export class MobileFileStorageService {
       if (Capacitor.isNativePlatform()) {
         const filePath = `${this.storageDir}/${fileName}`;
 
-        // 对于文本、代码和文档文件，解码base64并以UTF8保存
-        if (fileType === FileTypes.TEXT || fileType === FileTypes.CODE || fileType === FileTypes.DOCUMENT) {
+        // 文本和代码文件：解码 base64 并以 UTF-8 文本保存
+        if (fileType === FileTypes.TEXT || fileType === FileTypes.CODE) {
           try {
             const decodedContent = this.decodeBase64ToUTF8(processedData);
             await Filesystem.writeFile({
@@ -222,21 +224,20 @@ export class MobileFileStorageService {
             });
           } catch (error) {
             console.error('[MobileFileStorage] 解码文本文件失败，使用base64保存:', error);
-            // 降级：保存base64数据
+            // 降级：以 base64 写入二进制
             await Filesystem.writeFile({
               path: filePath,
               data: processedData,
-              directory: Directory.Data,
-              encoding: Encoding.UTF8
+              directory: Directory.Data
             });
           }
         } else {
-          // 对于其他文件类型，保存base64数据
+          // 二进制文件（图片、PDF、Office 文档等）：以 base64 写入，Capacitor 会解码为二进制
+          // 不能带 Encoding.UTF8，否则会把 base64 字符串当作文本写入，导致文件损坏
           await Filesystem.writeFile({
             path: filePath,
             data: processedData,
-            directory: Directory.Data,
-            encoding: Encoding.UTF8
+            directory: Directory.Data
           });
         }
       }
@@ -278,8 +279,8 @@ export class MobileFileStorageService {
         throw new Error('文件不存在');
       }
 
-      // 如果是文本、代码或文档类型文件，尝试解码base64内容
-      if (file.type === FileTypes.TEXT || file.type === FileTypes.CODE || file.type === FileTypes.DOCUMENT) {
+      // 文本/代码文件：按 UTF-8 解码
+      if (file.type === FileTypes.TEXT || file.type === FileTypes.CODE) {
         if (file.base64Data) {
           try {
             // 检查base64数据是否包含data:前缀
@@ -312,6 +313,36 @@ export class MobileFileStorageService {
             console.error('[MobileFileStorage] 从文件系统读取失败:', error);
           }
         }
+      }
+
+      // 文档文件（PDF/Word/Excel/PPT/EPUB 等）：这些是二进制格式，
+      // 直接按 UTF-8 解码会得到乱码，必须用文件解析服务提取真实文本
+      if (file.type === FileTypes.DOCUMENT && file.base64Data) {
+        const fileName = file.origin_name || file.name || 'file';
+        try {
+          let base64Content = file.base64Data;
+          if (base64Content && typeof base64Content === 'string' && base64Content.includes(',')) {
+            base64Content = base64Content.split(',')[1];
+          }
+          const bytes = this.base64ToUint8Array(base64Content);
+
+          // 动态导入，避免在文件存储模块顶层引入 pdfjs/mammoth/xlsx 等重依赖
+          const { fileParserService } = await import('../knowledge/FileParserService');
+          if (fileParserService.isSupported(fileName)) {
+            const parsed = await fileParserService.parseFile(
+              bytes.buffer as ArrayBuffer,
+              fileName,
+              { maxSize: MAX_FILE_SIZE }
+            );
+            if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
+              return parsed.content;
+            }
+          }
+        } catch (error) {
+          console.error('[MobileFileStorage] 解析文档内容失败:', error);
+        }
+        // 解析失败时返回文件信息占位，避免把二进制当文本返回乱码
+        return `文件: ${file.origin_name || file.name}\n类型: ${file.type}\n大小: ${file.size} bytes\n扩展名: ${file.ext}\n[无法提取该文档的文本内容]`;
       }
 
       // 默认返回文件信息
@@ -400,6 +431,15 @@ export class MobileFileStorageService {
    * @param base64String base64编码的字符串
    * @returns UTF-8解码后的字符串
    */
+  private base64ToUint8Array(base64String: string): Uint8Array {
+    const binaryString = atob(base64String);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+
   private decodeBase64ToUTF8(base64String: string): string {
     try {
       // 使用现代浏览器的TextDecoder API
