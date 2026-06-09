@@ -15,6 +15,7 @@ import { upsertManyBlocks } from '../../shared/store/slices/messageBlocksSlice';
 import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
 
 import MessageGroup from './MessageGroup';
+import VirtualizedMessageContent from './VirtualizedMessageContent';
 import SystemPromptBubble from '../prompts/SystemPromptBubble';
 import SystemPromptDialog from '../dialogs/SystemPromptDialog';
 import type { ChatTopic, Assistant } from '../../shared/types/Assistant';
@@ -108,6 +109,10 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   const chatBackground = useSelector((state: RootState) =>
     state.settings.chatBackground || { enabled: false }
   );
+  // 实验特性：带回收的虚拟化消息列表（默认关闭）。开启后走窗口化渲染路径，旧的切片+加载更多保持并存。
+  const virtualized = useSelector((state: RootState) =>
+    (state.settings as any).experimentalVirtualizedList === true
+  );
 
   // 计算显示的消息
   const displayMessages = useMemo(() => {
@@ -178,8 +183,9 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     loadTopicAndAssistant();
   }, [currentTopicId, handleError]);
 
-  // 简化的块加载逻辑
+  // 简化的块加载逻辑（虚拟化开启时改由 VirtualizedMessageContent 按可视区懒加载，此处跳过全量加载）
   useEffect(() => {
+    if (virtualized) return;
     let isActive = true;
 
     const loadMissingBlocks = async () => {
@@ -232,7 +238,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     return () => {
       isActive = false;
     };
-  }, [messages, relatedBlockSet, dispatch, handleError]);
+  }, [messages, relatedBlockSet, dispatch, handleError, virtualized]);
 
   // 监听 Portal 容器
   useEffect(() => {
@@ -481,7 +487,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
       />
 
       {/* 消息列表 */}
-      {displayMessages.length === 0 ? (
+      {(virtualized ? messages.length === 0 : displayMessages.length === 0) ? (
         <Box
           sx={{
             flex: 1,
@@ -496,6 +502,17 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
         >
           新的对话开始了，请输入您的问题
         </Box>
+      ) : virtualized ? (
+        /* 实验路径：带回收的虚拟化渲染（仅渲染可视区 ± overscan） */
+        <VirtualizedMessageContent
+          messages={messages}
+          groupingType={messageGroupingType as MessageGroupingType}
+          scrollElement={portalContainer}
+          onRegenerate={onRegenerate}
+          onDelete={onDelete}
+          onSwitchVersion={onSwitchVersion}
+          onResend={onResend}
+        />
       ) : (
         <>
           {/* 加载更多按钮 */}
@@ -585,7 +602,8 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     promptDialogOpen, handlePromptDialogClose, handlePromptSave,
     displayMessages.length, theme, hasMore, isNearTop, chatBackground,
     loadMoreMessages, isLoadingMore, groupedMessages, groupStartIndices,
-    onRegenerate, onDelete, onSwitchVersion, onResend
+    onRegenerate, onDelete, onSwitchVersion, onResend,
+    virtualized, messages, messageGroupingType, portalContainer
   ]);
 
   return (
