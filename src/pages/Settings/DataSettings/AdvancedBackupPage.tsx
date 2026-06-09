@@ -30,15 +30,10 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../../i18n';
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
-import { FileOpener } from '@capacitor-community/file-opener';
-import { getAllTopicsFromDB, getAllAssistantsFromDB } from '../../../shared/services/storage/storageService';
+import { prepareFullBackupData, createAndShareBackupFile } from './utils/backupUtils';
 import { alpha } from '@mui/material/styles';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
-
-const DEFAULT_BACKUP_DIRECTORY = 'AetherLink/backups';
 
 const AdvancedBackupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,8 +50,7 @@ const AdvancedBackupPage: React.FC = () => {
     includeChats: true,
     includeAssistants: true,
     includeSettings: true,
-    includeLocalStorage: true,
-    includeIndexedDB: true
+    includeLocalStorage: true
   });
 
   // 返回上一级页面
@@ -78,31 +72,6 @@ const AdvancedBackupPage: React.FC = () => {
     setSnackbar({...snackbar, open: false});
   };
 
-  // 复制到剪贴板功能
-  const copyToClipboard = async (text: string): Promise<boolean> => {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      console.error('复制到剪贴板失败:', error);
-      // 备用方法
-      try {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
-        return success;
-      } catch (fallbackError) {
-        console.error('备用剪贴板方法也失败:', fallbackError);
-        return false;
-      }
-    }
-  };
-
   // 更新备份选项
   const handleOptionChange = (option: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setBackupOptions({
@@ -116,62 +85,22 @@ const AdvancedBackupPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // 准备备份数据
+      // 复用与手动备份一致的完整备份数据：
+      // 话题已加载消息/消息块、设置取自 Redux store、localStorage 已过滤敏感项、备份版本号正确(5)
+      const fullData = await prepareFullBackupData();
+
+      // 按用户选择的类别过滤
       const backupData: Record<string, any> = {
-        timestamp: Date.now(),
-        appInfo: {
-          version: '1.0.0',
-          name: 'AetherLink',
-          backupVersion: 3 // 新的备份版本，用于识别
-        }
+        timestamp: fullData.timestamp,
+        appInfo: fullData.appInfo
       };
-
-      // 1. 备份对话和助手数据 (如果选中)
-      if (backupOptions.includeChats) {
-        const allTopics = await getAllTopicsFromDB();
-        backupData.topics = allTopics;
-      }
-
-      if (backupOptions.includeAssistants) {
-        const allAssistants = await getAllAssistantsFromDB();
-        backupData.assistants = allAssistants;
-      }
-
-      // 2. 备份设置数据 (如果选中)
+      if (backupOptions.includeChats) backupData.topics = fullData.topics;
+      if (backupOptions.includeAssistants) backupData.assistants = fullData.assistants;
       if (backupOptions.includeSettings) {
-        const settingsJson = localStorage.getItem('settings');
-        backupData.settings = settingsJson ? JSON.parse(settingsJson) : {};
+        backupData.settings = fullData.settings;
+        backupData.backupSettings = fullData.backupSettings;
       }
-
-      // 3. 备份其他localStorage数据 (如果选中)
-      if (backupOptions.includeLocalStorage) {
-        const localStorageItems: Record<string, any> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key !== 'settings' && !key.startsWith('aetherlink-migration') && key !== 'idb-migration-done') {
-            try {
-              const value = localStorage.getItem(key);
-              if (value) {
-                // 尝试解析JSON，如果失败则存储原始字符串
-                try {
-                  localStorageItems[key] = JSON.parse(value);
-                } catch {
-                  localStorageItems[key] = value;
-                }
-              }
-            } catch (e) {
-              console.error(`读取localStorage项 "${key}" 失败:`, e);
-            }
-          }
-        }
-        backupData.localStorage = localStorageItems;
-      }
-
-      // 备份设置位置信息
-      backupData.backupSettings = {
-        location: localStorage.getItem('backup-location') || DEFAULT_BACKUP_DIRECTORY,
-        storageType: localStorage.getItem('backup-storage-type') || 'documents'
-      };
+      if (backupOptions.includeLocalStorage) backupData.localStorage = fullData.localStorage;
 
       // 创建文件名 - 包含更多详细信息
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -183,149 +112,18 @@ const AdvancedBackupPage: React.FC = () => {
 
       const fileName = `AetherLink_FullBackup_${backupTypes.join('_')}_${timestamp}.json`;
 
-      // 将JSON转换为字符串
-      const jsonString = JSON.stringify(backupData, null, 2); // 美化JSON格式，方便查看
-
-      // 首先创建临时文件
-      const tempPath = fileName;
-
-      await Filesystem.writeFile({
-        path: tempPath,
-        data: jsonString,
-        directory: Directory.Cache,
-        encoding: Encoding.UTF8
-      });
-
-      // 获取临时文件URI
-      const tempFileResult = await Filesystem.getUri({
-        path: tempPath,
-        directory: Directory.Cache
-      });
-
-      if (tempFileResult && tempFileResult.uri) {
-        try {
-          // 尝试使用Share API调用系统的分享/保存功能
-          await Share.share({
-            title: t('dataSettings.messages.backupCreated'),
-            text: t('dataSettings.advancedBackup.fullBackup.description'),
-            url: tempFileResult.uri,
-            dialogTitle: t('common.selectSaveLocation', { defaultValue: '选择保存位置' })
-          });
-
-          showMessage(t('dataSettings.messages.pleaseSelectSaveLocation'), 'info');
-        } catch (shareError) {
-          console.error('分享文件失败:', shareError);
-
-          // 尝试使用文件打开器
-          try {
-            await FileOpener.open({
-              filePath: tempFileResult.uri,
-              contentType: 'application/json'
-            });
-
-            showMessage(t('dataSettings.messages.fileOpened'), 'info');
-          } catch (openError) {
-            console.error('打开文件失败:', openError);
-            // 回退到保存到下载目录
-            await saveToDownloadDirectory(fileName, jsonString);
-          }
-        }
-      } else {
-        // 无法获取临时文件URI，回退到下载目录
-        await saveToDownloadDirectory(fileName, jsonString);
-      }
+      // 复用统一的保存/分享逻辑：Web 端直接下载，移动端走系统分享并回退到下载目录
+      await createAndShareBackupFile(
+        fileName,
+        backupData,
+        (message) => showMessage(message, 'success'),
+        (error) => showMessage(t('dataSettings.messages.backupFailed') + ': ' + error.message, 'error')
+      );
     } catch (error) {
       console.error('创建完整备份失败:', error);
       showMessage(t('dataSettings.messages.backupFailed') + ': ' + (error as Error).message, 'error');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // 保存到下载目录
-  const saveToDownloadDirectory = async (fileName: string, jsonString: string) => {
-    try {
-      // 确保下载目录存在
-      const downloadDir = "Download";
-      try {
-        await Filesystem.mkdir({
-          path: downloadDir,
-          directory: Directory.External,
-          recursive: true
-        });
-      } catch (mkdirError) {
-        console.log('目录可能已存在:', mkdirError);
-      }
-
-      // 写入文件到下载目录
-      const filePath = `${downloadDir}/${fileName}`;
-      await Filesystem.writeFile({
-        path: filePath,
-        data: jsonString,
-        directory: Directory.External,
-        encoding: Encoding.UTF8
-      });
-
-      // 获取完整URI以显示
-      const uriResult = await Filesystem.getUri({
-        path: filePath,
-        directory: Directory.External
-      });
-
-      if (uriResult && uriResult.uri) {
-        // 尝试使用FileOpener打开文件所在目录
-        try {
-          await FileOpener.open({
-            filePath: uriResult.uri,
-            contentType: 'application/json'
-          });
-
-          const copied = await copyToClipboard(uriResult.uri);
-          showMessage(
-            `${t('dataSettings.messages.backupSavedToDownload')}: ${uriResult.uri}${copied ? t('dataSettings.messages.copiedToClipboard') : ''}`,
-            'success'
-          );
-        } catch (openError) {
-          console.error('打开文件失败，但文件已保存:', openError);
-          const copied = await copyToClipboard(uriResult.uri);
-          showMessage(
-            `${t('dataSettings.messages.backupSavedToDownload')}: ${uriResult.uri}${copied ? t('dataSettings.messages.copiedToClipboard') : ''}`,
-            'success'
-          );
-        }
-      } else {
-        showMessage(t('dataSettings.messages.backupSavedToDownload'), 'success');
-      }
-    } catch (error) {
-      console.error('保存到下载目录失败:', error);
-
-      // 回退到保存到内部存储根目录
-      try {
-        await Filesystem.writeFile({
-          path: fileName,
-          data: jsonString,
-          directory: Directory.External,
-          encoding: Encoding.UTF8
-        });
-
-        const uriResult = await Filesystem.getUri({
-          path: fileName,
-          directory: Directory.External
-        });
-
-        if (uriResult && uriResult.uri) {
-          const copied = await copyToClipboard(uriResult.uri);
-          showMessage(
-            `${t('dataSettings.messages.backupSavedToRoot')}: ${uriResult.uri}${copied ? t('dataSettings.messages.copiedToClipboard') : ''}`,
-            'success'
-          );
-        } else {
-          showMessage(t('dataSettings.messages.backupSavedToRoot'), 'success');
-        }
-      } catch (fallbackError) {
-        console.error('保存到内部存储根目录也失败:', fallbackError);
-        showMessage(t('dataSettings.messages.backupFailed') + ': ' + (fallbackError as Error).message, 'error');
-      }
     }
   };
 
