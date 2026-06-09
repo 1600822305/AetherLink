@@ -63,7 +63,7 @@ export function MessageListContainer(props: MessageListContainerProps) {
       return {};
     }
     return {
-      'background-color': props.themeMode === 'dark' ? '#121212' : '#ffffff'
+      'background-color': `var(--theme-bg-default, ${props.themeMode === 'dark' ? '#121212' : '#ffffff'})`
     };
   };
   
