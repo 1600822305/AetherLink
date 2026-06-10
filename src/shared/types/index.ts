@@ -117,7 +117,7 @@ export interface GeneratedImage {
 }
 
 // 网络搜索提供商类型 - 包含免费和收费API服务
-export type WebSearchProvider = 'bing-free' | 'tavily' | 'exa' | 'bocha' | 'firecrawl' | 'cloudflare-ai-search' | 'custom' | (string & {});
+export type WebSearchProvider = 'bing-free' | 'tavily' | 'exa' | 'bocha' | 'firecrawl' | 'cloudflare-ai-search' | 'zhipu' | 'jina' | 'querit' | 'exa-mcp' | 'custom' | (string & {});
 
 // 自定义搜索提供商协议类型
 export type CustomSearchProtocol = 'searxng' | 'tavily-compatible' | 'custom-json';

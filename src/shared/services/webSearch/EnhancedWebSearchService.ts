@@ -13,7 +13,7 @@ import { customProviderToConfig, isCustomProviderConfigured, executeProtocolSear
  * 支持最佳实例的所有搜索提供商，包括API提供商和本地搜索引擎
  */
 // 需要 API 密钥才能工作的付费提供商
-const API_KEY_REQUIRED_PROVIDERS = ['tavily', 'exa', 'bocha', 'firecrawl'];
+const API_KEY_REQUIRED_PROVIDERS = ['tavily', 'exa', 'bocha', 'firecrawl', 'zhipu', 'jina', 'querit'];
 
 class EnhancedWebSearchService {
   /**
@@ -40,7 +40,7 @@ class EnhancedWebSearchService {
     }
 
     // 本地搜索提供商（Google、Bing）和免费WebSearch不需要API密钥
-    if (provider.id === 'local-google' || provider.id === 'local-bing' || provider.id === 'bing' || provider.id === 'bing-free') {
+    if (provider.id === 'local-google' || provider.id === 'local-bing' || provider.id === 'bing' || provider.id === 'bing-free' || provider.id === 'exa-mcp') {
       return true;
     }
 
@@ -116,6 +116,14 @@ class EnhancedWebSearchService {
         return await this.firecrawlSearch(provider, formattedQuery, websearch);
       case 'cloudflare-ai-search':
         return await this.cloudflareAiSearch(provider, formattedQuery, websearch);
+      case 'zhipu':
+        return await this.zhipuSearch(provider, formattedQuery, websearch);
+      case 'jina':
+        return await this.jinaSearch(provider, formattedQuery, websearch);
+      case 'querit':
+        return await this.queritSearch(provider, formattedQuery, websearch);
+      case 'exa-mcp':
+        return await this.exaMcpSearch(provider, formattedQuery, websearch);
       default: {
         // 自定义提供商：通过协议适配器执行（searxng / tavily-compatible / custom-json）
         const results = await executeProtocolSearch(provider, formattedQuery, websearch.maxResults || 10);
@@ -501,6 +509,280 @@ class EnhancedWebSearchService {
       console.error('[EnhancedWebSearchService] Cloudflare AI Search搜索失败:', error);
       throw new Error(`Cloudflare AI Search搜索失败: ${error.message}`);
     }
+  }
+
+  /**
+   * Zhipu 智谱搜索实现
+   */
+  private async zhipuSearch(
+    provider: WebSearchProviderConfig,
+    query: string,
+    websearch: any
+  ): Promise<WebSearchProviderResponse> {
+    try {
+      if (!provider.apiKey) {
+        throw new Error('Zhipu API密钥未配置');
+      }
+
+      console.log(`[EnhancedWebSearchService] 开始Zhipu搜索: ${query}`);
+
+      const { data } = await searchHttpRequest({
+        url: provider.apiHost || 'https://open.bigmodel.cn/api/paas/v4/web_search',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: {
+          search_query: query,
+          search_engine: 'search_std',
+          search_intent: false
+        }
+      });
+
+      const maxResults = websearch.maxResults || 10;
+      const results: WebSearchResult[] = (data.search_result || []).slice(0, maxResults).map((result: any) => ({
+        id: uuidv4(),
+        title: (result.title || '').trim(),
+        url: result.link || '',
+        snippet: (result.content || '').trim(),
+        timestamp: new Date().toISOString(),
+        provider: 'zhipu'
+      }));
+
+      console.log(`[EnhancedWebSearchService] Zhipu搜索完成，找到 ${results.length} 个结果`);
+      return { results };
+    } catch (error: any) {
+      console.error('[EnhancedWebSearchService] Zhipu搜索失败:', error);
+      throw new Error(`Zhipu搜索失败: ${error.message}`, { cause: error });
+    }
+  }
+
+  /**
+   * Jina 搜索实现（s.jina.ai）
+   */
+  private async jinaSearch(
+    provider: WebSearchProviderConfig,
+    query: string,
+    websearch: any
+  ): Promise<WebSearchProviderResponse> {
+    try {
+      if (!provider.apiKey) {
+        throw new Error('Jina API密钥未配置');
+      }
+
+      console.log(`[EnhancedWebSearchService] 开始Jina搜索: ${query}`);
+
+      const baseUrl = (provider.apiHost || 'https://s.jina.ai').replace(/\/+$/, '');
+      const { data } = await searchHttpRequest({
+        url: `${baseUrl}/${encodeURIComponent(query.trim())}`,
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        }
+      });
+
+      const maxResults = websearch.maxResults || 10;
+      const items = data.data || data.results || [];
+      const results: WebSearchResult[] = items.slice(0, maxResults).map((result: any) => ({
+        id: uuidv4(),
+        title: (result.title || '').trim(),
+        url: result.url || '',
+        snippet: (result.content || result.description || '').trim(),
+        timestamp: new Date().toISOString(),
+        provider: 'jina'
+      }));
+
+      console.log(`[EnhancedWebSearchService] Jina搜索完成，找到 ${results.length} 个结果`);
+      return { results };
+    } catch (error: any) {
+      console.error('[EnhancedWebSearchService] Jina搜索失败:', error);
+      throw new Error(`Jina搜索失败: ${error.message}`, { cause: error });
+    }
+  }
+
+  /**
+   * Querit 搜索实现
+   */
+  private async queritSearch(
+    provider: WebSearchProviderConfig,
+    query: string,
+    websearch: any
+  ): Promise<WebSearchProviderResponse> {
+    try {
+      if (!provider.apiKey) {
+        throw new Error('Querit API密钥未配置');
+      }
+
+      console.log(`[EnhancedWebSearchService] 开始Querit搜索: ${query}`);
+
+      const requestBody: any = {
+        query,
+        count: websearch.maxResults || 10
+      };
+      if (websearch.excludeDomains?.length) {
+        requestBody.filters = { sites: { exclude: websearch.excludeDomains } };
+      }
+
+      const baseUrl = (provider.apiHost || 'https://api.querit.ai').replace(/\/+$/, '');
+      const { data } = await searchHttpRequest({
+        url: `${baseUrl}/v1/search`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: requestBody
+      });
+
+      if (data.error_code !== undefined && data.error_code !== 200) {
+        throw new Error(data.error_msg || `错误码 ${data.error_code}`);
+      }
+
+      const items = data.results?.result || [];
+      const results: WebSearchResult[] = items.map((result: any) => ({
+        id: uuidv4(),
+        title: result.title || '',
+        url: result.url || '',
+        snippet: result.snippet || '',
+        timestamp: new Date().toISOString(),
+        provider: 'querit'
+      }));
+
+      console.log(`[EnhancedWebSearchService] Querit搜索完成，找到 ${results.length} 个结果`);
+      return { results };
+    } catch (error: any) {
+      console.error('[EnhancedWebSearchService] Querit搜索失败:', error);
+      throw new Error(`Querit搜索失败: ${error.message}`, { cause: error });
+    }
+  }
+
+  /**
+   * Exa MCP 搜索实现（免密钥，JSON-RPC over HTTP，响应可能为 SSE 文本）
+   */
+  private async exaMcpSearch(
+    provider: WebSearchProviderConfig,
+    query: string,
+    websearch: any
+  ): Promise<WebSearchProviderResponse> {
+    try {
+      console.log(`[EnhancedWebSearchService] 开始Exa MCP搜索: ${query}`);
+
+      const maxResults = websearch.maxResults || 10;
+      const { data } = await searchHttpRequest({
+        url: provider.apiHost || 'https://mcp.exa.ai/mcp',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream'
+        },
+        body: {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: {
+            name: 'web_search_exa',
+            arguments: {
+              query,
+              type: 'auto',
+              numResults: maxResults,
+              livecrawl: 'fallback'
+            }
+          }
+        },
+        timeout: 25000,
+        responseType: 'text'
+      });
+
+      const responseText = typeof data === 'string' ? data : JSON.stringify(data);
+      const items = this.parseExaMcpResponse(responseText);
+      const results: WebSearchResult[] = items.slice(0, maxResults).map((item) => ({
+        id: uuidv4(),
+        title: item.title,
+        url: item.url,
+        snippet: item.text,
+        timestamp: new Date().toISOString(),
+        provider: 'exa-mcp'
+      }));
+
+      console.log(`[EnhancedWebSearchService] Exa MCP搜索完成，找到 ${results.length} 个结果`);
+      return { results };
+    } catch (error: any) {
+      console.error('[EnhancedWebSearchService] Exa MCP搜索失败:', error);
+      throw new Error(`Exa MCP搜索失败: ${error.message}`, { cause: error });
+    }
+  }
+
+  /** 从 JSON-RPC 响应（JSON 或 SSE 流）中提取 MCP 工具返回的文本 */
+  private extractExaMcpContentText(payload: string): string | null {
+    try {
+      const parsed = JSON.parse(payload);
+      const content = parsed?.result?.content;
+      if (!Array.isArray(content)) return null;
+      const text = content
+        .map((item: any) => (typeof item?.text === 'string' ? item.text.trim() : ''))
+        .filter(Boolean)
+        .join('\n\n');
+      return text || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 解析 Exa MCP 返回的 "Title:/URL:/Text:" 块状文本 */
+  private parseExaMcpResponse(responseText: string): Array<{ title: string; url: string; text: string }> {
+    const payloadTexts: string[] = [];
+
+    for (const line of responseText.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6).trim();
+      if (!payload || payload === '[DONE]') continue;
+      const text = this.extractExaMcpContentText(payload);
+      if (text) payloadTexts.push(text);
+    }
+
+    if (payloadTexts.length === 0) {
+      const directText = this.extractExaMcpContentText(responseText);
+      if (directText) payloadTexts.push(directText);
+    }
+
+    if (payloadTexts.length === 0 && responseText.includes('Title:')) {
+      payloadTexts.push(responseText);
+    }
+
+    const items: Array<{ title: string; url: string; text: string }> = [];
+    for (const chunk of payloadTexts.join('\n\n').split('\n\n')) {
+      const lines = chunk.split('\n');
+      let title = '';
+      let url = '';
+      let text = '';
+      let textStartIndex = -1;
+
+      lines.forEach((line, index) => {
+        if (line.startsWith('Title:')) {
+          title = line.replace(/^Title:\s*/, '');
+        } else if (line.startsWith('URL:')) {
+          url = line.replace(/^URL:\s*/, '');
+        } else if (line.startsWith('Text:') && textStartIndex === -1) {
+          textStartIndex = index;
+          text = line.replace(/^Text:\s*/, '');
+        }
+      });
+
+      if (textStartIndex !== -1) {
+        const rest = lines.slice(textStartIndex + 1).join('\n');
+        if (rest.trim().length > 0) {
+          text = text ? `${text}\n${rest}` : rest;
+        }
+      }
+
+      if (title || url || text) {
+        items.push({ title, url, text });
+      }
+    }
+
+    return items;
   }
 
   /**

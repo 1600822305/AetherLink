@@ -106,6 +106,10 @@ const WebSearchSettings: React.FC = () => {
       'exa': { labelKey: 'settings.webSearch.basic.provider.status.neuralSearch', color: 'info' },
       'bocha': { labelKey: 'settings.webSearch.basic.provider.status.aiSearch', color: 'warning' },
       'firecrawl': { labelKey: 'settings.webSearch.basic.provider.status.webScraping', color: 'info' },
+      'zhipu': { labelKey: 'settings.webSearch.basic.provider.status.domestic', color: 'success' },
+      'jina': { labelKey: 'settings.webSearch.basic.provider.status.aiSearch', color: 'info' },
+      'querit': { labelKey: 'settings.webSearch.basic.provider.status.aiSearch', color: 'info' },
+      'exa-mcp': { labelKey: 'settings.webSearch.basic.provider.status.free', color: 'success' },
       'custom': { labelKey: 'settings.webSearch.basic.provider.status.custom', color: 'info' },
     };
     const config = configs[providerId] || { labelKey: 'settings.webSearch.basic.provider.status.unknown', color: 'info' };
@@ -301,6 +305,10 @@ const WebSearchSettings: React.FC = () => {
                   <MenuItem value="bocha">{t('settings.webSearch.basic.provider.options.bocha')}</MenuItem>
                   <MenuItem value="firecrawl">{t('settings.webSearch.basic.provider.options.firecrawl')}</MenuItem>
                   <MenuItem value="cloudflare-ai-search">Cloudflare AI Search</MenuItem>
+                  <MenuItem value="zhipu">{t('settings.webSearch.basic.provider.options.zhipu')}</MenuItem>
+                  <MenuItem value="jina">{t('settings.webSearch.basic.provider.options.jina')}</MenuItem>
+                  <MenuItem value="querit">{t('settings.webSearch.basic.provider.options.querit')}</MenuItem>
+                  <MenuItem value="exa-mcp">{t('settings.webSearch.basic.provider.options.exaMcp')}</MenuItem>
                   <MenuItem value="custom">{t('settings.webSearch.basic.provider.options.custom')}</MenuItem>
                 </Select>
               </FormControl>
@@ -308,6 +316,7 @@ const WebSearchSettings: React.FC = () => {
 
             {webSearchSettings.provider !== 'custom' && (
               <>
+                {webSearchSettings.provider !== 'exa-mcp' && (
                 <Row>
                   <Box sx={{ minWidth: 100 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -367,6 +376,7 @@ const WebSearchSettings: React.FC = () => {
                     }}
                   />
                 </Row>
+                )}
 
                 {/* Alert 提示信息 - 优化样式 */}
                 {webSearchSettings.provider === 'tavily' && (
@@ -453,6 +463,90 @@ const WebSearchSettings: React.FC = () => {
                         {t('settings.webSearch.basic.alerts.firecrawl.link')}
                       </a>{' '}
                       {t('settings.webSearch.basic.alerts.firecrawl.linkText')}
+                    </Alert>
+                  </Box>
+                )}
+
+                {webSearchSettings.provider === 'zhipu' && (
+                  <Box sx={{ px: 2, pb: 2, pt: 0 }}>
+                    <Alert
+                      severity="info"
+                      icon={false}
+                      sx={{
+                        py: 1,
+                        fontSize: '0.875rem',
+                        borderLeft: 3,
+                        borderColor: 'info.main',
+                        bgcolor: (theme) => alpha(theme.palette.info.main, 0.08)
+                      }}
+                    >
+                      {t('settings.webSearch.basic.alerts.zhipu.text')}{' '}
+                      <a href="https://open.bigmodel.cn" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 600 }}>
+                        {t('settings.webSearch.basic.alerts.zhipu.link')}
+                      </a>{' '}
+                      {t('settings.webSearch.basic.alerts.zhipu.linkText')}
+                    </Alert>
+                  </Box>
+                )}
+
+                {webSearchSettings.provider === 'jina' && (
+                  <Box sx={{ px: 2, pb: 2, pt: 0 }}>
+                    <Alert
+                      severity="info"
+                      icon={false}
+                      sx={{
+                        py: 1,
+                        fontSize: '0.875rem',
+                        borderLeft: 3,
+                        borderColor: 'info.main',
+                        bgcolor: (theme) => alpha(theme.palette.info.main, 0.08)
+                      }}
+                    >
+                      {t('settings.webSearch.basic.alerts.jina.text')}{' '}
+                      <a href="https://jina.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 600 }}>
+                        {t('settings.webSearch.basic.alerts.jina.link')}
+                      </a>{' '}
+                      {t('settings.webSearch.basic.alerts.jina.linkText')}
+                    </Alert>
+                  </Box>
+                )}
+
+                {webSearchSettings.provider === 'querit' && (
+                  <Box sx={{ px: 2, pb: 2, pt: 0 }}>
+                    <Alert
+                      severity="info"
+                      icon={false}
+                      sx={{
+                        py: 1,
+                        fontSize: '0.875rem',
+                        borderLeft: 3,
+                        borderColor: 'info.main',
+                        bgcolor: (theme) => alpha(theme.palette.info.main, 0.08)
+                      }}
+                    >
+                      {t('settings.webSearch.basic.alerts.querit.text')}{' '}
+                      <a href="https://querit.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 600 }}>
+                        {t('settings.webSearch.basic.alerts.querit.link')}
+                      </a>{' '}
+                      {t('settings.webSearch.basic.alerts.querit.linkText')}
+                    </Alert>
+                  </Box>
+                )}
+
+                {webSearchSettings.provider === 'exa-mcp' && (
+                  <Box sx={{ px: 2, pb: 2, pt: 0 }}>
+                    <Alert
+                      severity="info"
+                      icon={false}
+                      sx={{
+                        py: 1,
+                        fontSize: '0.875rem',
+                        borderLeft: 3,
+                        borderColor: 'info.main',
+                        bgcolor: (theme) => alpha(theme.palette.info.main, 0.08)
+                      }}
+                    >
+                      {t('settings.webSearch.basic.alerts.exaMcp.text')}
                     </Alert>
                   </Box>
                 )}
