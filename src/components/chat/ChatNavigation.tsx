@@ -7,6 +7,7 @@ import { updateSettings } from '../../shared/store/settingsSlice';
 import { Haptics } from '../../shared/utils/hapticFeedback';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import ContextTokenIndicator from './ContextTokenIndicator';
+import { getChatScrollController } from '../../shared/services/chat/scrollControllerRegistry';
 
 interface ChatNavigationProps {
   containerId: string;
@@ -95,8 +96,8 @@ const ChatNavigation: React.FC<ChatNavigationProps> = ({ containerId, topicId })
 
   const scrollToBottom = useCallback(() => {
     // 优先走统一的贴底控制器，确保点击后恢复「跟随底部」状态
-    const controller = (window as any).__chatScrollController;
-    if (controller?.pinToBottom) {
+    const controller = getChatScrollController();
+    if (controller) {
       controller.pinToBottom('smooth');
       return;
     }
