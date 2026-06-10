@@ -5,7 +5,6 @@ import {
   TextField,
   Button,
   Alert,
-  Chip,
   InputAdornment,
   IconButton,
   CircularProgress,
@@ -41,7 +40,7 @@ import {
   type VisionFailureStrategy,
 } from '../../shared/store/slices/visionRecognitionSlice';
 import { testVisionModelConnection, type VisionTestResult } from '../../shared/services/vision/VisionRecognitionService';
-import { modelSupportsImageInput } from '../../shared/store/thunks/message/apiMessageValidation';
+import { ModelSelector } from '../ChatPage/components/ModelSelector';
 
 /** API 厂商预设（点击快捷填充 Base URL） */
 const PROVIDER_PRESETS: Array<{ name: string; baseUrl: string }> = [
@@ -53,8 +52,6 @@ const PROVIDER_PRESETS: Array<{ name: string; baseUrl: string }> = [
   { name: '智谱 GLM', baseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
   { name: '阿里云百炼', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
 ];
-
-const PRESET_VALUE_SEPARATOR = '::';
 
 const VisionRecognitionSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -71,26 +68,28 @@ const VisionRecognitionSettings: React.FC = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<VisionTestResult | null>(null);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 
-  // 已配置供应商中的所有模型（视觉模型排前）
-  const presetModelOptions = useMemo(() => {
-    const options: Array<{ value: string; label: string; isVision: boolean }> = [];
-    for (const provider of providers) {
-      if (!provider.isEnabled) continue;
-      for (const model of provider.models || []) {
-        options.push({
-          value: `${provider.id}${PRESET_VALUE_SEPARATOR}${model.id}`,
-          label: `${provider.name} / ${model.name || model.id}`,
-          isVision: modelSupportsImageInput(model),
-        });
-      }
-    }
-    return options.sort((a, b) => Number(b.isVision) - Number(a.isVision));
-  }, [providers]);
+  // 已启用供应商中的所有可用模型（与主模型选择器一致）
+  const allModels = useMemo(() => (
+    providers
+      .filter((provider) => provider.isEnabled)
+      .flatMap((provider) =>
+        (provider.models || [])
+          .filter((model) => model.enabled)
+          .map((model) => ({
+            ...model,
+            providerName: provider.name,
+            providerId: provider.id,
+          }))
+      )
+  ), [providers]);
 
-  const presetValue = visionState.presetModelRef
-    ? `${visionState.presetModelRef.providerId}${PRESET_VALUE_SEPARATOR}${visionState.presetModelRef.modelId}`
-    : '';
+  const selectedPresetModel = useMemo(() => {
+    const ref = visionState.presetModelRef;
+    if (!ref) return null;
+    return allModels.find((model) => model.providerId === ref.providerId && model.id === ref.modelId) || null;
+  }, [allModels, visionState.presetModelRef]);
 
   const handleBack = () => navigate('/settings');
 
@@ -99,19 +98,14 @@ const VisionRecognitionSettings: React.FC = () => {
     setTestResult(null);
   };
 
-  const handlePresetModelChange = (event: SelectChangeEvent) => {
-    const value = event.target.value;
-    if (!value) {
-      dispatch(setVisionPresetModelRef(null));
-      return;
-    }
-    const separatorIndex = value.indexOf(PRESET_VALUE_SEPARATOR);
+  const handlePresetModelSelect = (model: any) => {
     dispatch(
       setVisionPresetModelRef({
-        providerId: value.slice(0, separatorIndex),
-        modelId: value.slice(separatorIndex + PRESET_VALUE_SEPARATOR.length),
+        providerId: model.providerId || model.provider,
+        modelId: model.id,
       })
     );
+    setModelSelectorOpen(false);
     setTestResult(null);
   };
 
@@ -191,25 +185,24 @@ const VisionRecognitionSettings: React.FC = () => {
             {!isCustom && (
               <Row>
                 <Typography sx={{ minWidth: 80 }}>视觉模型</Typography>
-                <FormControl size="small" sx={{ flex: 1 }}>
-                  <Select value={presetValue} onChange={handlePresetModelChange} displayEmpty>
-                    <MenuItem value="">
-                      <em>请选择模型</em>
-                    </MenuItem>
-                    {presetModelOptions.map((option) => (
-                      <MenuItem key={option.value} value={option.value}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                          <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {option.label}
-                          </Typography>
-                          {option.isVision && (
-                            <Chip label="视觉" size="small" color="primary" sx={{ height: 18, fontSize: 11 }} />
-                          )}
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {selectedPresetModel
+                      ? `${(selectedPresetModel as any).providerName} / ${selectedPresetModel.name || selectedPresetModel.id}`
+                      : '未选择'}
+                  </Typography>
+                  <Button variant="outlined" size="small" onClick={() => setModelSelectorOpen(true)} sx={{ textTransform: 'none' }}>
+                    选择模型
+                  </Button>
+                  <ModelSelector
+                    selectedModel={selectedPresetModel}
+                    availableModels={allModels}
+                    handleModelSelect={handlePresetModelSelect}
+                    handleMenuClick={() => setModelSelectorOpen(true)}
+                    handleMenuClose={() => setModelSelectorOpen(false)}
+                    menuOpen={modelSelectorOpen}
+                  />
+                </Box>
               </Row>
             )}
 
