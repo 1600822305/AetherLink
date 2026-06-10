@@ -96,7 +96,7 @@ const MCPToolDomainDetail: React.FC = () => {
         setServer(foundServer);
         if (foundServer.isActive) {
           try {
-            const allTools = await mcpService.listTools(foundServer);
+            const allTools = await mcpService.listTools(foundServer, { includeDisabled: true });
             const filtered = allTools.filter(tool => inferDomain(tool.name) === domain);
             setDomainTools(filtered);
           } catch (error) {
