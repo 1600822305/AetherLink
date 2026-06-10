@@ -4,6 +4,7 @@
  * 支持 Google Search 工具
  */
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
+import { splitMcpToolContent, buildAISDKToolOutput, toImageDataUrl } from '../../utils/mcpToolResultContent';
 
 /**
  * 将 MCP 工具转换为 AI SDK 工具格式
@@ -93,36 +94,36 @@ export function mcpToolCallResponseToGeminiMessage(
   useXmlFormat: boolean = true  // 默认使用 XML 格式（因为主要用于 XML 模式）
 ): any {
   const toolName = mcpToolResponse.tool?.name || '';
-  
-  // 处理响应内容
-  let content = '';
-  if (resp.content && Array.isArray(resp.content)) {
-    content = resp.content
-      .filter((c) => c.type === 'text')
-      .map((c) => c.text || '')
-      .join('\n');
-  }
 
-  // 如果有错误，添加错误信息
-  if (resp.isError) {
-    content = `Error: ${content || 'Unknown error'}`;
-  }
+  // 拆分文本与图片，避免图片被丢弃
+  const { text, images } = splitMcpToolContent(resp);
+  const displayText = resp.isError ? `Error: ${text || 'Unknown error'}` : text;
 
   // XML 提示词模式：返回 user 角色的消息，内容为 XML 格式的工具结果
-  // AI SDK 只接受 user/assistant/system/tool 角色
+  // AI SDK 只接受 user/assistant/system/tool 角色；user 角色允许带图
   if (useXmlFormat) {
     const xmlResult = `<tool_use_result>
   <name>${toolName}</name>
-  <result>${content}</result>
+  <result>${displayText}</result>
 </tool_use_result>`;
+    if (images.length > 0) {
+      return {
+        role: 'user',
+        content: [
+          { type: 'text', text: xmlResult },
+          ...images.map((img) => ({ type: 'image', image: toImageDataUrl(img) }))
+        ]
+      };
+    }
     return {
       role: 'user',
       content: xmlResult
     };
   }
 
-  // Function Calling 模式：返回 AI SDK 期望的 ToolModelMessage 格式
-  // 参考：https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-text#toolmodelmessage
+  // Function Calling 模式：返回 AI SDK 期望的 ToolModelMessage 格式（v6 使用 output）
+  // 参考：https://ai-sdk.dev/docs/reference/ai-sdk-core/model-message
+  // 多模态工具结果在 Gemini 3 系列支持
   const toolCallId = mcpToolResponse.id || mcpToolResponse.toolCallId;
   return {
     role: 'tool',
@@ -130,8 +131,7 @@ export function mcpToolCallResponseToGeminiMessage(
       type: 'tool-result',
       toolCallId: toolCallId,
       toolName: toolName,
-      result: content,
-      isError: resp.isError || false
+      output: buildAISDKToolOutput(text, images, resp.isError || false)
     }]
   };
 }

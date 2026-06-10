@@ -211,9 +211,18 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
     // 函数调用模式：使用 AI SDK 的 ToolModelMessage 格式（useXmlFormat: false）
-    const messages = results
-      .map((result, i) => this.mcpToolCallResponseToMessage(mcpToolResponses[i], result, this.model, false))
+    // 工具结果含图片时会额外返回一条 user 图片消息，需要展开
+    const rawMessages = results
+      .flatMap((result, i) => {
+        const msg = this.mcpToolCallResponseToMessage(mcpToolResponses[i], result, this.model, false);
+        return Array.isArray(msg) ? msg : [msg];
+      })
       .filter(Boolean);
+
+    // 所有 tool 消息须紧跟在 assistant.tool_calls 之后，user 图片消息统一排到其后
+    const toolMessages = rawMessages.filter((m: any) => m?.role === 'tool');
+    const followupMessages = rawMessages.filter((m: any) => m?.role !== 'tool');
+    const messages = [...toolMessages, ...followupMessages];
 
     return { messages, hasCompletion };
   }
