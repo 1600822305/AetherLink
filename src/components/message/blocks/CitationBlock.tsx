@@ -30,26 +30,29 @@ import type {
 const StyledPaper = styled(Paper)(({ theme }) => {
   const isDark = theme.palette.mode === 'dark';
   return {
-    padding: theme.spacing(1.5),
-    marginBottom: theme.spacing(1),
-    borderRadius: '16px',
-    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-    backgroundColor: isDark ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+    padding: theme.spacing(1, 1.25),
+    marginBottom: theme.spacing(0.75),
+    borderRadius: '10px',
+    border: `0.5px solid ${isDark ? 'rgba(212,185,150,0.18)' : 'rgba(176,141,87,0.22)'}`,
+    background: isDark
+      ? 'linear-gradient(135deg, rgba(38,35,30,0.92) 0%, rgba(28,27,25,0.92) 100%)'
+      : 'linear-gradient(135deg, rgba(253,251,247,0.95) 0%, rgba(248,244,237,0.95) 100%)',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
+    boxShadow: isDark
+      ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(176,141,87,0.06)',
     position: 'relative',
     cursor: 'pointer',
-    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     WebkitTapHighlightColor: 'transparent',
     outline: 'none',
     userSelect: 'none',
     '&:hover': {
-      backgroundColor: isDark ? 'rgba(45, 45, 45, 0.92)' : 'rgba(250, 250, 250, 0.95)',
-      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
-      transform: 'translateY(-1px)',
+      borderColor: isDark ? 'rgba(212,185,150,0.35)' : 'rgba(176,141,87,0.4)',
       boxShadow: isDark
-        ? '0 4px 12px rgba(0,0,0,0.3)'
-        : '0 4px 12px rgba(0,0,0,0.08)',
+        ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.25)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(176,141,87,0.12)',
     },
   };
 });
@@ -249,7 +252,7 @@ const CitationBlock: React.FC<Props> = ({ block }) => {
   return (
     <StyledPaper elevation={0} onClick={handleCardClick}>
       {/* 标题栏 */}
-      <Box display="flex" alignItems="center" minHeight={32} mb={0.5}>
+      <Box display="flex" alignItems="center" minHeight={24}>
         {knowledgeCount > 0 && (
           <BookOpen size={16} style={{ marginRight: 6, flexShrink: 0 }} />
         )}
@@ -285,8 +288,8 @@ const CitationBlock: React.FC<Props> = ({ block }) => {
 
       {/* 折叠时的摘要 */}
       {!expanded && items.length > 0 && (
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
-          {`找到 ${items.length} 条相关内容，点击展开查看详情`}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4, opacity: 0.8 }}>
+          {`${items.length} 条相关内容`}
         </Typography>
       )}
 
