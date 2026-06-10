@@ -112,6 +112,12 @@ export class ChatScrollController {
     if (this.disposed) return;
     this.stick = true;
     this.scrollToBottom(behavior);
+    // 布局稳定后再次贴底，覆盖紧随其后渲染出的新内容
+    this.raf(() => this.raf(() => {
+      if (!this.disposed && this.stick) {
+        this.scrollToBottom(behavior);
+      }
+    }));
   }
 
   /** 当前是否处于贴底跟随状态（供调试/测试） */

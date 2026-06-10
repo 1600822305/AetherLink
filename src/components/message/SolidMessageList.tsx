@@ -24,6 +24,7 @@ import { topicCacheManager } from '../../shared/services/topics/TopicCacheManage
 import { getGroupedMessages, MessageGroupingType } from '../../shared/utils/messageGrouping';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import { ChatScrollController } from '../../shared/services/chat/ChatScrollController';
+import { EventEmitter, EVENT_NAMES } from '../../shared/services/infra/EventEmitter';
 
 interface SolidMessageListProps {
   messages: Message[];
@@ -357,6 +358,14 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
 
   // 流式内容增长 / 思考 / 工具 / 图片异步加载等所有撑高，统一由
   // ChatScrollController 内部的 ResizeObserver 被动跟随，无需在此监听业务事件。
+
+  // ⭐ 显式置底事件（发送消息等）：越过贴底判断无条件置底
+  useEffect(() => {
+    const unsubscribe = EventEmitter.on(EVENT_NAMES.UI_SCROLL_TO_BOTTOM, () => {
+      controllerRef.current?.pinToBottom('auto');
+    });
+    return unsubscribe;
+  }, []);
 
   // ⭐ 用户自己发送新消息时强制置底；AI 新消息仅在已贴底时跟随
   // 取「本次新增的消息」判断而非仅看末条，避免用户/助手消息在同一渲染批次追加时漏判
