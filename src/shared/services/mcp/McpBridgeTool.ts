@@ -87,7 +87,7 @@ export async function executeBridgeToolCall(
  * list_servers — 列出所有已配置的 MCP 服务器
  */
 async function handleListServers(): Promise<MCPCallToolResponse> {
-  const allServers = mcpService.getServers();
+  const allServers = await mcpService.getServersAsync();
 
   if (allServers.length === 0) {
     return makeTextResponse('当前没有配置任何 MCP 服务器。请在设置中添加 MCP 服务器。');
@@ -123,9 +123,9 @@ async function handleListTools(serverName?: string): Promise<MCPCallToolResponse
   }
 
   // 查找服务器
-  const server = findServerByName(serverName);
+  const server = await findServerByName(serverName);
   if (!server) {
-    const available = mcpService.getServers().map(s => s.name).join(', ');
+    const available = (await mcpService.getServersAsync()).map(s => s.name).join(', ');
     return makeErrorResponse(
       `未找到服务器: "${serverName}"。可用的服务器: ${available || '无'}`
     );
@@ -176,9 +176,9 @@ async function handleCallTool(
   }
 
   // 查找服务器
-  const server = findServerByName(serverName);
+  const server = await findServerByName(serverName);
   if (!server) {
-    const available = mcpService.getServers().map(s => s.name).join(', ');
+    const available = (await mcpService.getServersAsync()).map(s => s.name).join(', ');
     return makeErrorResponse(
       `未找到服务器: "${serverName}"。可用的服务器: ${available || '无'}`
     );
@@ -196,8 +196,8 @@ async function handleCallTool(
 /**
  * 按名称查找服务器（模糊匹配）
  */
-function findServerByName(name: string) {
-  const servers = mcpService.getServers();
+async function findServerByName(name: string) {
+  const servers = await mcpService.getServersAsync();
 
   // 精确匹配
   let server = servers.find(s => s.name === name);

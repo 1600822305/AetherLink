@@ -12,6 +12,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { universalFetch } from '../../../utils/universalFetch';
+import { MCP_PROTOCOL_VERSION } from '../types/constants';
 import type { MCPClientOptions, MCPTool, MCPCallToolResponse } from './MCPClientAdapter';
 
 export class AiSdkMCPClient {
@@ -85,9 +86,10 @@ export class AiSdkMCPClient {
       return universalFetch(urlString, init);
     };
 
-    // 准备 headers（完全模仿 Web 端，不添加默认 headers）
+    // 准备 headers（与 MCPClientAdapter 保持一致，包含协议版本）
     const prepareHeaders = () => ({
-      ...headers
+      ...headers,
+      'mcp-protocol-version': MCP_PROTOCOL_VERSION,
     });
 
     // StreamableHTTP 传输

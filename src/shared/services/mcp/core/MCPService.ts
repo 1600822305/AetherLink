@@ -16,7 +16,7 @@ import {
   createMCPError,
   isCorsError 
 } from '../types/MCPError';
-import { AGENTIC_MODE_SERVER } from '../types/constants';
+import { AGENTIC_MODE_SERVER, MCP_CLIENT_INFO } from '../types/constants';
 
 /**
  * 根据 URL 推断 MCP 服务器类型
@@ -317,8 +317,11 @@ export class MCPService {
     // 创建初始化 Promise 并缓存
     const initPromise = (async (): Promise<Client> => {
       // 创建新的客户端
+      // 根据平台选择客户端标识
+      const isMobilePlatform = Capacitor.isNativePlatform();
+      const clientInfo = isMobilePlatform ? MCP_CLIENT_INFO.MOBILE : MCP_CLIENT_INFO.WEB;
       const client = new Client(
-        { name: 'AetherLink Mobile', version: '1.0.0' },
+        clientInfo,
         { capabilities: {} }
       );
 
@@ -412,7 +415,10 @@ export class MCPService {
         const compatClient = {
           connect: async () => {},
           close: async () => { await httpStreamClient.close(); },
-          ping: async () => { /* HTTP Stream 不支持 ping */ },
+          ping: async () => {
+            // 通过 listTools 探测连接是否存活
+            await httpStreamClient.listTools();
+          },
           listTools: async () => {
             const tools = await httpStreamClient.listTools();
             return { tools };
@@ -420,8 +426,22 @@ export class MCPService {
           callTool: async (params: { name: string; arguments: Record<string, unknown> }) => {
             return await httpStreamClient.callTool(params.name, params.arguments);
           },
-          listPrompts: async () => ({ prompts: [] }),
-          listResources: async () => ({ resources: [] })
+          listPrompts: async () => {
+            try {
+              const prompts = await httpStreamClient.listPrompts();
+              return { prompts };
+            } catch {
+              return { prompts: [] };
+            }
+          },
+          listResources: async () => {
+            try {
+              const resources = await httpStreamClient.listResources();
+              return { resources };
+            } catch {
+              return { resources: [] };
+            }
+          }
         } as unknown as Client;
 
         // 缓存客户端
