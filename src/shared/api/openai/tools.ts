@@ -12,6 +12,7 @@ import {
 } from '../../types/tools';
 import { isReasoningModel } from '../../../config/models';
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
+import { splitMcpToolContent, toImageDataUrl } from '../../utils/mcpToolResultContent';
 
 // 重新导出工具类型和工具定义，保持向后兼容
 export const ToolType = ToolTypeEnum;
@@ -220,37 +221,67 @@ export function convertMcpToolsToOpenAI<T>(mcpTools: MCPTool[]): T[] {
 
 /**
  * 将 MCP 工具调用响应转换为 OpenAI 消息格式
+ *
+ * 注意：OpenAI Chat Completions 中 `tool`/`system` 角色不允许带图片，
+ * 仅 `user` 角色可以。因此当工具返回图片时：
+ * - 函数调用模式：返回 [tool 文本消息, user 图片消息] 两条
+ * - 提示词注入模式：返回单条 user 多模态消息（文本 XML + 图片）
+ * 出处：https://community.openai.com/t/allowing-images-in-non-user-messages/804176
+ *
  * @param mcpToolResponse MCP工具响应
  * @param resp MCP调用工具响应
  * @param model 模型对象
- * @returns OpenAI消息格式
+ * @returns OpenAI消息格式（单条对象或多条数组）
  */
 export function mcpToolCallResponseToOpenAIMessage(
   mcpToolResponse: MCPToolResponse,
   resp: MCPCallToolResponse,
   _model: Model
 ): any {
-  // 确保内容不为空
-  const contentText = resp.content && resp.content.length > 0
-    ? JSON.stringify(resp.content)
-    : '工具调用完成，但没有返回内容';
+  // 拆分文本与图片，避免图片被 JSON.stringify 成乱码文本
+  const { text, images } = splitMcpToolContent(resp);
+  const contentText = (text && text.trim())
+    ? text
+    : (images.length > 0 ? '（工具返回了图片，见下一条消息）' : '工具调用完成，但没有返回内容');
 
   // 获取工具名称
   const toolName = mcpToolResponse.tool.name || mcpToolResponse.tool.id || 'unknown';
 
-  // 函数调用模式：使用 OpenAI 原生 tool 角色
+  const imageParts = images.map((img) => ({
+    type: 'image_url' as const,
+    image_url: { url: toImageDataUrl(img) }
+  }));
+
+  // 函数调用模式：使用 OpenAI 原生 tool 角色（仅文本），图片另起一条 user 消息
   if ('toolCallId' in mcpToolResponse && mcpToolResponse.toolCallId) {
-    return {
+    const toolMessage = {
       role: 'tool',
       tool_call_id: mcpToolResponse.toolCallId,
       content: contentText
     };
+    if (imageParts.length > 0) {
+      return [
+        toolMessage,
+        { role: 'user', content: imageParts }
+      ];
+    }
+    return toolMessage;
   }
 
   // 提示词注入模式：使用 XML 格式，与系统提示中的格式保持一致
+  const xmlText = `<tool_use_result>\n  <name>${toolName}</name>\n  <result>${contentText}</result>\n</tool_use_result>`;
+  if (imageParts.length > 0) {
+    return {
+      role: 'user',
+      content: [
+        { type: 'text' as const, text: xmlText },
+        ...imageParts
+      ]
+    };
+  }
   return {
     role: 'user',
-    content: `<tool_use_result>\n  <name>${toolName}</name>\n  <result>${contentText}</result>\n</tool_use_result>`
+    content: xmlText
   };
 }
 

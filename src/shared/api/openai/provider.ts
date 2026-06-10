@@ -234,9 +234,19 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
 
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
-    const messages = results
-      .map((result, i) => this.mcpToolCallResponseToMessage(mcpToolResponses[i], result, this.model))
+    // 转换可能返回单条消息或多条消息（工具结果含图片时会追加一条 user 图片消息）
+    const rawMessages = results
+      .flatMap((result, i) => {
+        const msg = this.mcpToolCallResponseToMessage(mcpToolResponses[i], result, this.model);
+        return Array.isArray(msg) ? msg : [msg];
+      })
       .filter(Boolean);
+
+    // OpenAI 要求 assistant.tool_calls 后紧跟所有对应的 tool 消息，
+    // 因此把追加的 user 图片消息统一排到所有 tool 消息之后，避免顺序错乱报错
+    const toolMessages = rawMessages.filter((m: any) => m?.role === 'tool');
+    const followupMessages = rawMessages.filter((m: any) => m?.role !== 'tool');
+    const messages = [...toolMessages, ...followupMessages];
 
     return { messages, hasCompletion };
   }
@@ -264,7 +274,12 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
 
     for (let i = 0; i < Math.min(results.length, toolResponses.length); i++) {
       const msg = this.mcpToolCallResponseToMessage(toolResponses[i], results[i], this.model);
-      if (msg) messages.push(msg);
+      if (!msg) continue;
+      if (Array.isArray(msg)) {
+        messages.push(...msg);
+      } else {
+        messages.push(msg);
+      }
     }
 
     return { messages, hasCompletion };

@@ -3,6 +3,7 @@
  * 将 MCP 工具转换为 AI SDK 格式，支持 Claude 内置工具
  */
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
+import { splitMcpToolContent, buildAISDKToolOutput, toImageDataUrl } from '../../utils/mcpToolResultContent';
 
 /**
  * Claude 内置工具类型
@@ -127,42 +128,41 @@ export function mcpToolCallResponseToAnthropicMessage(
 ): any {
   const toolCallId = mcpToolResponse.id || mcpToolResponse.toolCallId || mcpToolResponse.toolUseId;
   const toolName = mcpToolResponse.tool?.name || '';
-  
-  // 处理响应内容
-  let content = '';
-  if (resp.content && Array.isArray(resp.content)) {
-    content = resp.content
-      .filter((c) => c.type === 'text')
-      .map((c) => c.text || '')
-      .join('\n');
-  }
 
-  // 如果有错误，添加错误信息
-  if (resp.isError) {
-    content = `Error: ${content || 'Unknown error'}`;
-  }
+  // 拆分文本与图片，避免图片被丢弃
+  const { text, images } = splitMcpToolContent(resp);
+  const displayText = resp.isError ? `Error: ${text || 'Unknown error'}` : text;
 
-  // XML 提示词模式：返回 user 角色的消息
+  // XML 提示词模式：返回 user 角色的消息（user 角色允许带图）
   if (useXmlFormat) {
     const xmlResult = `<tool_use_result>
   <name>${toolName}</name>
-  <result>${content}</result>
+  <result>${displayText}</result>
 </tool_use_result>`;
+    if (images.length > 0) {
+      return {
+        role: 'user',
+        content: [
+          { type: 'text', text: xmlResult },
+          ...images.map((img) => ({ type: 'image', image: toImageDataUrl(img) }))
+        ]
+      };
+    }
     return {
       role: 'user',
       content: xmlResult
     };
   }
 
-  // AI SDK 格式：返回 ToolModelMessage 格式
+  // AI SDK 格式：返回 ToolModelMessage 格式（v6 使用 output: ToolResultOutput）
+  // Anthropic 原生 tool_result 支持图片，AI SDK 会把 media 部件转成 image 块
   return {
     role: 'tool',
     content: [{
       type: 'tool-result',
       toolCallId: toolCallId,
       toolName: toolName,
-      result: content,
-      isError: resp.isError || false
+      output: buildAISDKToolOutput(text, images, resp.isError || false)
     }]
   };
 }
