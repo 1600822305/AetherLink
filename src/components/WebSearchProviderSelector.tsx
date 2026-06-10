@@ -141,12 +141,19 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
   }, [webSearchSettings?.providers, webSearchSettings?.customProviders, webSearchSettings?.apiKeys]);
 
   const handleSelectProvider = useCallback((providerId: string) => {
+    // 未配置的提供商：跳转到设置页配置，而不是直接选中
+    const item = providerItems.find((p) => p.id === providerId);
+    if (item && !item.available) {
+      onClose();
+      navigate('/settings/web-search');
+      return;
+    }
     dispatch(setWebSearchProvider(providerId as any));
     // 设置 activeProviderId，标记用户已经选择了搜索引擎
     dispatch(setActiveProviderId(providerId));
     onProviderSelect?.(providerId);
     onClose();
-  }, [dispatch, onProviderSelect, onClose]);
+  }, [providerItems, navigate, dispatch, onProviderSelect, onClose]);
 
   const handleDisable = useCallback(() => {
     // 清除 activeProviderId 即可禁用搜索，不修改持久化的 provider 设置
