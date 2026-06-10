@@ -1036,6 +1036,20 @@ const WebSearchSettings: React.FC = () => {
                     onChange={(e) => handleProviderFieldChange('basicAuthPassword', e.target.value)}
                     size="small"
                   />
+                  <Box>
+                    <FormControlLabel
+                      control={
+                        <CustomSwitch
+                          checked={!!editingProvider.fetchContent}
+                          onChange={(e) => handleProviderFieldChange('fetchContent', e.target.checked)}
+                        />
+                      }
+                      label={t('settings.webSearch.basic.editDialog.fetchContent')}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {t('settings.webSearch.basic.editDialog.fetchContentDescription')}
+                    </Typography>
+                  </Box>
                 </>
               )}
 
