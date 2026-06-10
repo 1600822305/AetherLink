@@ -348,6 +348,13 @@ const webSearchSlice = createSlice({
     deleteCustomProvider: (state, action: PayloadAction<string>) => {
       if (!state.customProviders) return;
       state.customProviders = state.customProviders.filter(p => p.id !== action.payload);
+      // 被删除的提供商若是当前选中项，回退到默认提供商
+      if (state.provider === action.payload) {
+        state.provider = 'bing-free';
+      }
+      if (state.activeProviderId === action.payload) {
+        state.activeProviderId = undefined;
+      }
       saveToStorage(state);
     },
     toggleCustomProviderEnabled: (state, action: PayloadAction<string>) => {

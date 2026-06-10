@@ -10,6 +10,7 @@ import { SolidBridge } from '../shared/bridges/SolidBridge';
 import type { RootState } from '../shared/store';
 import { setWebSearchProvider, refreshProviders, setActiveProviderId } from '../shared/store/slices/webSearchSlice';
 import type { WebSearchProviderConfig } from '../shared/types';
+import { isCustomProviderConfigured, getCustomProviderProtocol } from '../shared/services/webSearch/customProtocols';
 import type { ProviderItem } from '../solid/components/WebSearchProviderSelector/WebSearchProviderSelector.solid';
 
 interface WebSearchProviderSelectorProps {
@@ -103,7 +104,7 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
 
   const providerItems = useMemo<ProviderItem[]>(() => {
     const providers = webSearchSettings?.providers || [];
-    return providers.map((provider) => {
+    const items = providers.map((provider) => {
       const status = getProviderStatus(provider, webSearchSettings?.apiKeys);
       return {
         id: provider.id,
@@ -113,7 +114,23 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
         statusLabel: status.label
       };
     });
-  }, [webSearchSettings?.providers, webSearchSettings?.apiKeys]);
+
+    // 自定义提供商：可用性由对应协议适配器判断
+    const customProviders = (webSearchSettings?.customProviders || []).filter((p) => p.enabled);
+    const customItems = customProviders.map((provider) => {
+      const configured = isCustomProviderConfigured(provider);
+      const protocol = getCustomProviderProtocol(provider);
+      return {
+        id: provider.id,
+        name: provider.name,
+        icon: protocol === 'searxng' ? '🌐' : '🧩',
+        available: configured,
+        statusLabel: configured ? '自定义' : '需要配置'
+      };
+    });
+
+    return [...items, ...customItems];
+  }, [webSearchSettings?.providers, webSearchSettings?.customProviders, webSearchSettings?.apiKeys]);
 
   const handleSelectProvider = useCallback((providerId: string) => {
     dispatch(setWebSearchProvider(providerId as any));

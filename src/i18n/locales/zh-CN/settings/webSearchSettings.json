@@ -93,7 +93,22 @@
         "apiKey": "API 密钥",
         "enable": "启用此服务",
         "cancel": "取消",
-        "save": "保存"
+        "save": "保存",
+        "protocol": "接口协议",
+        "protocolSearxng": "SearXNG（自托管聚合搜索）",
+        "protocolTavilyCompatible": "Tavily 兼容 API",
+        "protocolCustomJson": "自定义 JSON 模板",
+        "basicAuthUsername": "基础认证用户名（可选）",
+        "basicAuthPassword": "基础认证密码（可选）",
+        "apiKeyOptional": "API 密钥（可选）",
+        "template": "请求/响应模板（JSON）",
+        "templateHelp": "请求模板支持占位符 query、apiKey、maxResults（用双花括号包裹）；响应字段用点路径映射",
+        "templateInvalid": "模板 JSON 格式无效，需包含 request.url、response.resultsPath 和 response.fields",
+        "searxngBaseUrlPlaceholder": "https://searxng.example.com",
+        "test": "测试搜索",
+        "testing": "测试中...",
+        "testSuccess": "测试成功，搜索接口可用",
+        "testFailed": "测试失败：{{error}}"
       }
     },
     "searchOptions": {
@@ -184,4 +199,3 @@
     }
   }
 }
-

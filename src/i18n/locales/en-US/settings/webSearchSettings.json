@@ -93,7 +93,22 @@
         "apiKey": "API Key",
         "enable": "Enable this service",
         "cancel": "Cancel",
-        "save": "Save"
+        "save": "Save",
+        "protocol": "Protocol",
+        "protocolSearxng": "SearXNG (self-hosted meta search)",
+        "protocolTavilyCompatible": "Tavily-compatible API",
+        "protocolCustomJson": "Custom JSON template",
+        "basicAuthUsername": "Basic Auth Username (optional)",
+        "basicAuthPassword": "Basic Auth Password (optional)",
+        "apiKeyOptional": "API Key (optional)",
+        "template": "Request/Response Template (JSON)",
+        "templateHelp": "Request template supports placeholders query, apiKey, maxResults (wrapped in double curly braces); response fields are mapped via dot paths",
+        "templateInvalid": "Invalid template JSON: must contain request.url, response.resultsPath and response.fields",
+        "searxngBaseUrlPlaceholder": "https://searxng.example.com",
+        "test": "Test Search",
+        "testing": "Testing...",
+        "testSuccess": "Test succeeded, the search API is working",
+        "testFailed": "Test failed: {{error}}"
       }
     },
     "searchOptions": {
@@ -184,4 +199,3 @@
     }
   }
 }
-
