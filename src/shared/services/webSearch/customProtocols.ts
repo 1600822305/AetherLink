@@ -7,8 +7,13 @@ import type {
   CustomJsonTemplate
 } from '../../types';
 import { searchHttpRequest, type SearchHttpRequest } from './httpClient';
+import { fetchPageContent } from './BingSearchModules/contentFetcher';
 
 const SNIPPET_LIMIT = 1000;
+const FETCHED_CONTENT_LIMIT = 1500;
+const CONTENT_FETCH_TIMEOUT = 15000;
+const CONTENT_FETCH_BATCH_SIZE = 3;
+const ENGINE_CACHE_TTL = 10 * 60 * 1000;
 
 /**
  * 搜索协议适配器：buildRequest/parseResponse 均为纯函数，
@@ -18,14 +23,78 @@ export interface SearchProtocolAdapter {
   id: CustomSearchProtocol;
   /** 判断给定配置是否已填齐该协议所需字段 */
   isConfigured: (provider: WebSearchProviderConfig) => boolean;
-  buildRequest: (provider: WebSearchProviderConfig, query: string, maxResults: number) => SearchHttpRequest;
+  buildRequest: (provider: WebSearchProviderConfig, query: string, maxResults: number) => SearchHttpRequest | Promise<SearchHttpRequest>;
   parseResponse: (data: any, provider: WebSearchProviderConfig, maxResults: number) => WebSearchResult[];
+  /** 可选的结果增强步骤（如抓取网页全文），失败时必须保留原始结果 */
+  enrichResults?: (results: WebSearchResult[], provider: WebSearchProviderConfig) => Promise<WebSearchResult[]>;
 }
 
 const trimSnippet = (text: string): string =>
   text.length > SNIPPET_LIMIT ? `${text.substring(0, SNIPPET_LIMIT)}...` : text;
 
 const normalizeBaseUrl = (url: string): string => url.trim().replace(/\/+$/, '');
+
+const buildBasicAuthHeaders = (provider: WebSearchProviderConfig): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  if (provider.basicAuthUsername && provider.basicAuthPassword) {
+    headers['Authorization'] = `Basic ${btoa(`${provider.basicAuthUsername}:${provider.basicAuthPassword}`)}`;
+  }
+  return headers;
+};
+
+// SearXNG 引擎自动发现：调用 /config 获取实例启用的 general/web 引擎，按实例缓存
+const searxngEngineCache = new Map<string, { engines: string[]; timestamp: number }>();
+
+async function discoverSearxngEngines(baseUrl: string, headers: Record<string, string>): Promise<string[]> {
+  const cached = searxngEngineCache.get(baseUrl);
+  if (cached && Date.now() - cached.timestamp < ENGINE_CACHE_TTL) {
+    return cached.engines;
+  }
+  try {
+    const { data } = await searchHttpRequest({
+      url: `${baseUrl}/config`,
+      method: 'GET',
+      headers,
+      timeout: 10000
+    });
+    const engines: string[] = (Array.isArray(data?.engines) ? data.engines : [])
+      .filter((engine: any) =>
+        engine?.enabled &&
+        Array.isArray(engine?.categories) &&
+        engine.categories.includes('general') &&
+        engine.categories.includes('web')
+      )
+      .map((engine: any) => String(engine.name));
+    searxngEngineCache.set(baseUrl, { engines, timestamp: Date.now() });
+    return engines;
+  } catch (error) {
+    console.warn('[customProtocols] SearXNG 引擎自动发现失败，使用实例默认引擎:', error);
+    return [];
+  }
+}
+
+// 抓取结果页面全文，失败或内容为空时回退使用原始摘要（不丢弃结果）
+async function enrichResultsWithPageContent(results: WebSearchResult[]): Promise<WebSearchResult[]> {
+  const enriched = [...results];
+  const tasks = enriched.map((result, index) => async () => {
+    if (!/^https?:\/\//i.test(result.url)) return;
+    try {
+      const content = await fetchPageContent(result.url, FETCHED_CONTENT_LIMIT, CONTENT_FETCH_TIMEOUT);
+      if (content && content.trim().length > 0 && content !== '跳过此类型的链接') {
+        enriched[index] = {
+          ...result,
+          snippet: result.snippet ? `${result.snippet}\n\n页面内容摘要:\n${content}` : content
+        };
+      }
+    } catch (error) {
+      console.warn(`[customProtocols] 页面内容抓取失败，回退使用搜索摘要: ${result.url}`, error);
+    }
+  });
+  for (let i = 0; i < tasks.length; i += CONTENT_FETCH_BATCH_SIZE) {
+    await Promise.all(tasks.slice(i, i + CONTENT_FETCH_BATCH_SIZE).map((task) => task()));
+  }
+  return enriched;
+}
 
 /**
  * SearXNG 协议：GET {baseUrl}/search?q=...&format=json
@@ -34,22 +103,23 @@ const normalizeBaseUrl = (url: string): string => url.trim().replace(/\/+$/, '')
 const searxngAdapter: SearchProtocolAdapter = {
   id: 'searxng',
   isConfigured: (provider) => !!provider.apiHost?.trim(),
-  buildRequest: (provider, query, maxResults) => {
+  buildRequest: async (provider, query, maxResults) => {
     const baseUrl = normalizeBaseUrl(provider.apiHost || '');
     const params = new URLSearchParams({
       q: query,
       format: 'json',
       pageno: '1'
     });
-    if (provider.engines?.length) {
-      params.set('engines', provider.engines.join(','));
+    const headers = buildBasicAuthHeaders(provider);
+
+    const engines = provider.engines?.length
+      ? provider.engines
+      : await discoverSearxngEngines(baseUrl, headers);
+    if (engines.length) {
+      params.set('engines', engines.join(','));
     }
     void maxResults; // SearXNG 不支持每页数量参数，结果在 parseResponse 截断
 
-    const headers: Record<string, string> = {};
-    if (provider.basicAuthUsername && provider.basicAuthPassword) {
-      headers['Authorization'] = `Basic ${btoa(`${provider.basicAuthUsername}:${provider.basicAuthPassword}`)}`;
-    }
     return { url: `${baseUrl}/search?${params.toString()}`, method: 'GET', headers };
   },
   parseResponse: (data, provider, maxResults) => {
@@ -63,7 +133,9 @@ const searxngAdapter: SearchProtocolAdapter = {
       provider: provider.id,
       score: typeof item.score === 'number' ? item.score : undefined
     }));
-  }
+  },
+  enrichResults: (results, provider) =>
+    provider.fetchContent ? enrichResultsWithPageContent(results) : Promise.resolve(results)
 };
 
 /**
@@ -215,6 +287,7 @@ export const customProviderToConfig = (provider: WebSearchCustomProvider): WebSe
     apiHost: provider.baseUrl,
     basicAuthUsername: provider.basicAuthUsername,
     basicAuthPassword: provider.basicAuthPassword,
+    fetchContent: provider.fetchContent,
     protocol,
     customTemplate: protocol === 'custom-json' ? parseCustomJsonTemplate(provider.customTemplateJson) || undefined : undefined
   };
@@ -239,7 +312,8 @@ export async function executeProtocolSearch(
   if (!adapter.isConfigured(provider)) {
     throw new Error(`搜索提供商 ${provider.name} 配置不完整（协议: ${adapter.id}）`);
   }
-  const request = adapter.buildRequest(provider, query, maxResults);
+  const request = await adapter.buildRequest(provider, query, maxResults);
   const response = await searchHttpRequest(request);
-  return adapter.parseResponse(response.data, provider, maxResults);
+  const results = adapter.parseResponse(response.data, provider, maxResults);
+  return adapter.enrichResults ? adapter.enrichResults(results, provider) : results;
 }

@@ -100,6 +100,8 @@
         "protocolCustomJson": "Custom JSON template",
         "basicAuthUsername": "Basic Auth Username (optional)",
         "basicAuthPassword": "Basic Auth Password (optional)",
+        "fetchContent": "Fetch full page content",
+        "fetchContentDescription": "After searching, fetch the page content of each result for the model; falls back to the search snippet when fetching fails",
         "apiKeyOptional": "API Key (optional)",
         "template": "Request/Response Template (JSON)",
         "templateHelp": "Request template supports placeholders query, apiKey, maxResults (wrapped in double curly braces); response fields are mapped via dot paths",

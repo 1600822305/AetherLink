@@ -100,6 +100,8 @@
         "protocolCustomJson": "自定义 JSON 模板",
         "basicAuthUsername": "基础认证用户名（可选）",
         "basicAuthPassword": "基础认证密码（可选）",
+        "fetchContent": "抓取网页全文",
+        "fetchContentDescription": "搜索后抓取每条结果页面的正文内容喂给模型；抓取失败时自动回退使用搜索摘要",
         "apiKeyOptional": "API 密钥（可选）",
         "template": "请求/响应模板（JSON）",
         "templateHelp": "请求模板支持占位符 query、apiKey、maxResults（用双花括号包裹）；响应字段用点路径映射",

@@ -157,6 +157,7 @@ export interface WebSearchProviderConfig {
   basicAuthPassword?: string;
   contentLimit?: number;
   usingBrowser?: boolean;
+  fetchContent?: boolean; // 是否抓取搜索结果页面全文（失败回退摘要）
   // Cloudflare AI Search 特定配置
   accountId?: string;  // Cloudflare Account ID
   autoragName?: string; // AI Search (AutoRAG) 名称
@@ -214,6 +215,7 @@ export interface WebSearchCustomProvider {
   protocol?: CustomSearchProtocol; // 旧数据无此字段，按 searxng/tavily-compatible 推断
   basicAuthUsername?: string;
   basicAuthPassword?: string;
+  fetchContent?: boolean; // 是否抓取搜索结果页面全文（失败回退摘要）
   customTemplateJson?: string; // custom-json 协议的模板（JSON 字符串，便于持久化与编辑）
 }
 
