@@ -51,6 +51,7 @@ const handleSettingsBack = (pathname: string, navigate: (path: string) => void) 
     '/settings/skills': '/settings',
     '/settings/memory': '/settings',
     '/settings/context-condense': '/settings',
+    '/settings/vision-recognition': '/settings',
     '/settings/network-proxy': '/settings',
     
     // 开发者工具(三级页面) - 从关于我们进入
