@@ -396,15 +396,14 @@ const webSearchSlice = createSlice({
     // 🚀 强制刷新提供商列表
     refreshProviders: (state) => {
       const currentProviders = getDefaultProviders();
-      // 保留现有的API密钥配置
+      // 保留用户已有的全部配置（apiKey、accountId、autoragName、basicAuth 等），仅用默认值补全缺失字段
       state.providers = currentProviders.map(newProvider => {
         const existingProvider = state.providers.find(p => p.id === newProvider.id);
         if (existingProvider) {
           return {
             ...newProvider,
-            apiKey: existingProvider.apiKey || newProvider.apiKey,
-            basicAuthUsername: existingProvider.basicAuthUsername || newProvider.basicAuthUsername,
-            basicAuthPassword: existingProvider.basicAuthPassword || newProvider.basicAuthPassword
+            ...existingProvider,
+            name: newProvider.name
           };
         }
         return newProvider;

@@ -92,7 +92,7 @@ export function createWebSearchToolDefinition(
 该工具已根据对话上下文配置了搜索参数：
 - 预设查询: ${preparedQueries}${linksInfo}
 
-你可以直接使用预设查询进行搜索，或者提供 additionalContext 来优化或替换搜索词。
+你可以直接使用预设查询进行搜索，或者提供 additionalContext 来补充增强搜索词。
 
 使用场景：
 - 用户询问实时信息（天气、新闻、股票等）
@@ -147,11 +147,14 @@ export async function executeWebSearch(
     // 🚀 确定最终的搜索查询列表
     let searchQueries: string[] = [];
     
-    // 优先使用 AI 提供的额外上下文
-    if (input.additionalContext?.trim()) {
-      searchQueries = [input.additionalContext.trim()];
-    } else if (input.query?.trim()) {
-      searchQueries = [input.query.trim()];
+    // additionalContext 用于增强查询，而非替换
+    const query = input.query?.trim();
+    const additionalContext = input.additionalContext?.trim();
+
+    if (query) {
+      searchQueries = [additionalContext ? `${query} ${additionalContext}` : query];
+    } else if (additionalContext) {
+      searchQueries = [additionalContext];
     } else if (extractedKeywords?.question?.length) {
       // 使用预提取的多个关键词
       searchQueries = extractedKeywords.question.filter(q => q && q !== 'not_needed');

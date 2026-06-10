@@ -13,17 +13,10 @@ import { buildCorsProxyRequestUrl } from '../../utils/universalFetch';
  * 增强版网络搜索服务
  * 支持最佳实例的所有搜索提供商，包括API提供商和本地搜索引擎
  */
+// 需要 API 密钥才能工作的付费提供商
+const API_KEY_REQUIRED_PROVIDERS = ['tavily', 'exa', 'bocha', 'firecrawl'];
+
 class EnhancedWebSearchService {
-  private isPaused: boolean = false;
-
-  /**
-   * 创建中止信号
-   */
-  createAbortSignal(_key: string) {
-    const controller = new AbortController();
-    return controller;
-  }
-
   /**
    * 获取当前网络搜索状态
    */
@@ -50,6 +43,11 @@ class EnhancedWebSearchService {
     // Cloudflare AI Search 需要 API 密钥、Account ID 和 AutoRAG 名称
     if (provider.id === 'cloudflare-ai-search') {
       return !!(provider.apiKey && provider.accountId && provider.autoragName);
+    }
+
+    // 付费提供商必须配置 API 密钥，不能回退到预置的 apiHost
+    if (API_KEY_REQUIRED_PROVIDERS.includes(provider.id)) {
+      return !!provider.apiKey;
     }
 
     // 检查API密钥
@@ -89,8 +87,9 @@ class EnhancedWebSearchService {
   ): Promise<WebSearchProviderResponse> {
     const websearch = this.getWebSearchState();
 
+    // bing-free 是 HTML 抓取引擎，时间前缀会污染字面查询词（其时效性由 freshness 参数控制）
     let formattedQuery = query;
-    if (websearch.searchWithTime) {
+    if (websearch.searchWithTime && provider.id !== 'bing-free') {
       const today = new Date().toISOString().split('T')[0];
       formattedQuery = `today is ${today} \r\n ${query}`;
     }
@@ -185,14 +184,16 @@ class EnhancedWebSearchService {
       // 创建移动端兼容的Tavily客户端
       const tvly = tavily({ apiKey: provider.apiKey });
 
-      // 使用移动端SDK进行搜索 - 根据Tavily最佳实践优化
+      // 使用移动端SDK进行搜索，参数来自用户设置
+      const searchDepth = websearch.searchDepth || 'basic';
       const response = await tvly.search(query, {
-        searchDepth: 'advanced', // 🚀 使用高级搜索深度获得更高质量内容
-        includeAnswer: false,
+        searchDepth,
+        includeAnswer: websearch.includeAnswer ?? false,
         includeImages: false,
-        includeRawContent: true, // 🚀 启用原始内容提取，避免内容截断
-        maxResults: Math.min(websearch.maxResults || 5, 10), // 🚀 限制在10以内，提高相关性
-        chunksPerSource: 3, // 🚀 每个源返回3个内容块，提高内容质量
+        includeRawContent: websearch.includeRawContent ?? false,
+        maxResults: Math.min(websearch.maxResults || 5, 10), // 限制在10以内，提高相关性
+        // chunksPerSource 仅在 advanced 深度下生效
+        ...(searchDepth === 'advanced' ? { chunksPerSource: websearch.chunksPerSource || 3 } : {}),
         excludeDomains: websearch.excludeDomains || []
       });
 
@@ -410,7 +411,7 @@ class EnhancedWebSearchService {
         // Web端使用通用 CORS 代理
         console.log('[EnhancedWebSearchService] Web端使用 CORS 代理请求 Bocha API');
         
-        const bochaApiUrl = 'https://api.bocha.ai/v1/web-search';
+        const bochaApiUrl = 'https://api.bochaai.com/v1/web-search';
         const proxyUrl = buildCorsProxyRequestUrl(bochaApiUrl);
 
         response = await fetch(proxyUrl, {
@@ -711,16 +712,12 @@ class EnhancedWebSearchService {
    * 使用SEARCHING状态执行搜索
    */
   public async searchWithStatus(query: string, topicId: string, messageId: string): Promise<WebSearchResult[]> {
-    try {
-      // 设置消息状态为SEARCHING
-      store.dispatch(newMessagesActions.updateMessageStatus({
-        topicId,
-        messageId,
-        status: AssistantMessageStatus.SEARCHING
-      }));
+    const updateStatus = (status: AssistantMessageStatus) => {
+      store.dispatch(newMessagesActions.updateMessageStatus({ topicId, messageId, status }));
+    };
 
-      // 创建中止控制器
-      this.createAbortSignal(messageId);
+    try {
+      updateStatus(AssistantMessageStatus.SEARCHING);
 
       // 获取当前选择的提供商
       const websearch = this.getWebSearchState();
@@ -732,17 +729,11 @@ class EnhancedWebSearchService {
 
       // 执行搜索
       const response = await this.search(provider, query);
+      updateStatus(AssistantMessageStatus.SUCCESS);
       return response.results;
-
-    } finally {
-      // 如果没有被中止，更新消息状态为SUCCESS
-      if (!this.isPaused) {
-        store.dispatch(newMessagesActions.updateMessageStatus({
-          topicId,
-          messageId,
-          status: AssistantMessageStatus.SUCCESS
-        }));
-      }
+    } catch (error) {
+      updateStatus(AssistantMessageStatus.ERROR);
+      throw error;
     }
   }
 
