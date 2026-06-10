@@ -82,6 +82,7 @@ const ThemeStyleSettings = lazy(() => import('../pages/Settings/ThemeStyleSettin
 // 导入Notion设置页面
 const NotionSettings = lazy(() => import('../pages/Settings/NotionSettings'));
 const NetworkProxySettings = lazy(() => import('../pages/Settings/NetworkProxySettings'));
+const VisionRecognitionSettings = lazy(() => import('../pages/Settings/VisionRecognitionSettings'));
 // 导入记忆设置页面
 const MemorySettings = lazy(() => import('../pages/Settings/MemorySettings'));
 const SkillsSettings = lazy(() => import('../pages/Settings/SkillsSettings'));
@@ -195,6 +196,7 @@ const AppRouter: React.FC = () => {
         <Route path="/settings/skills" element={<SkillsSettings />} />
         <Route path="/settings/skills/:skillId" element={<SkillEditor />} />
         <Route path="/settings/web-search" element={<WebSearchSettings />} />
+        <Route path="/settings/vision-recognition" element={<VisionRecognitionSettings />} />
         <Route path="/settings/mcp-server" element={<MCPServerSettings />} />
         <Route path="/settings/mcp-server/:serverId" element={<MCPServerDetail />} />
         <Route path="/settings/mcp-assistant/:serverId" element={<MCPAssistantDetail />} />

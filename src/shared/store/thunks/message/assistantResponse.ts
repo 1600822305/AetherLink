@@ -9,7 +9,7 @@ import { messageBlockRepository } from '../../../services/messages/MessageBlockR
 import { createAbortController } from '../../../utils/abortController';
 import { newMessagesActions } from '../../slices/newMessagesSlice';
 import { prepareMessagesForApi, performKnowledgeSearchIfNeeded } from './apiPreparation';
-import { assertModelSupportsApiMessages } from './apiMessageValidation';
+import { applyVisionFallbackIfNeeded } from '../../../services/vision/VisionRecognitionService';
 import { extractAndSaveMemories, isAutoAnalyzeEnabled, isMemoryAllowedForAssistant } from './memoryIntegration';
 import { getMainTextContent } from '../../../utils/blockUtils';
 import { dexieStorage } from '../../../services/storage/DexieStorageService';
@@ -289,7 +289,8 @@ export const processAssistantResponse = async (
           responseHandler
         });
       } else {
-        assertModelSupportsApiMessages(model, apiMessages);
+        // 含图且模型不支持视觉时：已启用视觉识别则先用视觉模型分析图片并改写消息，否则报错
+        const finalApiMessages = await applyVisionFallbackIfNeeded(model, apiMessages, abortController.signal);
 
         // 文本生成
         response = await handleTextGeneration({
@@ -297,7 +298,7 @@ export const processAssistantResponse = async (
           topicId,
           model,
           mcpTools,
-          apiMessages,
+          apiMessages: finalApiMessages,
           filteredOriginalMessages,
           responseHandler,
           abortController,

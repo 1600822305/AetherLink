@@ -49,6 +49,10 @@
       "title": "网络搜索",
       "description": "配置网络搜索和相关服务"
     },
+    "visionRecognition": {
+      "title": "视觉识别",
+      "description": "让不支持视觉的模型也能理解图片"
+    },
     "mcpServer": {
       "title": "MCP 服务器",
       "description": "高级服务器配置"

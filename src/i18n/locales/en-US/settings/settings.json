@@ -49,6 +49,10 @@
       "title": "Web Search",
       "description": "Configure web search and related services"
     },
+    "visionRecognition": {
+      "title": "Vision Recognition",
+      "description": "Let non-vision models understand images"
+    },
     "mcpServer": {
       "title": "MCP Server",
       "description": "Advanced server configuration"

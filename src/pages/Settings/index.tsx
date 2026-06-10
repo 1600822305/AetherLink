@@ -22,6 +22,7 @@ import {
   Shield as ShieldIcon,
   LayoutGrid as CompactIcon,
   List as DetailedIcon,
+  Eye as EyeIcon,
 } from 'lucide-react';
 import { IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -202,6 +203,14 @@ const SettingsPage: React.FC = () => {
           icon: <LanguageIcon size={24} />,
           path: '/settings/web-search',
           onClick: () => navigateTo('/settings/web-search'),
+        },
+        {
+          id: 'vision-recognition',
+          title: t('settings.items.visionRecognition.title', '视觉识别'),
+          description: t('settings.items.visionRecognition.description', '让不支持视觉的模型也能理解图片'),
+          icon: <EyeIcon size={24} />,
+          path: '/settings/vision-recognition',
+          onClick: () => navigateTo('/settings/vision-recognition'),
         },
         {
           id: 'mcp-server',
