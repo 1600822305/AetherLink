@@ -49,8 +49,11 @@ export function startAgenticLoop(topicId: string): void {
 
 /**
  * 收集消息的工具调用结果
+ *
+ * 消息块跨迭代累积，因此通过 consumedBlockIds 只收集本轮新产生的工具块，
+ * 已收集过的块会被记入该集合，避免旧结果在后续迭代被重复发回 AI。
  */
-export async function collectToolResults(messageId: string): Promise<ToolCallResultInfo[]> {
+export async function collectToolResults(messageId: string, consumedBlockIds?: Set<string>): Promise<ToolCallResultInfo[]> {
   const state = store.getState();
   const message = state.messages.entities[messageId];
 
@@ -58,12 +61,17 @@ export async function collectToolResults(messageId: string): Promise<ToolCallRes
     return [];
   }
 
-  // 获取所有工具块
+  // 获取尚未消费过的工具块
   const toolBlocks = message.blocks
+    .filter((blockId: string) => !consumedBlockIds?.has(blockId))
     .map((blockId: string) => state.messageBlocks.entities[blockId])
     .filter((block: MessageBlock | undefined): block is ToolMessageBlock =>
       block?.type === MessageBlockType.TOOL
     );
+
+  if (consumedBlockIds) {
+    toolBlocks.forEach((block) => consumedBlockIds.add(block.id));
+  }
 
   // 提取结果
   return toolBlocks.map((block: ToolMessageBlock) => ({
@@ -361,8 +369,11 @@ export function hasReachedMistakeLimit(): boolean {
 
 /**
  * 获取 AI 回复的文本内容（用于添加到消息历史）
+ *
+ * 与 collectToolResults 相同，通过 consumedBlockIds 只取本轮新产生的文本/思考块，
+ * 避免旧轮次的回复内容被重复拼接进消息历史。
  */
-export async function getAssistantResponseContent(messageId: string): Promise<string> {
+export async function getAssistantResponseContent(messageId: string, consumedBlockIds?: Set<string>): Promise<string> {
   const state = store.getState();
   const message = state.messages.entities[messageId];
 
@@ -370,12 +381,19 @@ export async function getAssistantResponseContent(messageId: string): Promise<st
     return '';
   }
 
-  // 获取所有文本块的内容
-  const textContent = message.blocks
+  // 获取尚未消费过的文本/思考块内容
+  const consumableBlocks = message.blocks
+    .filter((blockId: string) => !consumedBlockIds?.has(blockId))
     .map((blockId: string) => state.messageBlocks.entities[blockId])
-    .filter((block: MessageBlock | undefined): block is MessageBlock => 
+    .filter((block: MessageBlock | undefined): block is MessageBlock =>
       block?.type === MessageBlockType.MAIN_TEXT || block?.type === MessageBlockType.THINKING
-    )
+    );
+
+  if (consumedBlockIds) {
+    consumableBlocks.forEach((block) => consumedBlockIds.add(block.id));
+  }
+
+  const textContent = consumableBlocks
     .map((block: MessageBlock) => {
       // 安全地获取 content 属性
       if ('content' in block && typeof block.content === 'string') {

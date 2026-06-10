@@ -103,6 +103,9 @@ async function handleTextGeneration(context: {
   let shouldContinueLoopFlag = true;
   let response: any;
 
+  // 跨迭代记录已消费的消息块，保证每轮只把本轮新产生的工具结果/回复文本发回 AI
+  const consumedBlockIds = new Set<string>();
+
   while (shouldContinueLoopFlag) {
     processAgenticIteration();
 
@@ -127,7 +130,7 @@ async function handleTextGeneration(context: {
     }
 
     // 收集工具调用结果
-    const toolResults = await collectToolResults(assistantMessage.id);
+    const toolResults = await collectToolResults(assistantMessage.id, consumedBlockIds);
     console.log(`[Agentic] 收集到 ${toolResults.length} 个工具结果`);
 
     if (toolResults.length === 0) {
@@ -142,7 +145,7 @@ async function handleTextGeneration(context: {
       }
 
       // 获取 AI 的回复内容，添加到消息历史
-      const assistantContent = await getAssistantResponseContent(assistantMessage.id);
+      const assistantContent = await getAssistantResponseContent(assistantMessage.id, consumedBlockIds);
       if (assistantContent) {
         const assistantMsg = buildAssistantMessage(assistantContent, isActualGeminiProvider);
         currentMessagesToSend = [...currentMessagesToSend, assistantMsg];
@@ -177,7 +180,7 @@ async function handleTextGeneration(context: {
     // 🔧 关键修复：先添加 AI 的 assistant 消息（包含工具调用），再添加工具结果
     // 参考 Roo-Code: Task.ts 第 2981-2987 行
     // 这样 AI 才能看到自己之前调用了什么工具，避免"失忆"问题
-    const assistantContent = await getAssistantResponseContent(assistantMessage.id);
+    const assistantContent = await getAssistantResponseContent(assistantMessage.id, consumedBlockIds);
     if (assistantContent) {
       const assistantMsg = buildAssistantMessage(assistantContent, isActualGeminiProvider);
       currentMessagesToSend = [...currentMessagesToSend, assistantMsg];
