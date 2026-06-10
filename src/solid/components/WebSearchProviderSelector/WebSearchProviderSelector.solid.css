@@ -111,11 +111,18 @@
   background-color: var(--theme-hover-bg);
 }
 
-/* 对话框内容 */
+/* 对话框内容：整体不滚动，只有提供商列表内部滚动 */
 .solid-wsp-dialog-content {
   padding: 8px 16px 16px;
-  overflow-y: auto;
+  overflow: hidden;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.solid-wsp-dialog-content > *:not(.solid-wsp-provider-list) {
+  flex-shrink: 0;
 }
 
 .solid-wsp-dialog.fullscreen .solid-wsp-dialog-content {
@@ -137,9 +144,10 @@
   padding: 4px 12px 8px;
 }
 
-/* 搜索提供商列表：限制高度，列表内部滚动 */
+/* 搜索提供商列表：自适应占满剩余空间，超出时列表内部滚动 */
 .solid-wsp-provider-list {
-  max-height: 280px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
