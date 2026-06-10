@@ -16,7 +16,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../shared/store';
 import { setPasteLongTextAsFile, setPasteLongTextThreshold } from '../../../shared/store/settingsSlice';
 import OptimizedCollapse from './OptimizedCollapse';
-import { collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, createExpandToggleHandler } from './scrollOptimization';
 
 /**
  * 输入设置组件
@@ -60,7 +60,7 @@ export default function InputSettings() {
       {/* 输入设置标题行 */}
       <ListItem
         component="div"
-        onClick={() => setExpanded(!expanded)}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText

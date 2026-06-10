@@ -119,6 +119,63 @@ export const createOptimizedClickHandler = (
 };
 
 /**
+ * 查找最近的可滚动祖先容器
+ */
+const getScrollContainer = (el: HTMLElement): HTMLElement | null => {
+  let parent = el.parentElement;
+  while (parent) {
+    const { overflowY } = window.getComputedStyle(parent);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return null;
+};
+
+/**
+ * 展开折叠项后，将标题滚动到可视区域顶部
+ * 仅当展开内容超出可视区域时才滚动
+ */
+export const scrollToExpandedHeader = (headerEl: HTMLElement | null, delay = 200) => {
+  if (!headerEl) return;
+  setTimeout(() => {
+    const container = getScrollContainer(headerEl);
+    if (!container) {
+      headerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const headerRect = headerEl.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const content = headerEl.nextElementSibling as HTMLElement | null;
+    const contentBottom = content ? content.getBoundingClientRect().bottom : headerRect.bottom;
+    const headerAbove = headerRect.top < containerRect.top;
+    const overflowsBelow = contentBottom > containerRect.bottom;
+    if (headerAbove || overflowsBelow) {
+      container.scrollTo({
+        top: container.scrollTop + headerRect.top - containerRect.top - 8,
+        behavior: 'smooth'
+      });
+    }
+  }, delay);
+};
+
+/**
+ * 折叠分组标题的点击处理器：切换展开状态，展开时自动滚动到标题
+ */
+export const createExpandToggleHandler = (
+  expanded: boolean,
+  setExpanded: (value: boolean) => void
+) => {
+  return (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    const next = !expanded;
+    setExpanded(next);
+    if (next) scrollToExpandedHeader(e.currentTarget);
+  };
+};
+
+/**
  * 防止滚动时意外触发的开关处理器
  */
 export const createOptimizedSwitchHandler = (

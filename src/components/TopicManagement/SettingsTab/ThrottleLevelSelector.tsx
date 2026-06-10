@@ -20,7 +20,7 @@ import {
   type ThrottleLevel
 } from '../../../shared/utils/performanceSettings';
 import OptimizedCollapse from './OptimizedCollapse';
-import { collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, createExpandToggleHandler } from './scrollOptimization';
 
 /**
  * 节流强度选择器组件
@@ -84,7 +84,7 @@ export default function ThrottleLevelSelector() {
       {/* 可折叠的标题栏 */}
       <ListItem
         component="div"
-        onClick={() => setExpanded(!expanded)}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText

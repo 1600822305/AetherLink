@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import SettingItem from './SettingItem';
-import { createOptimizedClickHandler, collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, scrollToExpandedHeader } from './scrollOptimization';
 import OptimizedCollapse from './OptimizedCollapse';
 
 interface Setting {
@@ -72,7 +72,12 @@ export default function SettingGroups({ groups, onSettingChange }: SettingGroups
           {/* 可折叠的分组标题栏 */}
           <ListItem
             component="div"
-            onClick={createOptimizedClickHandler(() => toggleGroup(group.id))}
+            onClick={(e) => {
+              e.stopPropagation();
+              const willExpand = !expandedGroups[group.id];
+              toggleGroup(group.id);
+              if (willExpand) scrollToExpandedHeader(e.currentTarget);
+            }}
             sx={collapsibleHeaderStyle(expandedGroups[group.id])}
           >
             <ListItemText
