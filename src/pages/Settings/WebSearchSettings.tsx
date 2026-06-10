@@ -28,7 +28,9 @@ import type { SelectChangeEvent } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Plus as AddIcon, Trash2 as DeleteIcon, Edit as EditIcon, Info as InfoOutlinedIcon, Key as KeyIcon, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { WebSearchProvider, WebSearchCustomProvider } from '../../shared/types';
+import type { WebSearchProvider, WebSearchCustomProvider, CustomSearchProtocol } from '../../shared/types';
+import EnhancedWebSearchService from '../../shared/services/webSearch/EnhancedWebSearchService';
+import { customProviderToConfig, parseCustomJsonTemplate, getCustomProviderProtocol } from '../../shared/services/webSearch/customProtocols';
 import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from '../../i18n';
 import { SafeAreaContainer, Container, HeaderBar, YStack, SettingGroup, Row } from '../../components/settings/SettingComponents';
@@ -95,6 +97,7 @@ const WebSearchSettings: React.FC = () => {
   const [editingProvider, setEditingProvider] = useState<WebSearchCustomProvider | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [testState, setTestState] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; error?: string }>({ status: 'idle' });
 
   // 获取提供商状态配置
   const getProviderStatusConfig = (providerId: string) => {
@@ -147,15 +150,18 @@ const WebSearchSettings: React.FC = () => {
       name: t('settings.webSearch.basic.customProviders.newName'),
       apiKey: '',
       baseUrl: '',
-      enabled: true
+      enabled: true,
+      protocol: 'searxng'
     };
 
+    setTestState({ status: 'idle' });
     setEditingProvider(newProvider);
     setIsEditing(true);
   };
 
   const handleEditProvider = (provider: WebSearchCustomProvider) => {
-    setEditingProvider({...provider});
+    setTestState({ status: 'idle' });
+    setEditingProvider({ ...provider, protocol: getCustomProviderProtocol(provider) });
     setIsEditing(true);
   };
 
@@ -184,10 +190,28 @@ const WebSearchSettings: React.FC = () => {
   const handleProviderFieldChange = (field: keyof WebSearchCustomProvider, value: string | boolean) => {
     if (!editingProvider) return;
 
+    setTestState({ status: 'idle' });
     setEditingProvider(prev => ({
       ...prev!,
       [field]: value
     }));
+  };
+
+  const editingProtocol: CustomSearchProtocol = editingProvider?.protocol || 'searxng';
+  const editingTemplateInvalid =
+    editingProtocol === 'custom-json' &&
+    !!editingProvider?.customTemplateJson?.trim() &&
+    !parseCustomJsonTemplate(editingProvider.customTemplateJson);
+
+  const handleTestProvider = async () => {
+    if (!editingProvider) return;
+    setTestState({ status: 'testing' });
+    const result = await EnhancedWebSearchService.checkSearch(customProviderToConfig(editingProvider));
+    if (result.valid) {
+      setTestState({ status: 'success' });
+    } else {
+      setTestState({ status: 'error', error: result.error?.message || String(result.error || '') });
+    }
   };
 
   // 🚀 新增：Tavily最佳实践相关处理函数
@@ -957,23 +981,88 @@ const WebSearchSettings: React.FC = () => {
                 size="small"
               />
 
-              <TextField
-                fullWidth
-                label={t('settings.webSearch.basic.editDialog.baseUrl')}
-                value={editingProvider.baseUrl}
-                onChange={(e) => handleProviderFieldChange('baseUrl', e.target.value)}
-                placeholder={t('settings.webSearch.basic.editDialog.baseUrlPlaceholder')}
-                size="small"
-              />
+              <FormControl size="small" fullWidth>
+                <Select
+                  value={editingProtocol}
+                  onChange={(e) => handleProviderFieldChange('protocol', e.target.value)}
+                  MenuProps={{ disableAutoFocus: true, disableRestoreFocus: true }}
+                >
+                  <MenuItem value="searxng">{t('settings.webSearch.basic.editDialog.protocolSearxng')}</MenuItem>
+                  <MenuItem value="tavily-compatible">{t('settings.webSearch.basic.editDialog.protocolTavilyCompatible')}</MenuItem>
+                  <MenuItem value="custom-json">{t('settings.webSearch.basic.editDialog.protocolCustomJson')}</MenuItem>
+                </Select>
+              </FormControl>
 
-              <TextField
-                fullWidth
-                label={t('settings.webSearch.basic.editDialog.apiKey')}
-                type="password"
-                value={editingProvider.apiKey}
-                onChange={(e) => handleProviderFieldChange('apiKey', e.target.value)}
-                size="small"
-              />
+              {editingProtocol !== 'custom-json' && (
+                <TextField
+                  fullWidth
+                  label={t('settings.webSearch.basic.editDialog.baseUrl')}
+                  value={editingProvider.baseUrl}
+                  onChange={(e) => handleProviderFieldChange('baseUrl', e.target.value)}
+                  placeholder={editingProtocol === 'searxng'
+                    ? t('settings.webSearch.basic.editDialog.searxngBaseUrlPlaceholder')
+                    : t('settings.webSearch.basic.editDialog.baseUrlPlaceholder')}
+                  size="small"
+                />
+              )}
+
+              {editingProtocol !== 'searxng' && (
+                <TextField
+                  fullWidth
+                  label={editingProtocol === 'custom-json'
+                    ? t('settings.webSearch.basic.editDialog.apiKeyOptional')
+                    : t('settings.webSearch.basic.editDialog.apiKey')}
+                  type="password"
+                  value={editingProvider.apiKey}
+                  onChange={(e) => handleProviderFieldChange('apiKey', e.target.value)}
+                  size="small"
+                />
+              )}
+
+              {editingProtocol === 'searxng' && (
+                <>
+                  <TextField
+                    fullWidth
+                    label={t('settings.webSearch.basic.editDialog.basicAuthUsername')}
+                    value={editingProvider.basicAuthUsername || ''}
+                    onChange={(e) => handleProviderFieldChange('basicAuthUsername', e.target.value)}
+                    size="small"
+                  />
+                  <TextField
+                    fullWidth
+                    label={t('settings.webSearch.basic.editDialog.basicAuthPassword')}
+                    type="password"
+                    value={editingProvider.basicAuthPassword || ''}
+                    onChange={(e) => handleProviderFieldChange('basicAuthPassword', e.target.value)}
+                    size="small"
+                  />
+                </>
+              )}
+
+              {editingProtocol === 'custom-json' && (
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={8}
+                  label={t('settings.webSearch.basic.editDialog.template')}
+                  value={editingProvider.customTemplateJson || ''}
+                  onChange={(e) => handleProviderFieldChange('customTemplateJson', e.target.value)}
+                  error={editingTemplateInvalid}
+                  helperText={editingTemplateInvalid
+                    ? t('settings.webSearch.basic.editDialog.templateInvalid')
+                    : t('settings.webSearch.basic.editDialog.templateHelp')}
+                  placeholder={'{\n  "request": {\n    "url": "https://api.example.com/search?q={{query}}",\n    "method": "GET",\n    "headers": { "Authorization": "Bearer {{apiKey}}" }\n  },\n  "response": {\n    "resultsPath": "data.items",\n    "fields": { "title": "name", "url": "link", "snippet": "summary" }\n  }\n}'}
+                  size="small"
+                  slotProps={{ htmlInput: { style: { fontFamily: 'monospace', fontSize: '0.8rem' } } }}
+                />
+              )}
+
+              {testState.status === 'success' && (
+                <Alert severity="success">{t('settings.webSearch.basic.editDialog.testSuccess')}</Alert>
+              )}
+              {testState.status === 'error' && (
+                <Alert severity="error">{t('settings.webSearch.basic.editDialog.testFailed', { error: testState.error })}</Alert>
+              )}
 
               <FormControlLabel
                 control={
@@ -987,6 +1076,14 @@ const WebSearchSettings: React.FC = () => {
             </Box>
           </DialogContent>
           <DialogActions>
+            <Button
+              onClick={handleTestProvider}
+              disabled={testState.status === 'testing' || editingTemplateInvalid}
+            >
+              {testState.status === 'testing'
+                ? t('settings.webSearch.basic.editDialog.testing')
+                : t('settings.webSearch.basic.editDialog.test')}
+            </Button>
             <Button onClick={handleCancelEdit}>{t('settings.webSearch.basic.editDialog.cancel')}</Button>
             <Button
               variant="contained"

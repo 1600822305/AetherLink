@@ -5,9 +5,8 @@ import store from '../../store';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { bingFreeSearchService } from './BingFreeSearchService';
-import { Capacitor } from '@capacitor/core';
-import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
-import { buildCorsProxyRequestUrl } from '../../utils/universalFetch';
+import { searchHttpRequest } from './httpClient';
+import { customProviderToConfig, isCustomProviderConfigured, executeProtocolSearch } from './customProtocols';
 
 /**
  * 增强版网络搜索服务
@@ -28,10 +27,15 @@ class EnhancedWebSearchService {
    * 检查网络搜索功能是否启用
    */
   public isWebSearchEnabled(providerId?: string): boolean {
-    const { providers } = this.getWebSearchState();
+    const { providers, customProviders } = this.getWebSearchState();
     const provider = providers.find((provider) => provider.id === providerId);
 
     if (!provider) {
+      // 自定义提供商：由对应协议适配器判断配置是否完整
+      const customProvider = (customProviders || []).find((p) => p.id === providerId);
+      if (customProvider) {
+        return customProvider.enabled && isCustomProviderConfigured(customProvider);
+      }
       return false;
     }
 
@@ -72,9 +76,14 @@ class EnhancedWebSearchService {
    * 获取网络搜索提供商
    */
   public getWebSearchProvider(providerId?: string): WebSearchProviderConfig | undefined {
-    const { providers } = this.getWebSearchState();
+    const { providers, customProviders } = this.getWebSearchState();
     const provider = providers.find((provider) => provider.id === providerId);
-    return provider;
+    if (provider) {
+      return provider;
+    }
+    // 自定义提供商映射为统一配置，走与内置提供商相同的执行管线
+    const customProvider = (customProviders || []).find((p) => p.id === providerId);
+    return customProvider ? customProviderToConfig(customProvider) : undefined;
   }
 
   /**
@@ -107,8 +116,11 @@ class EnhancedWebSearchService {
         return await this.firecrawlSearch(provider, formattedQuery, websearch);
       case 'cloudflare-ai-search':
         return await this.cloudflareAiSearch(provider, formattedQuery, websearch);
-      default:
-        throw new Error(`不支持的搜索提供商: ${provider.id}`);
+      default: {
+        // 自定义提供商：通过协议适配器执行（searxng / tavily-compatible / custom-json）
+        const results = await executeProtocolSearch(provider, formattedQuery, websearch.maxResults || 10);
+        return { results };
+      }
     }
   }
 
@@ -273,74 +285,27 @@ class EnhancedWebSearchService {
         }
       };
 
-      let response: any;
+      const { data } = await searchHttpRequest({
+        url: 'https://api.exa.ai/search',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': provider.apiKey
+        },
+        body: requestBody
+      });
 
-      if (Capacitor.isNativePlatform()) {
-        // 移动端使用 CorsBypass 插件直接请求 Exa API
-        console.log('[EnhancedWebSearchService] 移动端使用 CorsBypass 插件请求 Exa API');
+      const results: WebSearchResult[] = data.results?.map((result: any) => ({
+        id: uuidv4(),
+        title: result.title || '',
+        url: result.url || '',
+        snippet: result.text || '',
+        timestamp: new Date().toISOString(),
+        provider: 'exa'
+      })) || [];
 
-        response = await CorsBypass.request({
-          url: 'https://api.exa.ai/search',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': provider.apiKey
-          },
-          data: requestBody,
-          timeout: 30000,
-          responseType: 'json'
-        });
-
-        if (response.status >= 400) {
-          throw new Error(`Exa API error: ${response.status}`);
-        }
-
-        // CorsBypass 返回的数据结构
-        const data = response.data;
-        const results: WebSearchResult[] = data.results?.map((result: any) => ({
-          id: uuidv4(),
-          title: result.title || '',
-          url: result.url || '',
-          snippet: result.text || '',
-          timestamp: new Date().toISOString(),
-          provider: 'exa'
-        })) || [];
-
-        console.log(`[EnhancedWebSearchService] Exa搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      } else {
-        // Web端使用通用 CORS 代理
-        console.log('[EnhancedWebSearchService] Web端使用 CORS 代理请求 Exa API');
-        
-        const exaApiUrl = 'https://api.exa.ai/search';
-        const proxyUrl = buildCorsProxyRequestUrl(exaApiUrl);
-
-        response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': provider.apiKey
-          },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Exa API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const results: WebSearchResult[] = data.results?.map((result: any) => ({
-          id: uuidv4(),
-          title: result.title || '',
-          url: result.url || '',
-          snippet: result.text || '',
-          timestamp: new Date().toISOString(),
-          provider: 'exa'
-        })) || [];
-
-        console.log(`[EnhancedWebSearchService] Exa搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      }
+      console.log(`[EnhancedWebSearchService] Exa搜索完成，找到 ${results.length} 个结果`);
+      return { results };
     } catch (error: any) {
       console.error('[EnhancedWebSearchService] Exa搜索失败:', error);
       throw new Error(`Exa搜索失败: ${error.message}`);
@@ -370,78 +335,29 @@ class EnhancedWebSearchService {
         summary: false
       };
 
-      let response: any;
+      const { data } = await searchHttpRequest({
+        url: 'https://api.bochaai.com/v1/web-search',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: requestBody
+      });
 
-      if (Capacitor.isNativePlatform()) {
-        // 移动端使用 CorsBypass 插件直接请求 Bocha API
-        console.log('[EnhancedWebSearchService] 移动端使用 CorsBypass 插件请求 Bocha API');
+      // 博查API返回的数据结构：data.data.webPages.value
+      const webPages = data.data?.webPages?.value || [];
+      const results: WebSearchResult[] = webPages.map((result: any) => ({
+        id: uuidv4(),
+        title: result.name || '',
+        url: result.url || '',
+        snippet: result.snippet || '',
+        timestamp: new Date().toISOString(),
+        provider: 'bocha'
+      }));
 
-        response = await CorsBypass.request({
-          url: 'https://api.bochaai.com/v1/web-search',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          data: requestBody,
-          timeout: 30000,
-          responseType: 'json'
-        });
-
-        if (response.status >= 400) {
-          throw new Error(`Bocha API error: ${response.status}`);
-        }
-
-        // CorsBypass 返回的数据结构
-        const data = response.data;
-        // 博查API返回的数据结构：data.data.webPages.value
-        const webPages = data.data?.webPages?.value || [];
-        const results: WebSearchResult[] = webPages.map((result: any) => ({
-          id: uuidv4(),
-          title: result.name || '',
-          url: result.url || '',
-          snippet: result.snippet || '',
-          timestamp: new Date().toISOString(),
-          provider: 'bocha'
-        }));
-
-        console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      } else {
-        // Web端使用通用 CORS 代理
-        console.log('[EnhancedWebSearchService] Web端使用 CORS 代理请求 Bocha API');
-        
-        const bochaApiUrl = 'https://api.bochaai.com/v1/web-search';
-        const proxyUrl = buildCorsProxyRequestUrl(bochaApiUrl);
-
-        response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Bocha API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        // 博查API返回的数据结构：data.data.webPages.value
-        const webPages = data.data?.webPages?.value || [];
-        const results: WebSearchResult[] = webPages.map((result: any) => ({
-          id: uuidv4(),
-          title: result.name || '',
-          url: result.url || '',
-          snippet: result.snippet || '',
-          timestamp: new Date().toISOString(),
-          provider: 'bocha'
-        }));
-
-        console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      }
+      console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
+      return { results };
     } catch (error: any) {
       console.error('[EnhancedWebSearchService] Bocha搜索失败:', error);
       throw new Error(`Bocha搜索失败: ${error.message}`);
@@ -468,76 +384,28 @@ class EnhancedWebSearchService {
         limit: websearch.maxResults || 10
       };
 
-      let response: any;
+      const { data } = await searchHttpRequest({
+        url: 'https://api.firecrawl.dev/v1/search',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: requestBody
+      });
 
-      if (Capacitor.isNativePlatform()) {
-        // 移动端使用 CorsBypass 插件直接请求 Firecrawl API
-        console.log('[EnhancedWebSearchService] 移动端使用 CorsBypass 插件请求 Firecrawl API');
+      const results: WebSearchResult[] = data.data?.map((result: any) => ({
+        id: uuidv4(),
+        title: result.metadata?.title || result.url || '',
+        url: result.url || '',
+        snippet: result.markdown?.substring(0, 200) || '',
+        timestamp: new Date().toISOString(),
+        provider: 'firecrawl',
+        content: result.markdown
+      })) || [];
 
-        response = await CorsBypass.request({
-          url: 'https://api.firecrawl.dev/v1/search',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          data: requestBody,
-          timeout: 30000,
-          responseType: 'json'
-        });
-
-        if (response.status >= 400) {
-          throw new Error(`Firecrawl API error: ${response.status}`);
-        }
-
-        // CorsBypass 返回的数据结构
-        const data = response.data;
-        const results: WebSearchResult[] = data.data?.map((result: any) => ({
-          id: uuidv4(),
-          title: result.metadata?.title || result.url || '',
-          url: result.url || '',
-          snippet: result.markdown?.substring(0, 200) || '',
-          timestamp: new Date().toISOString(),
-          provider: 'firecrawl',
-          content: result.markdown
-        })) || [];
-
-        console.log(`[EnhancedWebSearchService] Firecrawl搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      } else {
-        // Web端使用通用 CORS 代理
-        console.log('[EnhancedWebSearchService] Web端使用 CORS 代理请求 Firecrawl API');
-        
-        const firecrawlApiUrl = 'https://api.firecrawl.dev/v1/search';
-        const proxyUrl = buildCorsProxyRequestUrl(firecrawlApiUrl);
-
-        response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Firecrawl API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const results: WebSearchResult[] = data.data?.map((result: any) => ({
-          id: uuidv4(),
-          title: result.metadata?.title || result.url || '',
-          url: result.url || '',
-          snippet: result.markdown?.substring(0, 200) || '',
-          timestamp: new Date().toISOString(),
-          provider: 'firecrawl',
-          content: result.markdown
-        })) || [];
-
-        console.log(`[EnhancedWebSearchService] Firecrawl搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      }
+      console.log(`[EnhancedWebSearchService] Firecrawl搜索完成，找到 ${results.length} 个结果`);
+      return { results };
     } catch (error: any) {
       console.error('[EnhancedWebSearchService] Firecrawl搜索失败:', error);
       throw new Error(`Firecrawl搜索失败: ${error.message}`);
@@ -580,128 +448,55 @@ class EnhancedWebSearchService {
         }
       };
 
-      let response: any;
       const apiUrl = `https://api.cloudflare.com/client/v4/accounts/${provider.accountId}/autorag/rags/${provider.autoragName}/search`;
 
-      if (Capacitor.isNativePlatform()) {
-        // 移动端使用 CorsBypass 插件直接请求 Cloudflare API
-        console.log('[EnhancedWebSearchService] 移动端使用 CorsBypass 插件请求 Cloudflare AI Search API');
+      const { data } = await searchHttpRequest({
+        url: apiUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`
+        },
+        body: requestBody
+      });
 
-        response = await CorsBypass.request({
-          url: apiUrl,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          data: requestBody,
-          timeout: 30000,
-          responseType: 'json'
-        });
-
-        if (response.status >= 400) {
-          throw new Error(`Cloudflare AI Search API error: ${response.status}`);
-        }
-
-        // CorsBypass 返回的数据结构
-        const data = response.data;
-
-        // 处理 Cloudflare AI Search 响应
-        if (!data.success) {
-          throw new Error('Cloudflare AI Search API 返回失败状态');
-        }
-
-        const searchResults = data.result?.data || [];
-        const results: WebSearchResult[] = searchResults.map((result: any) => {
-          // 提取内容
-          const contentParts = result.content?.map((c: any) => c.text).filter(Boolean) || [];
-          const snippet = contentParts.join(' ').substring(0, 500);
-
-          // 使用 modified_date 作为时间戳（如果存在）
-          let timestamp = new Date().toISOString();
-          if (result.attributes?.modified_date) {
-            timestamp = new Date(result.attributes.modified_date).toISOString();
-          }
-
-          // 构建标题：优先使用文件名，包含文件夹信息
-          let title = result.filename || '无标题';
-          if (result.attributes?.folder) {
-            title = `${result.attributes.folder}${result.filename || ''}`;
-          }
-
-          return {
-            id: result.file_id || uuidv4(), // 使用官方提供的 file_id
-            title: title,
-            url: result.filename || '', // Cloudflare 返回文件名而非URL
-            snippet: snippet || '无内容',
-            timestamp: timestamp,
-            provider: 'cloudflare-ai-search',
-            score: result.score || 0,
-            content: contentParts.join('\n\n')
-          };
-        });
-
-        console.log(`[EnhancedWebSearchService] Cloudflare AI Search搜索完成，找到 ${results.length} 个结果`);
-        return { results };
-      } else {
-        // Web端使用通用 CORS 代理
-        console.log('[EnhancedWebSearchService] Web端使用 CORS 代理请求 Cloudflare AI Search API');
-        
-        const proxyUrl = buildCorsProxyRequestUrl(apiUrl);
-
-        response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${provider.apiKey}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Cloudflare AI Search API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // 处理 Cloudflare AI Search 响应
-        if (!data.success) {
-          throw new Error('Cloudflare AI Search API 返回失败状态');
-        }
-
-        const searchResults = data.result?.data || [];
-        const results: WebSearchResult[] = searchResults.map((result: any) => {
-          // 提取内容
-          const contentParts = result.content?.map((c: any) => c.text).filter(Boolean) || [];
-          const snippet = contentParts.join(' ').substring(0, 500);
-
-          // 使用 modified_date 作为时间戳（如果存在）
-          let timestamp = new Date().toISOString();
-          if (result.attributes?.modified_date) {
-            timestamp = new Date(result.attributes.modified_date).toISOString();
-          }
-
-          // 构建标题：优先使用文件名，包含文件夹信息
-          let title = result.filename || '无标题';
-          if (result.attributes?.folder) {
-            title = `${result.attributes.folder}${result.filename || ''}`;
-          }
-
-          return {
-            id: result.file_id || uuidv4(), // 使用官方提供的 file_id
-            title: title,
-            url: result.filename || '', // Cloudflare 返回文件名而非URL
-            snippet: snippet || '无内容',
-            timestamp: timestamp,
-            provider: 'cloudflare-ai-search',
-            score: result.score || 0,
-            content: contentParts.join('\n\n')
-          };
-        });
-
-        console.log(`[EnhancedWebSearchService] Cloudflare AI Search搜索完成，找到 ${results.length} 个结果`);
-        return { results };
+      // 处理 Cloudflare AI Search 响应
+      if (!data.success) {
+        throw new Error('Cloudflare AI Search API 返回失败状态');
       }
+
+      const searchResults = data.result?.data || [];
+      const results: WebSearchResult[] = searchResults.map((result: any) => {
+        // 提取内容
+        const contentParts = result.content?.map((c: any) => c.text).filter(Boolean) || [];
+        const snippet = contentParts.join(' ').substring(0, 500);
+
+        // 使用 modified_date 作为时间戳（如果存在）
+        let timestamp = new Date().toISOString();
+        if (result.attributes?.modified_date) {
+          timestamp = new Date(result.attributes.modified_date).toISOString();
+        }
+
+        // 构建标题：优先使用文件名，包含文件夹信息
+        let title = result.filename || '无标题';
+        if (result.attributes?.folder) {
+          title = `${result.attributes.folder}${result.filename || ''}`;
+        }
+
+        return {
+          id: result.file_id || uuidv4(), // 使用官方提供的 file_id
+          title: title,
+          url: result.filename || '', // Cloudflare 返回文件名而非URL
+          snippet: snippet || '无内容',
+          timestamp: timestamp,
+          provider: 'cloudflare-ai-search',
+          score: result.score || 0,
+          content: contentParts.join('\n\n')
+        };
+      });
+
+      console.log(`[EnhancedWebSearchService] Cloudflare AI Search搜索完成，找到 ${results.length} 个结果`);
+      return { results };
     } catch (error: any) {
       console.error('[EnhancedWebSearchService] Cloudflare AI Search搜索失败:', error);
       throw new Error(`Cloudflare AI Search搜索失败: ${error.message}`);

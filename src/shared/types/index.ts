@@ -117,7 +117,30 @@ export interface GeneratedImage {
 }
 
 // 网络搜索提供商类型 - 包含免费和收费API服务
-export type WebSearchProvider = 'bing-free' | 'tavily' | 'exa' | 'bocha' | 'firecrawl' | 'cloudflare-ai-search' | 'custom';
+export type WebSearchProvider = 'bing-free' | 'tavily' | 'exa' | 'bocha' | 'firecrawl' | 'cloudflare-ai-search' | 'custom' | (string & {});
+
+// 自定义搜索提供商协议类型
+export type CustomSearchProtocol = 'searxng' | 'tavily-compatible' | 'custom-json';
+
+// custom-json 协议的请求/响应模板
+// 请求模板支持占位符：{{query}} {{apiKey}} {{maxResults}}
+// 响应映射使用点路径（如 data.items）定位字段，不执行任何用户代码
+export interface CustomJsonTemplate {
+  request: {
+    url: string;
+    method?: 'GET' | 'POST';
+    headers?: Record<string, string>;
+    body?: any;
+  };
+  response: {
+    resultsPath: string;
+    fields: {
+      title: string;
+      url: string;
+      snippet: string;
+    };
+  };
+}
 
 // 搜索引擎类型 - 用于bing-free提供商
 export type SearchEngine = 'bing' | 'google' | 'baidu' | 'sogou' | 'yandex';
@@ -137,6 +160,9 @@ export interface WebSearchProviderConfig {
   // Cloudflare AI Search 特定配置
   accountId?: string;  // Cloudflare Account ID
   autoragName?: string; // AI Search (AutoRAG) 名称
+  // 自定义提供商：协议类型与 custom-json 模板
+  protocol?: CustomSearchProtocol;
+  customTemplate?: CustomJsonTemplate;
 }
 
 // 网络搜索设置
@@ -185,6 +211,10 @@ export interface WebSearchCustomProvider {
   apiKey: string;
   baseUrl: string;
   enabled: boolean;
+  protocol?: CustomSearchProtocol; // 旧数据无此字段，按 searxng/tavily-compatible 推断
+  basicAuthUsername?: string;
+  basicAuthPassword?: string;
+  customTemplateJson?: string; // custom-json 协议的模板（JSON 字符串，便于持久化与编辑）
 }
 
 // 网络搜索结果
