@@ -48,6 +48,7 @@ import memoryReducer, { initializeMemoryService } from './slices/memorySlice';
 import skillsReducer, { loadSkills } from './slices/skillsSlice';
 import knowledgeSelectionReducer from './slices/knowledgeSelectionSlice';
 import pdfPreprocessReducer, { initializePdfPreprocessSettings, setPdfPreprocessSettings } from './slices/pdfPreprocessSlice';
+import visionRecognitionReducer, { initializeVisionRecognitionSettings, setVisionRecognitionSettings } from './slices/visionRecognitionSlice';
 import { eventMiddleware } from './middleware/eventMiddleware';
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
@@ -69,6 +70,7 @@ const rootReducer = combineReducers({
   knowledgeSelection: knowledgeSelectionReducer,
   skills: skillsReducer,
   pdfPreprocess: pdfPreprocessReducer,
+  visionRecognition: visionRecognitionReducer,
 });
 
 // 配置Redux持久化
@@ -79,7 +81,7 @@ const persistConfig = {
   // 与电脑端保持一致，不持久化messages和messageBlocks
   // 同时排除assistants，因为它包含非序列化的React元素
   // 排除runtime，因为它包含运行时状态
-  blacklist: ['messages', 'messageBlocks', 'assistants', 'runtime', 'agenticFiles', 'knowledgeSelection', 'skills', 'pdfPreprocess'],
+  blacklist: ['messages', 'messageBlocks', 'assistants', 'runtime', 'agenticFiles', 'knowledgeSelection', 'skills', 'pdfPreprocess', 'visionRecognition'],
   // 🚀 性能优化：节流持久化写入，减少 localStorage 操作频率
   throttle: 1000, // 1秒内最多写入一次
   // 禁用 rehydrate 超时（timeout: 0 = falsy，不会触发 setTimeout）
@@ -141,6 +143,15 @@ initializePdfPreprocessSettings().then(settings => {
   }
 }).catch(error => {
   console.error('初始化 PDF 预处理设置失败:', error);
+});
+
+// 初始化视觉识别设置
+initializeVisionRecognitionSettings().then(settings => {
+  if (settings) {
+    store.dispatch(setVisionRecognitionSettings(settings));
+  }
+}).catch(error => {
+  console.error('初始化视觉识别设置失败:', error);
 });
 
 // 初始化网络代理设置，Capacitor 平台加载后自动恢复代理到插件
