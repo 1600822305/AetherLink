@@ -11,6 +11,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../../shared/store';
 import { getGlassmorphismToolbarStyles, getTransparentToolbarStyles } from '../../../shared/styles/toolbarStyles';
 import MCPServerQuickPanel from './MCPServerQuickPanel';
+import { getStorageItem } from '../../../shared/utils/storage';
 
 // 稳定的选择器函数，避免每次渲染创建新引用
 const selectToolbarDisplayStyle = (state: RootState) => 
@@ -67,27 +68,22 @@ const MCPToolsButtonInner: React.FC<MCPToolsButtonProps> = ({
 
 
 
-  // 技能状态（独立开关 + 有绑定技能）
+  // 技能状态（独立开关 + 有绑定技能，统一使用 Dexie 存储）
   const currentAssistant = useSelector((state: RootState) => state.assistants.currentAssistant);
-  const [skillsEnabled, setSkillsEnabled] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('skills-enabled') || 'false'); }
-    catch { return false; }
-  });
+  const [skillsEnabled, setSkillsEnabled] = useState(false);
+  const loadSkillsEnabled = useCallback(() => {
+    getStorageItem<boolean>('skills-enabled').then(val => setSkillsEnabled(val ?? false));
+  }, []);
   useEffect(() => {
-    const handler = () => {
-      try { setSkillsEnabled(JSON.parse(localStorage.getItem('skills-enabled') || 'false')); }
-      catch { setSkillsEnabled(false); }
-    };
+    loadSkillsEnabled();
+    const handler = () => loadSkillsEnabled();
     window.addEventListener('skills-enabled-changed', handler);
     return () => window.removeEventListener('skills-enabled-changed', handler);
-  }, []);
+  }, [loadSkillsEnabled]);
   // 刷新：面板关闭时同步
   useEffect(() => {
-    if (!open) {
-      try { setSkillsEnabled(JSON.parse(localStorage.getItem('skills-enabled') || 'false')); }
-      catch { setSkillsEnabled(false); }
-    }
-  }, [open]);
+    if (!open) loadSkillsEnabled();
+  }, [open, loadSkillsEnabled]);
   const hasSkills = skillsEnabled && !!(currentAssistant?.skillIds?.length);
 
   // MCP 激活状态：总开关开启即为激活

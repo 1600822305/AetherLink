@@ -15,14 +15,10 @@ import type { MCPTool } from '../../../../types';
  * @param hasSkills 助手是否绑定了技能（用于注入 read_skill 工具）
  */
 export async function fetchMcpTools(toolsEnabled?: boolean, hasSkills?: boolean): Promise<MCPTool[]> {
-  // 技能独立开关（与 MCP 总开关分离）
-  const skillsEnabledRaw = localStorage.getItem('skills-enabled');
-  const skillsEnabled = (() => {
-    try { return JSON.parse(skillsEnabledRaw || 'false'); }
-    catch { return false; }
-  })();
+  // 技能独立开关（与 MCP 总开关分离，统一使用 Dexie 存储）
+  const skillsEnabled = (await getStorageItem<boolean>('skills-enabled')) ?? false;
   const shouldInjectSkills = skillsEnabled && hasSkills;
-  console.log(`[MCP] fetchMcpTools 参数: toolsEnabled=${toolsEnabled}, hasSkills=${hasSkills}, skillsEnabled=${skillsEnabled} (raw=${skillsEnabledRaw}), shouldInjectSkills=${shouldInjectSkills}`);
+  console.log(`[MCP] fetchMcpTools 参数: toolsEnabled=${toolsEnabled}, hasSkills=${hasSkills}, skillsEnabled=${skillsEnabled}, shouldInjectSkills=${shouldInjectSkills}`);
 
   if (!toolsEnabled) {
     if (shouldInjectSkills) {
@@ -36,7 +32,8 @@ export async function fetchMcpTools(toolsEnabled?: boolean, hasSkills?: boolean)
   // 🔌 桥梁模式（全局设置）：只注入 1 个 mcp_bridge 工具，替代所有工具定义
   const bridgeMode = await getStorageItem<boolean>('mcp-bridge-mode');
   if (bridgeMode) {
-    console.log(`[MCP] 桥梁模式激活 — 仅注入 mcp_bridge 工具（替代 ${mcpService.getServers().length} 个服务器的所有工具）`);
+    const allServers = await mcpService.getServersAsync();
+    console.log(`[MCP] 桥梁模式激活 — 仅注入 mcp_bridge 工具（替代 ${allServers.length} 个服务器的所有工具）`);
     const tools: MCPTool[] = [MCP_BRIDGE_TOOL_DEFINITION];
 
     // 记忆工具仍然正常注入（它不是 MCP server 工具）
