@@ -31,7 +31,7 @@
   border-radius: 12px;
   width: 90%;
   max-width: 480px;
-  height: min(560px, 80vh);
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2),
@@ -137,6 +137,13 @@
   padding: 4px 12px 8px;
 }
 
+/* 搜索提供商列表：限制高度，列表内部滚动 */
+.solid-wsp-provider-list {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* 提供商列表项 */
 .solid-wsp-item {
   display: flex;
@@ -228,7 +235,7 @@
 @media (max-width: 600px) {
   .solid-wsp-dialog:not(.fullscreen) {
     width: 95%;
-    height: min(560px, 90vh);
+    max-height: 90vh;
   }
 
   .solid-wsp-dialog-header {
