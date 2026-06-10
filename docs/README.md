@@ -23,6 +23,7 @@
 | [safe-area-keyboard-management.md](guides/safe-area-keyboard-management.md) | 安全区域与键盘管理 |
 | [safe-area-migration.md](guides/safe-area-migration.md) | 安全区域迁移指南 |
 | [regenerate-with-current-model.md](guides/regenerate-with-current-model.md) | 使用当前模型重新生成 |
+| [back-navigation.md](guides/back-navigation.md) | 页面返回导航完整指南（路由表 + useSmartBack） |
 
 ## design/ — 设计方案
 
