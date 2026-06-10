@@ -23,7 +23,7 @@ import {
 import BackButtonDialog from './common/BackButtonDialog';
 import { Play, Square, FolderOpen, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 import { CustomIcon } from './icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CustomSwitch from './CustomSwitch';
 
@@ -85,6 +85,7 @@ const AIDebateButton: React.FC<AIDebateButtonProps> = ({
   question = ''
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [config, setConfig] = useState<DebateConfig | null>(null);
@@ -239,7 +240,7 @@ const AIDebateButton: React.FC<AIDebateButtonProps> = ({
   // 前往设置页面
   const handleGoToSettings = () => {
     setDialogOpen(false);
-    navigate('/settings/ai-debate');
+    navigate('/settings/ai-debate', { state: { backTo: location.pathname } });
   };
 
   // 处理分组选择

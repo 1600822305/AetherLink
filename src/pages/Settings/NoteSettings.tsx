@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import BackButtonDialog from '../../components/common/BackButtonDialog';
 import { useNavigate } from 'react-router-dom';
+import { useSmartBack } from '../../shared/hooks/useSmartBack';
 import {
   ArrowLeft as ArrowBackIcon,
   FolderOpen as FolderIcon,
@@ -120,9 +121,7 @@ const NoteSettings: React.FC = () => {
     setSidebarEnabled(enabled);
   };
 
-  const handleBack = () => {
-    navigate('/settings');
-  };
+  const handleBack = useSmartBack('/settings');
 
   const handleSelectPath = async () => {
     try {

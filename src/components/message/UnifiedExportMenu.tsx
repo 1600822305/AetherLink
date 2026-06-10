@@ -52,7 +52,7 @@ import {
 import { toastManager } from '../EnhancedToast';
 import { simpleNoteService } from '../../shared/services/notes/SimpleNoteService';
 import { getMainTextContent } from '../../shared/utils/messageUtils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getPlatformInfo } from '../../shared/utils/platformDetection';
 
 interface UnifiedExportMenuProps {
@@ -78,6 +78,7 @@ export const UnifiedExportMenu: React.FC<UnifiedExportMenuProps> = ({
   onClose
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const platform = getPlatformInfo();
   
   const [obsidianDialog, setObsidianDialog] = useState<ObsidianDialogState>({
@@ -96,7 +97,7 @@ export const UnifiedExportMenu: React.FC<UnifiedExportMenuProps> = ({
       const hasConfig = await simpleNoteService.hasValidConfig();
       if (!hasConfig) {
         toastManager.warning('请先在设置中配置笔记存储目录', '未配置笔记');
-        navigate('/settings/notes');
+        navigate('/settings/notes', { state: { backTo: location.pathname } });
         return;
       }
 

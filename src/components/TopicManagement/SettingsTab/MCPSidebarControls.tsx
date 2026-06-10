@@ -27,7 +27,7 @@ import CustomSwitch from '../../CustomSwitch'; // 导入 CustomSwitch 组件
 import {
   ChevronDown, ChevronUp, Settings, Database, Globe, Brain, Code, Terminal
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { MCPServer, MCPServerType } from '../../../shared/types';
 import { mcpService } from '../../../shared/services/mcp';
 import {
@@ -53,6 +53,7 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
   toolsEnabled = false
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [activeServers, setActiveServers] = useState<MCPServer[]>([]);
   const [expanded, setExpanded] = useState(false);
@@ -87,7 +88,7 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
   };
 
   const handleNavigateToSettings = () => {
-    navigate('/settings/mcp-server');
+    navigate('/settings/mcp-server', { state: { backTo: location.pathname } });
   };
 
   // 使用共享的MCP状态管理逻辑

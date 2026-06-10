@@ -43,6 +43,7 @@ import { getServerTypeIcon, getServerTypeLabel, getServerTypeColor, normalizeTyp
 import AddServerDialog from './MCPServerSettings/AddServerDialog';
 import ImportJsonDialog from './MCPServerSettings/ImportJsonDialog';
 import BuiltinServerListItem from './MCPServerSettings/BuiltinServerListItem';
+import { useSmartBack } from '../../shared/hooks/useSmartBack';
 
 const MCPServerSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -127,9 +128,7 @@ const MCPServerSettings: React.FC = () => {
     }
   };
 
-  const handleBack = () => {
-    navigate('/settings');
-  };
+  const handleBack = useSmartBack('/settings');
 
   const handleToggleServer = async (serverId: string, isActive: boolean) => {
     try {

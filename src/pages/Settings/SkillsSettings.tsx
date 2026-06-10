@@ -47,6 +47,7 @@ import { toastManager } from '../../components/EnhancedToast';
 import CustomSwitch from '../../components/CustomSwitch';
 import { useSkillBinding } from '../../hooks/useSkillBinding';
 import { useTranslation } from '../../i18n';
+import { useSmartBack } from '../../shared/hooks/useSmartBack';
 
 // ========================================================================
 // 主组件
@@ -244,9 +245,7 @@ const SkillsSettings: React.FC = () => {
     dispatch(loadSkills() as any);
   };
 
-  const handleBack = () => {
-    navigate('/settings');
-  };
+  const handleBack = useSmartBack('/settings');
 
   // 渲染技能卡片
   const renderSkillCard = (skill: Skill) => (

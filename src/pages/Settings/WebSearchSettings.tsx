@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -25,7 +25,7 @@ import {
 import BackButtonDialog from '../../components/common/BackButtonDialog';
 import CustomSwitch from '../../components/CustomSwitch';
 import type { SelectChangeEvent } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus as AddIcon, Trash2 as DeleteIcon, Edit as EditIcon, Info as InfoOutlinedIcon, Key as KeyIcon, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { WebSearchProvider, WebSearchCustomProvider, CustomSearchProtocol } from '../../shared/types';
@@ -35,6 +35,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useTranslation } from '../../i18n';
 import { SafeAreaContainer, Container, HeaderBar, YStack, SettingGroup, Row } from '../../components/settings/SettingComponents';
 import useScrollPosition from '../../hooks/useScrollPosition';
+import { useSmartBack } from '../../shared/hooks/useSmartBack';
 import {
   toggleWebSearchEnabled,
   setWebSearchProvider,
@@ -67,6 +68,7 @@ import type { RootState } from '../../shared/store';
 
 const WebSearchSettings: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
@@ -116,9 +118,15 @@ const WebSearchSettings: React.FC = () => {
     return { label: t(config.labelKey), color: config.color };
   };
 
-  const handleBack = () => {
-    navigate('/settings');
-  };
+  const handleBack = useSmartBack('/settings');
+
+  // 从提供商选择弹窗跳转过来时，自动选中对应的提供商
+  useEffect(() => {
+    const selectProvider = (location.state as { selectProvider?: string } | null)?.selectProvider;
+    if (selectProvider) {
+      dispatch(setWebSearchProvider(selectProvider as WebSearchProvider));
+    }
+  }, [location.state, dispatch]);
 
   const handleToggleEnabled = () => {
     dispatch(toggleWebSearchEnabled());

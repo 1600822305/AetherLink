@@ -2,6 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../shared/hooks/useAppState';
 import { initBackButtonListener, useBackButton } from '../shared/hooks/useBackButton';
+import { getBackToFromHistory } from '../shared/hooks/useSmartBack';
 
 /**
  * 处理设置页面的智能返回逻辑
@@ -9,6 +10,13 @@ import { initBackButtonListener, useBackButton } from '../shared/hooks/useBackBu
  * @param navigate 导航函数
  */
 const handleSettingsBack = (pathname: string, navigate: (path: string) => void) => {
+  // 跨上下文跳转（如从聊天页弹窗进入设置页）携带的来源路径优先
+  const backTo = getBackToFromHistory();
+  if (backTo) {
+    navigate(backTo);
+    return;
+  }
+
   // 去除查询参数，只保留路径部分
   const pathWithoutQuery = pathname.split('?')[0];
   
