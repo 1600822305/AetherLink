@@ -132,6 +132,7 @@ export function WebSearchProviderSelectorSolid(props: WebSearchProviderSelectorS
 
               <div class="solid-wsp-section-label">搜索提供商</div>
 
+              <div class="solid-wsp-provider-list">
               <For each={props.providers}>
                 {(provider) => {
                   const isSelected = () => props.activeProviderId === provider.id;
@@ -160,6 +161,7 @@ export function WebSearchProviderSelectorSolid(props: WebSearchProviderSelectorS
                   );
                 }}
               </For>
+              </div>
 
               <div class="solid-wsp-divider" />
 
