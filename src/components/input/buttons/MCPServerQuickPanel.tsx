@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import BackButtonDialog from '../../common/BackButtonDialog';
 import { ArrowLeft, Plug, Server, Wifi, Cpu, Terminal, Cog, Settings, Zap, ChevronRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../../shared/store';
 import type { MCPServer, MCPServerType } from '../../../shared/types';
@@ -92,6 +92,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [loadingServers, setLoadingServers] = useState<Record<string, boolean>>({});
@@ -339,8 +340,8 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
   // 导航到设置页面
   const handleNavigateToSettings = useCallback(() => {
     onClose();
-    navigate('/settings/mcp-server');
-  }, [navigate, onClose]);
+    navigate('/settings/mcp-server', { state: { backTo: location.pathname } });
+  }, [navigate, location.pathname, onClose]);
 
   // 使用共享的MCP状态管理逻辑
   const handleToolsEnabledChange = useCallback(
@@ -794,7 +795,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
                   variant="outlined"
                   size="small"
                   startIcon={<Settings size={16} />}
-                  onClick={() => { onClose(); navigate('/settings/skills'); }}
+                  onClick={() => { onClose(); navigate('/settings/skills', { state: { backTo: location.pathname } }); }}
                 >
                   前往技能管理
                 </Button>

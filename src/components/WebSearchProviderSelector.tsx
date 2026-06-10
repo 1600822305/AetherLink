@@ -5,7 +5,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTheme, useMediaQuery } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SolidBridge } from '../shared/bridges/SolidBridge';
 import type { RootState } from '../shared/store';
 import { setWebSearchProvider, refreshProviders, setActiveProviderId } from '../shared/store/slices/webSearchSlice';
@@ -95,6 +95,7 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
 }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const themeMode = theme.palette.mode;
@@ -144,8 +145,15 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
     // 未配置的提供商：跳转到设置页配置，而不是直接选中
     const item = providerItems.find((p) => p.id === providerId);
     if (item && !item.available) {
+      // 内置提供商携带 id，让设置页自动选中对应提供商
+      const isBuiltin = (webSearchSettings?.providers || []).some((p) => p.id === providerId);
       onClose();
-      navigate('/settings/web-search');
+      navigate('/settings/web-search', {
+        state: {
+          backTo: location.pathname,
+          selectProvider: isBuiltin ? providerId : undefined
+        }
+      });
       return;
     }
     dispatch(setWebSearchProvider(providerId as any));
@@ -153,7 +161,7 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
     dispatch(setActiveProviderId(providerId));
     onProviderSelect?.(providerId);
     onClose();
-  }, [providerItems, navigate, dispatch, onProviderSelect, onClose]);
+  }, [providerItems, webSearchSettings?.providers, navigate, location.pathname, dispatch, onProviderSelect, onClose]);
 
   const handleDisable = useCallback(() => {
     // 清除 activeProviderId 即可禁用搜索，不修改持久化的 provider 设置
@@ -164,8 +172,8 @@ const WebSearchProviderSelector: React.FC<WebSearchProviderSelectorProps> = ({
 
   const handleOpenSettings = useCallback(() => {
     onClose();
-    navigate('/settings/web-search');
-  }, [onClose, navigate]);
+    navigate('/settings/web-search', { state: { backTo: location.pathname } });
+  }, [onClose, navigate, location.pathname]);
 
   const handleRefresh = useCallback(() => {
     dispatch(refreshProviders());

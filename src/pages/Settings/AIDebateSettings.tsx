@@ -43,6 +43,7 @@ import { useTranslation } from 'react-i18next';
 import CustomSwitch from '../../components/CustomSwitch';
 import { SafeAreaContainer, SettingsCard, SettingRow } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
+import { useSmartBack } from '../../shared/hooks/useSmartBack';
 
 // AI辩论配置默认值常量
 const DEFAULT_CONFIG = {
@@ -578,9 +579,7 @@ const AIDebateSettings: React.FC = () => {
   };
 
   // 处理返回
-  const handleBack = () => {
-    navigate('/settings');
-  };
+  const handleBack = useSmartBack('/settings');
 
   // 添加角色
   const handleAddRole = () => {

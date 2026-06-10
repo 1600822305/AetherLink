@@ -24,6 +24,9 @@ export { useAppState } from './useAppState';
 // 返回按钮
 export { useBackButton } from './useBackButton';
 
+// 智能返回（跨上下文跳转后回到来源页）
+export { useSmartBack, getBackTo, getBackToFromHistory } from './useSmartBack';
+
 // 键盘管理
 export { useKeyboard } from './useKeyboard';
 export type { UseKeyboardOptions, UseKeyboardResult } from './useKeyboard';
