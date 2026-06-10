@@ -286,13 +286,6 @@ const CitationBlock: React.FC<Props> = ({ block }) => {
         </IconButton>
       </Box>
 
-      {/* 折叠时的摘要 */}
-      {!expanded && items.length > 0 && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4, opacity: 0.8 }}>
-          {`${items.length} 条相关内容`}
-        </Typography>
-      )}
-
       {/* 展开后的引用列表 */}
       {expanded && (
         <Box mt={1.5}>
