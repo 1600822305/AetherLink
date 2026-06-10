@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { ChevronDown, ChevronUp, Settings, X } from 'lucide-react';
 import type { ThinkingOption } from '../../../shared/config/reasoningConfig';
-import { collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, createExpandToggleHandler } from './scrollOptimization';
 import type { ProviderType } from '../../../shared/api/parameters/types';
 import { detectProviderFromModel } from '../../../shared/config/parameterMetadata';
 import ParameterEditor from '../../ParameterEditor/ParameterEditor';
@@ -217,7 +217,7 @@ export default function DynamicContextSettings({
       {/* 可折叠的标题栏 */}
       <ListItem
         component="div"
-        onClick={() => setExpanded(!expanded)}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText

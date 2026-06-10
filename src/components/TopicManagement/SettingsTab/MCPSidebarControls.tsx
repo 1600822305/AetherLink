@@ -31,7 +31,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import type { MCPServer, MCPServerType } from '../../../shared/types';
 import { mcpService } from '../../../shared/services/mcp';
 import {
-  createOptimizedClickHandler,
+  createExpandToggleHandler,
   createOptimizedSwitchHandler,
   listItemOptimization,
   collapsibleHeaderStyle,
@@ -133,7 +133,7 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
       {/* 可折叠的MCP标题栏 */}
       <ListItem
         component="div"
-        onClick={createOptimizedClickHandler(() => setExpanded(!expanded))}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText

@@ -15,7 +15,7 @@ import {
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import CustomSwitch from '../../CustomSwitch';
 import OptimizedCollapse from './OptimizedCollapse';
-import { collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, createExpandToggleHandler } from './scrollOptimization';
 import type { MathRendererType } from '../../../shared/types';
 
 interface MathSettingsProps {
@@ -62,7 +62,7 @@ export default function MathSettings({
       {/* 可折叠的标题栏 */}
       <ListItem
         component="div"
-        onClick={() => setExpanded(!expanded)}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText

@@ -16,7 +16,7 @@ import {
 import CustomSwitch from '../../CustomSwitch';
 import { ChevronDown, ChevronUp, Edit, Palette } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../../shared/store';
-import { collapsibleHeaderStyle } from './scrollOptimization';
+import { collapsibleHeaderStyle, createExpandToggleHandler } from './scrollOptimization';
 import {
   setCodeThemeLight,
   setCodeThemeDark,
@@ -79,7 +79,7 @@ const CodeBlockSettings: React.FC<CodeBlockSettingsProps> = () => {
       {/* 代码块设置标题 */}
       <ListItem
         component="div"
-        onClick={() => setExpanded(!expanded)}
+        onClick={createExpandToggleHandler(expanded, setExpanded)}
         sx={collapsibleHeaderStyle(expanded)}
       >
         <ListItemText
