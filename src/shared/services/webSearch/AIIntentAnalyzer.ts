@@ -472,9 +472,10 @@ export async function analyzeUnifiedSearchIntent(
 
     // 根据启用的搜索类型选择提示词
     const prompt = selectPrompt(options);
+    // 使用替换函数，避免用户输入中的 $& $' 等模式被 replace 特殊展开
     const formattedPrompt = prompt
-      .replace('{chat_history}', chatHistory)
-      .replace('{question}', userMessage);
+      .replace('{chat_history}', () => chatHistory)
+      .replace('{question}', () => userMessage);
 
     console.log('[IntentAnalyzer] 开始统一意图分析', {
       modelId,
