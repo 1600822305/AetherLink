@@ -108,7 +108,7 @@ async function handleListServers(): Promise<MCPCallToolResponse> {
   return makeTextResponse(
     `可用的 MCP 服务器（${allServers.length} 个）：\n${summary}\n\n` +
     `提示：使用 list_tools 查看具体服务器的工具列表，使用 call 调用工具。\n` +
-    `未启用的服务器在调用时会自动临时启动。\n\n` +
+    `注意：仅已启用（✅）的服务器可以调用，未启用的服务器需先在设置中手动启用。\n\n` +
     `详细数据：\n${JSON.stringify(serverList, null, 2)}`
   );
 }
