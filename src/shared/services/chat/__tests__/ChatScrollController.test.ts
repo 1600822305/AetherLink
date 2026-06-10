@@ -99,7 +99,8 @@ describe('ChatScrollController', () => {
 
   it('用户上滑离底超过阈值后不再自动跟随', () => {
     const c = makeController();
-    container.userScrollTo(0); // distance = 1000-0-500 = 500 > 80
+    container.userScrollTo(500); // 底部
+    container.userScrollTo(0); // 向上，distance = 500 > 80
     expect(c.isSticking()).toBe(false);
 
     container.scrollHeight = 2000;
@@ -107,8 +108,19 @@ describe('ChatScrollController', () => {
     expect(container.scrollTop).toBe(0); // 未被拉到底
   });
 
+  it('非用户上滑的离底（布局变化等噪声）不解除跟随', () => {
+    const c = makeController();
+    expect(c.isSticking()).toBe(true);
+
+    // 内容增高使离底距离变大，但 scrollTop 未减小（非用户上滑）
+    container.scrollHeight = 3000;
+    container.userScrollTo(0); // top 未变（0→0），非上滑
+    expect(c.isSticking()).toBe(true);
+  });
+
   it('用户滑回底部阈值内后恢复跟随', () => {
     const c = makeController();
+    container.userScrollTo(500);
     container.userScrollTo(0);
     expect(c.isSticking()).toBe(false);
 
@@ -133,7 +145,8 @@ describe('ChatScrollController', () => {
     expect(c.isSticking()).toBe(true);
 
     flushRaf(); // 两帧后解除守卫
-    container.userScrollTo(0);
+    container.userScrollTo(2000);
+    container.userScrollTo(100); // 明确上滑离底
     expect(c.isSticking()).toBe(false);
   });
 
@@ -151,6 +164,7 @@ describe('ChatScrollController', () => {
 
   it('pinToBottom 把 stick 恢复为 true', () => {
     const c = makeController();
+    container.userScrollTo(500);
     container.userScrollTo(0);
     expect(c.isSticking()).toBe(false);
 
@@ -188,7 +202,7 @@ describe('ChatScrollController', () => {
     c.pinToBottom();
     flushRaf(); // 解除 programmatic 守卫
 
-    container.userScrollTo(0); // 离底 500 > 80
+    container.userScrollTo(0); // 从底部上滑，离底 500 > 80
     expect(c.isSticking()).toBe(false);
 
     nowMs = 1100; // 仍在窗口内，但承诺已取消

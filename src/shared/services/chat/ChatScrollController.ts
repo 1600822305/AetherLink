@@ -64,6 +64,8 @@ export class ChatScrollController {
   private programmatic = false;
   /** 贴底承诺截止时刻：窗口内内容增高无条件跟随，覆盖显式置底后的异步渲染 */
   private pinnedUntil = 0;
+  /** 上次 scroll 事件的 scrollTop，用于判断滚动方向 */
+  private lastScrollTop = 0;
   private disposed = false;
 
   constructor(container: ScrollContainer, content: Element, options: ChatScrollControllerOptions) {
@@ -84,6 +86,7 @@ export class ChatScrollController {
     const createResizeObserver = options.createResizeObserver
       ?? ((cb) => new ResizeObserver(cb));
 
+    this.lastScrollTop = container.scrollTop;
     this.container.addEventListener('scroll', this.handleScroll, { passive: true });
     this.resizeObserver = createResizeObserver(this.handleContentResize);
     this.resizeObserver.observe(this.content);
@@ -93,11 +96,22 @@ export class ChatScrollController {
     return this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight;
   }
 
-  /** 用户滚动是唯一翻转 stick 的入口，上滑离底同时取消贴底承诺 */
+  /**
+   * 用户滚动是唯一翻转 stick 的入口，且基于方向判定：
+   * - 回到底部阈值内 → 恢复跟随
+   * - 明确向上滚动 → 解除跟随并取消贴底承诺
+   * - 其余（布局变化/平滑滚动中间帧等噪声）不改变状态，
+   *   避免内容增高途中的瞬时离底误判为用户离开
+   */
   private handleScroll = (): void => {
+    const top = this.container.scrollTop;
+    const scrolledUp = top < this.lastScrollTop;
+    this.lastScrollTop = top;
     if (this.programmatic) return;
-    this.stick = this.distanceFromBottom() <= this.threshold;
-    if (!this.stick) {
+    if (this.distanceFromBottom() <= this.threshold) {
+      this.stick = true;
+    } else if (scrolledUp) {
+      this.stick = false;
       this.pinnedUntil = 0;
     }
   };
@@ -115,6 +129,7 @@ export class ChatScrollController {
   private scrollToBottom(behavior: ScrollBehavior = 'auto'): void {
     this.programmatic = true;
     this.container.scrollTo({ top: this.container.scrollHeight, behavior });
+    this.lastScrollTop = this.container.scrollTop;
     // 两帧后解除守卫：确保本次（含异步触发的）scroll 事件不会翻转 stick
     this.raf(() => this.raf(() => { this.programmatic = false; }));
   }
