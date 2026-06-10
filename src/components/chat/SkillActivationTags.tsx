@@ -73,7 +73,8 @@ const SkillActivationTags: React.FC = () => {
         // MCP 联动：自动启动关联的 MCP 服务器
         if (skill.mcpServerId) {
           try {
-            const toolsWasOff = localStorage.getItem('mcp-tools-enabled') !== 'true';
+            const toolsEnabledVal = await dexieStorage.getSetting('mcp-tools-enabled');
+            const toolsWasOff = toolsEnabledVal !== true;
             const server = await mcpService.getServerByIdAsync(skill.mcpServerId);
             const serverWasInactive = server ? !server.isActive : false;
 

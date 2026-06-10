@@ -84,8 +84,9 @@ async function handleTextGeneration(context: {
 
   console.log(`[processAssistantResponse] Provider类型: ${model.provider}, 使用${isActualGeminiProvider ? '原始' : 'API'}格式消息，消息数量: ${currentMessagesToSend.length}`);
 
-  // 获取 MCP 模式设置
-  const mcpMode = localStorage.getItem('mcp-mode') as 'prompt' | 'function' || 'function';
+  // 获取 MCP 模式设置（统一使用 Dexie 存储）
+  const savedMcpMode = await dexieStorage.getSetting('mcp-mode');
+  const mcpMode: 'prompt' | 'function' = (savedMcpMode === 'prompt' || savedMcpMode === 'function') ? savedMcpMode : 'function';
   console.log(`[MCP] 当前模式: ${mcpMode}`);
 
   // 准备工具列表（包含网络搜索工具）

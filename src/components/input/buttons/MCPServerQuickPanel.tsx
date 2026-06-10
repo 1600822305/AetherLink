@@ -132,15 +132,11 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
   const [allEnabledSkills, setAllEnabledSkills] = useState<Skill[]>([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
 
-  // 技能独立开关
-  const [skillsEnabled, setSkillsEnabledState] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('skills-enabled') || 'false'); }
-    catch { return false; }
-  });
+  // 技能独立开关（统一使用 Dexie 存储）
+  const [skillsEnabled, setSkillsEnabledState] = useState(false);
   useEffect(() => {
     if (open) {
-      try { setSkillsEnabledState(JSON.parse(localStorage.getItem('skills-enabled') || 'false')); }
-      catch { setSkillsEnabledState(false); }
+      getStorageItem<boolean>('skills-enabled').then(val => setSkillsEnabledState(val ?? false));
     }
   }, [open]);
   const handleSkillsEnabledChange = useCallback(async (enabled: boolean) => {
@@ -148,7 +144,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       // 关闭时：保存当前绑定的技能 ID，然后清空
       const currentSkillIds = currentAssistant.skillIds || [];
       if (currentSkillIds.length > 0) {
-        localStorage.setItem('skills-saved-ids', JSON.stringify(currentSkillIds));
+        await setStorageItem('skills-saved-ids', currentSkillIds);
         const updated = { ...currentAssistant, skillIds: [] };
         dispatch(updateAssistant(updated));
         try { await dexieStorage.saveAssistant(updated); } catch (e) { console.error('[Skills] 保存失败:', e); }
@@ -157,18 +153,18 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
     } else if (enabled && currentAssistant) {
       // 开启时：恢复之前保存的技能绑定
       try {
-        const saved = JSON.parse(localStorage.getItem('skills-saved-ids') || '[]') as string[];
+        const saved = (await getStorageItem<string[]>('skills-saved-ids')) ?? [];
         if (saved.length > 0) {
           const updated = { ...currentAssistant, skillIds: saved };
           dispatch(updateAssistant(updated));
           await dexieStorage.saveAssistant(updated);
-          localStorage.removeItem('skills-saved-ids');
+          await setStorageItem('skills-saved-ids', null);
           console.log(`[Skills] 开关开启，已恢复 ${saved.length} 个技能绑定`);
         }
       } catch (e) { console.error('[Skills] 恢复失败:', e); }
     }
     setSkillsEnabledState(enabled);
-    localStorage.setItem('skills-enabled', JSON.stringify(enabled));
+    await setStorageItem('skills-enabled', enabled);
     window.dispatchEvent(new Event('skills-enabled-changed'));
   }, [currentAssistant, dispatch]);
 

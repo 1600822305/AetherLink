@@ -163,8 +163,7 @@ export class MCPService {
 
   /**
    * 获取所有 MCP 服务器
-   * 注意：由于同步返回，如果在初始化完成前调用可能返回空数组
-   * 如需确保数据完整，请先调用 ensureLoaded() 或使用 getServersAsync()
+   * @deprecated 使用 getServersAsync() 代替，同步版本在初始化完成前可能返回空数组
    */
   public getServers(): MCPServer[] {
     return [...this.servers];
@@ -180,13 +179,23 @@ export class MCPService {
 
   /**
    * 获取活跃的 MCP 服务器
+   * @deprecated 使用 getActiveServersAsync() 代替
    */
   public getActiveServers(): MCPServer[] {
     return this.servers.filter(server => server.isActive);
   }
 
   /**
+   * 异步获取活跃的 MCP 服务器（确保数据已加载）
+   */
+  public async getActiveServersAsync(): Promise<MCPServer[]> {
+    await this.ensureLoaded();
+    return this.servers.filter(server => server.isActive);
+  }
+
+  /**
    * 根据 ID 获取服务器
+   * @deprecated 使用 getServerByIdAsync() 代替
    */
   public getServerById(id: string): MCPServer | undefined {
     return this.servers.find(server => server.id === id);
@@ -981,8 +990,8 @@ export class MCPService {
    * 获取所有可用的 MCP 工具
    */
   public async getAllAvailableTools(): Promise<MCPTool[]> {
-    const allServers = this.getServers();
-    const activeServers = this.getActiveServers();
+    const allServers = await this.getServersAsync();
+    const activeServers = await this.getActiveServersAsync();
     const allTools: MCPTool[] = [];
 
     console.log(`[MCP] 总服务器数量: ${allServers.length}, 活跃服务器数量: ${activeServers.length}`);
