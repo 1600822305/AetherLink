@@ -4,6 +4,7 @@
  */
 import type { MCPServer } from '../../../types';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import type { IMCPClient } from '../types/IMCPClient';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createInMemoryMCPServer } from './MCPServerFactory';
 import { MCPClientAdapter } from '../clients/MCPClientAdapter';
@@ -41,8 +42,8 @@ function normalizeServerType(server: MCPServer): MCPServer['type'] {
 }
 
 export class MCPConnectionManager {
-  private clients = new Map<string, Client>();
-  private pendingClients = new Map<string, Promise<Client>>();
+  private clients = new Map<string, IMCPClient>();
+  private pendingClients = new Map<string, Promise<IMCPClient>>();
 
   private mcpClientAdapters = new Map<string, MCPClientAdapter | AiSdkMCPClient>();
   private pendingMcpClientAdapters = new Map<string, Promise<MCPClientAdapter | AiSdkMCPClient>>();
@@ -65,7 +66,7 @@ export class MCPConnectionManager {
 
   // ── 初始化客户端 ──────────────────────────────
 
-  async initClient(server: MCPServer): Promise<Client> {
+  async initClient(server: MCPServer): Promise<IMCPClient> {
     const serverKey = this.getServerKey(server);
 
     const pendingClient = this.pendingClients.get(serverKey);
@@ -87,7 +88,7 @@ export class MCPConnectionManager {
       }
     }
 
-    const initPromise = (async (): Promise<Client> => {
+    const initPromise = (async (): Promise<IMCPClient> => {
       const isMobilePlatform = Capacitor.isNativePlatform();
       const clientInfo = isMobilePlatform ? MCP_CLIENT_INFO.MOBILE : MCP_CLIENT_INFO.WEB;
       const client = new Client(clientInfo, { capabilities: {} });
@@ -142,7 +143,7 @@ export class MCPConnectionManager {
               const resources = await stdioClient.listResources();
               return { resources };
             }
-          } as unknown as Client;
+          } satisfies IMCPClient;
 
           this.clients.set(serverKey, compatClient);
           console.log(`[MCP] 成功连接到 stdio 服务器: ${server.name}`);
@@ -186,7 +187,7 @@ export class MCPConnectionManager {
                 return { resources: [] };
               }
             }
-          } as unknown as Client;
+          } satisfies IMCPClient;
 
           this.clients.set(serverKey, compatClient);
           console.log(`[MCP] 成功连接到 HTTP Stream 服务器: ${server.name}`);
@@ -275,7 +276,7 @@ export class MCPConnectionManager {
 
         await client.initialize();
 
-        this.mcpClientAdapters.set(serverKey, client as any);
+        this.mcpClientAdapters.set(serverKey, client);
         console.log(`[MCP] MCP 客户端初始化成功: ${server.name}`);
 
         return client;
@@ -287,7 +288,7 @@ export class MCPConnectionManager {
       }
     })();
 
-    this.pendingMcpClientAdapters.set(serverKey, initPromise as any);
+    this.pendingMcpClientAdapters.set(serverKey, initPromise);
     return initPromise;
   }
 
