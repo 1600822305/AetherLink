@@ -31,7 +31,7 @@
   border-radius: 12px;
   width: 90%;
   max-width: 480px;
-  max-height: 80vh;
+  height: min(560px, 80vh);
   display: flex;
   flex-direction: column;
   box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2),
@@ -228,7 +228,7 @@
 @media (max-width: 600px) {
   .solid-wsp-dialog:not(.fullscreen) {
     width: 95%;
-    max-height: 90vh;
+    height: min(560px, 90vh);
   }
 
   .solid-wsp-dialog-header {
