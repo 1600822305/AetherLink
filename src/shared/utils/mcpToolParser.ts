@@ -343,13 +343,13 @@ export function mcpToolsToOpenAITools(mcpTools: MCPTool[]): any[] {
  * 将 MCP 工具转换为 Gemini 兼容的工具格式
  */
 export function mcpToolsToGeminiTools(mcpTools: MCPTool[]): any[] {
-  return mcpTools.map((tool) => ({
-    functionDeclarations: [{
+  return [{
+    functionDeclarations: mcpTools.map((tool) => ({
       name: tool.id || tool.name,
       description: tool.description,
       parameters: tool.inputSchema
-    }]
-  }));
+    }))
+  }];
 }
 
 /**
@@ -431,14 +431,18 @@ export function stripToolUseResultTags(content: string): string {
 
 /**
  * 从内容中移除工具使用标签
- * 支持两种格式的移除
+ * 仅移除 <tool_use> 标签，不影响其他 XML/HTML 内容
  */
-export function removeToolUseTags(content: string): string {
+export function removeToolUseTags(content: string, mcpTools: MCPTool[] = []): string {
   // 移除格式1：<tool_use>...</tool_use>
-  let result = content.replace(/<tool_use>([\s\S]*?)<\/tool_use>/g, '');
+  let result = content.replace(/<tool_use>[\s\S]*?<\/tool_use>/g, '');
 
-  // 移除格式2：<tool_name>...</tool_name> (简单移除所有XML标签)
-  result = result.replace(/<[a-zA-Z0-9_-]+>([\s\S]*?)<\/[a-zA-Z0-9_-]+>/g, '');
+  // 移除格式2：仅移除已知 MCP 工具名对应的标签
+  for (const tool of mcpTools) {
+    const toolName = tool.id || tool.name;
+    const escaped = toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(`<${escaped}>[\\s\\S]*?</${escaped}>`, 'g'), '');
+  }
 
   return result.trim();
 }

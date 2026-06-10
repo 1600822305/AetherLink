@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { MCPServer, MCPTool, MCPPrompt, MCPResource } from '../shared/types';
 import { mcpService } from '../shared/services/mcp';
 import { getStorageItem, setStorageItem } from '../shared/utils/storage';
@@ -155,6 +155,12 @@ export const useMCP = (): MCPState & MCPActions => {
     }
   }, []);
 
+  // 稳定的活跃服务器 ID 标识，用于 Effect 依赖
+  const activeServerIds = useMemo(
+    () => state.activeServers.map(s => s.id).sort().join(','),
+    [state.activeServers]
+  );
+
   // 当活跃服务器变化时，重新加载所有数据
   useEffect(() => {
     const loadAllActiveServerData = async () => {
@@ -201,7 +207,7 @@ export const useMCP = (): MCPState & MCPActions => {
     };
 
     loadAllActiveServerData();
-  }, [state.activeServers.length]); // 只在活跃服务器数量变化时触发
+  }, [activeServerIds]); // 在活跃服务器 ID 集合变化时触发
 
   return {
     ...state,

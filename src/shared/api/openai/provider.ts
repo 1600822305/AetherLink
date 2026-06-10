@@ -671,7 +671,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
         // 第3步：处理 XML 格式的工具调用（提示词模式）
         if (content && content.length > 0 && enableTools && mcpTools.length > 0) {
-          const textWithoutTools = removeToolUseTags(content);
+          const textWithoutTools = removeToolUseTags(content, mcpTools);
           const hasToolTags = textWithoutTools.length < content.length;
 
           if (hasToolTags) {

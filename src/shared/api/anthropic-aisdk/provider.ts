@@ -814,7 +814,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
 
       // 处理 XML 工具调用
       if (content && mcpTools.length > 0) {
-        const textWithoutTools = removeToolUseTags(content);
+        const textWithoutTools = removeToolUseTags(content, mcpTools);
         const hasToolTags = textWithoutTools.length < content.length;
 
         if (hasToolTags) {
