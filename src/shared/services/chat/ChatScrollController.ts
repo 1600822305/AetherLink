@@ -39,9 +39,14 @@ export interface ChatScrollControllerOptions {
   createResizeObserver?: (callback: () => void) => ResizeObserverLike;
   /** 注入 requestAnimationFrame，默认 window.requestAnimationFrame */
   raf?: (callback: () => void) => void;
+  /** 注入时钟，默认 Date.now（便于测试） */
+  now?: () => number;
+  /** 贴底承诺窗口时长（ms），默认 500 */
+  pinWindowMs?: number;
 }
 
 const DEFAULT_THRESHOLD = 80;
+const DEFAULT_PIN_WINDOW_MS = 500;
 
 export class ChatScrollController {
   private readonly container: ScrollContainer;
@@ -49,12 +54,16 @@ export class ChatScrollController {
   private readonly threshold: number;
   private readonly isEnabled: () => boolean;
   private readonly raf: (cb: () => void) => void;
+  private readonly now: () => number;
+  private readonly pinWindowMs: number;
   private readonly resizeObserver: ResizeObserverLike;
 
   /** 唯一真相：是否跟随底部 */
   private stick = true;
   /** 程序化滚动期间为 true，避免把自身滚动误判成用户滚动 */
   private programmatic = false;
+  /** 贴底承诺截止时刻：窗口内内容增高无条件跟随，覆盖显式置底后的异步渲染 */
+  private pinnedUntil = 0;
   private disposed = false;
 
   constructor(container: ScrollContainer, content: Element, options: ChatScrollControllerOptions) {
@@ -62,6 +71,8 @@ export class ChatScrollController {
     this.content = content;
     this.threshold = options.threshold ?? DEFAULT_THRESHOLD;
     this.isEnabled = options.isEnabled;
+    this.now = options.now ?? (() => Date.now());
+    this.pinWindowMs = options.pinWindowMs ?? DEFAULT_PIN_WINDOW_MS;
     this.raf = options.raf ?? ((cb) => {
       if (typeof requestAnimationFrame === 'function') {
         requestAnimationFrame(cb);
@@ -82,16 +93,20 @@ export class ChatScrollController {
     return this.container.scrollHeight - this.container.scrollTop - this.container.clientHeight;
   }
 
-  /** 用户滚动是唯一翻转 stick 的入口 */
+  /** 用户滚动是唯一翻转 stick 的入口，上滑离底同时取消贴底承诺 */
   private handleScroll = (): void => {
     if (this.programmatic) return;
     this.stick = this.distanceFromBottom() <= this.threshold;
+    if (!this.stick) {
+      this.pinnedUntil = 0;
+    }
   };
 
-  /** 内容增高时被动跟随 */
+  /** 内容增高时被动跟随；贴底承诺窗口内越过开关无条件跟随 */
   private handleContentResize = (): void => {
     if (this.disposed) return;
-    if (this.isEnabled() && this.stick) {
+    const pinned = this.now() < this.pinnedUntil;
+    if (this.stick && (pinned || this.isEnabled())) {
       this.scrollToBottom('auto');
     }
   };
@@ -111,13 +126,9 @@ export class ChatScrollController {
   pinToBottom(behavior: ScrollBehavior = 'auto'): void {
     if (this.disposed) return;
     this.stick = true;
+    // 贴底承诺：窗口内后续渲染出的内容由 ResizeObserver 持续保证贴底
+    this.pinnedUntil = this.now() + this.pinWindowMs;
     this.scrollToBottom(behavior);
-    // 布局稳定后再次贴底，覆盖紧随其后渲染出的新内容
-    this.raf(() => this.raf(() => {
-      if (!this.disposed && this.stick) {
-        this.scrollToBottom(behavior);
-      }
-    }));
   }
 
   /** 当前是否处于贴底跟随状态（供调试/测试） */

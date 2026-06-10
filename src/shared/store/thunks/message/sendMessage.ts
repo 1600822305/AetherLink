@@ -8,7 +8,6 @@ import { saveMessageAndBlocksToDB } from './utils';
 import { processAssistantResponse } from './assistantResponse';
 import { AssistantMessageStatus } from '../../../types/newMessage';
 import { getModelIdentityKey } from '../../../utils/modelUtils';
-import { EventEmitter, EVENT_NAMES } from '../../../services/infra/EventEmitter';
 
 export const sendMessage = (
   content: string,
@@ -19,8 +18,6 @@ export const sendMessage = (
   files?: FileType[]
 ) => async (dispatch: AppDispatch, getState: () => RootState) => {
   try {
-    // 发送即置底：后续新增内容由贴底状态机被动跟随
-    EventEmitter.emit(EVENT_NAMES.UI_SCROLL_TO_BOTTOM);
     // 获取当前助手ID
     // 直接从数据库获取主题信息
     const topic = await DataRepository.topics.getById(topicId);

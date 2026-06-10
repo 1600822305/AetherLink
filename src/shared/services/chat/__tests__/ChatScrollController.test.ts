@@ -67,6 +67,8 @@ describe('ChatScrollController', () => {
     }
   };
 
+  let nowMs: number;
+
   const makeController = (raf: (cb: () => void) => void = syncRaf) =>
     new ChatScrollController(container, fakeContent, {
       threshold: 80,
@@ -76,12 +78,15 @@ describe('ChatScrollController', () => {
         return ro;
       },
       raf,
+      now: () => nowMs,
+      pinWindowMs: 500,
     });
 
   beforeEach(() => {
     container = new FakeContainer();
     enabled = true;
     rafQueue = [];
+    nowMs = 0;
   });
 
   it('默认贴底：内容增高时自动滚到底部', () => {
@@ -153,6 +158,43 @@ describe('ChatScrollController', () => {
     c.pinToBottom();
     expect(c.isSticking()).toBe(true);
     expect(container.scrollTop).toBe(2500);
+  });
+
+  it('贴底承诺窗口内：即使开关关闭，置底后的异步渲染也持续贴底', () => {
+    enabled = false;
+    const controller = makeController();
+
+    nowMs = 1000;
+    container.scrollHeight = 2000;
+
+    // pin 后窗口内内容继续增高（模拟发送后消息异步渲染）
+    controller.pinToBottom();
+    expect(container.scrollTop).toBe(2000);
+
+    nowMs = 1200; // 窗口内
+    container.scrollHeight = 2600;
+    ro.trigger();
+    expect(container.scrollTop).toBe(2600);
+
+    nowMs = 1600; // 窗口外，开关关闭 → 不再跟随
+    container.scrollHeight = 3000;
+    ro.trigger();
+    expect(container.scrollTop).toBe(2600);
+  });
+
+  it('贴底承诺窗口内用户上滑离底 → 承诺取消，不再拉回底部', () => {
+    const c = makeController(queuedRaf);
+    nowMs = 1000;
+    c.pinToBottom();
+    flushRaf(); // 解除 programmatic 守卫
+
+    container.userScrollTo(0); // 离底 500 > 80
+    expect(c.isSticking()).toBe(false);
+
+    nowMs = 1100; // 仍在窗口内，但承诺已取消
+    container.scrollHeight = 2000;
+    ro.trigger();
+    expect(container.scrollTop).toBe(0);
   });
 
   it('destroy 后停止观察且不再响应', () => {

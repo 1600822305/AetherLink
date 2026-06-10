@@ -15,6 +15,12 @@ export const eventMiddleware: Middleware = _store => next => action => {
   const type = actionObj.type;
   const payload = actionObj.payload;
 
+  // 用户消息入库是「发送」的唯一收敛点：统一在此发出置底意图，
+  // 覆盖所有发送路径（普通发送/多模型/话题服务等），避免各处重复触发
+  if (type === 'normalizedMessages/addMessage' && payload?.message?.role === 'user') {
+    EventEmitter.emit(EVENT_NAMES.UI_SCROLL_TO_BOTTOM);
+  }
+
   // 消息相关事件
   if (type === 'messages/addMessage') {
     EventEmitter.emit(EVENT_NAMES.MESSAGE_CREATED, payload);
