@@ -134,10 +134,9 @@ const getScrollContainer = (el: HTMLElement): HTMLElement | null => {
 };
 
 /**
- * 展开折叠项后，将标题滚动到可视区域顶部
- * 仅当展开内容超出可视区域时才滚动
+ * 展开折叠项后，将标题平滑滚动到容器顶部附近
  */
-export const scrollToExpandedHeader = (headerEl: HTMLElement | null, delay = 200) => {
+export const scrollToExpandedHeader = (headerEl: HTMLElement | null, delay = 220) => {
   if (!headerEl) return;
   setTimeout(() => {
     const container = getScrollContainer(headerEl);
@@ -147,16 +146,11 @@ export const scrollToExpandedHeader = (headerEl: HTMLElement | null, delay = 200
     }
     const headerRect = headerEl.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    const content = headerEl.nextElementSibling as HTMLElement | null;
-    const contentBottom = content ? content.getBoundingClientRect().bottom : headerRect.bottom;
-    const headerAbove = headerRect.top < containerRect.top;
-    const overflowsBelow = contentBottom > containerRect.bottom;
-    if (headerAbove || overflowsBelow) {
-      container.scrollTo({
-        top: container.scrollTop + headerRect.top - containerRect.top - 8,
-        behavior: 'smooth'
-      });
-    }
+    const targetTop = container.scrollTop + headerRect.top - containerRect.top - 8;
+    container.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: 'smooth'
+    });
   }, delay);
 };
 
