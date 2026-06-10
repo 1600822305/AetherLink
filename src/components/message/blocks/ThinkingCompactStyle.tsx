@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -95,6 +95,14 @@ const ThinkingCompactStyle: React.FC<ThinkingCompactStyleProps> = ({
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevIsThinkingRef = useRef(isThinking);
+
+  // 内层折叠：仅控制思考过程文本；外层 expanded 控制思考+工具调用整体
+  const [thinkingExpanded, setThinkingExpanded] = useState(true);
+
+  const toggleThinkingExpanded = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setThinkingExpanded((prev) => !prev);
+  }, []);
   
   // 格式化思考时间（毫秒转为秒，保留1位小数）
   const formattedThinkingTime = formatThinkingTimeSeconds(thinkingTime).toFixed(1);
@@ -317,32 +325,71 @@ const ThinkingCompactStyle: React.FC<ThinkingCompactStyleProps> = ({
         </Box>
       )}
 
-      {/* 完整内容区域（展开时显示） */}
+      {/* 外层展开：思考过程（可内层折叠）+ 工具调用 */}
       <Collapse in={expanded} timeout={0}>
-        <Box sx={{
-          px: 1.5,
-          py: 1.25,
-          width: '100%',
-          maxWidth: '100%',
-          minWidth: 0,
-          boxSizing: 'border-box',
-          ...getThinkingScrollbarStyles(theme)
-        }}>
-          <Markdown content={content} allowHtml={false} />
-        </Box>
+        {/* 内层折叠头：仅在存在内嵌工具时显示，用于单独收起思考文本 */}
+        {inlineTools && (
+          <Box
+            onClick={toggleThinkingExpanded}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              px: 1.5,
+              py: 0.5,
+              cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+              '&:hover': { backgroundColor: theme.palette.action.hover }
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+              {t('settings.appearance.thinkingProcess.preview.texts.thinkingContent')}
+            </Typography>
+            <ChevronDown
+              size={14}
+              style={{
+                transform: thinkingExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            />
+          </Box>
+        )}
+        <Collapse in={!inlineTools || thinkingExpanded} timeout={0}>
+          <Box sx={{
+            px: 1.5,
+            py: 1.25,
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            ...getThinkingScrollbarStyles(theme)
+          }}>
+            <Markdown content={content} allowHtml={false} />
+          </Box>
+        </Collapse>
+        {inlineTools && (
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              px: 1.5,
+              pb: 1.25,
+              pt: thinkingExpanded ? 0 : 0.75,
+              cursor: 'default',
+            }}
+          >
+            {inlineTools}
+          </Box>
+        )}
       </Collapse>
 
-      {/* 思考阶段内嵌工具（始终可见，无需展开思考块） */}
-      {inlineTools && (
+      {/* 外层折叠且思考中：仍显示工具调用，方便观察进行中的调用 */}
+      {inlineTools && !expanded && isThinking && (
         <Box
           onClick={(e) => e.stopPropagation()}
           sx={{
             px: 1.5,
             pb: 1.25,
-            pt: expanded ? 0 : 1.25,
-            borderTop: expanded
-              ? 'none'
-              : `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
+            pt: 1.25,
+            borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
             cursor: 'default',
           }}
         >
