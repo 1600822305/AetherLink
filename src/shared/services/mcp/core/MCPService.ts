@@ -222,8 +222,8 @@ export class MCPService {
   //  工具操作
   // ═══════════════════════════════════════════════
 
-  public async listTools(server: MCPServer): Promise<MCPTool[]> {
-    return this.toolExecutor.listTools(server);
+  public async listTools(server: MCPServer, options?: { includeDisabled?: boolean }): Promise<MCPTool[]> {
+    return this.toolExecutor.listTools(server, options);
   }
 
   public async callTool(

@@ -48,7 +48,7 @@ export class MCPToolExecutor {
 
   // ── 工具列举 ──────────────────────────────────
 
-  async listTools(server: MCPServer): Promise<MCPTool[]> {
+  async listTools(server: MCPServer, options?: { includeDisabled?: boolean }): Promise<MCPTool[]> {
     try {
       console.log(`[MCP] 获取服务器工具: ${server.name}`);
 
@@ -67,7 +67,7 @@ export class MCPToolExecutor {
         id: buildFunctionCallToolName(server.name, tool.name)
       }));
 
-      const disabledTools = server.disabledTools || [];
+      const disabledTools = options?.includeDisabled ? [] : (server.disabledTools || []);
       const tools = disabledTools.length > 0
         ? allTools.filter(tool => !disabledTools.includes(tool.name))
         : allTools;

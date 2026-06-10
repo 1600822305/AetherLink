@@ -87,7 +87,7 @@ const MCPAssistantDetail: React.FC = () => {
     if (!serverData.isActive) return;
     setLoading(true);
     try {
-      const toolsList = await mcpService.listTools(serverData);
+      const toolsList = await mcpService.listTools(serverData, { includeDisabled: true });
       setTools(toolsList);
     } catch (error) {
       console.error('加载工具列表失败', error);
