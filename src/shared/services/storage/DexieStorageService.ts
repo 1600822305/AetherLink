@@ -823,12 +823,19 @@ export class DexieStorageService extends Dexie {
 
   async clearDatabase(): Promise<void> {
     await this.message_blocks.clear();
+    await this.messages.clear();
     await this.topics.clear();
     await this.assistants.clear();
     await this.settings.clear();
     await this.images.clear();
     await this.imageMetadata.clear();
     await this.metadata.clear();
+    await this.files.clear();
+    await this.knowledge_bases.clear();
+    await this.knowledge_documents.clear();
+    await this.quick_phrases.clear();
+    await this.memories.clear();
+    await this.skills.clear();
   }
 
   /**
