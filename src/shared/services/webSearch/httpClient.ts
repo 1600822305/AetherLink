@@ -9,6 +9,8 @@ export interface SearchHttpRequest {
   /** 请求体（对象会被 JSON 序列化） */
   body?: any;
   timeout?: number;
+  /** 响应解析方式，默认 json；text 用于 SSE/纯文本响应 */
+  responseType?: 'json' | 'text';
 }
 
 export interface SearchHttpResponse {
@@ -21,7 +23,7 @@ export interface SearchHttpResponse {
  * 所有搜索提供商/协议适配器共用，避免双端实现复制粘贴。
  */
 export async function searchHttpRequest(request: SearchHttpRequest): Promise<SearchHttpResponse> {
-  const { url, method = 'GET', headers = {}, body, timeout = 30000 } = request;
+  const { url, method = 'GET', headers = {}, body, timeout = 30000, responseType = 'json' } = request;
 
   if (Capacitor.isNativePlatform()) {
     const response = await CorsBypass.request({
@@ -30,7 +32,7 @@ export async function searchHttpRequest(request: SearchHttpRequest): Promise<Sea
       headers,
       data: body,
       timeout,
-      responseType: 'json'
+      responseType
     });
 
     if (response.status >= 400) {
@@ -61,7 +63,7 @@ export async function searchHttpRequest(request: SearchHttpRequest): Promise<Sea
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: 请求失败 (${url})`);
     }
-    const data = await response.json();
+    const data = responseType === 'text' ? await response.text() : await response.json();
     return { status: response.status, data };
   } catch (error: any) {
     if (error?.name === 'AbortError') {

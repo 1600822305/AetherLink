@@ -20,7 +20,7 @@ interface WebSearchProviderSelectorProps {
 }
 
 // 免费提供商，无需任何配置
-const FREE_PROVIDERS = ['bing-free', 'bing', 'local-google', 'local-bing'];
+const FREE_PROVIDERS = ['bing-free', 'bing', 'local-google', 'local-bing', 'exa-mcp'];
 
 const getProviderIcon = (providerId: string): string => {
   switch (providerId) {
@@ -40,6 +40,14 @@ const getProviderIcon = (providerId: string): string => {
       return '🔥';
     case 'cloudflare-ai-search':
       return '☁️';
+    case 'zhipu':
+      return '🧠';
+    case 'jina':
+      return '🔎';
+    case 'querit':
+      return '🔍';
+    case 'exa-mcp':
+      return '🆓';
     default:
       return '🔍';
   }

@@ -46,8 +46,41 @@ const getDefaultProviders = (): WebSearchProviderConfig[] => [
     apiKey: '',
     accountId: '',
     autoragName: ''
+  },
+  {
+    id: 'zhipu',
+    name: 'Zhipu 智谱搜索',
+    apiHost: 'https://open.bigmodel.cn/api/paas/v4/web_search',
+    apiKey: ''
+  },
+  {
+    id: 'jina',
+    name: 'Jina (搜索+阅读)',
+    apiHost: 'https://s.jina.ai',
+    apiKey: ''
+  },
+  {
+    id: 'querit',
+    name: 'Querit',
+    apiHost: 'https://api.querit.ai',
+    apiKey: ''
+  },
+  {
+    id: 'exa-mcp',
+    name: 'Exa MCP (免密钥)',
+    apiHost: 'https://mcp.exa.ai/mcp',
+    apiKey: ''
   }
 ];
+
+// 合并默认提供商：保留用户已有配置，补全新增的默认提供商
+const mergeWithDefaultProviders = (saved: WebSearchProviderConfig[] | undefined): WebSearchProviderConfig[] => {
+  const savedList = saved ?? [];
+  return getDefaultProviders().map((defaultProvider) => {
+    const existing = savedList.find((p) => p.id === defaultProvider.id);
+    return existing ? { ...defaultProvider, ...existing, name: defaultProvider.name } : defaultProvider;
+  });
+};
 
 // 从IndexedDB加载初始状态
 const loadFromStorage = async (): Promise<WebSearchSettings> => {
@@ -59,7 +92,7 @@ const loadFromStorage = async (): Promise<WebSearchSettings> => {
         ...savedSettings,
         searchWithTime: savedSettings.searchWithTime ?? false,
         excludeDomains: savedSettings.excludeDomains ?? [],
-        providers: savedSettings.providers ?? getDefaultProviders(),
+        providers: mergeWithDefaultProviders(savedSettings.providers),
         // 🚀 重要：activeProviderId 是临时状态，每次启动时重置
         // 只有用户在当前会话中点击搜索按钮选择引擎后才会设置
         activeProviderId: undefined

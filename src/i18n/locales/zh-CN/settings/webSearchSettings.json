@@ -15,6 +15,10 @@
           "exa": "🧠 Exa (神经搜索)",
           "bocha": "🤖 Bocha (AI搜索)",
           "firecrawl": "🕷️ Firecrawl (网页抓取)",
+          "zhipu": "🇨🇳 Zhipu 智谱搜索 (国内友好)",
+          "jina": "🔎 Jina (搜索+阅读)",
+          "querit": "🔍 Querit",
+          "exaMcp": "🆓 Exa MCP (免密钥)",
           "custom": "⚙️ 自定义服务"
         },
         "status": {
@@ -22,6 +26,8 @@
           "neuralSearch": "神经搜索",
           "aiSearch": "AI搜索",
           "webScraping": "网页抓取",
+          "domestic": "国内友好",
+          "free": "免费",
           "custom": "自定义",
           "unknown": "未知"
         }
@@ -69,6 +75,24 @@
           "text": "Firecrawl 提供强大的网络爬取和搜索功能。访问",
           "link": "firecrawl.dev",
           "linkText": "获取 API 密钥。"
+        },
+        "zhipu": {
+          "text": "智谱搜索是智谱AI提供的网络搜索API，国内访问友好。访问",
+          "link": "open.bigmodel.cn",
+          "linkText": "获取 API 密钥。"
+        },
+        "jina": {
+          "text": "Jina 提供 AI 搜索和网页阅读能力。访问",
+          "link": "jina.ai",
+          "linkText": "获取 API 密钥。"
+        },
+        "querit": {
+          "text": "Querit 是面向 AI 应用的搜索 API。访问",
+          "link": "querit.ai",
+          "linkText": "获取 API 密钥。"
+        },
+        "exaMcp": {
+          "text": "Exa MCP 通过 Exa 官方 MCP 端点（mcp.exa.ai）搜索，无需 API 密钥，免费使用。"
         }
       },
       "customProviders": {

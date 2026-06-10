@@ -15,6 +15,10 @@
           "exa": "🧠 Exa (Neural Search)",
           "bocha": "🤖 Bocha (AI Search)",
           "firecrawl": "🕷️ Firecrawl (Web Scraping)",
+          "zhipu": "🇨🇳 Zhipu Search (China-friendly)",
+          "jina": "🔎 Jina (Search + Reader)",
+          "querit": "🔍 Querit",
+          "exaMcp": "🆓 Exa MCP (Keyless)",
           "custom": "⚙️ Custom Service"
         },
         "status": {
@@ -22,6 +26,8 @@
           "neuralSearch": "Neural Search",
           "aiSearch": "AI Search",
           "webScraping": "Web Scraping",
+          "domestic": "China-friendly",
+          "free": "Free",
           "custom": "Custom",
           "unknown": "Unknown"
         }
@@ -69,6 +75,24 @@
           "text": "Firecrawl provides powerful web scraping and search capabilities. Visit",
           "link": "firecrawl.dev",
           "linkText": "to get an API key."
+        },
+        "zhipu": {
+          "text": "Zhipu Search is a web search API from Zhipu AI, with good accessibility in China. Visit",
+          "link": "open.bigmodel.cn",
+          "linkText": "to get an API key."
+        },
+        "jina": {
+          "text": "Jina provides AI search and web reading capabilities. Visit",
+          "link": "jina.ai",
+          "linkText": "to get an API key."
+        },
+        "querit": {
+          "text": "Querit is a search API built for AI applications. Visit",
+          "link": "querit.ai",
+          "linkText": "to get an API key."
+        },
+        "exaMcp": {
+          "text": "Exa MCP searches via Exa's official MCP endpoint (mcp.exa.ai). No API key required, free to use."
         }
       },
       "customProviders": {
