@@ -337,8 +337,19 @@ export const processAssistantResponse = async (
           if (lastUserMessage) {
             const userContent = getMainTextContent(lastUserMessage);
             if (userContent) {
+              // 构建近若干轮上下文（当前用户消息之前的消息），供多轮事实提取使用
+              const MAX_CONTEXT_MESSAGES = 6;
+              const lastUserIndex = filteredOriginalMessages.lastIndexOf(lastUserMessage);
+              const priorMessages = filteredOriginalMessages
+                .slice(0, lastUserIndex)
+                .slice(-MAX_CONTEXT_MESSAGES)
+                .map(m => {
+                  const text = getMainTextContent(m);
+                  return text ? `${m.role === 'user' ? '用户' : '助手'}: ${text}` : '';
+                })
+                .filter(Boolean);
               // 异步提取记忆，不阻塞响应
-              extractAndSaveMemories(userContent, finalContent, assistant?.id).catch(err => {
+              extractAndSaveMemories(userContent, finalContent, assistant?.id, priorMessages).catch(err => {
                 console.error('[Memory] 自动记忆提取失败:', err);
               });
             }

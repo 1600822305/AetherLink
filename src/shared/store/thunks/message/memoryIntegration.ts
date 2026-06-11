@@ -149,7 +149,8 @@ ${memoryList}
 export async function extractAndSaveMemories(
   userContent: string,
   assistantContent: string,
-  assistantIdOverride?: string
+  assistantIdOverride?: string,
+  priorMessages: string[] = []
 ): Promise<void> {
   if (!isMemoryEnabled()) {
     return;
@@ -163,8 +164,10 @@ export async function extractAndSaveMemories(
   }
   
   try {
-    // 构建对话消息用于事实提取
+    // 构建对话消息用于事实提取：包含近若干轮上下文 + 当前一轮，
+    // 避免只取最后一轮导致多轮对话中的事实被漏提取
     const messages: string[] = [
+      ...priorMessages,
       `用户: ${userContent}`,
       `助手: ${assistantContent}`
     ];

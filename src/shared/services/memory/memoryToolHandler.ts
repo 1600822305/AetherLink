@@ -32,7 +32,7 @@ export async function handleMemoryToolCall(
         const memory = await memoryService.add(content, {
           assistantId,
           metadata: {
-            source: 'manual',
+            source: 'auto',
             category: 'fact',
           }
         });
