@@ -38,6 +38,12 @@ const DEFAULT_DEDUP_THRESHOLD = 0.85;
 /** 默认搜索相似度阈值 */
 const DEFAULT_SEARCH_THRESHOLD = 0.5;
 
+/**
+ * 相对分数地板比例：当没有任何记忆达到绝对阈值时，
+ * 退而保留分数 ≥ 最高分 × 该比例的记忆，避免小语料/查询偏差下全被卡掉
+ */
+const RELATIVE_SCORE_FLOOR_RATIO = 0.8;
+
 /** 嵌入缓存条数上限 */
 const EMBEDDING_CACHE_MAX_SIZE = 200;
 
@@ -375,7 +381,7 @@ class MemoryService {
       const cached = await this.getCachedMemories(filterKey);
 
       // 计算相似度并排序（使用预计算的模长，点积 / 模长乘积 = 余弦相似度）
-      const scoredMemories = cached
+      const scored = cached
         .filter(e => 
           !e.item.isDeleted && 
           !!e.item.embedding &&
@@ -388,14 +394,28 @@ class MemoryService {
           ...e.item,
           score: this.dotProduct(queryEmbedding, e.item.embedding!) / (queryNorm * e.norm),
         }))
-        .filter(m => m.score >= threshold)
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => b.score - a.score);
+
+      // 无任何可比向量：降级到文本搜索（“没搜到≠没记过”）
+      if (scored.length === 0) {
+        return this.textSearch(query, options);
+      }
+
+      // 优先取达到绝对阈值的；若全被卡掉，用相对分数地板兜底（仅放宽召回，不影响已命中结果）
+      const aboveThreshold = scored.filter(m => m.score >= threshold);
+      const floor = scored[0].score * RELATIVE_SCORE_FLOOR_RATIO;
+      const selected = (aboveThreshold.length > 0 ? aboveThreshold : scored.filter(m => m.score >= floor))
         .slice(0, limit)
         .map(m => m as MemoryItem);
 
+      // 向量召回为空时降级到文本搜索
+      if (selected.length === 0) {
+        return this.textSearch(query, options);
+      }
+
       return {
-        memories: scoredMemories,
-        count: scoredMemories.length,
+        memories: selected,
+        count: selected.length,
       };
     } catch (error) {
       console.error('[MemoryService] 搜索记忆失败:', error);
