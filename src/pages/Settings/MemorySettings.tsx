@@ -185,6 +185,8 @@ const MemorySettings: React.FC = () => {
           for (const memory of oldMemories) {
             await dexieStorage.memories.update(memory.id, { userId: finalList[0].id });
           }
+          // 绕过 MemoryService 直接改了库，需失效其记忆缓存
+          memoryService.invalidateMemoryCache();
         }
       }
       

@@ -22,6 +22,12 @@ import { createHash } from '../../utils/hash.ts';
 // 使用数据库的 Memory 类型作为 MemoryItem
 type MemoryItem = Memory & { memory: string };
 
+/** 内存缓存的记忆条目：原始记忆 + 预计算的向量 L2 模长 */
+interface CachedMemory {
+  item: Memory;
+  norm: number;
+}
+
 // ========================================================================
 // 常量配置
 // ========================================================================
@@ -48,6 +54,12 @@ class MemoryService {
   private fallbackConfig: MemoryConfig = {};
   private configProvider?: () => MemoryConfig | undefined;
   private embeddingCache: Map<string, number[]> = new Map();
+  /**
+   * 按隔离键缓存该助手的全部记忆行（含预计算的向量模长），
+   * 避免每次搜索/去重都从 IndexedDB 全量读取并重算模长。
+   * 所有写操作都经过本服务，因此可在写入时增量维护缓存。
+   */
+  private memoryCache: Map<string, CachedMemory[]> = new Map();
   private isInitialized = false;
 
   /**
@@ -166,6 +178,7 @@ class MemoryService {
 
       // 保存到数据库
       await dexieStorage.memories.put(memoryItem);
+      this.appendToCache(userId, memoryItem);
       
       console.log('[MemoryService] 记忆已添加:', memoryItem.id);
       return memoryItem as MemoryItem;
@@ -232,6 +245,7 @@ class MemoryService {
       };
 
       await dexieStorage.memories.put(updated);
+      this.replaceInCache(updated);
       
       console.log('[MemoryService] 记忆已更新:', id);
       return updated as MemoryItem;
@@ -257,6 +271,7 @@ class MemoryService {
         isDeleted: true,
         updatedAt: new Date().toISOString(),
       });
+      this.invalidateMemoryCache(existing.userId);
 
       console.log('[MemoryService] 记忆已删除:', id);
       return true;
@@ -272,6 +287,7 @@ class MemoryService {
   public async hardDelete(id: string): Promise<boolean> {
     try {
       await dexieStorage.memories.delete(id);
+      this.invalidateMemoryCache();
       console.log('[MemoryService] 记忆已永久删除:', id);
       return true;
     } catch (error) {
@@ -303,12 +319,14 @@ class MemoryService {
       // 支持 assistantId 或后向兼容的 userId
       const filterKey = options.assistantId || options.userId || 'default';
 
-      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
-      const filtered = userMemories.filter(m => 
-        !m.isDeleted && 
-        m.type === 'memory' &&
-        m.memory
-      );
+      const cached = await this.getCachedMemories(filterKey);
+      const filtered = cached
+        .map(e => e.item)
+        .filter(m => 
+          !m.isDeleted && 
+          m.type === 'memory' &&
+          m.memory
+        );
 
       const count = filtered.length;
       const memories = filtered
@@ -347,23 +365,28 @@ class MemoryService {
       if (!queryEmbedding) {
         return this.textSearch(query, options);
       }
+      const queryNorm = this.computeNorm(queryEmbedding);
+      if (queryNorm === 0) {
+        return this.textSearch(query, options);
+      }
 
       // 获取助手的所有记忆（仅比较同一嵌入模型生成的向量，跨模型向量不可比）
       const currentModelId = this.config.embeddingModel?.id;
-      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
-      const validMemories = userMemories.filter(m => 
-        !m.isDeleted && 
-        !!m.embedding &&
-        m.type === 'memory' &&
-        m.memory &&
-        (!m.embeddingModelId || m.embeddingModelId === currentModelId)
-      );
+      const cached = await this.getCachedMemories(filterKey);
 
-      // 计算相似度并排序
-      const scoredMemories = validMemories
-        .map(memory => ({
-          ...memory,
-          score: this.cosineSimilarity(queryEmbedding, memory.embedding!),
+      // 计算相似度并排序（使用预计算的模长，点积 / 模长乘积 = 余弦相似度）
+      const scoredMemories = cached
+        .filter(e => 
+          !e.item.isDeleted && 
+          !!e.item.embedding &&
+          e.norm > 0 &&
+          e.item.type === 'memory' &&
+          e.item.memory &&
+          (!e.item.embeddingModelId || e.item.embeddingModelId === currentModelId)
+        )
+        .map(e => ({
+          ...e.item,
+          score: this.dotProduct(queryEmbedding, e.item.embedding!) / (queryNorm * e.norm),
         }))
         .filter(m => m.score >= threshold)
         .sort((a, b) => b.score - a.score)
@@ -392,13 +415,15 @@ class MemoryService {
       const filterKey = options.assistantId || options.userId || 'default';
       const lowerQuery = query.toLowerCase();
 
-      const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
-      const filtered = userMemories.filter(m => 
-        !m.isDeleted && 
-        m.type === 'memory' &&
-        m.memory &&
-        m.memory.toLowerCase().includes(lowerQuery)
-      ).slice(0, limit);
+      const cached = await this.getCachedMemories(filterKey);
+      const filtered = cached
+        .map(e => e.item)
+        .filter(m => 
+          !m.isDeleted && 
+          m.type === 'memory' &&
+          m.memory &&
+          m.memory.toLowerCase().includes(lowerQuery)
+        ).slice(0, limit);
 
       return {
         memories: filtered.map(m => ({ ...m, score: 1.0 } as MemoryItem)),
@@ -491,13 +516,13 @@ class MemoryService {
    */
   private async findByHash(hash: string, userId: string): Promise<MemoryItem | null> {
     try {
-      const userMemories = await dexieStorage.memories.where('userId').equals(userId).toArray();
-      const memory = userMemories.find(m => 
-        m.hash === hash && 
-        !m.isDeleted &&
-        m.memory
+      const cached = await this.getCachedMemories(userId);
+      const found = cached.find(e => 
+        e.item.hash === hash && 
+        !e.item.isDeleted &&
+        e.item.memory
       );
-      return memory ? (memory as MemoryItem) : null;
+      return found ? (found.item as MemoryItem) : null;
     } catch {
       return null;
     }
@@ -512,19 +537,17 @@ class MemoryService {
     threshold: number
   ): Promise<MemoryItem | null> {
     try {
+      const embNorm = this.computeNorm(embedding);
+      if (embNorm === 0) return null;
       const currentModelId = this.config.embeddingModel?.id;
-      const userMemories = await dexieStorage.memories.where('userId').equals(userId).toArray();
-      const memories = userMemories.filter(m => 
-        !m.isDeleted && 
-        !!m.embedding &&
-        m.memory &&
-        (!m.embeddingModelId || m.embeddingModelId === currentModelId)
-      );
+      const cached = await this.getCachedMemories(userId);
 
-      for (const memory of memories) {
-        const similarity = this.cosineSimilarity(embedding, memory.embedding!);
+      for (const e of cached) {
+        if (e.item.isDeleted || !e.item.embedding || !e.item.memory || e.norm === 0) continue;
+        if (e.item.embeddingModelId && e.item.embeddingModelId !== currentModelId) continue;
+        const similarity = this.dotProduct(embedding, e.item.embedding) / (embNorm * e.norm);
         if (similarity >= threshold) {
-          return { ...memory, score: similarity } as MemoryItem;
+          return { ...e.item, score: similarity } as MemoryItem;
         }
       }
       return null;
@@ -608,28 +631,91 @@ class MemoryService {
   }
 
   /**
-   * 计算余弦相似度
+   * 计算两个向量的点积
    */
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
+  private dotProduct(vecA: number[], vecB: number[]): number {
     if (!vecA || !vecB || vecA.length !== vecB.length) {
       return 0;
     }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
+    let sum = 0;
     for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
+      sum += vecA[i] * vecB[i];
     }
+    return sum;
+  }
 
-    if (normA === 0 || normB === 0) {
+  /**
+   * 计算向量的 L2 模长（无向量时返回 0）
+   */
+  private computeNorm(embedding?: number[]): number {
+    if (!embedding || embedding.length === 0) {
       return 0;
     }
+    let sum = 0;
+    for (let i = 0; i < embedding.length; i++) {
+      sum += embedding[i] * embedding[i];
+    }
+    return Math.sqrt(sum);
+  }
 
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  // ========================================================================
+  // 记忆缓存（按隔离键）
+  // ========================================================================
+
+  /**
+   * 读取该隔离键的记忆缓存，未命中时从 IndexedDB 加载并预计算模长
+   */
+  private async getCachedMemories(filterKey: string): Promise<CachedMemory[]> {
+    const cached = this.memoryCache.get(filterKey);
+    if (cached) {
+      return cached;
+    }
+    const userMemories = await dexieStorage.memories.where('userId').equals(filterKey).toArray();
+    const entries = userMemories.map(item => ({
+      item,
+      norm: this.computeNorm(item.embedding),
+    }));
+    this.memoryCache.set(filterKey, entries);
+    return entries;
+  }
+
+  /**
+   * 向缓存追加一条新记忆（未加载过的键不处理，下次读取时再从 DB 加载）
+   */
+  private appendToCache(filterKey: string, item: Memory): void {
+    const cached = this.memoryCache.get(filterKey);
+    if (cached) {
+      cached.push({ item, norm: this.computeNorm(item.embedding) });
+    }
+  }
+
+  /**
+   * 用更新后的记忆替换缓存中的同名条目
+   */
+  private replaceInCache(item: Memory): void {
+    const cached = this.memoryCache.get(item.userId);
+    if (!cached) {
+      return;
+    }
+    const entry = { item, norm: this.computeNorm(item.embedding) };
+    const idx = cached.findIndex(e => e.item.id === item.id);
+    if (idx >= 0) {
+      cached[idx] = entry;
+      return;
+    }
+    cached.push(entry);
+  }
+
+  /**
+   * 失效记忆缓存：传入隔离键只清该键；不传则清空全部。
+   * 绕过本服务直接写库时（如记忆迁移）需调用此方法。
+   */
+  public invalidateMemoryCache(filterKey?: string): void {
+    if (filterKey === undefined) {
+      this.memoryCache.clear();
+      return;
+    }
+    this.memoryCache.delete(filterKey);
   }
 
   /**
