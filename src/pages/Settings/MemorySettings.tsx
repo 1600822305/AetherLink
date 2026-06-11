@@ -52,7 +52,7 @@ import type { MemoryItem } from '../../shared/types/memory';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import { SafeAreaContainer, HeaderBar, Container } from '../../components/settings/SettingComponents';
 import { AddMemoryDialog, EditMemoryDialog, ModelConfigDialog, PromptEditDialog, MaintenanceReportDialog } from './MemorySettings/';
-import { memoryMaintenanceService, type MemoryMaintenanceReport } from '../../shared/services/memory/maintenance';
+import { memoryMaintenanceService, DEFAULT_MAINTENANCE_INTERVAL_DAYS, type MemoryMaintenanceReport } from '../../shared/services/memory/maintenance';
 import { toastManager } from '../../components/EnhancedToast';
 
 // ========================================================================
@@ -661,6 +661,19 @@ const MemorySettings: React.FC = () => {
                 立即整理
               </Button>
             </Box>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5 }}>
+            <Box>
+              <Typography variant="body2">自动整理</Typography>
+              <Typography variant="caption" color="text.secondary">
+                每 {memoryConfig.maintenanceIntervalDays ?? DEFAULT_MAINTENANCE_INTERVAL_DAYS} 天在应用空闲时自动执行一次整理
+              </Typography>
+            </Box>
+            <Switch
+              checked={memoryConfig.autoMaintenanceEnabled || false}
+              onChange={(e) => dispatch(patchMemoryConfig({ autoMaintenanceEnabled: e.target.checked }))}
+              color="primary"
+            />
           </Box>
         </Section>
 
