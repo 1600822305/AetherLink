@@ -5,6 +5,7 @@
 // 服务
 export { memoryService, default as MemoryService } from './MemoryService';
 export { MemoryProcessor, createMemoryProcessor } from './MemoryProcessor';
+export * from './maintenance';
 
 // 提示词
 export {
