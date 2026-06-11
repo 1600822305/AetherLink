@@ -24,6 +24,16 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
   if (!report) return null;
 
   const purgeCount = report.dryRun ? report.purge.candidates.length : report.purge.purgedCount;
+  const { reembed, consolidate } = report;
+  const handledIds = new Set<string>([
+    ...consolidate.merged.flatMap(m => [m.keptId, ...m.removedIds]),
+    ...consolidate.expired.map(e => e.id),
+    ...consolidate.conflicts.flatMap(c => [c.winnerId, ...c.loserIds]),
+  ]);
+  // 只展示未被 LLM 整合处理的簇，避免与整合结果重复
+  const remainingClusters = report.cluster.clusters.filter(
+    cluster => !cluster.members.some(m => handledIds.has(m.id))
+  );
 
   return (
     <BackButtonDialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -62,17 +72,64 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
               : '没有需要物理清除的记忆'}
         </Typography>
 
+        {/* 向量修复 */}
+        {reembed.candidateCount > 0 && (
+          <>
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              向量修复
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {report.dryRun
+                ? `有 ${reembed.candidateCount} 条记忆的向量缺失或来自其他嵌入模型，将被重算`
+                : `已重算 ${reembed.reembeddedCount} 条记忆的向量${
+                    reembed.deferredCount > 0 ? `，剩余 ${reembed.deferredCount} 条顺延到下次` : ''
+                  }`}
+            </Typography>
+          </>
+        )}
+
+        {/* LLM 整合结果 */}
+        {!report.dryRun &&
+          (consolidate.merged.length > 0 ||
+            consolidate.expired.length > 0 ||
+            consolidate.conflicts.length > 0) && (
+            <>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                智能整合（用了 {consolidate.llmCallsUsed} 次 LLM 调用）
+              </Typography>
+              <Box sx={{ maxHeight: 200, overflow: 'auto', mb: 1.5 }}>
+                {consolidate.merged.map((m, idx) => (
+                  <Box key={`merge-${idx}`} sx={{ mb: 0.5 }}>
+                    <Chip label={`合并 ${m.removedIds.length + 1} 条`} size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.7rem', mr: 0.5 }} />
+                    <Typography variant="body2" component="span">{m.mergedText}</Typography>
+                  </Box>
+                ))}
+                {consolidate.expired.map((e, idx) => (
+                  <Box key={`expire-${idx}`} sx={{ mb: 0.5 }}>
+                    <Chip label="过期" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.7rem', mr: 0.5 }} />
+                    <Typography variant="body2" component="span">{e.memory}</Typography>
+                  </Box>
+                ))}
+                {consolidate.conflicts.map((c, idx) => (
+                  <Box key={`conflict-${idx}`} sx={{ mb: 0.5 }}>
+                    <Chip label={`冲突解决（淘汰 ${c.loserIds.length} 条）`} size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+
         {/* 近重复簇 */}
         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          近重复记忆（{report.cluster.clusters.length} 组）
+          {report.dryRun ? '近重复记忆' : '未处理的近重复记忆'}（{remainingClusters.length} 组）
         </Typography>
-        {report.cluster.clusters.length === 0 ? (
+        {remainingClusters.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             未发现近重复记忆
           </Typography>
         ) : (
           <Box sx={{ maxHeight: 280, overflow: 'auto' }}>
-            {report.cluster.clusters.map((cluster, idx) => (
+            {remainingClusters.map((cluster, idx) => (
               <Box
                 key={idx}
                 sx={{
@@ -98,14 +155,16 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
               </Box>
             ))}
             <Typography variant="caption" color="text.secondary">
-              近重复记忆的自动合并将在后续版本提供，目前可在记忆列表中手动处理。
+              {report.dryRun
+                ? '执行「立即整理」后将由 LLM 自动合并/清理这些记忆。'
+                : '超出本次 LLM 预算或被判定保留的簇，会在下次整理时继续处理。'}
             </Typography>
           </Box>
         )}
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
           <Button onClick={onClose}>关闭</Button>
-          {report.dryRun && purgeCount > 0 && onRunForReal && (
+          {report.dryRun && (purgeCount > 0 || report.cluster.clusters.length > 0 || reembed.candidateCount > 0) && onRunForReal && (
             <Button variant="contained" onClick={onRunForReal}>
               立即整理
             </Button>
