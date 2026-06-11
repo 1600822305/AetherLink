@@ -45,6 +45,7 @@ import networkProxyReducer, { loadNetworkProxySettings, applyGlobalProxy } from 
 import { Capacitor } from '@capacitor/core';
 import agenticFilesReducer from './slices/agenticFilesSlice';
 import memoryReducer, { initializeMemoryService } from './slices/memorySlice';
+import { memoryService } from '../services/memory/MemoryService';
 import skillsReducer, { loadSkills } from './slices/skillsSlice';
 import knowledgeSelectionReducer from './slices/knowledgeSelectionSlice';
 import pdfPreprocessReducer, { initializePdfPreprocessSettings, setPdfPreprocessSettings } from './slices/pdfPreprocessSlice';
@@ -162,7 +163,8 @@ store.dispatch(loadNetworkProxySettings() as any).then((result: any) => {
   }
 });
 
-// 初始化记忆服务
+// 初始化记忆服务：注册配置提供者，让 MemoryService 实时读取 store 中的最新配置
+memoryService.setConfigProvider(() => store.getState().memory?.memoryConfig);
 store.dispatch(initializeMemoryService() as any);
 
 // 初始化技能系统

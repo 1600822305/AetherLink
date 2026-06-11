@@ -45,9 +45,18 @@ const EMBEDDING_CACHE_MAX_SIZE = 200;
  */
 class MemoryService {
   private static instance: MemoryService;
-  private config: MemoryConfig = {};
+  private fallbackConfig: MemoryConfig = {};
+  private configProvider?: () => MemoryConfig | undefined;
   private embeddingCache: Map<string, number[]> = new Map();
   private isInitialized = false;
+
+  /**
+   * 当前配置：优先从 configProvider（Redux store）实时读取，
+   * 避免单例内存配置与 store 不同步导致记忆缺失 embedding
+   */
+  private get config(): MemoryConfig {
+    return this.configProvider?.() ?? this.fallbackConfig;
+  }
 
   private constructor() {}
 
@@ -73,11 +82,17 @@ class MemoryService {
   }
 
   /**
-   * 更新配置
+   * 注册配置提供者（应用启动时注册一次，此后所有操作实时读取最新配置）
+   */
+  public setConfigProvider(provider: () => MemoryConfig | undefined): void {
+    this.configProvider = provider;
+  }
+
+  /**
+   * 更新配置（仅在未注册 configProvider 时生效，作为降级方案）
    */
   public setConfig(config: MemoryConfig): void {
-    this.config = { ...this.config, ...config };
-    console.log('[MemoryService] 配置已更新:', config);
+    this.fallbackConfig = { ...this.fallbackConfig, ...config };
   }
 
   /**
