@@ -340,10 +340,7 @@ const MemorySettings: React.FC = () => {
       embeddingDimensions: embeddingDimensions,
     };
     dispatch(patchMemoryConfig(config));
-    
-    // 更新 MemoryService 配置
-    memoryService.setConfig(config);
-    
+
     toastManager.success('配置已保存');
     setShowConfigDialog(false);
   };

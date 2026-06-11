@@ -58,7 +58,6 @@ export const updateMemoryConfig = createAsyncThunk(
     try {
       const state = getState() as { memory: MemoryState };
       const newConfig = { ...state.memory.memoryConfig, ...config };
-      memoryService.setConfig(newConfig);
       return newConfig;
     } catch (error) {
       return rejectWithValue(String(error));

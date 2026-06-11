@@ -261,8 +261,6 @@ export class MemoryProcessor {
     limit: number = 10
   ): Promise<string[]> {
     try {
-      memoryService.setConfig(this.config.memoryConfig);
-      
       const result = await memoryService.search(query, {
         userId: this.config.userId,
         limit,
