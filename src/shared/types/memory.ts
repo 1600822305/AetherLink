@@ -134,6 +134,12 @@ export interface MemoryConfig {
    * 缺点：需要模型支持工具调用
    */
   memoryToolEnabled?: boolean;
+
+  // ========== 记忆维护（Dream 自维护） ==========
+  /** 软删除保留天数，超过后由维护任务物理清除（默认 30） */
+  maintenanceRetentionDays?: number;
+  /** 上次维护完成时间（ISO 字符串） */
+  lastMaintenanceAt?: string;
 }
 
 /**

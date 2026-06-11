@@ -26,6 +26,7 @@ import {
   Search,
   RefreshCw,
   Brain,
+  Sparkles,
   Users,
   Settings,
   AlertTriangle,
@@ -50,7 +51,8 @@ import { getEmbeddingDimensions, EMBEDDING_MODELS } from '../../shared/config/em
 import type { MemoryItem } from '../../shared/types/memory';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import { SafeAreaContainer, HeaderBar, Container } from '../../components/settings/SettingComponents';
-import { AddMemoryDialog, EditMemoryDialog, ModelConfigDialog, PromptEditDialog } from './MemorySettings/';
+import { AddMemoryDialog, EditMemoryDialog, ModelConfigDialog, PromptEditDialog, MaintenanceReportDialog } from './MemorySettings/';
+import { memoryMaintenanceService, type MemoryMaintenanceReport } from '../../shared/services/memory/maintenance';
 import { toastManager } from '../../components/EnhancedToast';
 
 // ========================================================================
@@ -115,6 +117,9 @@ const MemorySettings: React.FC = () => {
   const [stats, setStats] = useState({ total: 0, assistants: 0 });
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [showPromptDialog, setShowPromptDialog] = useState(false);
+  const [maintenanceRunning, setMaintenanceRunning] = useState(false);
+  const [maintenanceReport, setMaintenanceReport] = useState<MemoryMaintenanceReport | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const [selectedLLMModel, setSelectedLLMModel] = useState<Model | null>(memoryConfig.llmModel || null);
   const [selectedEmbeddingModel, setSelectedEmbeddingModel] = useState<Model | null>(memoryConfig.embeddingModel || null);
   const [embeddingDimensions, setEmbeddingDimensions] = useState<number>(memoryConfig.embeddingDimensions || 1536);
@@ -378,6 +383,30 @@ const MemorySettings: React.FC = () => {
     toastManager.success(`已检测维度: ${dimensions}`);
   };
 
+  // 执行记忆整理（dryRun 为预览）
+  const handleRunMaintenance = async (dryRun: boolean) => {
+    if (maintenanceRunning) return;
+    setMaintenanceRunning(true);
+    try {
+      const report = await memoryMaintenanceService.run({
+        assistantId: currentAssistantId,
+        dryRun,
+        retentionDays: memoryConfig.maintenanceRetentionDays,
+      });
+      setMaintenanceReport(report);
+      setShowReportDialog(true);
+      if (!dryRun) {
+        dispatch(patchMemoryConfig({ lastMaintenanceAt: report.finishedAt }));
+        loadMemories();
+      }
+    } catch (error) {
+      console.error('[MemorySettings] 记忆整理失败:', error);
+      toastManager.error('记忆整理失败');
+    } finally {
+      setMaintenanceRunning(false);
+    }
+  };
+
   // 返回
   const handleBack = () => {
     navigate('/settings');
@@ -599,6 +628,42 @@ const MemorySettings: React.FC = () => {
           )}
         </Section>
 
+        {/* 记忆整理 */}
+        <Section elevation={0}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <SectionTitle variant="subtitle1">
+                <Sparkles size={20} />
+                记忆整理
+              </SectionTitle>
+              <Typography variant="body2" color="text.secondary">
+                清理过期的已删除记忆，并检测近重复记忆
+                {memoryConfig.lastMaintenanceAt &&
+                  ` · 上次整理：${new Date(memoryConfig.lastMaintenanceAt).toLocaleDateString()}`}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                disabled={maintenanceRunning}
+                onClick={() => handleRunMaintenance(true)}
+              >
+                预览
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={maintenanceRunning}
+                startIcon={maintenanceRunning ? <CircularProgress size={14} /> : <Sparkles size={16} />}
+                onClick={() => handleRunMaintenance(false)}
+              >
+                立即整理
+              </Button>
+            </Box>
+          </Box>
+        </Section>
+
         {/* 搜索和操作栏 */}
         <Section elevation={0}>
           <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -765,6 +830,17 @@ const MemorySettings: React.FC = () => {
         themeMode={themeMode as 'light' | 'dark'}
         fullScreen={fullScreen}
         onSave={handleSaveConfig}
+      />
+
+      {/* 记忆整理报告对话框 */}
+      <MaintenanceReportDialog
+        open={showReportDialog}
+        onClose={() => setShowReportDialog(false)}
+        report={maintenanceReport}
+        onRunForReal={() => {
+          setShowReportDialog(false);
+          handleRunMaintenance(false);
+        }}
       />
 
       {/* 自定义提示词编辑对话框 */}
