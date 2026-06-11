@@ -44,8 +44,9 @@ import runtimeReducer from './slices/runtimeSlice';
 import networkProxyReducer, { loadNetworkProxySettings, applyGlobalProxy } from './slices/networkProxySlice';
 import { Capacitor } from '@capacitor/core';
 import agenticFilesReducer from './slices/agenticFilesSlice';
-import memoryReducer, { initializeMemoryService } from './slices/memorySlice';
+import memoryReducer, { initializeMemoryService, patchMemoryConfig } from './slices/memorySlice';
 import { memoryService } from '../services/memory/MemoryService';
+import { startMaintenanceScheduler } from '../services/memory/maintenance/scheduler';
 import skillsReducer, { loadSkills } from './slices/skillsSlice';
 import knowledgeSelectionReducer from './slices/knowledgeSelectionSlice';
 import pdfPreprocessReducer, { initializePdfPreprocessSettings, setPdfPreprocessSettings } from './slices/pdfPreprocessSlice';
@@ -166,6 +167,25 @@ store.dispatch(loadNetworkProxySettings() as any).then((result: any) => {
 // 初始化记忆服务：注册配置提供者，让 MemoryService 实时读取 store 中的最新配置
 memoryService.setConfigProvider(() => store.getState().memory?.memoryConfig);
 store.dispatch(initializeMemoryService() as any);
+
+// 记忆自动维护：启动后空闲时检查是否到期并后台执行
+startMaintenanceScheduler({
+  getContext: () => {
+    const memory = store.getState().memory;
+    if (!memory?.globalMemoryEnabled) return null;
+    const config = memory.memoryConfig;
+    return {
+      enabled: config?.autoMaintenanceEnabled ?? false,
+      assistantId: memory.currentAssistantId,
+      lastMaintenanceAt: config?.lastMaintenanceAt,
+      intervalDays: config?.maintenanceIntervalDays,
+      retentionDays: config?.maintenanceRetentionDays,
+    };
+  },
+  onCompleted: (report) => {
+    store.dispatch(patchMemoryConfig({ lastMaintenanceAt: report.finishedAt }));
+  },
+});
 
 // 初始化技能系统
 store.dispatch(loadSkills() as any);

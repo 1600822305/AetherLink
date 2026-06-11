@@ -1,4 +1,6 @@
 export { memoryMaintenanceService } from './MemoryMaintenanceService';
+export { startMaintenanceScheduler } from './scheduler';
+export { isMaintenanceDue } from './schedule';
 export {
   DEFAULT_RETENTION_DAYS,
   DEFAULT_CLUSTER_THRESHOLD,

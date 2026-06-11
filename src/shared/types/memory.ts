@@ -140,6 +140,10 @@ export interface MemoryConfig {
   maintenanceRetentionDays?: number;
   /** 上次维护完成时间（ISO 字符串） */
   lastMaintenanceAt?: string;
+  /** 是否开启自动维护（应用启动后空闲触发） */
+  autoMaintenanceEnabled?: boolean;
+  /** 自动维护间隔天数（默认 7） */
+  maintenanceIntervalDays?: number;
 }
 
 /**
