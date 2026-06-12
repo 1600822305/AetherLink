@@ -145,6 +145,9 @@
     "noComboYet": "还没有创建任何模型组合",
     "createComboDesc": "创建模型组合来实现智能路由、模型集成等高级功能",
     "createFirst": "创建第一个组合",
+    "create": "新建组合",
+    "enabledChip": "已启用",
+    "disabledChip": "已停用",
     "modelCount": "{{count}} 个模型",
     "strategy": {
       "routing": "智能路由 (开发中)",
