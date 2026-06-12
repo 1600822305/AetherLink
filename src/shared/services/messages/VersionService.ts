@@ -225,6 +225,83 @@ class VersionService {
   private latestModelKey(messageId: string) { return `latest_model_${messageId}`; }
 
   /**
+   * 重新生成前的版本处理。
+   * - 正在查看最新版本：把当前内容保存为新版本（原有行为）。
+   * - 正在查看历史版本：当前显示内容已存在于版本列表，不重复保存；
+   *   把 latest snapshot 转正为版本（保住旧最新内容），并清除 currentVersionId，
+   *   让新生成的内容成为新的最新版本。
+   */
+  async prepareForRegenerate(messageId: string, model?: any): Promise<void> {
+    const message = await dexieStorage.getMessage(messageId);
+    if (!message) return;
+
+    if (!message.currentVersionId) {
+      await this.saveCurrentAsVersion(messageId, undefined, model || message.model, 'regenerate');
+      return;
+    }
+
+    // ── 正在查看历史版本 ──
+    const latestBlockIds = await dexieStorage.getSetting(this.latestBlocksKey(messageId)) as string[] | null;
+    let versions: MessageVersion[] = [...(message.versions || [])];
+
+    if (latestBlockIds && latestBlockIds.length > 0) {
+      const results = await dexieStorage.message_blocks.bulkGet(latestBlockIds);
+      const snapshotBlocks = results.filter((b): b is MessageBlock => b !== undefined);
+      const mainText = (snapshotBlocks.find(b => b.type === 'main_text') as any)?.content || '';
+
+      if (mainText.trim()) {
+        // 把 snapshot 块直接转正为版本块（改 messageId 标记，无需再克隆）
+        const versionId = uuid();
+        const retagged = snapshotBlocks.map(b => ({ ...b, messageId: `version_${versionId}` }));
+        await dexieStorage.bulkSaveMessageBlocks(retagged);
+
+        let snapshotModel = message.model;
+        let snapshotModelId = message.modelId;
+        const modelInfo = await dexieStorage.getSetting(this.latestModelKey(messageId));
+        if (modelInfo) {
+          try {
+            const parsed = JSON.parse(modelInfo);
+            snapshotModel = parsed.model ?? snapshotModel;
+            snapshotModelId = parsed.modelId ?? snapshotModelId;
+          } catch { /* ignore */ }
+        }
+
+        versions.push({
+          id: versionId,
+          messageId,
+          blocks: retagged.map(b => b.id),
+          createdAt: new Date().toISOString(),
+          modelId: snapshotModelId,
+          model: snapshotModel,
+          isActive: false,
+          metadata: {
+            contentSnapshot: String(mainText),
+            source: 'regenerate',
+            timestamp: Date.now()
+          }
+        });
+        console.log(`[VersionService] latest snapshot 已转正为版本 ${versionId}`);
+      } else {
+        // snapshot 没有有效内容，直接丢弃
+        await dexieStorage.deleteMessageBlocksByIds(latestBlockIds);
+      }
+    }
+
+    await dexieStorage.deleteSetting(this.latestBlocksKey(messageId));
+    await dexieStorage.deleteSetting(this.latestModelKey(messageId));
+
+    // 清除 currentVersionId，新生成内容将成为新的 latest
+    await dexieStorage.updateMessage(messageId, {
+      versions,
+      currentVersionId: undefined
+    });
+    store.dispatch(newMessagesActions.updateMessage({
+      id: messageId,
+      changes: { versions, currentVersionId: undefined }
+    }));
+  }
+
+  /**
    * 切换到指定版本
    */
   async switchToVersion(versionId: string): Promise<boolean> {
