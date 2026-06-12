@@ -21,9 +21,9 @@ import {
   DialogContentText,
   DialogActions,
   Button,
-  Switch,
   InputAdornment,
 } from '@mui/material';
+import CustomSwitch from '../../components/CustomSwitch';
 import { File as FileIcon, Copy, Check, Trash2, Pencil, Save, X, Plus, Search, List, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
 import BackButtonDialog from '../../components/common/BackButtonDialog';
 import { SafeAreaContainer, HeaderBar } from '../../components/settings/SettingComponents';
@@ -168,11 +168,9 @@ const ChunkCard: React.FC<{
             </>
           ) : (
             <>
-              <Switch
-                size="small"
+              <CustomSwitch
                 checked={isEnabled}
-                onChange={(_, checked) => onToggleEnabled(doc.id, checked)}
-                sx={{ mr: 0.5, '& .MuiSwitch-switchBase': { p: 0.5 }, '& .MuiSwitch-thumb': { width: 14, height: 14 }, '& .MuiSwitch-track': { borderRadius: 7 } }}
+                onChange={(e) => onToggleEnabled(doc.id, e.target.checked)}
               />
               <IconButton size="small" onClick={handleCopy} sx={{ p: 0.5 }} title="复制内容">
                 {copied ? <Check size={14} color="#4caf50" /> : <Copy size={14} />}
