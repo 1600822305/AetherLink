@@ -5,14 +5,12 @@ import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 import {
   updateOneBlock,
   removeManyBlocks,
-  upsertOneBlock,
   upsertManyBlocks
 } from '../../store/slices/messageBlocksSlice';
 import type {
   Message,
   MessageVersion,
-  MessageBlock,
-  MessageBlockStatus
+  MessageBlock
 } from '../../types/newMessage';
 
 /**
@@ -77,23 +75,10 @@ class VersionService {
       const versionId = uuid();
       const now = new Date().toISOString();
 
-      // 克隆所有当前块，生成独立的块副本供版本持有
-      // 使用 version_ 前缀的 messageId 隔离版本块，防止 getMessageBlocksByMessageId 误删
-      const clonedBlockIds: string[] = [];
-      if (messageBlocks.length > 0) {
-        const clonedBlocks: MessageBlock[] = messageBlocks.map(block => {
-          const newBlockId = uuid();
-          clonedBlockIds.push(newBlockId);
-          return {
-            ...block,
-            id: newBlockId,
-            messageId: `version_${versionId}`,
-            createdAt: now,
-            updatedAt: now
-          };
-        });
-        await dexieStorage.bulkSaveMessageBlocks(clonedBlocks);
-      }
+      // 克隆所有当前块，使用 version_ 前缀隔离
+      const { blockIds: clonedBlockIds } = messageBlocks.length > 0
+        ? await this.cloneBlocks(messageBlocks, `version_${versionId}`)
+        : { blockIds: [] as string[] };
 
       // 增强版本元数据，记录更多上下文信息
       const newVersion: MessageVersion = {
@@ -185,82 +170,95 @@ class VersionService {
   }
 
   /**
+   * 内部工具：克隆一组块并保存到 Dexie，返回新块 ID 列表。
+   * clonedMessageId 用于隔离克隆块（版本块用 `version_${id}`，latest 快照用 `latest_${id}`）。
+   */
+  private async cloneBlocks(
+    sourceBlocks: MessageBlock[],
+    clonedMessageId: string
+  ): Promise<{ blockIds: string[]; blocks: MessageBlock[] }> {
+    const now = new Date().toISOString();
+    const newBlocks: MessageBlock[] = [];
+    const newIds: string[] = [];
+    for (const block of sourceBlocks) {
+      const newId = uuid();
+      newIds.push(newId);
+      newBlocks.push({ ...block, id: newId, messageId: clonedMessageId, createdAt: now, updatedAt: now });
+    }
+    if (newBlocks.length > 0) {
+      await dexieStorage.bulkSaveMessageBlocks(newBlocks);
+    }
+    return { blockIds: newIds, blocks: newBlocks };
+  }
+
+  /**
+   * 内部工具：删除当前块，用 sourceBlocks 的克隆替换，更新 Dexie + Redux。
+   * 返回新当前块 ID 列表。
+   */
+  private async replaceCurrentBlocks(
+    messageId: string,
+    currentBlockIds: string[],
+    sourceBlocks: MessageBlock[]
+  ): Promise<string[]> {
+    // 删除当前块
+    if (currentBlockIds.length > 0) {
+      await dexieStorage.deleteMessageBlocksByIds(currentBlockIds);
+      store.dispatch(removeManyBlocks(currentBlockIds));
+    }
+    // 克隆源块为新的当前块
+    const { blockIds, blocks } = await this.cloneBlocks(sourceBlocks, messageId);
+    if (blocks.length > 0) {
+      store.dispatch(upsertManyBlocks(blocks));
+    }
+    // 更新消息的 blocks
+    await dexieStorage.updateMessage(messageId, { blocks: blockIds });
+    store.dispatch(newMessagesActions.updateMessage({ id: messageId, changes: { blocks: blockIds } }));
+    return blockIds;
+  }
+
+  // ── settings keys for latest snapshot ──
+  private latestBlocksKey(messageId: string) { return `latest_blocks_${messageId}`; }
+  private latestModelKey(messageId: string) { return `latest_model_${messageId}`; }
+
+  /**
    * 切换到指定版本
-   * @param versionId 要切换到的版本ID
-   * @returns 切换结果，成功返回true，失败返回false
    */
   async switchToVersion(versionId: string): Promise<boolean> {
     try {
       console.log(`[VersionService] 切换到版本 - 版本ID: ${versionId}`);
-      
+
       // 查找包含该版本的消息
       const allMessages = await dexieStorage.getAllMessages();
       let targetMessage: Message | undefined;
       let targetVersion: MessageVersion | undefined;
-
-      for (const message of allMessages) {
-        if (message.versions) {
-          const version = message.versions.find(v => v.id === versionId);
-          if (version) {
-            targetMessage = message;
-            targetVersion = version;
-            break;
-          }
+      for (const msg of allMessages) {
+        if (msg.versions) {
+          const v = msg.versions.find(ver => ver.id === versionId);
+          if (v) { targetMessage = msg; targetVersion = v; break; }
         }
       }
-
       if (!targetMessage || !targetVersion) {
         console.error(`[VersionService] 找不到版本 ${versionId}`);
         return false;
       }
 
       const messageId = targetMessage.id;
-      const originalContentKey = `original_content_${messageId}`;
-      const originalModelKey = `original_model_${messageId}`;
-      const originalThinkingKey = `original_thinking_blocks_${messageId}`;
-      const originalBlockOrderKey = `original_block_order_${messageId}`;
-      const currentBlocks = await dexieStorage.getMessageBlocksByIds(targetMessage.blocks || []);
-      const thinkingBlocks = currentBlocks.filter(block => block.type === 'thinking');
-      
-      // 获取版本内容
-      const contentSnapshot = targetVersion.metadata?.contentSnapshot;
-      if (!contentSnapshot) {
-        console.error(`[VersionService] 版本 ${versionId} 没有内容快照`);
-        return false;
-      }
 
-      // 在切换之前，如果是从最新版本切换到历史版本，保存当前最新内容和模型信息
+      // ── 1. 如果当前是最新版本，先保存"latest snapshot" ──
       if (!targetMessage.currentVersionId) {
-        // 当前是最新状态，需要保存原始内容
-        const currentContent = await this.getMessageContent(messageId);
-        if (currentContent) {
-          await dexieStorage.saveSetting(originalContentKey, currentContent);
-          console.log(`[VersionService] 已保存原始内容，长度: ${currentContent.length}`);
+        const currentBlocks = await dexieStorage.getMessageBlocksByIds(targetMessage.blocks || []);
+        if (currentBlocks.length > 0) {
+          const { blockIds } = await this.cloneBlocks(currentBlocks, `latest_${messageId}`);
+          await dexieStorage.saveSetting(this.latestBlocksKey(messageId), blockIds);
         }
-
-        // 记录原始模型信息以便返回时恢复
-        await dexieStorage.saveSetting(
-          originalModelKey,
-          JSON.stringify({
-            model: targetMessage.model || null,
-            modelId: targetMessage.modelId || null
-          })
-        );
-
-        if (thinkingBlocks.length > 0) {
-          await dexieStorage.saveSetting(originalThinkingKey, thinkingBlocks);
-        } else {
-          await dexieStorage.deleteSetting(originalThinkingKey);
-        }
-
-        if (targetMessage.blocks?.length) {
-          await dexieStorage.saveSetting(originalBlockOrderKey, targetMessage.blocks);
-        } else {
-          await dexieStorage.deleteSetting(originalBlockOrderKey);
-        }
+        await dexieStorage.saveSetting(this.latestModelKey(messageId), JSON.stringify({
+          model: targetMessage.model || null,
+          modelId: targetMessage.modelId || null
+        }));
+        console.log(`[VersionService] 已保存 latest snapshot`);
       }
 
-      // 尝试从版本的克隆块恢复完整内容（包括工具块、图片块等）
+      // ── 2. 获取目标版本的块 ──
       const versionBlockIds = targetVersion.blocks || [];
       let versionBlocks: MessageBlock[] = [];
       if (versionBlockIds.length > 0) {
@@ -268,72 +266,36 @@ class VersionService {
         versionBlocks = results.filter((b): b is MessageBlock => b !== undefined);
       }
 
+      // ── 3. 替换当前块 ──
       if (versionBlocks.length > 0) {
-        // 版本有独立的块副本：删除当前块，用版本块替换
-        if (currentBlocks.length > 0) {
-          const currentBlockIds = currentBlocks.map(b => b.id);
-          await dexieStorage.deleteMessageBlocksByIds(currentBlockIds);
-          store.dispatch(removeManyBlocks(currentBlockIds));
-        }
-
-        // 克隆版本块为新的当前块（保留版本块不动，供再次切换）
-        const newCurrentBlocks: MessageBlock[] = [];
-        const newCurrentBlockIds: string[] = [];
-        for (const block of versionBlocks) {
-          const newId = uuid();
-          newCurrentBlockIds.push(newId);
-          newCurrentBlocks.push({ ...block, id: newId, messageId, updatedAt: new Date().toISOString() });
-        }
-        await dexieStorage.bulkSaveMessageBlocks(newCurrentBlocks);
-        store.dispatch(upsertManyBlocks(newCurrentBlocks));
-
-        // 更新消息的 blocks 列表
-        await dexieStorage.updateMessage(messageId, { blocks: newCurrentBlockIds });
-        store.dispatch(newMessagesActions.updateMessage({
-          id: messageId,
-          changes: { blocks: newCurrentBlockIds }
-        }));
+        await this.replaceCurrentBlocks(messageId, targetMessage.blocks || [], versionBlocks);
       } else {
         // 兜底：版本没有块副本（旧版本数据），用 contentSnapshot 恢复 main_text
+        const contentSnapshot = targetVersion.metadata?.contentSnapshot;
+        if (!contentSnapshot) {
+          console.error(`[VersionService] 版本 ${versionId} 没有内容快照`);
+          return false;
+        }
+        const currentBlocks = await dexieStorage.getMessageBlocksByIds(targetMessage.blocks || []);
         const mainTextBlock = currentBlocks.find(block => block.type === 'main_text');
         if (mainTextBlock) {
-          const updatedBlock = {
-            ...mainTextBlock,
-            content: contentSnapshot as string,
-            updatedAt: new Date().toISOString()
-          };
-          await dexieStorage.updateMessageBlock(mainTextBlock.id, updatedBlock);
-          store.dispatch(updateOneBlock({
-            id: mainTextBlock.id,
-            changes: { content: contentSnapshot, updatedAt: new Date().toISOString() }
-          }));
+          await dexieStorage.updateMessageBlock(mainTextBlock.id, { content: contentSnapshot, updatedAt: new Date().toISOString() });
+          store.dispatch(updateOneBlock({ id: mainTextBlock.id, changes: { content: contentSnapshot, updatedAt: new Date().toISOString() } }));
         } else {
           console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
           return false;
         }
-
-        const thinkingSnapshot = (targetVersion.metadata as any)?.thinkingSnapshot;
-        await this.applyThinkingSnapshot({
-          messageId,
-          targetMessage,
-          thinkingBlocks,
-          thinkingSnapshot
-        });
       }
 
+      // ── 4. 更新 currentVersionId 和模型 ──
       const versionModel = targetVersion.model || null;
-      const resolvedModelId = targetVersion.modelId
-        || versionModel?.id
-        || targetMessage.modelId;
+      const resolvedModelId = targetVersion.modelId || versionModel?.id || targetMessage.modelId;
 
-      // 更新消息的当前版本标记与模型
       await dexieStorage.updateMessage(messageId, {
         currentVersionId: versionId,
         model: versionModel || targetMessage.model,
         modelId: resolvedModelId
       });
-
-      // 同步更新 Redux 状态
       store.dispatch(newMessagesActions.updateMessage({
         id: messageId,
         changes: {
@@ -353,324 +315,74 @@ class VersionService {
 
   /**
    * 切换到最新版本（当前编辑状态）
-   * @param messageId 消息ID
    */
   async switchToLatest(messageId: string): Promise<boolean> {
     try {
       console.log(`[VersionService] 切换到最新版本 - 消息ID: ${messageId}`);
-      
+
       const message = await dexieStorage.getMessage(messageId);
       if (!message) {
         throw new Error(`消息 ${messageId} 不存在`);
       }
-      
-      // 如果已经是最新版本，无需切换
       if (!message.currentVersionId) {
-        return true;
+        return true; // 已经是最新
       }
-      
-      const originalContentKey = `original_content_${messageId}`;
-      const originalModelKey = `original_model_${messageId}`;
-      const originalThinkingKey = `original_thinking_blocks_${messageId}`;
-      const originalBlockOrderKey = `original_block_order_${messageId}`;
 
-      // 获取保存的原始内容（切换到历史版本前的内容）
-      const originalContent = await dexieStorage.getSetting(originalContentKey);
-      const originalModelInfo = await dexieStorage.getSetting(originalModelKey);
-      const originalThinkingBlocks = await dexieStorage.getSetting(originalThinkingKey) as MessageBlock[] | null;
-      const originalBlockOrder = await dexieStorage.getSetting(originalBlockOrderKey) as string[] | null;
-      let originalModelData: { model?: Message['model']; modelId?: string | null } | null = null;
+      // ── 1. 获取 latest snapshot 块 ──
+      const latestBlockIds = await dexieStorage.getSetting(this.latestBlocksKey(messageId)) as string[] | null;
+      let latestBlocks: MessageBlock[] = [];
+      if (latestBlockIds && latestBlockIds.length > 0) {
+        const results = await dexieStorage.message_blocks.bulkGet(latestBlockIds);
+        latestBlocks = results.filter((b): b is MessageBlock => b !== undefined);
+      }
 
-      if (originalModelInfo) {
+      if (latestBlocks.length > 0) {
+        // ── 2. 用 latest snapshot 替换当前块 ──
+        await this.replaceCurrentBlocks(messageId, message.blocks || [], latestBlocks);
+      } else {
+        console.warn(`[VersionService] 没有 latest snapshot 块，保留当前块`);
+        // 没有 snapshot（可能旧数据），不改块，只清 currentVersionId
+      }
+
+      // ── 3. 恢复模型 ──
+      let restoredModel = message.model;
+      let restoredModelId = message.modelId;
+      const modelInfo = await dexieStorage.getSetting(this.latestModelKey(messageId));
+      if (modelInfo) {
         try {
-          originalModelData = JSON.parse(originalModelInfo);
-        } catch (error) {
-          console.warn('[VersionService] 原始模型信息解析失败:', error);
-        }
-      }
-      
-      if (!originalContent) {
-        console.warn(`[VersionService] 找不到消息 ${messageId} 的原始内容备份`);
-        // 如果找不到原始内容，尝试使用默认策略
-        return this.fallbackToLatestContent(messageId);
-      }
-      
-      console.log(`[VersionService] 已找到原始内容备份，长度: ${originalContent.length}`);
-      
-      // 更新消息块内容（只获取消息自身引用的块，避免误取版本克隆块）
-      const blocks = await dexieStorage.getMessageBlocksByIds(message.blocks || []);
-      const mainTextBlock = blocks.find(block => block.type === 'main_text');
-      
-      if (mainTextBlock) {
-        // 创建一个新块而不是修改现有块，确保完全隔离
-        const updatedBlock = {
-          ...mainTextBlock,
-          content: originalContent,
-          updatedAt: new Date().toISOString()
-        };
-        
-        // 更新块内容
-        await dexieStorage.updateMessageBlock(mainTextBlock.id, updatedBlock);
-        
-        // 同步更新Redux中的块
-        store.dispatch(updateOneBlock({
-          id: mainTextBlock.id,
-          changes: {
-            content: originalContent,
-            updatedAt: new Date().toISOString()
-          }
-        }));
-        
-        const existingThinkingBlocks = blocks.filter(block => block.type === 'thinking');
-
-        if (originalThinkingBlocks && originalThinkingBlocks.length > 0) {
-        if (existingThinkingBlocks.length > 0) {
-          const removeIds = existingThinkingBlocks.map(block => block.id);
-          await dexieStorage.deleteMessageBlocksByIds(removeIds);
-          store.dispatch(removeManyBlocks(removeIds));
-        }
-
-          await dexieStorage.message_blocks.bulkPut(originalThinkingBlocks);
-          store.dispatch(upsertManyBlocks(originalThinkingBlocks));
-        } else if (existingThinkingBlocks.length > 0) {
-          const removeIds = existingThinkingBlocks.map(block => block.id);
-          await dexieStorage.deleteMessageBlocksByIds(removeIds);
-          store.dispatch(removeManyBlocks(removeIds));
-        }
-
-        const restoredModel = originalModelData?.model ?? message.model;
-        const restoredModelId = originalModelData?.modelId ?? message.modelId;
-        const restoredBlockOrder = Array.isArray(originalBlockOrder) ? originalBlockOrder : (message.blocks || []);
-
-        await dexieStorage.updateMessage(messageId, {
-          currentVersionId: undefined,
-          model: restoredModel,
-          modelId: restoredModelId,
-          blocks: restoredBlockOrder
-        });
-
-        // 同步更新Redux状态
-        store.dispatch(newMessagesActions.updateMessage({
-          id: messageId,
-          changes: {
-            currentVersionId: undefined,
-            model: restoredModel,
-            modelId: restoredModelId,
-            blocks: restoredBlockOrder
-          }
-        }));
-
-        // 清理缓存
-        await dexieStorage.deleteSetting(originalContentKey);
-        await dexieStorage.deleteSetting(originalModelKey);
-        await dexieStorage.deleteSetting(originalThinkingKey);
-        await dexieStorage.deleteSetting(originalBlockOrderKey);
-
-        console.log(`[VersionService] 已切换到最新版本，使用原始内容`);
-        return true;
-      } else {
-        console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`[VersionService] 切换到最新版本失败:`, error);
-      return this.fallbackToLatestContent(messageId);
-    }
-  }
-  
-  /**
-   * 当找不到原始内容备份时的后备策略
-   * @param messageId 消息ID
-   * @private
-   */
-  private async fallbackToLatestContent(messageId: string): Promise<boolean> {
-    try {
-      console.log(`[VersionService] 使用后备策略恢复最新内容 - 消息ID: ${messageId}`);
-      
-      const message = await dexieStorage.getMessage(messageId);
-      if (!message) {
-        throw new Error(`消息 ${messageId} 不存在`);
-      }
-      
-      // 尝试多种方法获取可能的最新内容
-      let latestContent = '';
-      
-      // 1. 尝试使用未被选择版本中最新的一个版本的原始内容
-      if (message.versions && message.versions.length > 0) {
-        // 排除当前选中的版本
-        const otherVersions = message.versions.filter(v => v.id !== message.currentVersionId);
-        
-        if (otherVersions.length > 0) {
-          // 按创建时间降序排序
-          const sortedVersions = [...otherVersions].sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          
-          // 使用最新版本的原始内容
-          for (const version of sortedVersions) {
-            if (version.metadata?.originalContent) {
-              latestContent = version.metadata.originalContent as string;
-              console.log(`[VersionService] 使用最新版本(ID: ${version.id})的原始内容，长度: ${latestContent.length}`);
-              break;
-            }
-          }
-        }
-      }
-      
-      // 2. 如果还没找到，尝试使用当前显示版本的原始内容
-      if (!latestContent && message.currentVersionId && message.versions) {
-        const currentVersion = message.versions.find(v => v.id === message.currentVersionId);
-        if (currentVersion?.metadata?.originalContent) {
-          latestContent = currentVersion.metadata.originalContent as string;
-          console.log(`[VersionService] 使用当前版本的原始内容，长度: ${latestContent.length}`);
-        }
-      }
-      
-      // 3. 如果还是没找到，使用当前块内容
-      if (!latestContent) {
-        latestContent = await this.getMessageContent(messageId);
-        console.log(`[VersionService] 使用当前块内容，长度: ${latestContent.length}`);
-      }
-      
-      // 没有找到任何可用内容，返回失败
-      if (!latestContent) {
-        console.error(`[VersionService] 找不到任何可用内容`);
-        return false;
-      }
-      
-      // 更新消息块内容（只获取消息自身引用的块）
-      const msg = await dexieStorage.getMessage(messageId);
-      const blocks = await dexieStorage.getMessageBlocksByIds(msg?.blocks || []);
-      const mainTextBlock = blocks.find(block => block.type === 'main_text');
-      
-      if (mainTextBlock) {
-        // 更新块内容
-        await dexieStorage.updateMessageBlock(mainTextBlock.id, {
-          content: latestContent,
-          updatedAt: new Date().toISOString()
-        });
-        
-        // 同步更新Redux中的块
-        store.dispatch(updateOneBlock({
-          id: mainTextBlock.id,
-          changes: {
-            content: latestContent,
-            updatedAt: new Date().toISOString()
-          }
-        }));
-        
-        // 清除currentVersionId标记
-        await dexieStorage.updateMessage(messageId, {
-          currentVersionId: undefined
-        });
-
-        // 同步更新Redux状态
-        store.dispatch(newMessagesActions.updateMessage({
-          id: messageId,
-          changes: {
-            currentVersionId: undefined
-          }
-        }));
-
-        // 保存当前内容作为原始内容备份
-        await dexieStorage.saveSetting(`original_content_${messageId}`, latestContent);
-        
-        console.log(`[VersionService] 后备策略恢复成功`);
-        return true;
-      } else {
-        console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`[VersionService] 后备策略恢复失败:`, error);
-      return false;
-    }
-  }
-
-  private async applyThinkingSnapshot(params: {
-    messageId: string;
-    targetMessage: Message;
-    thinkingBlocks: MessageBlock[];
-    thinkingSnapshot?: {
-      content?: string;
-      metadata?: Record<string, any> | null;
-      thinking_millsec?: number | null;
-      status?: MessageBlockStatus;
-    };
-  }): Promise<void> {
-    const { messageId, targetMessage, thinkingBlocks, thinkingSnapshot } = params;
-    const currentOrder = Array.isArray(targetMessage.blocks) ? [...targetMessage.blocks] : [];
-
-    if (thinkingSnapshot && typeof thinkingSnapshot.content === 'string') {
-      const existingBlock = thinkingBlocks[0];
-      const extraBlocks = thinkingBlocks.slice(1);
-      const now = new Date().toISOString();
-      const newContent = thinkingSnapshot.content ?? '';
-
-      if (existingBlock) {
-        const newStatus: MessageBlockStatus | undefined =
-          thinkingSnapshot.status ?? (existingBlock.status as MessageBlockStatus | undefined);
-
-        const changes: Partial<MessageBlock> = {
-          type: 'thinking',
-          content: newContent,
-          metadata: thinkingSnapshot.metadata ?? existingBlock.metadata,
-          updatedAt: now,
-          status: newStatus,
-          thinking_millsec:
-            thinkingSnapshot.thinking_millsec ?? (existingBlock as any)?.thinking_millsec ?? null
-        };
-
-        await dexieStorage.updateMessageBlock(existingBlock.id, changes);
-
-        store.dispatch(updateOneBlock({
-          id: existingBlock.id,
-          changes
-        }));
-
-        if (extraBlocks.length > 0) {
-          const extraIds = extraBlocks.map(block => block.id);
-          await dexieStorage.deleteMessageBlocksByIds(extraIds);
-          store.dispatch(removeManyBlocks(extraIds));
-        }
-      } else {
-        const newBlock: MessageBlock = {
-          id: uuid(),
-          messageId,
-          type: 'thinking',
-          content: newContent,
-          metadata: thinkingSnapshot.metadata ?? {},
-          createdAt: now,
-          updatedAt: now,
-          status: thinkingSnapshot.status || 'success',
-          thinking_millsec: thinkingSnapshot.thinking_millsec ?? null
-        } as MessageBlock;
-
-        await dexieStorage.message_blocks.put(newBlock);
-        store.dispatch(upsertOneBlock(newBlock));
-
-        const updatedOrder = [...currentOrder, newBlock.id];
-        await dexieStorage.updateMessage(messageId, { blocks: updatedOrder });
-        store.dispatch(newMessagesActions.updateMessage({
-          id: messageId,
-          changes: { blocks: updatedOrder }
-        }));
+          const parsed = JSON.parse(modelInfo);
+          restoredModel = parsed.model ?? message.model;
+          restoredModelId = parsed.modelId ?? message.modelId;
+        } catch { /* ignore */ }
       }
 
-      return;
-    }
-
-    if (thinkingBlocks.length > 0) {
-      const thinkingIds = thinkingBlocks.map(block => block.id);
-      await dexieStorage.deleteMessageBlocksByIds(thinkingIds);
-      store.dispatch(removeManyBlocks(thinkingIds));
-
-      const updatedOrder = currentOrder.filter(id => !thinkingIds.includes(id));
-      await dexieStorage.updateMessage(messageId, { blocks: updatedOrder });
+      // ── 4. 清除 currentVersionId ──
+      await dexieStorage.updateMessage(messageId, {
+        currentVersionId: undefined,
+        model: restoredModel,
+        modelId: restoredModelId
+      });
       store.dispatch(newMessagesActions.updateMessage({
         id: messageId,
-        changes: { blocks: updatedOrder }
+        changes: {
+          currentVersionId: undefined,
+          model: restoredModel,
+          modelId: restoredModelId
+        }
       }));
+
+      // ── 5. 清理 snapshot 数据 ──
+      if (latestBlockIds && latestBlockIds.length > 0) {
+        await dexieStorage.deleteMessageBlocksByIds(latestBlockIds);
+      }
+      await dexieStorage.deleteSetting(this.latestBlocksKey(messageId));
+      await dexieStorage.deleteSetting(this.latestModelKey(messageId));
+
+      console.log(`[VersionService] 已切换到最新版本`);
+      return true;
+    } catch (error) {
+      console.error(`[VersionService] 切换到最新版本失败:`, error);
+      return false;
     }
   }
 
