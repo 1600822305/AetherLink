@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Typography, Popover, Divider, useTheme } from '@mui/material';
-import { Hash, ArrowUp, ArrowDown, Sigma } from 'lucide-react';
+import { Hash, ArrowUp, ArrowDown, Sigma, Zap, Clock } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../shared/store';
@@ -137,6 +137,12 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
   const usage = showCurrentMessage ? currentMessage?.usage : undefined;
   const hasUsageBreakdown = !!usage && (usage.promptTokens > 0 || usage.completionTokens > 0);
 
+  const metrics = showCurrentMessage ? currentMessage?.metrics : undefined;
+  const latencySeconds = metrics && metrics.latency > 0 ? metrics.latency / 1000 : 0;
+  const tokensPerSecond = usage && latencySeconds > 0
+    ? (usage.completionTokens || 0) / latencySeconds
+    : 0;
+
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -217,6 +223,22 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
               label="输出"
               value={`${(usage.completionTokens || 0).toLocaleString()} tokens`}
             />
+            {latencySeconds > 0 && (
+              <>
+                {tokensPerSecond > 0 && (
+                  <StatRow
+                    icon={<Zap size={14} />}
+                    label="速度"
+                    value={`${tokensPerSecond.toFixed(1)} tok/s`}
+                  />
+                )}
+                <StatRow
+                  icon={<Clock size={14} />}
+                  label="耗时"
+                  value={`${latencySeconds.toFixed(1)}s`}
+                />
+              </>
+            )}
             <Divider sx={{ my: 0.5 }} />
             <StatRow
               icon={<Sigma size={14} />}

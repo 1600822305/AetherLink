@@ -304,6 +304,23 @@ export interface LLMResponseCompleteChunk {
   response?: Response
 
   /**
+   * 本次 API 调用的真实 token 用量
+   */
+  usage?: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+
+  /**
+   * 本次 API 调用的耗时指标（毫秒）
+   */
+  metrics?: {
+    latency: number
+    firstTokenLatency?: number
+  }
+
+  /**
    * 数据块类型
    */
   type: ChunkType.LLM_RESPONSE_COMPLETE

@@ -2,7 +2,7 @@ import store from '../../store';
 import { EventEmitter, EVENT_NAMES } from '../infra/EventService';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
-import type { Chunk, TextDeltaChunk, ThinkingDeltaChunk, ThinkingCompleteChunk } from '../../types/chunk';
+import type { Chunk, TextDeltaChunk, ThinkingDeltaChunk, ThinkingCompleteChunk, LLMResponseCompleteChunk } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
 
 // 导入拆分后的处理器
@@ -143,6 +143,13 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
             // 委托给工具处理器
             await toolHandler.handleChunk(chunk);
             break;
+
+          case ChunkType.LLM_RESPONSE_COMPLETE: {
+            // 记录真实 token 用量和耗时，由完成处理器在收尾时写到消息上
+            const completeChunk = chunk as LLMResponseCompleteChunk;
+            completionHandler.recordUsageMetrics(completeChunk.usage, completeChunk.metrics);
+            break;
+          }
 
           default:
             console.log(`[ResponseHandler] 忽略未处理的 chunk 类型: ${chunk.type}`);

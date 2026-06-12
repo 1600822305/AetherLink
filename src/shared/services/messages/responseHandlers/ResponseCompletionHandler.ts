@@ -2,7 +2,7 @@ import store from '../../../store';
 import { dexieStorage } from '../../storage/DexieStorageService';
 import { EventEmitter, EVENT_NAMES } from '../../infra/EventService';
 import { MessageBlockStatus, AssistantMessageStatus, MessageBlockType } from '../../../types/newMessage';
-import type { MessageBlock } from '../../../types/newMessage';
+import type { MessageBlock, Usage, Metrics } from '../../../types/newMessage';
 import { newMessagesActions } from '../../../store/slices/newMessagesSlice';
 import { updateOneBlock } from '../../../store/slices/messageBlocksSlice';
 import { v4 as uuid } from 'uuid';
@@ -37,11 +37,33 @@ export class ResponseCompletionHandler {
   private messageId: string;
   private blockId: string;
   private topicId: string;
+  private usage?: Usage;
+  private metrics?: Metrics;
 
   constructor(messageId: string, blockId: string, topicId: string) {
     this.messageId = messageId;
     this.blockId = blockId;
     this.topicId = topicId;
+  }
+
+  /**
+   * 记录真实 token 用量和耗时指标
+   * Agentic 多轮调用时累加 token 与耗时，首 token 延迟保留第一轮的值
+   */
+  recordUsageMetrics(usage?: Usage, metrics?: Metrics): void {
+    if (usage) {
+      this.usage = {
+        promptTokens: (this.usage?.promptTokens || 0) + (usage.promptTokens || 0),
+        completionTokens: (this.usage?.completionTokens || 0) + (usage.completionTokens || 0),
+        totalTokens: (this.usage?.totalTokens || 0) + (usage.totalTokens || 0)
+      };
+    }
+    if (metrics) {
+      this.metrics = {
+        latency: (this.metrics?.latency || 0) + (metrics.latency || 0),
+        firstTokenLatency: this.metrics?.firstTokenLatency ?? metrics.firstTokenLatency
+      };
+    }
   }
 
   /**
@@ -521,6 +543,13 @@ export class ResponseCompletionHandler {
       messageChanges.metadata = metadata;
     }
 
+    if (this.usage) {
+      messageChanges.usage = this.usage;
+    }
+    if (this.metrics) {
+      messageChanges.metrics = this.metrics;
+    }
+
     // 更新消息状态
     store.dispatch(newMessagesActions.updateMessage({
       id: this.messageId,
@@ -593,21 +622,21 @@ export class ResponseCompletionHandler {
    * 重构：移除冗余的 topic.messages 写入，只使用 messages 表
    */
   private async updateMessageAndTopicReferences(finalBlockIds: string[], now: string): Promise<void> {
-    // 更新 messages 表
-    await dexieStorage.updateMessage(this.messageId, {
+    const changes = {
       status: AssistantMessageStatus.SUCCESS,
       updatedAt: now,
-      blocks: finalBlockIds
-    });
+      blocks: finalBlockIds,
+      ...(this.usage && { usage: this.usage }),
+      ...(this.metrics && { metrics: this.metrics })
+    };
+
+    // 更新 messages 表
+    await dexieStorage.updateMessage(this.messageId, changes);
 
     // 更新 Redux 状态
     store.dispatch(newMessagesActions.updateMessage({
       id: this.messageId,
-      changes: {
-        blocks: finalBlockIds,
-        status: AssistantMessageStatus.SUCCESS,
-        updatedAt: now
-      }
+      changes
     }));
   }
 
