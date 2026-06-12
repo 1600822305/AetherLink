@@ -47,6 +47,8 @@ const shallowArrayEqual = <T>(a: T[], b: T[]): boolean => {
 
 // 选择特定消息的块 - 优化版本
 // 使用 Map 缓存每个 messageId 的结果
+// 🚀 修复内存泄漏：限制缓存大小，避免 Map 无限增长
+const BLOCKS_CACHE_MAX_SIZE = 200;
 const blocksForMessageCache = new Map<string, {
   blockEntities: Record<string, any>;
   blockIds: string[];
@@ -81,7 +83,13 @@ export const selectBlocksForMessage = (state: RootState, messageId: string): any
     return cached.result;
   }
 
-  // 更新缓存
+  // 更新缓存，超过上限时清理最早的条目
+  if (blocksForMessageCache.size >= BLOCKS_CACHE_MAX_SIZE) {
+    const firstKey = blocksForMessageCache.keys().next().value;
+    if (firstKey !== undefined) {
+      blocksForMessageCache.delete(firstKey);
+    }
+  }
   blocksForMessageCache.set(messageId, {
     blockEntities,
     blockIds,

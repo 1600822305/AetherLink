@@ -1,5 +1,5 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { Navigate, Routes, Route } from 'react-router-dom';
+import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { getStorageItem } from '../shared/utils/storage';
 import { useSelector } from 'react-redux'; // 导入 useSelector
 import type { RootState } from '../shared/store'; // 导入 RootState 类型
@@ -109,6 +109,16 @@ const AppRouter: React.FC = () => {
   const theme = useSelector((state: RootState) => state.settings.theme);
   const themeStyle = useSelector((state: RootState) => state.settings.themeStyle);
 
+  // 🚀 Keep-Alive：ChatPage 一旦挂载就不再销毁，避免 Settings→Chat 导航时整棵组件树重建
+  // 使用 React 推荐的 render-phase state update 模式追踪是否曾访问过 /chat
+  // https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  const location = useLocation();
+  const isChatRoute = location.pathname === '/chat';
+  const [chatMounted, setChatMounted] = useState(false);
+  if (isChatRoute && !chatMounted) {
+    setChatMounted(true);
+  }
+
   useEffect(() => {
     async function checkFirstTimeUser() {
       try {
@@ -152,12 +162,22 @@ const AppRouter: React.FC = () => {
   }
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Routes>
-        {/* 🚀 性能优化：首屏路由优先渲染 */}
-        <Route path="/" element={isFirstTimeUser ? <Navigate to="/welcome" replace /> : <Navigate to="/chat" replace />} />
-        <Route path="/welcome" element={<WelcomePage />} />
-        <Route path="/chat" element={<ChatPage />} />
+    <>
+      {/* 🚀 Keep-Alive：ChatPage 持久挂载，切换到其他路由时仅隐藏，避免重建整棵组件树 */}
+      {chatMounted && (
+        <div style={{ display: isChatRoute ? 'contents' : 'none' }}>
+          <Suspense fallback={<LoadingFallback />}>
+            <ChatPage />
+          </Suspense>
+        </div>
+      )}
+
+      {/* 非 /chat 路由正常渲染 */}
+      {!isChatRoute && (
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={isFirstTimeUser ? <Navigate to="/welcome" replace /> : <Navigate to="/chat" replace />} />
+            <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/appearance" element={<AppearanceSettings />} />
         <Route path="/settings/appearance/theme-style" element={<ThemeStyleSettings />} />
@@ -223,8 +243,10 @@ const AppRouter: React.FC = () => {
         <Route path="/knowledge/:id" element={<KnowledgeBaseDetail />} />
         {/* 文档分块查看页（Level 4） */}
         <Route path="/knowledge/:id/document/:fileName" element={<DocumentChunkView />} />
-      </Routes>
-    </Suspense>
+          </Routes>
+        </Suspense>
+      )}
+    </>
   );
 };
 
