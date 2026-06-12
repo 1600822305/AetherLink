@@ -15,7 +15,7 @@ import {
 import { SettingGroup, SettingItem, YStack } from '../../../../../components/settings/SettingComponents';
 import BackupFilesList from './BackupFilesList';
 import SelectiveBackupDialog from './SelectiveBackupDialog';
-import ImportExternalBackupDialog from './ImportExternalBackupDialog';
+import UnifiedRestoreDialog from './UnifiedRestoreDialog';
 import DatabaseDiagnosticDialog from './DatabaseDiagnosticDialog';
 import NotificationSnackbar from './NotificationSnackbar';
 import WebDavSettings from '../webdav/WebDavSettings';
@@ -33,10 +33,8 @@ import {
 } from '../../utils/selectiveBackupUtils';
 import type { SelectiveBackupOptions } from '../../utils/selectiveBackupUtils';
 import {
-  readJSONFromFile,
   performFullRestore,
 } from '../../utils/restoreUtils';
-import type { RestoreMode } from '../../utils/restoreUtils';
 import { dexieStorage } from '../../../../../shared/services/storage/DexieStorageService';
 import type { WebDavConfig } from '../../../../../shared/types';
 import { WebDavBackupService } from '../../../../../shared/services/storage/WebDavBackupService';
@@ -59,10 +57,6 @@ const BackupRestorePanel: React.FC = () => {
     severity: 'info' as 'success' | 'error' | 'info' | 'warning'
   });
 
-  // 恢复模式：true=替换（清空备份所含类别后写入，默认），false=合并（保留现有数据）
-  const [restoreReplaceMode, setRestoreReplaceMode] = useState(true);
-  const restoreMode: RestoreMode = restoreReplaceMode ? 'replace' : 'merge';
-
   // 备份文件列表刷新触发器
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -74,8 +68,8 @@ const BackupRestorePanel: React.FC = () => {
 
 
 
-  // 外部备份导入对话框状态
-  const [importExternalOpen, setImportExternalOpen] = useState(false);
+  // 导入备份对话框状态
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
 
   // 清理确认对话框状态
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -224,135 +218,14 @@ const BackupRestorePanel: React.FC = () => {
     }
   };
 
-  // 打开导入外部备份对话框
-  const openImportExternalDialog = () => {
-    setImportExternalOpen(true);
+  // 打开导入备份对话框
+  const openRestoreDialog = () => {
+    setRestoreDialogOpen(true);
   };
 
-  // 关闭导入外部备份对话框
-  const closeImportExternalDialog = () => {
-    setImportExternalOpen(false);
-  };
-
-
-
-  // 处理恢复备份
-  const handleRestore = async () => {
-    try {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-
-      input.onchange = async (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        const file = target.files?.[0];
-
-        if (!file) return;
-
-        setIsLoading(true);
-        setRestoreProgress({
-          active: true,
-          stage: t('dataSettings.restoreProgress.readingFile'),
-          progress: 0.05
-        });
-
-        try {
-          // 读取JSON数据
-          const backupData = await readJSONFromFile(file);
-          setRestoreProgress({
-            active: true,
-            stage: t('dataSettings.restoreProgress.validating'),
-            progress: 0.1
-          });
-
-          // 使用新的完整恢复过程
-          const result = await performFullRestore(backupData, (stage, progress) => {
-            setRestoreProgress({
-              active: true,
-              stage,
-              progress
-            });
-          }, restoreMode);
-
-          // 处理恢复结果
-          if (result.success) {
-            // 生成成功消息
-            let restoreMessage = '';
-
-            // 根据备份类型显示不同的消息
-            if (result.backupType === 'selective') {
-              restoreMessage += t('dataSettings.restoreProgress.success.selective') + '\n';
-
-              if (result.modelConfigRestored) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredModelConfig')}\n`;
-              }
-
-              if (result.topicsCount > 0) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredTopics', { count: result.topicsCount })}\n`;
-              }
-
-              if (result.assistantsCount > 0) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredAssistants', { count: result.assistantsCount })}\n`;
-              }
-
-              if (result.settingsRestored) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredUserSettings')}\n`;
-              }
-            } else {
-              // 完整备份恢复消息
-              if (result.topicsCount > 0) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredTopics', { count: result.topicsCount })}\n`;
-              }
-
-              if (result.assistantsCount > 0) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredAssistants', { count: result.assistantsCount })}\n`;
-              }
-
-              if (result.settingsRestored) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredSettings')}\n`;
-              }
-
-              if (result.localStorageCount > 0) {
-                restoreMessage += `• ${t('dataSettings.restoreProgress.restoredLocalStorage', { count: result.localStorageCount })}\n`;
-              }
-            }
-
-            const finalMessage = result.backupType === 'selective'
-              ? restoreMessage
-              : `${t('dataSettings.restoreProgress.success.full')}\n${restoreMessage}\n${t('dataSettings.restoreProgress.restartRequired')}`;
-
-            showMessage(finalMessage, 'success');
-          } else {
-            // 显示错误信息
-            showMessage(`${t('dataSettings.messages.restoreFailed')}: ${result.error || t('dataSettings.errors.unknown')}`, 'error');
-          }
-        } catch (error) {
-          console.error('恢复备份失败:', error);
-          showMessage(t('dataSettings.messages.restoreFailed') + ': ' + (error instanceof Error ? error.message : t('dataSettings.errors.unknown')), 'error');
-        } finally {
-          setIsLoading(false);
-          // 恢复完成后重置进度条
-          setTimeout(() => {
-            setRestoreProgress({
-              active: false,
-              stage: '',
-              progress: 0
-            });
-          }, 1000);
-        }
-      };
-
-      input.click();
-    } catch (error) {
-      console.error('打开文件选择器失败:', error);
-      showMessage(t('dataSettings.messages.fileSelectorFailed') + ': ' + (error instanceof Error ? error.message : t('dataSettings.errors.unknown')), 'error');
-      setIsLoading(false);
-      setRestoreProgress({
-        active: false,
-        stage: '',
-        progress: 0
-      });
-    }
+  // 关闭导入备份对话框
+  const closeRestoreDialog = () => {
+    setRestoreDialogOpen(false);
   };
 
   // 处理清理所有数据
@@ -474,7 +347,7 @@ const BackupRestorePanel: React.FC = () => {
           stage,
           progress
         });
-      }, restoreMode);
+      });
 
       if (result.success) {
         showMessage(t('dataSettings.messages.webdavRestoreSuccess'), 'success');
@@ -542,31 +415,10 @@ const BackupRestorePanel: React.FC = () => {
           showArrow={false}
         />
         <SettingItem
-          title={t('dataSettings.backupAndRestore.restoreMode.title', { defaultValue: '恢复模式' })}
-          description={restoreReplaceMode
-            ? t('dataSettings.backupAndRestore.restoreMode.replaceDescription', { defaultValue: '替换：恢复前清空备份所含的数据类别，恢复后等于备份快照（推荐）' })
-            : t('dataSettings.backupAndRestore.restoreMode.mergeDescription', { defaultValue: '合并：保留设备现有数据，仅按 ID 覆盖同项' })}
-          icon={<RotateCcw size={24} />}
-          value={restoreReplaceMode
-            ? t('dataSettings.backupAndRestore.restoreMode.replace', { defaultValue: '替换' })
-            : t('dataSettings.backupAndRestore.restoreMode.merge', { defaultValue: '合并' })}
-          onClick={() => setRestoreReplaceMode(prev => !prev)}
-          disabled={isLoading}
-          showArrow={false}
-        />
-        <SettingItem
-          title={t('dataSettings.backupAndRestore.restore.title')}
-          description={t('dataSettings.backupAndRestore.restore.description')}
+          title={t('dataSettings.backupAndRestore.unifiedRestore.title', { defaultValue: '导入备份' })}
+          description={t('dataSettings.backupAndRestore.unifiedRestore.description', { defaultValue: '导入 AetherLink 或其他 AI 助手的备份文件并恢复数据' })}
           icon={<Folder size={24} />}
-          onClick={handleRestore}
-          disabled={isLoading}
-          showArrow={false}
-        />
-        <SettingItem
-          title={t('dataSettings.backupAndRestore.importExternal.title')}
-          description={t('dataSettings.backupAndRestore.importExternal.description')}
-          icon={<CloudDownload size={24} />}
-          onClick={openImportExternalDialog}
+          onClick={openRestoreDialog}
           disabled={isLoading}
           showArrow={false}
         />
@@ -627,7 +479,6 @@ const BackupRestorePanel: React.FC = () => {
         onRestoreError={handleBackupError}
         onFileDeleted={handleFileDeleted}
         refreshTrigger={refreshTrigger}
-        restoreMode={restoreMode}
       />
 
       {/* 选择性备份对话框 */}
@@ -672,12 +523,12 @@ const BackupRestorePanel: React.FC = () => {
         onClose={handleCloseSnackbar}
       />
 
-      {/* 导入外部AI备份对话框 */}
-      <ImportExternalBackupDialog
-        open={importExternalOpen}
-        onClose={closeImportExternalDialog}
-        onImportSuccess={handleBackupRestoreSuccess}
-        onImportError={handleBackupError}
+      {/* 统一导入备份对话框 */}
+      <UnifiedRestoreDialog
+        open={restoreDialogOpen}
+        onClose={closeRestoreDialog}
+        onSuccess={handleBackupRestoreSuccess}
+        onError={handleBackupError}
       />
 
       {/* 数据库诊断对话框 */}

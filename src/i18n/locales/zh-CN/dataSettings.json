@@ -61,13 +61,41 @@
       "title": "选择性备份",
       "description": "自定义选择要备份的数据类型"
     },
-    "restore": {
-      "title": "导入备份文件并恢复",
-      "description": "从本地文件恢复备份数据"
+    "unifiedRestore": {
+      "title": "导入备份",
+      "description": "导入 AetherLink 或其他 AI 助手的备份文件并恢复数据"
+    }
+  },
+  "unifiedRestore": {
+    "title": "导入备份",
+    "selectHint": "选择备份文件后会自动识别格式，支持以下来源：",
+    "howTo": "AetherLink 备份可选择「替换」或「合并」方式恢复；外部 AI 助手备份（Cherry Studio / ChatboxAI）会以新增方式导入对应的助手和对话，不影响现有数据。",
+    "selectFile": "选择备份文件",
+    "detecting": "识别文件中...",
+    "detectedAs": "识别为",
+    "startRestore": "开始恢复",
+    "externalImportHint": "导入的数据将以新增方式创建对应的助手和对话，不会影响现有数据。",
+    "kinds": {
+      "aetherlink": "AetherLink 备份"
     },
-    "importExternal": {
-      "title": "导入其他AI助手备份",
-      "description": "导入来自其他AI助手应用的备份文件"
+    "restoreMode": {
+      "title": "恢复方式",
+      "replace": "替换（推荐）",
+      "replaceDescription": "恢复前清空备份所含的数据类别，恢复后等于备份快照",
+      "replaceWarning": "替换方式会先清空备份中包含的数据类别（如话题、助手等），设备上这些类别的现有数据将被删除且无法恢复。",
+      "merge": "合并",
+      "mergeDescription": "保留设备现有数据，仅按 ID 覆盖同项"
+    },
+    "progress": {
+      "importing": "导入数据中..."
+    },
+    "result": {
+      "importSuccess": "导入成功："
+    },
+    "errors": {
+      "detectFailed": "读取备份文件失败",
+      "unknownFormat": "无法识别的备份格式",
+      "unknownTxt": "无法识别的TXT格式，目前只支持 ChatboxAI 导出的 TXT 文件"
     }
   },
   "cloudBackup": {

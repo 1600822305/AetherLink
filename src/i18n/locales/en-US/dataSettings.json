@@ -61,13 +61,41 @@
       "title": "Selective Backup",
       "description": "Customize which data types to backup"
     },
-    "restore": {
-      "title": "Import Backup File & Restore",
-      "description": "Restore backup data from local files"
+    "unifiedRestore": {
+      "title": "Import Backup",
+      "description": "Import a backup file from AetherLink or other AI assistants and restore data"
+    }
+  },
+  "unifiedRestore": {
+    "title": "Import Backup",
+    "selectHint": "The format will be detected automatically after selecting a backup file. Supported sources:",
+    "howTo": "AetherLink backups can be restored in 'Replace' or 'Merge' mode; external AI assistant backups (Cherry Studio / ChatboxAI) are imported additively as new assistants and conversations without affecting existing data.",
+    "selectFile": "Select Backup File",
+    "detecting": "Detecting file...",
+    "detectedAs": "Detected as",
+    "startRestore": "Start Restore",
+    "externalImportHint": "The imported data will be added as new assistants and conversations without affecting existing data.",
+    "kinds": {
+      "aetherlink": "AetherLink Backup"
     },
-    "importExternal": {
-      "title": "Import External AI Assistant Backup",
-      "description": "Import backup files from other AI assistant applications"
+    "restoreMode": {
+      "title": "Restore Mode",
+      "replace": "Replace (Recommended)",
+      "replaceDescription": "Clears the data categories contained in the backup before restoring, resulting in an exact backup snapshot",
+      "replaceWarning": "Replace mode first clears the data categories contained in the backup (such as topics and assistants). Existing data in those categories on this device will be deleted and cannot be recovered.",
+      "merge": "Merge",
+      "mergeDescription": "Keeps existing data on the device, only overwriting items with matching IDs"
+    },
+    "progress": {
+      "importing": "Importing data..."
+    },
+    "result": {
+      "importSuccess": "Import successful:"
+    },
+    "errors": {
+      "detectFailed": "Failed to read backup file",
+      "unknownFormat": "Unrecognized backup format",
+      "unknownTxt": "Unrecognized TXT format. Only TXT files exported from ChatboxAI are currently supported"
     }
   },
   "cloudBackup": {
