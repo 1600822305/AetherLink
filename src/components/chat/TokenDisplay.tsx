@@ -1,12 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Typography, Tooltip, useTheme } from '@mui/material';
-import { Hash } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Box, Typography, Popover, Divider, useTheme } from '@mui/material';
+import { Hash, ArrowUp, ArrowDown, Sigma } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../shared/store';
 import { estimateTokens } from '../../shared/utils';
 import { getMainTextContent } from '../../shared/utils/messageUtils';
-import { isMobile as checkIsMobile } from '../../shared/utils/platformDetection';
 import type { Message } from '../../shared/types/newMessage';
 
 interface TokenDisplayProps {
@@ -28,6 +27,30 @@ const selectCurrentTopicMessages = createSelector(
   }
 );
 
+// 面板中的单行统计项
+interface StatRowProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+const StatRow: React.FC<StatRowProps> = ({ icon, label, value }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+      {icon}
+    </Box>
+    <Typography variant="body2" sx={{ color: 'text.secondary', flexGrow: 1 }}>
+      {label}
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{ fontFamily: 'monospace', fontWeight: 500, color: 'text.primary' }}
+    >
+      {value}
+    </Typography>
+  </Box>
+);
+
 const TokenDisplay: React.FC<TokenDisplayProps> = ({
   currentMessage,
   showCurrentMessage = false
@@ -35,31 +58,17 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
 
-  // 移动端检测和tooltip状态管理
-  const [isMobile, setIsMobile] = useState(false);
-  const [tooltipOpen, setTooltipOpen] = useState(false);
+  // 点击弹出面板的锚点
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const panelOpen = Boolean(anchorEl);
 
-  // 检测是否为移动端设备（使用统一的平台检测 + 小屏幕检测）
-  useEffect(() => {
-    const checkMobileScreen = () => {
-      const isSmallScreen = window.innerWidth <= 768;
-      // 使用统一的平台检测，同时兼容小屏幕
-      setIsMobile(checkIsMobile() || isSmallScreen);
-    };
-
-    checkMobileScreen();
-    window.addEventListener('resize', checkMobileScreen);
-
-    return () => window.removeEventListener('resize', checkMobileScreen);
-  }, []);
-  
   // 获取当前话题的所有消息
   const messages = useSelector(selectCurrentTopicMessages);
 
   // 计算总token数（类似 Roo Code 逻辑：最近一次 API 调用）
   const totalTokens = useMemo(() => {
     if (!messages || messages.length === 0) return 0;
-    
+
     // 类似 Roo Code：从最近一次 API 调用获取 token 数
     // 找到最后一条 AI 回复消息
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -71,7 +80,7 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
         return inputTokens + outputTokens;
       }
     }
-    
+
     // 如果没有找到 usage 信息，回退到估算逻辑
     let total = 0;
     for (const message of messages) {
@@ -84,19 +93,19 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
         console.warn('计算消息token失败:', error);
       }
     }
-    
+
     return total;
   }, [messages]);
 
   // 计算当前消息的token数
   const currentMessageTokens = useMemo(() => {
     if (!currentMessage) return 0;
-    
+
     // 优先使用消息的usage信息
     if (currentMessage.usage?.totalTokens) {
       return currentMessage.usage.totalTokens;
     }
-    
+
     // 如果没有usage信息，估算token数
     try {
       const content = getMainTextContent(currentMessage);
@@ -125,47 +134,19 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
     ? `${formatTokenCount(totalTokens)}/${formatTokenCount(currentMessageTokens)}`
     : formatTokenCount(totalTokens);
 
-  const tooltipContent = showCurrentMessage && currentMessage ? (
-    <>
-      总Token: {totalTokens.toLocaleString()}<br />
-      当前消息: {currentMessageTokens.toLocaleString()}
-    </>
-  ) : (
-    `总Token: ${totalTokens.toLocaleString()}`
-  );
+  const usage = showCurrentMessage ? currentMessage?.usage : undefined;
+  const hasUsageBreakdown = !!usage && (usage.promptTokens > 0 || usage.completionTokens > 0);
 
-  // 处理点击事件（仅移动端）
-  const handleClick = () => {
-    if (isMobile) {
-      setTooltipOpen(prev => !prev);
-    }
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
 
-  // 处理点击外部关闭tooltip（仅移动端）
-  const handleTooltipClose = () => {
-    // 只在移动端需要手动关闭 tooltip
-    if (isMobile) {
-      setTooltipOpen(false);
-    }
-    // web 端使用默认悬停行为，不需要手动处理
+  const handleClose = () => {
+    setAnchorEl(null);
   };
 
   return (
-    <Tooltip
-      title={tooltipContent}
-      placement="top"
-      arrow
-      open={isMobile ? tooltipOpen : undefined} // web 端使用默认悬停行为，移动端使用受控状态
-      onClose={handleTooltipClose}
-      disableHoverListener={isMobile}
-      disableFocusListener={isMobile}
-      disableTouchListener={!isMobile}
-      slotProps={{
-        popper: {
-          disablePortal: isMobile, // 移动端可能需要这个
-        }
-      }}
-    >
+    <>
       <Box
         onClick={handleClick}
         sx={{
@@ -174,15 +155,17 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
           gap: 0.5,
           padding: '2px 4px',
           cursor: 'pointer',
+          borderRadius: '4px',
           transition: 'all 0.2s ease-in-out',
           '&:hover': {
             opacity: 0.8,
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'
           }
         }}
       >
-        <Hash 
-          size={14} 
-          color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)'} 
+        <Hash
+          size={14}
+          color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)'}
         />
         <Typography
           variant="caption"
@@ -198,7 +181,72 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
           {displayText}
         </Typography>
       </Box>
-    </Tooltip>
+
+      <Popover
+        open={panelOpen}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        slotProps={{
+          paper: {
+            elevation: 0,
+            sx: {
+              minWidth: 180,
+              px: 1.5,
+              py: 1,
+              borderRadius: '12px',
+              border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+              boxShadow: isDarkMode
+                ? '0 4px 20px rgba(0,0,0,0.4)'
+                : '0 4px 20px rgba(0,0,0,0.1)',
+              backgroundColor: isDarkMode ? 'rgba(35, 35, 35, 0.98)' : 'rgba(255, 255, 255, 0.98)'
+            }
+          }
+        }}
+      >
+        {hasUsageBreakdown && usage ? (
+          <>
+            <StatRow
+              icon={<ArrowUp size={14} />}
+              label="输入"
+              value={`${(usage.promptTokens || 0).toLocaleString()} tokens`}
+            />
+            <StatRow
+              icon={<ArrowDown size={14} />}
+              label="输出"
+              value={`${(usage.completionTokens || 0).toLocaleString()} tokens`}
+            />
+            <Divider sx={{ my: 0.5 }} />
+            <StatRow
+              icon={<Sigma size={14} />}
+              label="当前消息"
+              value={currentMessageTokens.toLocaleString()}
+            />
+            <StatRow
+              icon={<Hash size={14} />}
+              label="总 Token"
+              value={totalTokens.toLocaleString()}
+            />
+          </>
+        ) : (
+          <>
+            {showCurrentMessage && currentMessage && (
+              <StatRow
+                icon={<Sigma size={14} />}
+                label="当前消息"
+                value={currentMessageTokens.toLocaleString()}
+              />
+            )}
+            <StatRow
+              icon={<Hash size={14} />}
+              label="总 Token"
+              value={totalTokens.toLocaleString()}
+            />
+          </>
+        )}
+      </Popover>
+    </>
   );
 };
 
