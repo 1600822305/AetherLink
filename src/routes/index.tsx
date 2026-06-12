@@ -4,8 +4,9 @@ import { getStorageItem } from '../shared/utils/storage';
 import { useSelector } from 'react-redux'; // 导入 useSelector
 import type { RootState } from '../shared/store'; // 导入 RootState 类型
 import { statusBarService } from '../shared/services/platform/StatusBarService'; // 导入 statusBarService
-// 使用懒加载导入组件
-const ChatPage = lazy(() => import('../pages/ChatPage'));
+// 🚀 ChatPage 预加载：模块解析时即开始加载 chunk，避免 Keep-Alive 首次渲染时 Suspense fallback 闪现
+const chatPageImport = import('../pages/ChatPage');
+const ChatPage = lazy(() => chatPageImport);
 const WelcomePage = lazy(() => import('../pages/WelcomePage'));
 const SettingsPage = lazy(() => import('../pages/Settings'));
 const AppearanceSettings = lazy(() => import('../pages/Settings/AppearanceSettings.tsx'));
