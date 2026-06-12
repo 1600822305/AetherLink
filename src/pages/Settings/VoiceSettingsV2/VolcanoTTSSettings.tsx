@@ -267,6 +267,21 @@ const VolcanoTTSSettings: React.FC = () => {
       await setStorageItem('volcano_model', settings.model);
       await setStorageItem('enable_tts', enableTTS.toString());
 
+      ttsManager.configureEngine('volcano', {
+        enabled: true,
+        appId: settings.appId,
+        accessToken: settings.accessToken,
+        voiceType: settings.voiceType,
+        emotion: settings.emotion,
+        speed: settings.speed,
+        volume: settings.volume,
+        pitch: settings.pitch,
+        encoding: settings.encoding,
+        apiVersion: settings.apiVersion,
+        resourceId: settings.resourceId,
+        model: settings.model,
+      } as Partial<VolcanoTTSConfig>);
+
       if (isEnabled) {
         await setStorageItem('selected_tts_service', 'volcano');
         ttsManager.setActiveEngine('volcano');
@@ -308,8 +323,12 @@ const VolcanoTTSSettings: React.FC = () => {
       return;
     }
 
-    if (!settings.appId || !settings.accessToken) {
+    if (!settings.appId) {
       setUIState(prev => ({ ...prev, saveError: t('settings.voice.volcano.appIdRequired') }));
+      return;
+    }
+    if (!settings.accessToken) {
+      setUIState(prev => ({ ...prev, saveError: t('settings.voice.volcano.accessTokenRequired') }));
       return;
     }
 
