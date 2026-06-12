@@ -47,7 +47,8 @@ class VersionService {
         throw new Error(`消息 ${messageId} 不存在`);
       }
 
-      const messageBlocks = await dexieStorage.getMessageBlocksByMessageId(messageId);
+      // 按 message.blocks 顺序获取块，保证版本克隆后显示顺序一致
+      const messageBlocks = await dexieStorage.getMessageBlocksByIds(message.blocks || []);
 
       // 如果没有提供内容，从消息块中获取
       let versionContent = content;
