@@ -17,6 +17,7 @@ export type {
   ElevenLabsTTSConfig,
   MiniMaxTTSConfig,
   VolcanoTTSConfig,
+  VolcanoApiVersion,
   WebSpeechTTSConfig,
   ITTSEngine,
   TTSSynthesisResult,
@@ -34,7 +35,7 @@ export { OpenAIEngine } from './engines/OpenAIEngine';
 export { SiliconFlowEngine } from './engines/SiliconFlowEngine';
 export { ElevenLabsEngine, ELEVENLABS_VOICES, ELEVENLABS_MODELS, ELEVENLABS_OUTPUT_FORMATS } from './engines/ElevenLabsEngine';
 export { MiniMaxEngine, MINIMAX_VOICES, MINIMAX_MODELS, MINIMAX_EMOTIONS, MINIMAX_LANGUAGE_BOOST } from './engines/MiniMaxEngine';
-export { VolcanoEngine, VOLCANO_VOICES, VOLCANO_EMOTIONS } from './engines/VolcanoEngine';
+export { VolcanoEngine, VOLCANO_VOICES, VOLCANO_EMOTIONS, VOLCANO_RESOURCE_IDS, isBigModelVoice, isSeedTts2Voice } from './engines/VolcanoEngine';
 export { WebSpeechEngine } from './engines/WebSpeechEngine';
 
 // 工具
