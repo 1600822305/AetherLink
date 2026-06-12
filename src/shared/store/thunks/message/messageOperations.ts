@@ -7,7 +7,6 @@ import { saveMessageAndBlocksToDB } from './utils';
 import { refreshTopicPreview } from '../../../services/topics/TopicPreviewService';
 import { processAssistantResponse } from './assistantResponse';
 import { versionService } from '../../../services/messages/VersionService';
-import { getMainTextContent } from '../../../utils/blockUtils';
 import { getModelIdentityKey } from '../../../utils/modelUtils';
 import type { Message } from '../../../types/newMessage';
 import type { Model } from '../../../types';
@@ -243,18 +242,12 @@ async function getTargetAssistantMessages(
  */
 async function saveMessageVersionIfNeeded(message: Message): Promise<Message> {
   try {
-    const currentContent = getMainTextContent(message);
-    if (!currentContent.trim()) {
-      return message;
-    }
-
-    await versionService.saveCurrentAsVersion(
+    // 区分两种场景：查看最新版本时保存当前内容为版本；
+    // 查看历史版本时把 latest snapshot 转正为版本并清除 currentVersionId
+    await versionService.prepareForRegenerate(
       message.id,
-      currentContent,
-      message.model || { id: message.modelId, provider: (message as any).model?.provider },
-      'regenerate'
+      message.model || { id: message.modelId, provider: (message as any).model?.provider }
     );
-    console.log(`[regenerateResponse] 版本已保存，内容长度: ${currentContent.length}`);
 
     // 重新获取消息以获取最新的版本信息
     const messageWithVersions = await dexieStorage.getMessage(message.id);
@@ -293,7 +286,8 @@ async function resetAssistantMessageForRegenerate(
     model: model,
     modelId: getModelIdentityKey({ id: model.id, provider: model.provider }),
     blocks: [],
-    versions: message.versions || []
+    versions: message.versions || [],
+    currentVersionId: undefined
   };
 
   console.log(`[regenerateResponse] 消息已重置`, {
