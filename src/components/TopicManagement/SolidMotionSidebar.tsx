@@ -11,6 +11,7 @@ import { SolidBridge } from '../../shared/bridges/SolidBridge';
 import { AppSidebar } from '../../solid/components/Sidebar/AppSidebar.solid';
 import SidebarTabs from './SidebarTabs';
 import SidebarResizeHandle from './SidebarResizeHandle';
+import { clampSidebarWidth } from './sidebarOptimization';
 import { useDialogBackHandler } from '../../hooks/useDialogBackHandler';
 import { useAppSelector } from '../../shared/store';
 import { Haptics } from '../../shared/utils/hapticFeedback';
@@ -76,7 +77,7 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
       const appSettings = localStorage.getItem('appSettings');
       if (appSettings) {
         const settings = JSON.parse(appSettings);
-        return settings.sidebarWidth || 350;
+        return clampSidebarWidth(settings.sidebarWidth || 350);
       }
     } catch (e) {
       console.error('读取侧边栏宽度失败:', e);
@@ -90,7 +91,7 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
   useEffect(() => {
     const handleSettingsChange = (e: CustomEvent) => {
       if (e.detail?.settingId === 'sidebarWidth') {
-        setDrawerWidth(e.detail.value);
+        setDrawerWidth(clampSidebarWidth(e.detail.value));
       }
     };
     window.addEventListener('appSettingsChanged', handleSettingsChange as EventListener);

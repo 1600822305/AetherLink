@@ -4,10 +4,7 @@
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
-
-// 侧边栏宽度限制
-const SIDEBAR_WIDTH_MIN = 340;
-const SIDEBAR_WIDTH_MAX = 800;
+import { SIDEBAR_WIDTH_MIN, getSafeMaxSidebarWidth } from './sidebarOptimization';
 
 interface SidebarResizeHandleProps {
   currentWidth: number;
@@ -45,7 +42,7 @@ const SidebarResizeHandle: React.FC<SidebarResizeHandleProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - startXRef.current;
       const newWidth = Math.min(
-        SIDEBAR_WIDTH_MAX,
+        getSafeMaxSidebarWidth(),
         Math.max(SIDEBAR_WIDTH_MIN, startWidthRef.current + deltaX)
       );
       onWidthChange(newWidth);
@@ -59,7 +56,7 @@ const SidebarResizeHandle: React.FC<SidebarResizeHandleProps> = ({
       // 通知拖动结束，保存宽度
       if (onWidthChangeEnd) {
         const finalWidth = Math.min(
-          SIDEBAR_WIDTH_MAX,
+          getSafeMaxSidebarWidth(),
           Math.max(SIDEBAR_WIDTH_MIN, startWidthRef.current + (window.event as MouseEvent)?.clientX - startXRef.current || 0)
         );
         onWidthChangeEnd(finalWidth);
