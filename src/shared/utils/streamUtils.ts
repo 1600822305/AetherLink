@@ -100,6 +100,9 @@ export async function* openAIChunkToTextDelta(stream: AsyncIterable<any>): Async
   // 用于跟踪已经收到的完整推理消息，避免重复处理
   let processedReasoning = '';
   let chunkCount = 0;
+  // usage 可能出现在多个 chunk 上（部分兼容供应商每个 chunk 都带累计 usage），
+  // 只保留最后一份并在流结束后 yield 一次，避免下游重复累加
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null = null;
 
   // 只在开发环境输出开始日志
   if (process.env.NODE_ENV === 'development') {
@@ -109,9 +112,9 @@ export async function* openAIChunkToTextDelta(stream: AsyncIterable<any>): Async
   for await (const chunk of stream) {
     chunkCount++;
 
-    // 处理 usage 统计（stream_options.include_usage 时随最后一个 chunk 返回，choices 通常为空）
+    // 记录 usage 统计（stream_options.include_usage 时随最后一个 chunk 返回，choices 通常为空）
     if (chunk.usage) {
-      yield { type: 'usage', usage: chunk.usage };
+      lastUsage = chunk.usage;
     }
 
     // 移除频繁的 chunk 日志，只在出错时输出
@@ -163,6 +166,10 @@ export async function* openAIChunkToTextDelta(stream: AsyncIterable<any>): Async
         // 但我们需要确保这个chunk被正确处理
       }
     }
+  }
+
+  if (lastUsage) {
+    yield { type: 'usage', usage: lastUsage };
   }
 
   // 只在开发环境输出完成日志
