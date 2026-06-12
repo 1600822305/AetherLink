@@ -40,101 +40,78 @@ export const makeSelectBlocksByIds = () =>
     }
   );
 
-// 针对消息的引用提取：只遍历该消息的块
-// 使用闭包缓存优化记忆化
-const citationsForMessageCache = new Map<string, {
-  blockEntities: Record<string, any>;
-  messageBlocks: string[] | undefined;
-  result: Citation[];
-}>();
-
-export const selectCitationsForMessage = (state: RootState, messageId?: string): Citation[] => {
-  if (!messageId) return EMPTY_CITATIONS_ARRAY;
-  
-  const blockEntities = state.messageBlocks.entities;
-  const message = state.messages.entities[messageId];
-  const messageBlocks = message?.blocks;
-  
-  if (!messageBlocks) return EMPTY_CITATIONS_ARRAY;
-  
-  // 获取缓存
-  const cached = citationsForMessageCache.get(messageId);
-  
-  if (cached &&
-      cached.blockEntities === blockEntities &&
-      cached.messageBlocks === messageBlocks) {
-    return cached.result;
+// 引用数组等价比较：重算结果与上次一致时复用旧引用，保持组件不重渲染
+const citationsArrayEqual = (a: Citation[], b: Citation[]): boolean => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].number !== b[i].number ||
+        a[i].url !== b[i].url ||
+        a[i].title !== b[i].title ||
+        a[i].content !== b[i].content) {
+      return false;
+    }
   }
-  
-  // 计算新结果
-  const citations: Citation[] = [];
-  for (const blockId of messageBlocks) {
-    const block = blockEntities[blockId];
-    if (!block) continue;
-
-    // ✅ 统一引用块（新格式）：从 knowledge[] 和 webSearch[] 提取
-    if (block.type === MessageBlockType.CITATION) {
-      const citBlock = block as CitationMessageBlock;
-
-      // 知识库引用
-      if (citBlock.knowledge && citBlock.knowledge.length > 0) {
-        citBlock.knowledge.forEach((k) => {
-          citations.push({
-            number: k.index,
-            url: k.sourceUrl || `knowledge://${k.knowledgeBaseId || 'unknown'}/${k.documentId || k.index}`,
-            title: k.knowledgeBaseName || '知识库',
-            content: k.content?.substring(0, 800),
-            type: 'knowledge',
-            showFavicon: false,
-            metadata: { similarity: k.similarity }
-          });
-        });
-      }
-
-      // Web 搜索引用
-      if (citBlock.webSearch && citBlock.webSearch.length > 0) {
-        citBlock.webSearch.forEach((w) => {
-          citations.push({
-            number: w.index,
-            url: w.url,
-            title: w.title || '',
-            content: (w.snippet || w.content || '').substring(0, 200),
-            hostname: extractHostname(w.url),
-            type: 'websearch',
-            showFavicon: true,
-          });
-        });
-      }
-
-      }
-  }
-  
-  // 如果结果为空，返回稳定的空数组
-  if (citations.length === 0) {
-    citationsForMessageCache.set(messageId, {
-      blockEntities,
-      messageBlocks,
-      result: EMPTY_CITATIONS_ARRAY
-    });
-    return EMPTY_CITATIONS_ARRAY;
-  }
-  
-  // 检查结果是否相等
-  if (cached && shallowArrayEqual(citations, cached.result)) {
-    citationsForMessageCache.set(messageId, {
-      blockEntities,
-      messageBlocks,
-      result: cached.result
-    });
-    return cached.result;
-  }
-  
-  // 更新缓存
-  citationsForMessageCache.set(messageId, {
-    blockEntities,
-    messageBlocks,
-    result: citations
-  });
-  
-  return citations;
+  return true;
 };
+
+// 提取某条消息的引用（知识库 + Web 搜索）- selector 工厂
+// 每个组件实例通过 useMemo(() => makeSelectCitationsForMessage(), []) 持有独立缓存槽，
+// 缓存随组件卸载被 GC，避免模块级 Map 只增不减
+export const makeSelectCitationsForMessage = () =>
+  createSelector(
+    [
+      (state: RootState) => state.messageBlocks.entities,
+      (state: RootState, messageId?: string) =>
+        messageId ? state.messages.entities[messageId]?.blocks : undefined
+    ],
+    (blockEntities, messageBlocks): Citation[] => {
+      if (!messageBlocks) return EMPTY_CITATIONS_ARRAY;
+
+      const citations: Citation[] = [];
+      for (const blockId of messageBlocks) {
+        const block = blockEntities[blockId];
+        if (!block) continue;
+
+        // 统一引用块：从 knowledge[] 和 webSearch[] 提取
+        if (block.type === MessageBlockType.CITATION) {
+          const citBlock = block as CitationMessageBlock;
+
+          // 知识库引用
+          if (citBlock.knowledge && citBlock.knowledge.length > 0) {
+            citBlock.knowledge.forEach((k) => {
+              citations.push({
+                number: k.index,
+                url: k.sourceUrl || `knowledge://${k.knowledgeBaseId || 'unknown'}/${k.documentId || k.index}`,
+                title: k.knowledgeBaseName || '知识库',
+                content: k.content?.substring(0, 800),
+                type: 'knowledge',
+                showFavicon: false,
+                metadata: { similarity: k.similarity }
+              });
+            });
+          }
+
+          // Web 搜索引用
+          if (citBlock.webSearch && citBlock.webSearch.length > 0) {
+            citBlock.webSearch.forEach((w) => {
+              citations.push({
+                number: w.index,
+                url: w.url,
+                title: w.title || '',
+                content: (w.snippet || w.content || '').substring(0, 200),
+                hostname: extractHostname(w.url),
+                type: 'websearch',
+                showFavicon: true,
+              });
+            });
+          }
+        }
+      }
+
+      return citations.length === 0 ? EMPTY_CITATIONS_ARRAY : citations;
+    },
+    {
+      memoizeOptions: { resultEqualityCheck: citationsArrayEqual }
+    }
+  );

@@ -5,7 +5,7 @@ import type { RootState } from '../../../shared/store';
 import type { MainTextMessageBlock } from '../../../shared/types/newMessage';
 import { MessageBlockStatus } from '../../../shared/types/newMessage';
 import Markdown from '../Markdown';
-import { selectCitationsForMessage } from '../../../shared/store/selectors/messageBlockSelectors';
+import { makeSelectCitationsForMessage } from '../../../shared/store/selectors/messageBlockSelectors';
 import type { Citation } from '../../../shared/types/citation';
 import { withCitationTags } from '../../../shared/utils/citation';
 import { applyRegexRulesForDisplay } from '../../../shared/utils/regexUtils';
@@ -40,7 +40,8 @@ const MainTextBlock: React.FC<Props> = ({ block, role, messageId }) => {
     return applyRegexRulesForDisplay(rawContent, regexRules, scope);
   }, [rawContent, regexRules, role]);
   
-  // 🔍 动态获取同消息的引用信息（参数化 selector）
+  // 🔍 动态获取同消息的引用信息（每个组件实例独立的记忆化 selector）
+  const selectCitationsForMessage = useMemo(() => makeSelectCitationsForMessage(), []);
   const citations = useSelector((state: RootState): Citation[] => {
     if (role !== 'assistant') return EMPTY_CITATIONS;
     return selectCitationsForMessage(state, messageId);
