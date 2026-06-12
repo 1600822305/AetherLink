@@ -7,7 +7,8 @@ import type { Model } from '../../../shared/types';
 
 export function useModelSelection() {
   const dispatch = useDispatch();
-  const settings = useSelector((state: RootState) => state.settings);
+  // 🚀 修复：只订阅 providers，避免任意 settings 变更（主题、行为等）触发模型列表重新初始化
+  const providers = useSelector((state: RootState) => state.settings.providers);
   const currentModelId = useSelector((state: RootState) => state.settings.currentModelId);
 
   // 模型选择菜单相关状态
@@ -57,8 +58,8 @@ export function useModelSelection() {
         const availableModels: Model[] = [];
 
         // 只收集启用的提供商中的启用模型
-        if (settings.providers) {
-          settings.providers.forEach(provider => {
+        if (providers) {
+          providers.forEach(provider => {
             if (provider.isEnabled) {
               // 从每个启用的提供商中收集启用的模型
               provider.models.forEach(model => {
@@ -138,7 +139,7 @@ export function useModelSelection() {
     };
 
     initializeModels();
-  }, [dispatch, settings, currentModelId]);
+  }, [dispatch, providers, currentModelId]);
 
   return {
     selectedModel,

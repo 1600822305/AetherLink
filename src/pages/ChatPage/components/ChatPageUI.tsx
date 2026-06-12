@@ -673,39 +673,31 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
     }
   }, [currentTopic, handleMultiModelSend]);
 
-  const handleSendImagePrompt = (prompt: string) => {
+  const handleSendImagePrompt = useCallback((prompt: string) => {
     handleMessageSend(prompt);
-  };
+  }, [handleMessageSend]);
 
   // ==================== 组件配置和渲染 ====================
 
-  const commonProps = {
-    onSendMessage: handleSendMessage,
-    availableModels,
-    isLoading,
-    allowConsecutiveMessages: true,
-    imageGenerationMode,
-    videoGenerationMode,
-    onSendImagePrompt: handleSendImagePrompt,
-    webSearchActive,
-    onStopResponse: handleStopResponseClick,
-    isStreaming,
-    isDebating,
-    toolsEnabled,
-    ...(handleMultiModelSend && handleSendMultiModelMessage && {
-      onSendMultiModelMessage: handleSendMultiModelMessage
-    }),
-    ...(handleStartDebate && handleStopDebate && {
-      onStartDebate: handleStartDebate,
-      onStopDebate: handleStopDebate
-    })
-  };
-
-
+  // 🚀 修复：将 commonProps 展开到 useMemo 依赖数组中，避免每次渲染创建新对象导致 memo 完全失效
   const inputComponent = useMemo(() => (
     <IntegratedChatInput
       key="integrated-input"
-      {...commonProps}
+      onSendMessage={handleSendMessage}
+      availableModels={availableModels}
+      isLoading={isLoading}
+      allowConsecutiveMessages={true}
+      imageGenerationMode={imageGenerationMode}
+      videoGenerationMode={videoGenerationMode}
+      onSendImagePrompt={handleSendImagePrompt}
+      webSearchActive={webSearchActive}
+      onStopResponse={handleStopResponseClick}
+      isStreaming={isStreaming}
+      isDebating={isDebating}
+      toolsEnabled={toolsEnabled}
+      onSendMultiModelMessage={handleMultiModelSend && handleSendMultiModelMessage ? handleSendMultiModelMessage : undefined}
+      onStartDebate={handleStartDebate}
+      onStopDebate={handleStopDebate}
       onClearTopic={handleClearTopic}
       toggleImageGenerationMode={toggleImageGenerationMode}
       toggleVideoGenerationMode={toggleVideoGenerationMode}
@@ -713,7 +705,21 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
       onToolsEnabledChange={toggleToolsEnabled}
     />
   ), [
-    commonProps,
+    handleSendMessage,
+    availableModels,
+    isLoading,
+    imageGenerationMode,
+    videoGenerationMode,
+    handleSendImagePrompt,
+    webSearchActive,
+    handleStopResponseClick,
+    isStreaming,
+    isDebating,
+    toolsEnabled,
+    handleSendMultiModelMessage,
+    handleMultiModelSend,
+    handleStartDebate,
+    handleStopDebate,
     handleClearTopic,
     toggleImageGenerationMode,
     toggleVideoGenerationMode,
