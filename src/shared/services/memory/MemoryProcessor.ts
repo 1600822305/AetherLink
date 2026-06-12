@@ -29,6 +29,8 @@ export interface MemoryProcessorConfig {
   userId: string;
   topicId?: string;
   lastMessageId?: string;
+  /** 写入记忆的来源标记（默认 'auto'，回顾提取为 'dream'） */
+  source?: 'auto' | 'dream';
 }
 
 export interface ProcessedMemoryResult {
@@ -52,6 +54,13 @@ export class MemoryProcessor {
 
   constructor(config: MemoryProcessorConfig) {
     this.config = config;
+  }
+
+  private buildMetadata() {
+    return {
+      source: this.config.source ?? ('auto' as const),
+      topicId: this.config.topicId,
+    };
   }
 
   /**
@@ -154,10 +163,7 @@ export class MemoryProcessor {
         const memory = await memoryService.add(fact, {
           userId: this.config.userId,
           assistantId: this.config.assistantId,
-          metadata: {
-            source: 'auto',
-            topicId: this.config.topicId,
-          },
+          metadata: this.buildMetadata(),
         });
         if (memory) {
           result.addedCount++;
@@ -190,7 +196,7 @@ export class MemoryProcessor {
           const memory = await memoryService.add(fact, {
             userId: this.config.userId,
             assistantId: this.config.assistantId,
-            metadata: { source: 'auto' },
+            metadata: this.buildMetadata(),
           });
           if (memory) result.addedCount++;
         }
@@ -205,7 +211,7 @@ export class MemoryProcessor {
           const memory = await memoryService.add(fact, {
             userId: this.config.userId,
             assistantId: this.config.assistantId,
-            metadata: { source: 'auto' },
+            metadata: this.buildMetadata(),
           });
           if (memory) result.addedCount++;
         }
@@ -220,7 +226,7 @@ export class MemoryProcessor {
               const added = await memoryService.add(operation.text, {
                 userId: this.config.userId,
                 assistantId: this.config.assistantId,
-                metadata: { source: 'auto' },
+                metadata: this.buildMetadata(),
               });
               if (added) result.addedCount++;
               break;

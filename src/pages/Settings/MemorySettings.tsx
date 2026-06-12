@@ -44,7 +44,7 @@ const MemorySettings: React.FC = () => {
   // 数据逻辑
   const library = useMemoryLibrary(currentAssistantId);
   const { assistants, currentMemoryEnabled, changeAssistant, toggleMemoryEnabled } = useAssistants(currentAssistantId);
-  const maintenance = useMaintenance(currentAssistantId, memoryConfig.maintenanceRetentionDays, library.load);
+  const maintenance = useMaintenance(currentAssistantId, memoryConfig.maintenanceRetentionDays, memoryConfig.maintenanceHarvestEnabled, library.load);
   const { models, providers } = useEnabledModels();
 
   // 对话框状态

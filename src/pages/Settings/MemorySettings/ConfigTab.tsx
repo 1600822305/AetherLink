@@ -193,10 +193,22 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
       <SettingRow
         title="自动整理"
         description={`每 ${memoryConfig.maintenanceIntervalDays ?? DEFAULT_MAINTENANCE_INTERVAL_DAYS} 天在应用空闲时自动执行一次整理`}
+        divider
         control={
           <Switch
             checked={memoryConfig.autoMaintenanceEnabled || false}
             onChange={(e) => onPatchConfig({ autoMaintenanceEnabled: e.target.checked })}
+            color="primary"
+          />
+        }
+      />
+      <SettingRow
+        title="回顾提取"
+        description="整理时回看近期话题的新消息，补提实时分析遗漏的记忆，会增加 API 成本"
+        control={
+          <Switch
+            checked={memoryConfig.maintenanceHarvestEnabled ?? true}
+            onChange={(e) => onPatchConfig({ maintenanceHarvestEnabled: e.target.checked })}
             color="primary"
           />
         }
