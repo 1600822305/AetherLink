@@ -883,7 +883,8 @@ export class TopicService {
 
       for (const originalMessage of messagesToClone) {
         const newMessageId = messageIdMap.get(originalMessage.id)!;
-        const originalBlocks = await dexieStorage.getMessageBlocksByMessageId(originalMessage.id);
+        // 按 message.blocks 顺序获取块，保证克隆后显示顺序一致
+        const originalBlocks = await dexieStorage.getMessageBlocksByIds(originalMessage.blocks || []);
 
         const clonedBlocks: MessageBlock[] = originalBlocks.map((block) => ({
           ...block,
