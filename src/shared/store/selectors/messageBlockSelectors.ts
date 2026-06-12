@@ -23,7 +23,7 @@ export const selectBlockById = (state: RootState, blockId?: string) =>
   blockId ? state.messageBlocks.entities[blockId] : undefined;
 
 // 根据块ID数组查询块实体 - selector 工厂
-// 每个组件实例通过 useMemo(makeSelectBlocksByIds, []) 持有独立缓存槽，
+// 每个组件实例通过 useMemo(() => makeSelectBlocksByIds(), []) 持有独立缓存槽，
 // 避免多个消息组件共用单一缓存时互相失效
 export const makeSelectBlocksByIds = () =>
   createSelector(

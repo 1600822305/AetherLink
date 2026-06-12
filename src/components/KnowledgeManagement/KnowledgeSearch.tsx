@@ -21,18 +21,13 @@ import { Search, X, Copy, Sparkles, Zap } from 'lucide-react';
 import CustomSwitch from '../CustomSwitch';
 import { MobileKnowledgeService } from '../../shared/services/knowledge/MobileKnowledgeService';
 import type { KnowledgeSearchResult } from '../../shared/types/KnowledgeBase';
-import messageBlockCreator from '../../shared/services/messages/MessageBlockCreator';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../shared/store';
 
 interface KnowledgeSearchProps {
   knowledgeBaseId: string;
-  onInsertReference?: (contentId: string, content: string) => void;
 }
 
 export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
-  knowledgeBaseId,
-  onInsertReference
+  knowledgeBaseId
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
@@ -42,7 +37,7 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
   const [maxResults, setMaxResults] = useState(5); // 改为可变状态，从知识库配置获取
   const [useEnhancedRAG, setUseEnhancedRAG] = useState(true); // 新增：RAG模式开关
   const [searchTime, setSearchTime] = useState<number | null>(null); // 新增：搜索耗时
-  const currentTopicId = useSelector((state: RootState) => state.messages.currentTopicId);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchKnowledgeBase = async () => {
@@ -110,28 +105,14 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
     }
   };
 
-  const handleInsertReference = async (result: KnowledgeSearchResult) => {
+  const handleCopyContent = async (result: KnowledgeSearchResult) => {
     try {
-      if (!currentTopicId) {
-        setError('未选择会话');
-        return;
-      }
-
-      // 使用 MessageBlockCreator 单例创建引用块
-      await messageBlockCreator.createKnowledgeReferenceBlockFromSearchResult(
-        currentTopicId,
-        result,
-        knowledgeBaseId,
-        query
-      );
-
-      // 如果传入了回调函数，调用它
-      if (onInsertReference) {
-        onInsertReference(result.documentId, result.content);
-      }
+      await navigator.clipboard.writeText(result.content);
+      setCopiedId(result.documentId);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      console.error('Error inserting reference:', err);
-      setError('插入引用失败');
+      console.error('Error copying content:', err);
+      setError('复制失败');
     }
   };
 
@@ -255,9 +236,9 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
                         size="small"
                         variant="outlined"
                         startIcon={<Copy size={16} />}
-                        onClick={() => handleInsertReference(result)}
+                        onClick={() => handleCopyContent(result)}
                       >
-                        插入引用
+                        {copiedId === result.documentId ? '已复制' : '复制'}
                       </Button>
                     </Box>
                   </Stack>

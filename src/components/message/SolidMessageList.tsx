@@ -89,7 +89,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   }, [messages]);
 
   // 仅选择当前消息涉及的块实体（实例独立的记忆化 selector）
-  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
+  const selectBlocksByIds = useMemo(() => makeSelectBlocksByIds(), []);
   const relatedBlocks = useSelector((state: RootState) => selectBlocksByIds(state, allBlockIds));
   const relatedBlockSet = useMemo(() => {
     const set = new Set<string>();

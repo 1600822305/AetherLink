@@ -22,7 +22,7 @@ import MathBlock from './blocks/MathBlock';
 import ChartBlock from './blocks/ChartBlock';
 import FileBlock from './blocks/FileBlock';
 import PlaceholderBlock from './blocks/PlaceholderBlock';
-// KnowledgeReferenceBlock 已移除 - 知识库引用统一由 CitationBlock 渲染
+import KnowledgeReferenceBlock from './blocks/KnowledgeReferenceBlock';
 import ContextSummaryBlock from './blocks/ContextSummaryBlock';
 import ToolBlock from './blocks/ToolBlock';
 import { isEmptyMainTextBlock, shouldShowEmptyContentMessage } from './messageBlockRenderGuards';
@@ -209,7 +209,7 @@ const MessageBlockRenderer: React.FC<Props> = ({
 }) => {
   // 仅依赖自身块ID映射，避免全局实体导致重渲染
   // 每个组件实例持有独立的记忆化 selector，避免多消息共用单一缓存互相失效
-  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
+  const selectBlocksByIds = useMemo(() => makeSelectBlocksByIds(), []);
   const renderedBlocks = useSelector(
     (state: RootState) => selectBlocksByIds(state, blocks),
     shallowEqual
@@ -421,7 +421,8 @@ const MessageBlockRenderer: React.FC<Props> = ({
                 }
                 break;
               case MessageBlockType.KNOWLEDGE_REFERENCE:
-                // 旧格式已废弃，知识库引用统一由 CitationBlock 渲染
+                // 历史遗留类型：新引用走 CITATION，旧数据仍按原组件渲染
+                blockComponent = <KnowledgeReferenceBlock block={block} />;
                 break;
               case MessageBlockType.CONTEXT_SUMMARY:
                 // 使用类型守卫

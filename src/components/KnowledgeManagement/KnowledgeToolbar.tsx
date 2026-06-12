@@ -109,10 +109,7 @@ export const KnowledgeToolbar: React.FC<KnowledgeToolbarProps> = ({
         </Box>
         <Divider sx={{ mb: 2 }} />
         {currentKnowledgeBaseId && (
-          <KnowledgeSearch
-            knowledgeBaseId={currentKnowledgeBaseId}
-            onInsertReference={() => setSearchDrawerOpen(false)}
-          />
+          <KnowledgeSearch knowledgeBaseId={currentKnowledgeBaseId} />
         )}
       </Drawer>
 

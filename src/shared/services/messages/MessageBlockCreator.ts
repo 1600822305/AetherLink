@@ -5,8 +5,6 @@ import { upsertOneBlock } from '../../store/slices/messageBlocksSlice';
 // 注意：上述导入用于 defaultDependencies，实际方法使用 this.deps
 import { MessageBlockType, MessageBlockStatus } from '../../types/newMessage';
 import type { MessageBlock } from '../../types/newMessage';
-import { createKnowledgeReferenceBlock } from '../../utils/messageUtils';
-import type { KnowledgeDocument } from '../../types/KnowledgeBase';
 import type { AppDispatch } from '../../store';
 
 /**
@@ -227,78 +225,6 @@ export class MessageBlockCreator {
     return block;
   }
 
-  /**
-   * 创建知识库引用块
-   * @param messageId 消息ID
-   * @param content 文本内容
-   * @param knowledgeBaseId 知识库ID
-   * @param options 选项
-   * @returns 创建的块
-   */
-  async createKnowledgeReferenceBlock(
-    messageId: string,
-    content: string,
-    knowledgeBaseId: string,
-    options?: {
-      source?: string;
-      similarity?: number;
-      fileName?: string;
-      fileId?: string;
-      knowledgeDocumentId?: string;
-      searchQuery?: string;
-    }
-  ): Promise<MessageBlock> {
-    const block = createKnowledgeReferenceBlock(
-      messageId,
-      content,
-      knowledgeBaseId,
-      options
-    );
-
-    console.log(`[MessageBlockCreator] 创建知识库引用块 - ID: ${block.id}, 消息ID: ${messageId}`);
-
-    // 添加块到Redux
-    this.deps.dispatch(upsertOneBlock(block));
-
-    // 保存块到数据库
-    await this.deps.storage.saveBlock(block);
-
-    return block;
-  }
-
-  /**
-   * 从搜索结果创建知识库引用块
-   * @param messageId 消息ID
-   * @param searchResult 搜索结果
-   * @param knowledgeBaseId 知识库ID
-   * @param searchQuery 搜索查询
-   * @returns 创建的块
-   */
-  async createKnowledgeReferenceBlockFromSearchResult(
-    messageId: string,
-    searchResult: {
-      documentId: string;
-      content: string;
-      similarity: number;
-      metadata: KnowledgeDocument['metadata'];
-    },
-    knowledgeBaseId: string,
-    searchQuery: string
-  ): Promise<MessageBlock> {
-    return this.createKnowledgeReferenceBlock(
-      messageId,
-      searchResult.content,
-      knowledgeBaseId,
-      {
-        source: searchResult.metadata.source,
-        similarity: searchResult.similarity,
-        fileName: searchResult.metadata.fileName,
-        fileId: searchResult.metadata.fileId,
-        knowledgeDocumentId: searchResult.documentId,
-        searchQuery
-      }
-    );
-  }
 }
 
 // 单例实例，保持向后兼容

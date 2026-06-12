@@ -33,7 +33,6 @@ export {
   createTranslationBlock,
   createChartBlock,
   createMathBlock,
-  createKnowledgeReferenceBlock,
   createCitationBlock
 } from './blockFactory';
 
