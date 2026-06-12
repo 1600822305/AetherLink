@@ -10,8 +10,8 @@ import {
   FormControl,
   MenuItem,
   Select,
-  Switch,
 } from '@mui/material';
+import CustomSwitch from '../../../components/CustomSwitch';
 import { AlertTriangle, Brain, Settings, Sparkles, Users } from 'lucide-react';
 import { SectionCard, SettingRow } from './components';
 import { DEFAULT_MAINTENANCE_INTERVAL_DAYS } from '../../../shared/services/memory/maintenance';
@@ -58,10 +58,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
       title="启用记忆功能"
       description="开启后，AI 将自动记住对话中的重要信息"
       action={
-        <Switch
+        <CustomSwitch
           checked={globalMemoryEnabled}
           onChange={(e) => onToggleEnabled(e.target.checked)}
-          color="primary"
         />
       }
     />
@@ -101,10 +100,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
           description="AI 自主判断何时记忆，通过工具调用保存，节省成本"
           divider
           control={
-            <Switch
+            <CustomSwitch
               checked={memoryConfig.memoryToolEnabled || false}
               onChange={(e) => onPatchConfig({ memoryToolEnabled: e.target.checked })}
-              color="primary"
             />
           }
         />
@@ -112,10 +110,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
           title="自动分析"
           description="每次对话后 LLM 自动分析提取事实，会增加 API 成本"
           control={
-            <Switch
+            <CustomSwitch
               checked={memoryConfig.autoAnalyzeEnabled || false}
               onChange={(e) => onPatchConfig({ autoAnalyzeEnabled: e.target.checked })}
-              color="primary"
             />
           }
         />
@@ -153,10 +150,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
           title="启用此助手的记忆功能"
           description="开启后，此助手会记住与你的对话内容"
           control={
-            <Switch
+            <CustomSwitch
               checked={currentAssistantMemoryEnabled}
               onChange={(e) => onToggleAssistantMemory(e.target.checked)}
-              color="primary"
             />
           }
         />
@@ -195,10 +191,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
         description={`每 ${memoryConfig.maintenanceIntervalDays ?? DEFAULT_MAINTENANCE_INTERVAL_DAYS} 天在应用空闲时自动执行一次整理`}
         divider
         control={
-          <Switch
+          <CustomSwitch
             checked={memoryConfig.autoMaintenanceEnabled || false}
             onChange={(e) => onPatchConfig({ autoMaintenanceEnabled: e.target.checked })}
-            color="primary"
           />
         }
       />
@@ -206,10 +201,9 @@ const ConfigTab: React.FC<ConfigTabProps> = ({
         title="回顾提取"
         description="整理时回看近期话题的新消息，补提实时分析遗漏的记忆，会增加 API 成本"
         control={
-          <Switch
+          <CustomSwitch
             checked={memoryConfig.maintenanceHarvestEnabled ?? true}
             onChange={(e) => onPatchConfig({ maintenanceHarvestEnabled: e.target.checked })}
-            color="primary"
           />
         }
       />
