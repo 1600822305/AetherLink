@@ -88,7 +88,8 @@ export function textToReasoningDelta(text: string): { type: 'reasoning'; textDel
 export type OpenAIStreamChunk =
   | { type: 'text-delta'; textDelta: string }
   | { type: 'reasoning'; textDelta: string }
-  | { type: 'tool_calls'; toolCalls: any[] };
+  | { type: 'tool_calls'; toolCalls: any[] }
+  | { type: 'usage'; usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };
 
 /**
  * 将OpenAI块转换为文本增量或思考增量
@@ -107,6 +108,12 @@ export async function* openAIChunkToTextDelta(stream: AsyncIterable<any>): Async
 
   for await (const chunk of stream) {
     chunkCount++;
+
+    // 处理 usage 统计（stream_options.include_usage 时随最后一个 chunk 返回，choices 通常为空）
+    if (chunk.usage) {
+      yield { type: 'usage', usage: chunk.usage };
+    }
+
     // 移除频繁的 chunk 日志，只在出错时输出
     if (chunk.choices && chunk.choices.length > 0) {
       const delta = chunk.choices[0].delta;

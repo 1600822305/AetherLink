@@ -61,6 +61,8 @@ interface StreamProcessingState {
   toolCalls: any[]; // 用于积累流式工具调用
   emittedToolIndices: Set<number>; // 记录已发送事件的工具索引
   thinkingCompleteSent: boolean; // 记录是否已发送 THINKING_COMPLETE
+  startTime: number; // 本次 API 调用开始时间
+  firstTokenTime: number; // 首个 token（文本或思考）到达时间
 }
 
 /**
@@ -75,7 +77,9 @@ export class UnifiedStreamProcessor {
     reasoningStartTime: 0,
     toolCalls: [],
     emittedToolIndices: new Set(),
-    thinkingCompleteSent: false
+    thinkingCompleteSent: false,
+    startTime: 0,
+    firstTokenTime: 0
   };
 
   // AbortController管理
@@ -126,6 +130,8 @@ export class UnifiedStreamProcessor {
   private async processAdvancedStream(stream: AsyncIterable<any>): Promise<StreamProcessingResult> {
     console.log(`[UnifiedStreamProcessor] 处理流式响应，模型: ${this.options.model.id}`);
 
+    this.state.startTime = Date.now();
+
     // 检查中断
     if (this.isAborted()) {
       throw new DOMException('Operation aborted', 'AbortError');
@@ -167,6 +173,10 @@ export class UnifiedStreamProcessor {
    * 处理高级模式的chunk
    */
   private async handleAdvancedChunk(chunk: any): Promise<void> {
+    if ((chunk.type === 'text-delta' || chunk.type === 'reasoning') && !this.state.firstTokenTime) {
+      this.state.firstTokenTime = Date.now();
+    }
+
     if (chunk.type === 'text-delta') {
       // 注意：DeepSeek 的重复检测已经在 streamUtils.ts 的 openAIChunkToTextDelta 中处理
       // 这里接收到的 textDelta 已经是经过去重的增量内容
@@ -216,6 +226,27 @@ export class UnifiedStreamProcessor {
     } else if (chunk.type === 'tool_calls') {
       // 处理原生 Function Calling 工具调用
       this.handleNativeToolCalls(chunk.toolCalls);
+    } else if (chunk.type === 'usage') {
+      // 真实 token 用量（include_usage 时随流尾 chunk 返回），连同耗时指标上报
+      const u = chunk.usage || {};
+      const promptTokens = u.prompt_tokens ?? 0;
+      const completionTokens = u.completion_tokens ?? 0;
+      if (this.options.onChunk && (promptTokens > 0 || completionTokens > 0)) {
+        await this.options.onChunk({
+          type: ChunkType.LLM_RESPONSE_COMPLETE,
+          usage: {
+            promptTokens,
+            completionTokens,
+            totalTokens: u.total_tokens ?? (promptTokens + completionTokens)
+          },
+          metrics: {
+            latency: Date.now() - this.state.startTime,
+            firstTokenLatency: this.state.firstTokenTime
+              ? this.state.firstTokenTime - this.state.startTime
+              : undefined
+          }
+        } as Chunk);
+      }
     } else if (chunk.type === 'finish') {
       // 先发送 THINKING_COMPLETE（如果有推理内容且还没发送过）
       if (this.state.reasoning && this.options.onChunk && !this.state.thinkingCompleteSent) {
