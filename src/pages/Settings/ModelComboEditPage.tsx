@@ -231,10 +231,10 @@ const ModelComboEditPage: React.FC = () => {
   const getModelLabel = (index: number) => {
     if (formData.strategy === 'sequential') {
       return index === 0
-        ? { icon: <Brain size={18} />, label: t('modelSettings.combo.thinkingModel', '推理模型'), color: theme.palette.secondary.main, desc: '负责深度思考和推理' }
-        : { icon: <Sparkles size={18} />, label: t('modelSettings.combo.generatingModel', '生成模型'), color: theme.palette.primary.main, desc: '基于推理结果生成最终答案' };
+        ? { icon: <Brain size={15} />, label: t('modelSettings.combo.thinkingModel', '推理模型'), color: theme.palette.secondary.main, desc: '负责深度思考和推理' }
+        : { icon: <Sparkles size={15} />, label: t('modelSettings.combo.generatingModel', '生成模型'), color: theme.palette.primary.main, desc: '基于推理结果生成最终答案' };
     }
-    return { icon: <GitCompare size={18} />, label: `${t('modelSettings.combo.model', '模型')} ${index + 1}`, color: theme.palette.text.secondary, desc: '' };
+    return { icon: <GitCompare size={15} />, label: `${t('modelSettings.combo.model', '模型')} ${index + 1}`, color: theme.palette.text.secondary, desc: '' };
   };
 
   const isFormValid = () => {
@@ -259,25 +259,26 @@ const ModelComboEditPage: React.FC = () => {
           border: '1px solid',
           borderColor: alpha(labelInfo.color, 0.35),
           bgcolor: alpha(labelInfo.color, 0.04),
-          p: 1.5,
+          p: 1,
+          px: 1.25,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: labelInfo.color }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75, color: labelInfo.color }}>
           {labelInfo.icon}
-          <Typography variant="subtitle2" fontWeight={600} color="inherit" sx={{ flex: 1 }}>
+          <Typography variant="body2" fontWeight={600} color="inherit" sx={{ flexShrink: 0 }}>
             {labelInfo.label}
           </Typography>
+          {labelInfo.desc && (
+            <Typography variant="caption" color="text.secondary" sx={{ flex: 1, ml: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {labelInfo.desc}
+            </Typography>
+          )}
           {removable && (
-            <IconButton size="small" onClick={() => handleRemoveModel(index)} sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}>
-              <DeleteIcon size={16} />
+            <IconButton size="small" onClick={() => handleRemoveModel(index)} sx={{ ml: 'auto', p: 0.25, color: 'text.secondary', '&:hover': { color: 'error.main' } }}>
+              <DeleteIcon size={15} />
             </IconButton>
           )}
         </Box>
-        {labelInfo.desc && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            {labelInfo.desc}
-          </Typography>
-        )}
         {isDialogStyle && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography
@@ -343,11 +344,11 @@ const ModelComboEditPage: React.FC = () => {
         }
       />
       <Container>
-        <Box sx={{ maxWidth: 640, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ maxWidth: 600, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
 
           {/* ==================== 基本信息 ==================== */}
           <SettingGroup title={t('modelSettings.combo.basicInfo', '基本信息')}>
-            <Row sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 2 }}>
+            <Row sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 1.5, padding: '12px 14px' }}>
               <TextField
                 fullWidth
                 size="small"
@@ -368,8 +369,8 @@ const ModelComboEditPage: React.FC = () => {
                 placeholder="描述这个模型组合的用途"
               />
             </Row>
-            <Row>
-              <Typography sx={{ flex: 1 }}>{t('modelSettings.combo.enableCombo', '启用此组合')}</Typography>
+            <Row sx={{ padding: '8px 14px' }}>
+              <Typography variant="body2" sx={{ flex: 1 }}>{t('modelSettings.combo.enableCombo', '启用此组合')}</Typography>
               <CustomSwitch
                 checked={formData.enabled}
                 onChange={(e) => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
@@ -379,8 +380,8 @@ const ModelComboEditPage: React.FC = () => {
 
           {/* ==================== 组合策略 ==================== */}
           <SettingGroup title={t('modelSettings.combo.strategy.label', '组合策略')}>
-            <Row>
-              <Typography sx={{ flex: 1 }}>{t('modelSettings.combo.strategy.label', '组合策略')}</Typography>
+            <Row sx={{ padding: '8px 14px' }}>
+              <Typography variant="body2" sx={{ flex: 1 }}>{t('modelSettings.combo.strategy.label', '组合策略')}</Typography>
               <FormControl size="small" sx={{ minWidth: 180 }}>
                 <Select
                   value={formData.strategy}
@@ -401,7 +402,7 @@ const ModelComboEditPage: React.FC = () => {
                 </Select>
               </FormControl>
             </Row>
-            <Box sx={{ px: 2, pb: 2 }}>
+            <Box sx={{ px: 1.75, pb: 1.5 }}>
               <Typography variant="caption" color="text.secondary">
                 {getStrategyDescription(formData.strategy)}
               </Typography>
@@ -410,8 +411,8 @@ const ModelComboEditPage: React.FC = () => {
 
           {/* ==================== 配置模型 ==================== */}
           <SettingGroup title={t('modelSettings.combo.configModels', '配置模型')}>
-            <Box sx={{ p: 2 }}>
-              <YStack sx={{ gap: 1.5 }}>
+            <Box sx={{ p: 1.5 }}>
+              <YStack sx={{ gap: 1 }}>
                 {formData.models.map((_, index) =>
                   renderModelCard(
                     index,
