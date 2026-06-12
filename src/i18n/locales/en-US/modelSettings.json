@@ -145,6 +145,9 @@
     "noComboYet": "No combos created yet",
     "createComboDesc": "Create combos for routing, ensemble and more",
     "createFirst": "Create First",
+    "create": "New Combo",
+    "enabledChip": "Enabled",
+    "disabledChip": "Disabled",
     "modelCount": "{{count}} model(s)",
     "strategy": {
       "routing": "Smart Routing (WIP)",

@@ -1,25 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
-  AppBar,
-  Toolbar,
-  IconButton,
   Typography,
+  IconButton,
   TextField,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Card,
-  CardContent,
   Button,
-  Alert,
-  Divider,
-  alpha
+  alpha,
+  useTheme,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus as AddIcon, Trash2 as DeleteIcon, Brain, Sparkles, ArrowRight, GitCompare, Save } from 'lucide-react';
+import { Plus as AddIcon, Trash2 as DeleteIcon, Brain, Sparkles, ArrowRight, GitCompare, Save } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import DropdownModelSelector from '../ChatPage/components/DropdownModelSelector';
@@ -28,16 +21,24 @@ import CustomSwitch from '../../components/CustomSwitch';
 import { useTranslation } from 'react-i18next';
 import { modelComboService } from '../../shared/services/ai/ModelComboService';
 import { useModelComboSync } from '../../shared/hooks/useModelComboSync';
-import { SafeAreaContainer } from '../../components/settings/SettingComponents';
+import {
+  SafeAreaContainer,
+  Container,
+  HeaderBar,
+  SettingGroup,
+  Row,
+  YStack,
+} from '../../components/settings/SettingComponents';
 
 import type { ModelComboStrategy, ModelComboFormData } from '../../shared/types/ModelCombo';
 
 const ModelComboEditPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const theme = useTheme();
   const { comboId } = useParams<{ comboId: string }>();
   const isEditing = comboId && comboId !== 'new';
-  
+
   const { syncModelCombos } = useModelComboSync();
 
   const [formData, setFormData] = useState<ModelComboFormData>({
@@ -133,7 +134,7 @@ const ModelComboEditPage: React.FC = () => {
           role: m.role as 'primary' | 'secondary' | 'thinking' | 'generating' | 'fallback'
         }))
       };
-      
+
       if (isEditing && comboId) {
         await modelComboService.updateCombo(comboId, dataToSave);
       } else {
@@ -226,10 +227,10 @@ const ModelComboEditPage: React.FC = () => {
   const getModelLabel = (index: number) => {
     if (formData.strategy === 'sequential') {
       return index === 0
-        ? { icon: <Brain size={20} />, label: t('modelSettings.combo.thinkingModel', '推理模型'), color: '#9c27b0', desc: '负责深度思考和推理' }
-        : { icon: <Sparkles size={20} />, label: t('modelSettings.combo.generatingModel', '生成模型'), color: '#2196f3', desc: '基于推理结果生成最终答案' };
+        ? { icon: <Brain size={18} />, label: t('modelSettings.combo.thinkingModel', '推理模型'), color: theme.palette.secondary.main, desc: '负责深度思考和推理' }
+        : { icon: <Sparkles size={18} />, label: t('modelSettings.combo.generatingModel', '生成模型'), color: theme.palette.primary.main, desc: '基于推理结果生成最终答案' };
     }
-    return { icon: <GitCompare size={20} />, label: `${t('modelSettings.combo.model', '模型')} ${index + 1}`, color: '#757575', desc: '' };
+    return { icon: <GitCompare size={18} />, label: `${t('modelSettings.combo.model', '模型')} ${index + 1}`, color: theme.palette.text.secondary, desc: '' };
   };
 
   const isFormValid = () => {
@@ -238,238 +239,187 @@ const ModelComboEditPage: React.FC = () => {
            formData.models.every(m => m.modelId.trim() !== '');
   };
 
-  return (
-    <SafeAreaContainer>
-      <AppBar
-        position="static"
-        elevation={0}
+  const renderModelCard = (index: number, removable: boolean) => {
+    const labelInfo = getModelLabel(index);
+    const model = formData.models[index];
+    return (
+      <Box
+        key={index}
         sx={{
-          bgcolor: 'background.paper',
-          color: 'text.primary',
-          borderBottom: 1,
-          borderColor: 'divider',
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: alpha(labelInfo.color, 0.35),
+          bgcolor: alpha(labelInfo.color, 0.04),
+          p: 1.5,
         }}
       >
-        <Toolbar>
-          <IconButton edge="start" onClick={handleBack} sx={{ color: 'primary.main' }}>
-            <ArrowLeft size={24} />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {isEditing ? t('modelSettings.combo.editCombo', '编辑模型组合') : t('modelSettings.combo.createCombo', '创建模型组合')}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: labelInfo.color }}>
+          {labelInfo.icon}
+          <Typography variant="subtitle2" fontWeight={600} color="inherit" sx={{ flex: 1 }}>
+            {labelInfo.label}
           </Typography>
+          {removable && (
+            <IconButton size="small" onClick={() => handleRemoveModel(index)} sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}>
+              <DeleteIcon size={16} />
+            </IconButton>
+          )}
+        </Box>
+        {labelInfo.desc && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+            {labelInfo.desc}
+          </Typography>
+        )}
+        <DropdownModelSelector
+          selectedModel={
+            model.modelId
+              ? availableModels.find(m =>
+                  modelMatchesIdentity(m, parseModelIdentityKey(model.modelId), m.provider)
+                ) || null
+              : null
+          }
+          availableModels={availableModels}
+          handleModelSelect={(selectedModel) => {
+            handleModelChange(
+              index,
+              'modelId',
+              selectedModel
+                ? getModelIdentityKey({
+                    id: selectedModel.id,
+                    provider: selectedModel.provider || (selectedModel as any).providerId
+                  })
+                : ''
+            );
+          }}
+        />
+      </Box>
+    );
+  };
+
+  return (
+    <SafeAreaContainer>
+      <HeaderBar
+        title={isEditing ? t('modelSettings.combo.editCombo', '编辑模型组合') : t('modelSettings.combo.createCombo', '创建模型组合')}
+        onBackPress={handleBack}
+        rightButton={
           <Button
             variant="contained"
-            startIcon={<Save size={18} />}
+            disableElevation
+            size="small"
+            startIcon={<Save size={16} />}
             onClick={handleSave}
             disabled={!isFormValid() || loading}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
           >
             {t('common.save', '保存')}
           </Button>
-        </Toolbar>
-      </AppBar>
+        }
+      />
+      <Container>
+        <Box sx={{ maxWidth: 640, width: '100%', mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, pb: 'var(--content-bottom-padding)' }}>
-        <Box sx={{ maxWidth: 600, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* 基本信息 */}
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                {t('modelSettings.combo.basicInfo', '基本信息')}
+          {/* ==================== 基本信息 ==================== */}
+          <SettingGroup title={t('modelSettings.combo.basicInfo', '基本信息')}>
+            <Row sx={{ flexDirection: 'column', alignItems: 'stretch', gap: 2 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label={t('modelSettings.combo.comboName', '组合名称')}
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+                placeholder="例如：DeepClaude 组合"
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label={t('modelSettings.combo.description', '描述')}
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                multiline
+                rows={2}
+                placeholder="描述这个模型组合的用途"
+              />
+            </Row>
+            <Row>
+              <Typography sx={{ flex: 1 }}>{t('modelSettings.combo.enableCombo', '启用此组合')}</Typography>
+              <CustomSwitch
+                checked={formData.enabled}
+                onChange={(e) => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
+              />
+            </Row>
+          </SettingGroup>
+
+          {/* ==================== 组合策略 ==================== */}
+          <SettingGroup title={t('modelSettings.combo.strategy.label', '组合策略')}>
+            <Row>
+              <Typography sx={{ flex: 1 }}>{t('modelSettings.combo.strategy.label', '组合策略')}</Typography>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <Select
+                  value={formData.strategy}
+                  onChange={(e) => handleStrategyChange(e.target.value as ModelComboStrategy)}
+                >
+                  <MenuItem value="sequential">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ArrowRight size={16} />
+                      {t('modelSettings.combo.strategy.sequential', '顺序执行')}
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="comparison">
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <GitCompare size={16} />
+                      {t('modelSettings.combo.strategy.comparison', '对比分析')}
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Row>
+            <Box sx={{ px: 2, pb: 2 }}>
+              <Typography variant="caption" color="text.secondary">
+                {getStrategyDescription(formData.strategy)}
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label={t('modelSettings.combo.comboName', '组合名称')}
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                  placeholder="例如：DeepClaude 组合"
-                />
-                <TextField
-                  fullWidth
-                  label={t('modelSettings.combo.description', '描述')}
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  multiline
-                  rows={2}
-                  placeholder="描述这个模型组合的用途"
-                />
-                <FormControlLabel
-                  control={
-                    <CustomSwitch
-                      checked={formData.enabled}
-                      onChange={(e) => setFormData(prev => ({ ...prev, enabled: e.target.checked }))}
-                    />
-                  }
-                  label={t('modelSettings.combo.enableCombo', '启用此组合')}
-                />
-              </Box>
-            </CardContent>
-          </Card>
+            </Box>
+          </SettingGroup>
 
-          {/* 策略选择 */}
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                {t('modelSettings.combo.strategy.label', '组合策略')}
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                <FormControl fullWidth>
-                  <InputLabel>{t('modelSettings.combo.strategy.label', '组合策略')}</InputLabel>
-                  <Select
-                    value={formData.strategy}
-                    onChange={(e) => handleStrategyChange(e.target.value as ModelComboStrategy)}
-                    label={t('modelSettings.combo.strategy.label', '组合策略')}
-                  >
-                    <MenuItem value="sequential">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ArrowRight size={18} />
-                        {t('modelSettings.combo.strategy.sequential', '顺序执行')}
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="comparison">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <GitCompare size={18} />
-                        {t('modelSettings.combo.strategy.comparison', '对比分析')}
-                      </Box>
-                    </MenuItem>
-                  </Select>
-                </FormControl>
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  {getStrategyDescription(formData.strategy)}
-                </Alert>
-              </Box>
-            </CardContent>
-          </Card>
+          {/* ==================== 配置模型 ==================== */}
+          <SettingGroup title={t('modelSettings.combo.configModels', '配置模型')}>
+            <Box sx={{ p: 2 }}>
+              <YStack sx={{ gap: 1.5 }}>
+                {formData.models.map((_, index) =>
+                  renderModelCard(
+                    index,
+                    formData.strategy === 'comparison' && formData.models.length > 2
+                  )
+                )}
 
-          {/* 模型配置 */}
-          <Card variant="outlined">
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  {t('modelSettings.combo.configModels', '配置模型')}
-                </Typography>
+                {formData.strategy === 'sequential' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, color: 'text.secondary', py: 0.5 }}>
+                    <Brain size={15} color={theme.palette.secondary.main} />
+                    <ArrowRight size={15} />
+                    <Sparkles size={15} color={theme.palette.primary.main} />
+                    <Typography variant="caption" sx={{ ml: 0.5 }}>
+                      {t('modelSettings.combo.sequentialFlow', '推理 → 生成')}
+                    </Typography>
+                  </Box>
+                )}
+
                 {formData.strategy === 'comparison' && (
-                  <Button startIcon={<AddIcon size={18} />} onClick={handleAddModel} size="small">
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddIcon size={16} />}
+                    onClick={handleAddModel}
+                    sx={{ textTransform: 'none', borderRadius: 2, borderStyle: 'dashed' }}
+                  >
                     {t('modelSettings.combo.addModel', '添加模型')}
                   </Button>
                 )}
-              </Box>
+              </YStack>
+            </Box>
+          </SettingGroup>
 
-              {/* 顺序策略 */}
-              {formData.strategy === 'sequential' && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {formData.models.map((model, index) => {
-                    const labelInfo = getModelLabel(index);
-                    return (
-                      <Card
-                        key={index}
-                        variant="outlined"
-                        sx={{
-                          borderColor: alpha(labelInfo.color, 0.5),
-                          bgcolor: alpha(labelInfo.color, 0.03)
-                        }}
-                      >
-                        <CardContent>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, color: labelInfo.color }}>
-                            {labelInfo.icon}
-                            <Typography variant="subtitle2" fontWeight={600} color="inherit">
-                              {labelInfo.label}
-                            </Typography>
-                          </Box>
-                          {labelInfo.desc && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                              {labelInfo.desc}
-                            </Typography>
-                          )}
-                          <DropdownModelSelector
-                            selectedModel={
-                              model.modelId
-                                ? availableModels.find(m =>
-                                    modelMatchesIdentity(m, parseModelIdentityKey(model.modelId), m.provider)
-                                  ) || null
-                                : null
-                            }
-                            availableModels={availableModels}
-                            handleModelSelect={(selectedModel) => {
-                              handleModelChange(
-                                index,
-                                'modelId',
-                                selectedModel
-                                  ? getModelIdentityKey({
-                                      id: selectedModel.id,
-                                      provider: selectedModel.provider || (selectedModel as any).providerId
-                                    })
-                                  : ''
-                              );
-                            }}
-                          />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  
-                  {/* 流程指示 */}
-                  <Divider sx={{ my: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary', px: 2 }}>
-                      <Brain size={16} color="#9c27b0" />
-                      <ArrowRight size={16} />
-                      <Sparkles size={16} color="#2196f3" />
-                      <Typography variant="caption" sx={{ ml: 1 }}>
-                        {t('modelSettings.combo.sequentialFlow', '推理 → 生成')}
-                      </Typography>
-                    </Box>
-                  </Divider>
-                </Box>
-              )}
-
-              {/* 对比策略 */}
-              {formData.strategy === 'comparison' && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {formData.models.map((model, index) => (
-                    <Card key={index} variant="outlined">
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                          <Typography variant="subtitle2" fontWeight={500}>
-                            {t('modelSettings.combo.model', '模型')} {index + 1}
-                          </Typography>
-                          {formData.models.length > 2 && (
-                            <IconButton size="small" onClick={() => handleRemoveModel(index)} color="error">
-                              <DeleteIcon size={18} />
-                            </IconButton>
-                          )}
-                        </Box>
-                        <DropdownModelSelector
-                          selectedModel={
-                            model.modelId
-                              ? availableModels.find(m =>
-                                  modelMatchesIdentity(m, parseModelIdentityKey(model.modelId), m.provider)
-                                ) || null
-                              : null
-                          }
-                          availableModels={availableModels}
-                          handleModelSelect={(selectedModel) => {
-                            handleModelChange(
-                              index,
-                              'modelId',
-                              selectedModel
-                                ? getModelIdentityKey({
-                                    id: selectedModel.id,
-                                    provider: selectedModel.provider || (selectedModel as any).providerId
-                                  })
-                                : ''
-                            );
-                          }}
-                        />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
         </Box>
-      </Box>
+      </Container>
     </SafeAreaContainer>
   );
 };
