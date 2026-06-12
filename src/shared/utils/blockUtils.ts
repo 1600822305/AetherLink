@@ -187,15 +187,18 @@ export function getMainTextContent(message: Message): string {
       .filter(Boolean) as MessageBlock[];
 
     // 查找主文本块（兼容 UNKNOWN 和 CONTEXT_SUMMARY 类型）
-    const mainTextBlock = blocks.find(block =>
-      block.type === MessageBlockType.MAIN_TEXT || 
+    const textBlocks = blocks.filter(block =>
+      block.type === MessageBlockType.MAIN_TEXT ||
       block.type === MessageBlockType.UNKNOWN ||
       block.type === MessageBlockType.CONTEXT_SUMMARY
     );
 
-    // 如果找到主文本块，返回其内容
-    if (mainTextBlock && 'content' in mainTextBlock) {
-      return mainTextBlock.content || '';
+    // 优先返回第一个有内容的文本块（跳过空的占位块/中间块）
+    const nonEmptyBlock = textBlocks.find(block =>
+      'content' in block && typeof block.content === 'string' && block.content.trim()
+    );
+    if (nonEmptyBlock && 'content' in nonEmptyBlock) {
+      return nonEmptyBlock.content;
     }
 
     return '';
