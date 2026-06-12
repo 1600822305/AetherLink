@@ -208,6 +208,7 @@ export function useAssistants(currentAssistantId: string) {
 export function useMaintenance(
   assistantId: string,
   retentionDays: number | undefined,
+  harvestEnabled: boolean | undefined,
   onCompleted: () => void
 ) {
   const dispatch = useAppDispatch();
@@ -223,6 +224,7 @@ export function useMaintenance(
         assistantId,
         dryRun,
         retentionDays,
+        harvestEnabled,
       });
       setReport(result);
       setShowReport(true);
@@ -236,7 +238,7 @@ export function useMaintenance(
     } finally {
       setRunning(false);
     }
-  }, [running, assistantId, retentionDays, dispatch, onCompleted]);
+  }, [running, assistantId, retentionDays, harvestEnabled, dispatch, onCompleted]);
 
   return { running, report, showReport, setShowReport, run };
 }

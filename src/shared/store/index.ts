@@ -180,6 +180,7 @@ startMaintenanceScheduler({
       lastMaintenanceAt: config?.lastMaintenanceAt,
       intervalDays: config?.maintenanceIntervalDays,
       retentionDays: config?.maintenanceRetentionDays,
+      harvestEnabled: config?.maintenanceHarvestEnabled,
     };
   },
   onCompleted: (report) => {

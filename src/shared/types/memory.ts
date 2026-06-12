@@ -43,8 +43,8 @@ export interface MemoryItem {
  * 记忆元数据
  */
 export interface MemoryMetadata {
-  /** 来源类型 */
-  source?: 'auto' | 'manual';
+  /** 来源类型（dream 为维护任务回顾提取） */
+  source?: 'auto' | 'manual' | 'dream';
   /** 记忆类别 */
   category?: MemoryCategory;
   /** 置信度（0-1） */
@@ -144,6 +144,8 @@ export interface MemoryConfig {
   autoMaintenanceEnabled?: boolean;
   /** 自动维护间隔天数（默认 7） */
   maintenanceIntervalDays?: number;
+  /** 维护时是否回顾近期话题补提记忆（默认开启） */
+  maintenanceHarvestEnabled?: boolean;
 }
 
 /**

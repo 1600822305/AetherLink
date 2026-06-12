@@ -24,7 +24,7 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
   if (!report) return null;
 
   const purgeCount = report.dryRun ? report.purge.candidates.length : report.purge.purgedCount;
-  const { reembed, consolidate } = report;
+  const { harvest, reembed, consolidate } = report;
   const handledIds = new Set<string>([
     ...consolidate.merged.flatMap(m => [m.keptId, ...m.removedIds]),
     ...consolidate.expired.map(e => e.id),
@@ -57,6 +57,42 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
         )}
 
         <Divider sx={{ my: 1.5 }} />
+
+        {/* 回顾提取 */}
+        {(harvest.scannedTopics > 0 || harvest.extractedFacts.length > 0) && (
+          <>
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              回顾提取
+            </Typography>
+            {report.dryRun ? (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {harvest.candidates.length > 0
+                  ? `有 ${harvest.candidates.length} 个话题共 ${harvest.candidates.reduce((sum, c) => sum + c.pendingMessages, 0)} 条新消息待提取${
+                      harvest.deferredTopics > 0 ? `，另有 ${harvest.deferredTopics} 个话题顺延` : ''
+                    }`
+                  : '没有需要回顾提取的新消息'}
+              </Typography>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: harvest.extractedFacts.length > 0 ? 0.5 : 1.5 }}>
+                  {`已回顾 ${harvest.processedTopics} 个话题，提取 ${harvest.extractedFacts.length} 条事实（新增 ${harvest.addedCount}、更新 ${harvest.updatedCount}）${
+                    harvest.deferredTopics > 0 ? `，${harvest.deferredTopics} 个话题顺延到下次` : ''
+                  }`}
+                </Typography>
+                {harvest.extractedFacts.length > 0 && (
+                  <Box sx={{ maxHeight: 160, overflow: 'auto', mb: 1.5 }}>
+                    {harvest.extractedFacts.map((fact, idx) => (
+                      <Box key={`fact-${idx}`} sx={{ mb: 0.5 }}>
+                        <Chip label="提取" size="small" color="info" variant="outlined" sx={{ height: 20, fontSize: '0.7rem', mr: 0.5 }} />
+                        <Typography variant="body2" component="span">{fact}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </>
+            )}
+          </>
+        )}
 
         {/* 物理清除 */}
         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
@@ -164,7 +200,7 @@ const MaintenanceReportDialog: React.FC<MaintenanceReportDialogProps> = ({
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
           <Button onClick={onClose}>关闭</Button>
-          {report.dryRun && (purgeCount > 0 || report.cluster.clusters.length > 0 || reembed.candidateCount > 0) && onRunForReal && (
+          {report.dryRun && (purgeCount > 0 || report.cluster.clusters.length > 0 || reembed.candidateCount > 0 || harvest.candidates.length > 0) && onRunForReal && (
             <Button variant="contained" onClick={onRunForReal}>
               立即整理
             </Button>

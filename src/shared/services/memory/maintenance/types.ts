@@ -20,13 +20,19 @@ export interface MemoryMaintenanceOptions {
   maxEmbeddingCalls?: number;
   /** 单次维护最多 LLM 整合调用次数，保护用户 API 额度（默认 10） */
   maxLlmCalls?: number;
+  /** 是否执行回顾提取阶段（默认开启） */
+  harvestEnabled?: boolean;
+  /** 单次维护最多回顾提取的话题数（默认 10） */
+  maxHarvestTopics?: number;
+  /** 单次维护回顾提取最多 LLM 调用次数（默认 10，每块消息提取+更新决策各计 1 次） */
+  maxHarvestLlmCalls?: number;
   /** 取消信号 */
   signal?: AbortSignal;
   /** 进度回调 */
   onProgress?: (progress: MaintenanceProgress) => void;
 }
 
-export type MaintenanceStage = 'purge' | 'reembed' | 'cluster' | 'consolidate';
+export type MaintenanceStage = 'harvest' | 'purge' | 'reembed' | 'cluster' | 'consolidate';
 
 export interface MaintenanceProgress {
   stage: MaintenanceStage;
@@ -37,6 +43,25 @@ export interface MaintenanceProgress {
 // ========================================================================
 // 阶段结果
 // ========================================================================
+
+export interface HarvestStageResult {
+  /** 自上次提取以来有新消息的候选话题数 */
+  scannedTopics: number;
+  /** 本次完成提取并推进游标的话题数 */
+  processedTopics: number;
+  /** 超出预算或失败顺延到下次的话题数 */
+  deferredTopics: number;
+  /** 实际使用的 LLM 调用次数 */
+  llmCallsUsed: number;
+  /** 本次提取出的事实 */
+  extractedFacts: string[];
+  /** 写入的新记忆数 */
+  addedCount: number;
+  /** 更新的记忆数 */
+  updatedCount: number;
+  /** dryRun 时的候选话题预览（零 API 成本） */
+  candidates: Array<{ topicId: string; topicName: string; pendingMessages: number }>;
+}
 
 export interface PurgeStageResult {
   /** 物理清除的记忆条数 */
@@ -94,6 +119,7 @@ export interface MemoryMaintenanceReport {
   dryRun: boolean;
   startedAt: string;
   finishedAt: string;
+  harvest: HarvestStageResult;
   purge: PurgeStageResult;
   reembed: ReembedStageResult;
   cluster: ClusterStageResult;
@@ -120,3 +146,12 @@ export const DEFAULT_MAX_EMBEDDING_CALLS = 50;
 
 /** 单次维护 LLM 调用预算 */
 export const DEFAULT_MAX_LLM_CALLS = 10;
+
+/** 单次维护最多回顾提取的话题数 */
+export const DEFAULT_MAX_HARVEST_TOPICS = 10;
+
+/** 单次维护回顾提取的 LLM 调用预算 */
+export const DEFAULT_MAX_HARVEST_LLM_CALLS = 10;
+
+/** 回顾提取每块消息条数 */
+export const HARVEST_CHUNK_SIZE = 20;

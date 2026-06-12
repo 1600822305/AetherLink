@@ -1,10 +1,11 @@
 /**
  * 记忆维护服务
  * 参考 MiMo-Code /dream 设计的记忆自维护编排器：
- * 按阶段管线执行（物理清除 → 向量修复 → 近重复聚类 → LLM 整合），各阶段独立容错、幂等，
+ * 按阶段管线执行（回顾提取 → 物理清除 → 向量修复 → 近重复聚类 → LLM 整合），各阶段独立容错、幂等，
  * 支持 dryRun 预览、进度回调与取消
  */
 
+import { runHarvestStage } from './stages/harvestStage';
 import { runPurgeStage } from './stages/purgeStage';
 import { runReembedStage } from './stages/reembedStage';
 import { runClusterStage } from './stages/clusterStage';
@@ -12,6 +13,8 @@ import { runConsolidateStage } from './stages/consolidateStage';
 import {
   DEFAULT_CLUSTER_THRESHOLD,
   DEFAULT_MAX_EMBEDDING_CALLS,
+  DEFAULT_MAX_HARVEST_LLM_CALLS,
+  DEFAULT_MAX_HARVEST_TOPICS,
   DEFAULT_MAX_LLM_CALLS,
   DEFAULT_RETENTION_DAYS,
   type MemoryMaintenanceOptions,
@@ -52,6 +55,9 @@ class MemoryMaintenanceService {
       clusterThreshold = DEFAULT_CLUSTER_THRESHOLD,
       maxEmbeddingCalls = DEFAULT_MAX_EMBEDDING_CALLS,
       maxLlmCalls = DEFAULT_MAX_LLM_CALLS,
+      harvestEnabled = true,
+      maxHarvestTopics = DEFAULT_MAX_HARVEST_TOPICS,
+      maxHarvestLlmCalls = DEFAULT_MAX_HARVEST_LLM_CALLS,
       signal,
       onProgress,
     } = options;
@@ -61,6 +67,16 @@ class MemoryMaintenanceService {
       dryRun,
       startedAt: new Date().toISOString(),
       finishedAt: '',
+      harvest: {
+        scannedTopics: 0,
+        processedTopics: 0,
+        deferredTopics: 0,
+        llmCallsUsed: 0,
+        extractedFacts: [],
+        addedCount: 0,
+        updatedCount: 0,
+        candidates: [],
+      },
       purge: { purgedCount: 0, candidates: [] },
       reembed: { candidateCount: 0, reembeddedCount: 0, deferredCount: 0 },
       cluster: { comparedCount: 0, clusters: [] },
@@ -70,6 +86,30 @@ class MemoryMaintenanceService {
     };
 
     try {
+      // S0 回顾提取（回扫近期话题补提遗漏事实；dryRun 只统计候选，零 API 成本）
+      if (harvestEnabled) {
+        try {
+          onProgress?.({ stage: 'harvest', percent: 0 });
+          report.harvest = await runHarvestStage(
+            assistantId,
+            maxHarvestTopics,
+            maxHarvestLlmCalls,
+            dryRun,
+            signal,
+            onProgress
+          );
+          onProgress?.({ stage: 'harvest', percent: 100 });
+        } catch (error) {
+          console.error('[MemoryMaintenance] 回顾提取阶段失败:', error);
+          report.errors.push(`harvest: ${error}`);
+        }
+      }
+
+      if (signal?.aborted) {
+        report.aborted = true;
+        return report;
+      }
+
       // S1 物理清除
       try {
         onProgress?.({ stage: 'purge', percent: 0 });

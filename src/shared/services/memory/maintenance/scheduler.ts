@@ -24,6 +24,8 @@ export interface SchedulerContext {
   lastMaintenanceAt?: string;
   intervalDays?: number;
   retentionDays?: number;
+  /** 是否执行回顾提取阶段（默认开启） */
+  harvestEnabled?: boolean;
 }
 
 export interface SchedulerDeps {
@@ -46,6 +48,7 @@ async function checkAndRun(deps: SchedulerDeps): Promise<void> {
     const report = await memoryMaintenanceService.run({
       assistantId: context.assistantId,
       retentionDays: context.retentionDays,
+      harvestEnabled: context.harvestEnabled,
     });
     deps.onCompleted(report);
   } catch (error) {
