@@ -5,7 +5,7 @@
 **A Cross-Platform AI Assistant Application**
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/1600822305/CS-LLM-house)
-[![Version](https://img.shields.io/badge/version-0.6.4-blue.svg?style=flat-square)](https://github.com/1600822305/AetherLink/releases)
+[![Version](https://img.shields.io/badge/version-0.6.5-blue.svg?style=flat-square)](https://github.com/1600822305/AetherLink/releases)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-important.svg?style=flat-square&logo=gnu)](https://www.gnu.org/licenses/agpl-3.0)
 [![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg?style=flat-square)](mailto:1600822305@qq.com?subject=AetherLink%20Commercial%20License%20Inquiry)
 

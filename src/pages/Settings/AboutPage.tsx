@@ -20,7 +20,7 @@ import {
 import { useTranslation } from '../../i18n';
 
 // 应用版本号
-const APP_VERSION = '0.6.4';
+const APP_VERSION = '0.6.5';
 
 // QQ群链接
 const QQ_GROUP_URL = 'http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=V-b46WoBNLIM4oc34JMULwoyJ3hyrKac&authKey=q%2FSwCcxda4e55ygtwp3h9adQXhqBLZ9wJdvM0QxTjXQkbxAa2tHoraOGy2fiibyY&noverify=0&group_code=930126592';
