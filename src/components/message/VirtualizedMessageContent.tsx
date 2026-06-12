@@ -220,7 +220,7 @@ const VirtualizedMessageContent: React.FC<VirtualizedMessageContentProps> = ({
     () => collectBlockIdsForRows(visibleRows),
     [visibleRows]
   );
-  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
+  const selectBlocksByIds = useMemo(() => makeSelectBlocksByIds(), []);
   const loadedBlocks = useAppSelector((state) => selectBlocksByIds(state, visibleBlockIds));
   const loadedBlockIdSet = useMemo(() => {
     const set = new Set<string>();

@@ -8,7 +8,6 @@ import type {
   TranslationMessageBlock,
   ChartMessageBlock,
   MathMessageBlock,
-  KnowledgeReferenceMessageBlock,
   CitationMessageBlock,
   KnowledgeReferenceItem,
   WebSearchReferenceItem
@@ -267,33 +266,3 @@ export function createCitationBlock(
   }) as CitationMessageBlock;
 }
 
-/**
- * 创建知识库引用块（旧接口，保持向后兼容）
- */
-export function createKnowledgeReferenceBlock(
-  messageId: string,
-  content: string,
-  knowledgeBaseId: string,
-  options?: {
-    source?: string;
-    similarity?: number;
-    fileName?: string;
-    fileId?: string;
-    knowledgeDocumentId?: string;
-    searchQuery?: string;
-    metadata?: KnowledgeReferenceMessageBlock['metadata'];
-  }
-): KnowledgeReferenceMessageBlock {
-  return createBaseBlock(messageId, MessageBlockType.KNOWLEDGE_REFERENCE, {
-    content,
-    knowledgeBaseId,
-    source: options?.source,
-    similarity: options?.similarity,
-    metadata: options?.metadata || {
-      fileName: options?.fileName,
-      fileId: options?.fileId,
-      knowledgeDocumentId: options?.knowledgeDocumentId,
-      searchQuery: options?.searchQuery
-    }
-  }) as KnowledgeReferenceMessageBlock;
-}
