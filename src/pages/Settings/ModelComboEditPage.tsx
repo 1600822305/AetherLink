@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Plus as AddIcon, Trash2 as DeleteIcon, Brain, Sparkles, ArrowRight, GitCompare, Save } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../shared/store';
-import DropdownModelSelector from '../ChatPage/components/DropdownModelSelector';
+import { ModelSelector } from '../ChatPage/components/ModelSelector';
 import { getModelIdentityKey, modelMatchesIdentity, parseModelIdentityKey } from '../../shared/utils/modelUtils';
 import CustomSwitch from '../../components/CustomSwitch';
 import { useTranslation } from 'react-i18next';
@@ -52,6 +52,10 @@ const ModelComboEditPage: React.FC = () => {
     ]
   });
   const [loading, setLoading] = useState(false);
+  const [openSelectorIndex, setOpenSelectorIndex] = useState<number | null>(null);
+
+  const modelSelectorStyle = useSelector((state: RootState) => state.settings.modelSelectorStyle);
+  const isDialogStyle = modelSelectorStyle !== 'dropdown';
 
   // 获取所有可用模型
   const providers = useSelector((state: RootState) => state.settings.providers);
@@ -242,6 +246,11 @@ const ModelComboEditPage: React.FC = () => {
   const renderModelCard = (index: number, removable: boolean) => {
     const labelInfo = getModelLabel(index);
     const model = formData.models[index];
+    const selectedModel = model.modelId
+      ? availableModels.find(m =>
+          modelMatchesIdentity(m, parseModelIdentityKey(model.modelId), m.provider)
+        ) || null
+      : null;
     return (
       <Box
         key={index}
@@ -269,27 +278,46 @@ const ModelComboEditPage: React.FC = () => {
             {labelInfo.desc}
           </Typography>
         )}
-        <DropdownModelSelector
-          selectedModel={
-            model.modelId
-              ? availableModels.find(m =>
-                  modelMatchesIdentity(m, parseModelIdentityKey(model.modelId), m.provider)
-                ) || null
-              : null
-          }
+        {isDialogStyle && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography
+              variant="body2"
+              color={selectedModel ? 'text.primary' : 'text.secondary'}
+              sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {selectedModel
+                ? `${selectedModel.name || selectedModel.id}`
+                : t('modelSettings.defaultModel.notSelected', '未选择')}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setOpenSelectorIndex(index)}
+              sx={{ textTransform: 'none', borderRadius: 2, flexShrink: 0 }}
+            >
+              {t('modelSettings.defaultModel.selectModel', '选择模型')}
+            </Button>
+          </Box>
+        )}
+        <ModelSelector
+          selectedModel={selectedModel}
           availableModels={availableModels}
-          handleModelSelect={(selectedModel) => {
+          handleModelSelect={(newModel) => {
             handleModelChange(
               index,
               'modelId',
-              selectedModel
+              newModel
                 ? getModelIdentityKey({
-                    id: selectedModel.id,
-                    provider: selectedModel.provider || (selectedModel as any).providerId
+                    id: newModel.id,
+                    provider: newModel.provider || (newModel as any).providerId
                   })
                 : ''
             );
+            setOpenSelectorIndex(null);
           }}
+          handleMenuClick={() => setOpenSelectorIndex(index)}
+          handleMenuClose={() => setOpenSelectorIndex(null)}
+          menuOpen={openSelectorIndex === index}
         />
       </Box>
     );
