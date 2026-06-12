@@ -200,19 +200,22 @@ class VersionService {
     currentBlockIds: string[],
     sourceBlocks: MessageBlock[]
   ): Promise<string[]> {
-    // 删除当前块
+    // Dexie: 删旧 + 写新（顺序无所谓，不影响 UI）
     if (currentBlockIds.length > 0) {
       await dexieStorage.deleteMessageBlocksByIds(currentBlockIds);
-      store.dispatch(removeManyBlocks(currentBlockIds));
     }
-    // 克隆源块为新的当前块
     const { blockIds, blocks } = await this.cloneBlocks(sourceBlocks, messageId);
+
+    // Redux: 先插入新块，再原子切换 message.blocks，最后清理旧块。
+    // 这样 selector 在任何中间帧都能映射到有效块，不会出现空帧导致布局跳动。
     if (blocks.length > 0) {
       store.dispatch(upsertManyBlocks(blocks));
     }
-    // 更新消息的 blocks
     await dexieStorage.updateMessage(messageId, { blocks: blockIds });
     store.dispatch(newMessagesActions.updateMessage({ id: messageId, changes: { blocks: blockIds } }));
+    if (currentBlockIds.length > 0) {
+      store.dispatch(removeManyBlocks(currentBlockIds));
+    }
     return blockIds;
   }
 
