@@ -111,17 +111,25 @@ const TopicItem = React.memo(function TopicItem({
   // （已加载话题在 getLastMessageContent 中走 isLoaded 分支，不经过这里。）
   const hasMessages = (topic.messageCount ?? topic.messageIds?.length ?? 0) > 0;
 
+  // 已加载话题的最后一条消息文本。
+  // 通过 useSelector 订阅计算，块异步加载进 Redux（upsertManyBlocks）后能触发重渲染；
+  // 若直接在 render 中读 store 计算，块晚于消息到达时预览会停留在空值。
+  const lastMessage = isLoaded ? reduxMessages[reduxMessages.length - 1] : undefined;
+  const lastLoadedText = useSelector(() => (lastMessage ? getMainTextContent(lastMessage) : ''));
+
   // 获取话题的最后一条消息内容
   // - 已加载话题：直接读 Redux 实时内容（发消息即时更新，无需逐条派发刷新）
   // - 未加载话题：读持久化预览快照（启动时已由 migrateTopicPreviews 全量回填）
   const getLastMessageContent = () => {
     if (isLoaded) {
-      const lastMessage = reduxMessages[reduxMessages.length - 1];
-      const content = getMainTextContent(lastMessage);
-      if (!content || !content.trim()) {
+      if (!lastLoadedText || !lastLoadedText.trim()) {
+        // 块尚未/已无文本内容：回退持久化预览快照，避免误显示「无文本内容」
+        if (topic.lastMessagePreview) {
+          return topic.lastMessagePreview;
+        }
         return '无文本内容';
       }
-      return formatPreviewText(content);
+      return formatPreviewText(lastLoadedText);
     }
     if (!hasMessages) {
       return '无消息';
