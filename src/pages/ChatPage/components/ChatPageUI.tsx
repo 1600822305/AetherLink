@@ -7,6 +7,7 @@ import { CustomIcon } from '../../../components/icons';
 import SolidMessageList from '../../../components/message/SolidMessageList';
 import { IntegratedChatInput } from '../../../components/input';
 import { Sidebar } from '../../../components/TopicManagement';
+import { clampSidebarWidth } from '../../../components/TopicManagement/sidebarOptimization';
 import { ModelSelector } from './ModelSelector';
 import { UnifiedModelDisplay } from './UnifiedModelDisplay';
 import { useSelector } from 'react-redux';
@@ -58,7 +59,7 @@ const getStoredSidebarWidth = (): number => {
     const appSettings = localStorage.getItem('appSettings');
     if (appSettings) {
       const settings = JSON.parse(appSettings);
-      return settings.sidebarWidth || DEFAULT_DRAWER_WIDTH;
+      return clampSidebarWidth(settings.sidebarWidth || DEFAULT_DRAWER_WIDTH);
     }
   } catch (e) {
     console.error('读取侧边栏宽度失败:', e);
@@ -244,7 +245,7 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
   useEffect(() => {
     const handleSettingsChange = (e: CustomEvent) => {
       if (e.detail?.settingId === 'sidebarWidth') {
-        setSidebarWidth(e.detail.value);
+        setSidebarWidth(clampSidebarWidth(e.detail.value));
       }
     };
     window.addEventListener('appSettingsChanged', handleSettingsChange as EventListener);

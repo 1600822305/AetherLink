@@ -4,6 +4,27 @@
  * 这个文件包含了侧边栏动画和性能优化的所有配置
  */
 
+// 侧边栏宽度限制
+export const SIDEBAR_WIDTH_MIN = 340;
+export const SIDEBAR_WIDTH_MAX = 800;
+// 保证侧边栏不会铺满整个屏幕，否则恢复入口（宽度按钮）会被挤出可视区域
+export const SIDEBAR_VIEWPORT_SAFE_MARGIN = 120;
+
+// 计算当前屏幕下允许的最大宽度，避免设置过大导致无法恢复
+export const getSafeMaxSidebarWidth = (): number => {
+  const viewportLimit =
+    typeof window !== 'undefined'
+      ? window.innerWidth - SIDEBAR_VIEWPORT_SAFE_MARGIN
+      : SIDEBAR_WIDTH_MAX;
+  return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, viewportLimit));
+};
+
+// 将宽度收敛到 [最小值, 当前屏幕安全最大值] 区间
+export const clampSidebarWidth = (width: number): number => {
+  const safeMax = getSafeMaxSidebarWidth();
+  return Math.max(SIDEBAR_WIDTH_MIN, Math.min(safeMax, width));
+};
+
 // 动画时长配置
 export const ANIMATION_DURATION = {
   FAST: 150,      // 快速动画 - 用于按钮点击等

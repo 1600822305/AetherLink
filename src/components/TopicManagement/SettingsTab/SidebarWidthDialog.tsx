@@ -1,17 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Box,
+  Button,
   Typography,
   Slider,
   TextField,
   InputAdornment,
 } from '@mui/material';
 import { useDialogBackHandler } from '../../../hooks/useDialogBackHandler';
-
-// 侧边栏宽度限制
-const SIDEBAR_WIDTH_MIN = 340;
-const SIDEBAR_WIDTH_MAX = 800;
+import { SIDEBAR_WIDTH_MIN, getSafeMaxSidebarWidth } from '../sidebarOptimization';
 
 interface SidebarWidthDialogProps {
   open: boolean;
@@ -24,7 +22,7 @@ const DIALOG_ID = 'sidebar-width-dialog';
 
 /**
  * 侧边栏宽度调整对话框
- * 支持滑块、输入框和快捷预设
+ * 支持滑块、输入框和快捷预设；改动需点击"保存"后才会生效
  */
 const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
   open,
@@ -35,16 +33,39 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
   // 使用返回键处理
   const { handleClose } = useDialogBackHandler(DIALOG_ID, open, onClose);
 
-  const handleWidthChange = (newWidth: number) => {
-    const validWidth = Math.max(SIDEBAR_WIDTH_MIN, newWidth);
-    onWidthChange(validWidth);
+  // 当前屏幕允许的最大宽度（对话框打开时随当前视口实时计算）
+  const safeMaxWidth = getSafeMaxSidebarWidth();
+
+  const clamp = (value: number) =>
+    Math.min(safeMaxWidth, Math.max(SIDEBAR_WIDTH_MIN, value));
+
+  // 草稿宽度：仅在点击"保存"后才应用到实际设置
+  const [draftWidth, setDraftWidth] = useState(() => clamp(currentWidth));
+
+  // 每次打开对话框时同步当前宽度
+  useEffect(() => {
+    if (open) {
+      setDraftWidth(clamp(currentWidth));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, currentWidth]);
+
+  const handleDraftChange = (newWidth: number) => {
+    setDraftWidth(clamp(newWidth));
+  };
+
+  const handleSave = () => {
+    onWidthChange(clamp(draftWidth));
+    onClose();
   };
 
   if (!open) return null;
 
+  const presets = [340, 400, 500, 600].filter((p) => p <= safeMaxWidth);
+
   return createPortal(
     <>
-      {/* 点击外部关闭 */}
+      {/* 点击外部关闭（不保存） */}
       <Box
         onClick={handleClose}
         sx={{
@@ -76,16 +97,16 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
           侧边栏宽度
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          最小 {SIDEBAR_WIDTH_MIN}px，可自定义输入更大值
+          范围 {SIDEBAR_WIDTH_MIN}–{safeMaxWidth}px，修改后点击"保存"生效
         </Typography>
         
         {/* 滑块 */}
         <Slider
-          value={currentWidth}
+          value={draftWidth}
           min={SIDEBAR_WIDTH_MIN}
-          max={SIDEBAR_WIDTH_MAX}
+          max={safeMaxWidth}
           step={10}
-          onChange={(_, value) => handleWidthChange(value as number)}
+          onChange={(_, value) => handleDraftChange(value as number)}
           sx={{
             mb: 2,
             '& .MuiSlider-thumb': {
@@ -99,36 +120,40 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
         <TextField
           type="number"
           size="small"
-          value={currentWidth}
+          value={draftWidth}
           onChange={(e) => {
             const value = parseInt(e.target.value, 10);
             if (!isNaN(value)) {
-              handleWidthChange(value);
+              handleDraftChange(value);
             }
           }}
           InputProps={{
             endAdornment: <InputAdornment position="end">px</InputAdornment>,
-            inputProps: { min: SIDEBAR_WIDTH_MIN, style: { textAlign: 'center' } },
+            inputProps: {
+              min: SIDEBAR_WIDTH_MIN,
+              max: safeMaxWidth,
+              style: { textAlign: 'center' },
+            },
           }}
           sx={{ width: '100%' }}
         />
         
         {/* 快捷预设 */}
         <Box sx={{ display: 'flex', gap: 0.5, mt: 1.5, flexWrap: 'wrap' }}>
-          {[340, 400, 500, 600].map((preset) => (
+          {presets.map((preset) => (
             <Box
               key={preset}
-              onClick={() => handleWidthChange(preset)}
+              onClick={() => handleDraftChange(preset)}
               sx={{
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 fontSize: '0.75rem',
                 cursor: 'pointer',
-                bgcolor: currentWidth === preset ? 'primary.main' : 'action.hover',
-                color: currentWidth === preset ? 'primary.contrastText' : 'text.secondary',
+                bgcolor: draftWidth === preset ? 'primary.main' : 'action.hover',
+                color: draftWidth === preset ? 'primary.contrastText' : 'text.secondary',
                 '&:hover': {
-                  bgcolor: currentWidth === preset ? 'primary.dark' : 'action.selected',
+                  bgcolor: draftWidth === preset ? 'primary.dark' : 'action.selected',
                 },
                 transition: 'all 0.15s',
               }}
@@ -136,6 +161,16 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
               {preset}
             </Box>
           ))}
+        </Box>
+
+        {/* 操作按钮 */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
+          <Button size="small" color="inherit" onClick={handleClose}>
+            取消
+          </Button>
+          <Button size="small" variant="contained" onClick={handleSave}>
+            保存
+          </Button>
         </Box>
       </Box>
     </>,

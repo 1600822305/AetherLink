@@ -24,6 +24,7 @@ import InputSettings from './InputSettings';
 import MathSettings from './MathSettings';
 import { useSettingsStorage, syncAssistantMaxTokens } from './hooks/useSettingsStorage';
 import SidebarWidthDialog from './SidebarWidthDialog';
+import { clampSidebarWidth } from '../sidebarOptimization';
 
 
 interface Setting {
@@ -95,7 +96,7 @@ export default function SettingsTab({
 
   // 侧边栏宽度控制
   const [widthDialogOpen, setWidthDialogOpen] = useState(false);
-  const currentWidth = getSetting('sidebarWidth', 350);
+  const currentWidth = clampSidebarWidth(getSetting('sidebarWidth', 350));
 
   // 使用统一的设置配置（由 useSettingsManagement Hook 提供）
 
