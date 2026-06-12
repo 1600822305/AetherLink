@@ -69,7 +69,10 @@ export async function initTTS(): Promise<void> {
         const appId = await getStorageItem<string>('volcano_app_id') || '';
         const accessToken = await getStorageItem<string>('volcano_access_token') || '';
         const voiceType = await getStorageItem<string>('volcano_voice_type') || 'zh_female_cancan_mars_bigtts';
-        tts.configureEngine('volcano', { enabled: true, appId, accessToken, voiceType });
+        const apiVersion = (await getStorageItem<string>('volcano_api_version') || 'auto') as 'auto' | 'v1' | 'v3';
+        const resourceId = await getStorageItem<string>('volcano_resource_id') || '';
+        const model = await getStorageItem<string>('volcano_model') || '';
+        tts.configureEngine('volcano', { enabled: true, appId, accessToken, voiceType, apiVersion, resourceId, model });
         tts.setActiveEngine('volcano');
         break;
       }

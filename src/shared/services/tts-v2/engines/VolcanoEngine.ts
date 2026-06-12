@@ -16,6 +16,22 @@ import { BaseTTSEngine } from './BaseTTSEngine';
 import type { TTSEngineType, TTSSynthesisResult, VolcanoTTSConfig } from '../types';
 import { universalFetch } from '../../../utils/universalFetch';
 
+// V3 默认 Resource ID
+export const VOLCANO_RESOURCE_IDS = {
+  bigtts: 'volc.service_type.10029',   // 大模型语音合成 (字符版)
+  seedTts2: 'seed-tts-2.0',            // 豆包语音合成 2.0
+} as const;
+
+/** 是否为大模型音色 (bigtts / 声音复刻 ICL) */
+export function isBigModelVoice(voiceType: string): boolean {
+  return voiceType.includes('_bigtts') || voiceType.startsWith('ICL_') || voiceType.startsWith('S_');
+}
+
+/** 是否为豆包语音合成 2.0 (uranus) 音色，仅 V3 接口支持 */
+export function isSeedTts2Voice(voiceType: string): boolean {
+  return voiceType.includes('_uranus_');
+}
+
 // 火山引擎音色列表 (完整版 - 基于官方文档 https://www.volcengine.com/docs/6561/97465)
 export const VOLCANO_VOICES = {
   // ========== 通用场景 ==========
@@ -280,6 +296,27 @@ export const VOLCANO_VOICES = {
   '[豆包]灵动欣欣': 'ICL_zh_female_lingdongxinxin_cs_tob',
   '[豆包]乖巧可儿': 'ICL_zh_female_guaiqiaokeer_cs_tob',
   '[豆包]阳光洋洋': 'ICL_zh_male_yangguangyangyang_cs_tob',
+
+  // ========== 豆包语音合成 2.0 (uranus) - 仅 V3 接口支持 ==========
+  '[豆包2.0]小何': 'zh_female_xiaohe_uranus_bigtts',
+  '[豆包2.0]Vivi': 'zh_female_vv_uranus_bigtts',
+  '[豆包2.0]云舟': 'zh_male_m191_uranus_bigtts',
+  '[豆包2.0]小天': 'zh_male_taocheng_uranus_bigtts',
+  '[豆包2.0]刘飞': 'zh_male_liufei_uranus_bigtts',
+  '[豆包2.0]魅力苏菲': 'zh_male_sophie_uranus_bigtts',
+  '[豆包2.0]清新女声': 'zh_female_qingxinnvsheng_uranus_bigtts',
+  '[豆包2.0]甜美小源': 'zh_female_tianmeixiaoyuan_uranus_bigtts',
+  '[豆包2.0]甜美桃子': 'zh_female_tianmeitaozi_uranus_bigtts',
+  '[豆包2.0]爽快思思': 'zh_female_shuangkuaisisi_uranus_bigtts',
+  '[豆包2.0]邻家女孩': 'zh_female_linjianvhai_uranus_bigtts',
+  '[豆包2.0]少年梓辛': 'zh_male_shaonianzixin_uranus_bigtts',
+  '[豆包2.0]魅力女友': 'zh_female_meilinvyou_uranus_bigtts',
+  '[豆包2.0]流畅女声': 'zh_female_liuchangnv_uranus_bigtts',
+  '[豆包2.0]儒雅逸辰': 'zh_male_ruyayichen_uranus_bigtts',
+  '[豆包2.0]知性灿灿': 'zh_female_cancan_uranus_bigtts',
+  '[豆包2.0]撒娇学妹': 'zh_female_sajiaoxuemei_uranus_bigtts',
+  '[豆包2.0]猴哥': 'zh_male_sunwukong_uranus_bigtts',
+  '[豆包2.0]佩奇猪': 'zh_female_peiqi_uranus_bigtts',
 } as const;
 
 // 支持的情感/风格列表 (完整版 - 基于官方文档 https://www.volcengine.com/docs/6561/1257544)
@@ -347,12 +384,16 @@ export class VolcanoEngine extends BaseTTSEngine {
   readonly priority = 6;
   
   private static readonly HTTP_API_URL = 'https://openspeech.bytedance.com/api/v1/tts';
+  private static readonly HTTP_API_V3_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional';
   
   protected config: VolcanoTTSConfig = {
     enabled: false,
     appId: '',
     accessToken: '',
     cluster: 'volcano_tts',
+    apiVersion: 'auto',
+    resourceId: '',
+    model: '',
     voiceType: 'BV001_streaming',
     emotion: '',
     speed: 1.0,
@@ -374,6 +415,28 @@ export class VolcanoEngine extends BaseTTSEngine {
       return { success: false, error: 'App ID 或 Access Token 未设置' };
     }
     
+    if (this.resolveApiVersion() === 'v3') {
+      return this.synthesizeV3(text);
+    }
+    return this.synthesizeV1(text);
+  }
+  
+  /**
+   * 解析实际使用的接口版本
+   * auto 模式下按音色自动路由：大模型音色走 V3，传统 BV 音色走 V1
+   */
+  private resolveApiVersion(): 'v1' | 'v3' {
+    const version = this.config.apiVersion || 'auto';
+    if (version === 'v1' || version === 'v3') {
+      return version;
+    }
+    return isBigModelVoice(this.config.voiceType) ? 'v3' : 'v1';
+  }
+  
+  /**
+   * V1 HTTP 非流式接口 (历史接口，传统 BV 音色)
+   */
+  private async synthesizeV1(text: string): Promise<TTSSynthesisResult> {
     try {
       const requestBody = this.buildRequestBody(text);
       
@@ -426,6 +489,165 @@ export class VolcanoEngine extends BaseTTSEngine {
         error: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+  
+  /**
+   * V3 HTTP 单向流式接口 (大模型语音合成)
+   * 鉴权使用 Header: X-Api-App-Id / X-Api-Access-Key / X-Api-Resource-Id
+   * 响应为 NDJSON 流，音频数据在每行 JSON 的 data 字段 (base64)
+   */
+  private async synthesizeV3(text: string): Promise<TTSSynthesisResult> {
+    try {
+      const response = await universalFetch(VolcanoEngine.HTTP_API_V3_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-App-Id': this.config.appId,
+          'X-Api-Access-Key': this.config.accessToken,
+          'X-Api-Resource-Id': this.getResourceId(),
+          'X-Api-Request-Id': this.generateRequestId(),
+        },
+        body: JSON.stringify(this.buildRequestBodyV3(text)),
+        responseType: 'text',
+        timeout: 60000,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          error: this.mapV3Error(response.status, errorText),
+        };
+      }
+      
+      const bodyText = await response.text();
+      const { audioChunks, errorMessage } = this.parseV3Response(bodyText);
+      
+      if (audioChunks.length === 0) {
+        return {
+          success: false,
+          error: errorMessage || '火山引擎 TTS (V3): 未收到音频数据',
+        };
+      }
+      
+      const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of audioChunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+      
+      return {
+        success: true,
+        audioData: merged.buffer,
+        mimeType: this.getMimeType(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+  
+  /**
+   * 解析 V3 NDJSON 流式响应
+   */
+  private parseV3Response(bodyText: string): { audioChunks: Uint8Array[]; errorMessage: string } {
+    const audioChunks: Uint8Array[] = [];
+    let errorMessage = '';
+    
+    for (const line of bodyText.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      try {
+        const chunk = JSON.parse(trimmed);
+        if (chunk.data) {
+          const binaryString = atob(chunk.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          audioChunks.push(bytes);
+        } else if (typeof chunk.code === 'number' && chunk.code !== 0 && chunk.code !== 20000000) {
+          errorMessage = this.mapV3Error(chunk.code, chunk.message || '');
+        }
+      } catch {
+        // 忽略无法解析的行
+      }
+    }
+    
+    return { audioChunks, errorMessage };
+  }
+  
+  /**
+   * 将 V3 错误码映射为可读提示
+   */
+  private mapV3Error(code: number, message: string): string {
+    const base = `火山引擎 TTS (V3) 错误: ${message || '未知错误'} (code: ${code})`;
+    if (code === 401 || code === 403 || /authenticat|invalid.*key|unauthorized/i.test(message)) {
+      return `${base}\n请检查 App ID 与 Access Token 是否正确`;
+    }
+    if (/resource|service.*not.*open|not.*purchased|权限|未开通/i.test(message)) {
+      return `${base}\n请在火山引擎控制台开通"大模型语音合成"服务 (Resource ID: ${this.getResourceId()})`;
+    }
+    if (/speaker|voice/i.test(message)) {
+      return `${base}\n当前音色 ${this.config.voiceType} 可能不支持 V3 接口或未授权`;
+    }
+    return base;
+  }
+  
+  /**
+   * 获取 V3 Resource ID：用户指定优先，否则按音色自动选择
+   */
+  private getResourceId(): string {
+    if (this.config.resourceId) {
+      return this.config.resourceId;
+    }
+    return isSeedTts2Voice(this.config.voiceType)
+      ? VOLCANO_RESOURCE_IDS.seedTts2
+      : VOLCANO_RESOURCE_IDS.bigtts;
+  }
+  
+  /**
+   * 构建 V3 请求体
+   * speech_rate / loudness_rate 取值范围 [-50, 100]，0 为默认 (1 倍)
+   */
+  private buildRequestBodyV3(text: string): Record<string, unknown> {
+    const toRate = (ratio: number | undefined): number => {
+      const r = ratio ?? 1.0;
+      return Math.round(Math.min(100, Math.max(-50, (r - 1) * 100)));
+    };
+    
+    const audioParams: Record<string, unknown> = {
+      format: this.config.encoding || 'mp3',
+      sample_rate: 24000,
+      speech_rate: toRate(this.config.speed),
+      loudness_rate: toRate(this.config.volume),
+    };
+    
+    if (this.config.emotion) {
+      audioParams.emotion = this.config.emotion;
+    }
+    
+    const reqParams: Record<string, unknown> = {
+      text,
+      speaker: this.config.voiceType,
+      audio_params: audioParams,
+    };
+    
+    if (this.config.model) {
+      reqParams.model = this.config.model;
+    }
+    
+    return {
+      user: {
+        uid: 'aetherlink_user',
+      },
+      req_params: reqParams,
+    };
   }
   
   stop(): void {

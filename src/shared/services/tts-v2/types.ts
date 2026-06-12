@@ -107,11 +107,17 @@ export interface MiniMaxTTSConfig extends TTSBaseConfig {
   useStream?: boolean;       // 是否使用流式传输
 }
 
+// 火山引擎 TTS 接口版本
+export type VolcanoApiVersion = 'auto' | 'v1' | 'v3';
+
 // 火山引擎 TTS 配置 (字节跳动)
 export interface VolcanoTTSConfig extends TTSBaseConfig {
   appId: string;             // 火山引擎 App ID
   accessToken: string;       // Access Token
-  cluster?: string;          // 集群，默认 volcano_tts
+  cluster?: string;          // 集群，默认 volcano_tts (仅 V1)
+  apiVersion?: VolcanoApiVersion; // 接口版本，默认 auto (按音色自动路由)
+  resourceId?: string;       // V3 接口 Resource ID，留空则按音色自动选择
+  model?: string;            // V3 模型版本 (如 seed-tts-1.1)，留空为默认
   voiceType: string;         // 音色类型 (BV700_streaming, BV001_streaming 等)
   emotion?: string;          // 情感 (happy, sad, angry 等)
   speed?: number;            // 语速 0.5-2.0

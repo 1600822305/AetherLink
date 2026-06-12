@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { TTSManager, type VolcanoTTSConfig, VOLCANO_VOICES, VOLCANO_EMOTIONS } from '../../../shared/services/tts-v2';
+import { TTSManager, type VolcanoTTSConfig, type VolcanoApiVersion, VOLCANO_VOICES, VOLCANO_EMOTIONS, isBigModelVoice, isSeedTts2Voice } from '../../../shared/services/tts-v2';
 import { getStorageItem, setStorageItem } from '../../../shared/utils/storage';
 import { cssVar } from '../../../shared/utils/cssVariables';
 import TTSTestSection from '../../../components/TTS/TTSTestSection';
@@ -59,7 +59,20 @@ const VOICE_GROUPS = {
   '豆包-多情感': ['[豆包]冷酷哥哥-多情感', '[豆包]高冷御姐-多情感', '[豆包]傲娇霸总-多情感', '[豆包]邻居阿姨-多情感', '[豆包]儒雅男友-多情感', '[豆包]俊朗男友-多情感', '[豆包]柔美女友-多情感', '[豆包]阳光青年-多情感', '[豆包]爽快思思-多情感', '[豆包]深夜播客'],
   '豆包-英文': ['[豆包]Lauren', '[豆包]Amanda', '[豆包]Adam', '[豆包]Jackson', '[豆包]Emily', '[豆包]Smith', '[豆包]Anna', '[豆包]Sarah', '[豆包]Dryw', '[豆包]Nara', '[豆包]Bruce', '[豆包]Michael', '[豆包]Daisy', '[豆包]Luna', '[豆包]Owen', '[豆包]Lucas', '[豆包]Candice-多情感', '[豆包]Serena-多情感', '[豆包]Glen-多情感', '[豆包]Sylus-多情感'],
   '豆包-客服': ['[豆包]理性圆子', '[豆包]清甜桃桃', '[豆包]清晰小雪', '[豆包]开朗婷婷', '[豆包]温婉珊珊', '[豆包]甜美小雨', '[豆包]灵动欣欣', '[豆包]乖巧可儿', '[豆包]阳光洋洋'],
+  '豆包2.0 (仅V3)': ['[豆包2.0]小何', '[豆包2.0]Vivi', '[豆包2.0]云舟', '[豆包2.0]小天', '[豆包2.0]刘飞', '[豆包2.0]魅力苏菲', '[豆包2.0]清新女声', '[豆包2.0]甜美小源', '[豆包2.0]甜美桃子', '[豆包2.0]爽快思思', '[豆包2.0]邻家女孩', '[豆包2.0]少年梓辛', '[豆包2.0]魅力女友', '[豆包2.0]流畅女声', '[豆包2.0]儒雅逸辰', '[豆包2.0]知性灿灿', '[豆包2.0]撒娇学妹', '[豆包2.0]猴哥', '[豆包2.0]佩奇猪'],
 };
+
+// V3 高级选项常量
+const RESOURCE_ID_OPTIONS = [
+  { value: '', labelKey: 'resourceIdAuto' },
+  { value: 'volc.service_type.10029', labelKey: 'resourceIdBigtts' },
+  { value: 'seed-tts-2.0', labelKey: 'resourceIdSeed2' },
+];
+
+const MODEL_OPTIONS = [
+  { value: '', labelKey: 'modelDefault' },
+  { value: 'seed-tts-1.1', labelKey: 'modelSeed11' },
+];
 
 const VolcanoTTSSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -81,6 +94,9 @@ const VolcanoTTSSettings: React.FC = () => {
     volume: 1.0,
     pitch: 1.0,
     encoding: 'mp3' as 'mp3' | 'ogg_opus' | 'wav' | 'pcm',
+    apiVersion: 'auto' as VolcanoApiVersion,
+    resourceId: '',
+    model: '',
   });
 
   const [uiState, setUIState] = useState({
@@ -100,13 +116,32 @@ const VolcanoTTSSettings: React.FC = () => {
   const voiceGroups: SelectorGroup[] = useMemo(() => {
     return Object.entries(VOICE_GROUPS).map(([groupName, voices]) => ({
       name: groupName,
-      items: voices.map(voiceName => ({
-        key: voiceName,
-        label: voiceName,
-        subLabel: VOLCANO_VOICES[voiceName as keyof typeof VOLCANO_VOICES],
-      })),
+      items: voices.map(voiceName => {
+        const voiceType = VOLCANO_VOICES[voiceName as keyof typeof VOLCANO_VOICES];
+        const compat = voiceType && isSeedTts2Voice(voiceType)
+          ? 'V3'
+          : voiceType && isBigModelVoice(voiceType) ? 'V1+V3' : 'V1';
+        return {
+          key: voiceName,
+          label: voiceName,
+          subLabel: `${voiceType} · ${compat}`,
+        };
+      }),
     }));
   }, []);
+
+  // 接口版本与音色兼容性检查
+  const versionMismatch = useMemo(() => {
+    if (settings.apiVersion === 'v1' && isSeedTts2Voice(settings.voiceType)) {
+      return t('settings.voice.tabSettings.volcano.versionMismatchV1');
+    }
+    if (settings.apiVersion === 'v3' && !isBigModelVoice(settings.voiceType)) {
+      return t('settings.voice.tabSettings.volcano.versionMismatchV3');
+    }
+    return '';
+  }, [settings.apiVersion, settings.voiceType, t]);
+
+  const showV3Options = settings.apiVersion === 'v3' || settings.apiVersion === 'auto';
 
   // 情感分组 (完整版)
   const emotionGroups: SelectorGroup[] = useMemo(() => {
@@ -148,6 +183,9 @@ const VolcanoTTSSettings: React.FC = () => {
         const storedVolume = parseFloat(await getStorageItem<string>('volcano_volume') || '1.0');
         const storedPitch = parseFloat(await getStorageItem<string>('volcano_pitch') || '1.0');
         const storedEncoding = (await getStorageItem<string>('volcano_encoding') || 'mp3') as 'mp3' | 'ogg_opus' | 'wav' | 'pcm';
+        const storedApiVersion = (await getStorageItem<string>('volcano_api_version') || 'auto') as VolcanoApiVersion;
+        const storedResourceId = await getStorageItem<string>('volcano_resource_id') || '';
+        const storedModel = await getStorageItem<string>('volcano_model') || '';
         const storedEnableTTS = (await getStorageItem<string>('enable_tts')) !== 'false';
         const storedSelectedTTSService = await getStorageItem<string>('selected_tts_service') || 'siliconflow';
 
@@ -163,6 +201,9 @@ const VolcanoTTSSettings: React.FC = () => {
           volume: storedVolume,
           pitch: storedPitch,
           encoding: storedEncoding,
+          apiVersion: storedApiVersion,
+          resourceId: storedResourceId,
+          model: storedModel,
         });
 
         setEnableTTS(storedEnableTTS);
@@ -179,6 +220,9 @@ const VolcanoTTSSettings: React.FC = () => {
           volume: storedVolume,
           pitch: storedPitch,
           encoding: storedEncoding,
+          apiVersion: storedApiVersion,
+          resourceId: storedResourceId,
+          model: storedModel,
         } as Partial<VolcanoTTSConfig>);
         
         setTestText(t('settings.voice.volcano.testText'));
@@ -218,6 +262,9 @@ const VolcanoTTSSettings: React.FC = () => {
       await setStorageItem('volcano_volume', settings.volume.toString());
       await setStorageItem('volcano_pitch', settings.pitch.toString());
       await setStorageItem('volcano_encoding', settings.encoding);
+      await setStorageItem('volcano_api_version', settings.apiVersion);
+      await setStorageItem('volcano_resource_id', settings.resourceId);
+      await setStorageItem('volcano_model', settings.model);
       await setStorageItem('enable_tts', enableTTS.toString());
 
       if (isEnabled) {
@@ -278,6 +325,9 @@ const VolcanoTTSSettings: React.FC = () => {
       volume: settings.volume,
       pitch: settings.pitch,
       encoding: settings.encoding,
+      apiVersion: settings.apiVersion,
+      resourceId: settings.resourceId,
+      model: settings.model,
     } as Partial<VolcanoTTSConfig>);
     ttsManager.setActiveEngine('volcano');
 
@@ -435,6 +485,65 @@ const VolcanoTTSSettings: React.FC = () => {
                 ),
               }}
             />
+
+            {/* 接口版本 */}
+            <TextField
+              fullWidth
+              select
+              label={t('settings.voice.tabSettings.volcano.apiVersion')}
+              value={settings.apiVersion}
+              onChange={(e) => setSettings(prev => ({ ...prev, apiVersion: e.target.value as VolcanoApiVersion }))}
+              sx={{ mb: 2 }}
+              helperText={t('settings.voice.tabSettings.volcano.apiVersionHelper')}
+            >
+              <MenuItem value="auto">{t('settings.voice.tabSettings.volcano.apiVersionAuto')}</MenuItem>
+              <MenuItem value="v1">{t('settings.voice.tabSettings.volcano.apiVersionV1')}</MenuItem>
+              <MenuItem value="v3">{t('settings.voice.tabSettings.volcano.apiVersionV3')}</MenuItem>
+            </TextField>
+
+            {/* V3 高级选项 */}
+            {showV3Options && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, mb: 1 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label={t('settings.voice.tabSettings.volcano.resourceId')}
+                  value={settings.resourceId}
+                  onChange={(e) => setSettings(prev => ({ ...prev, resourceId: e.target.value }))}
+                  sx={{ mb: 2 }}
+                  helperText={t('settings.voice.tabSettings.volcano.resourceIdHelper')}
+                >
+                  {RESOURCE_ID_OPTIONS.map(opt => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {t(`settings.voice.tabSettings.volcano.${opt.labelKey}`)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  fullWidth
+                  select
+                  label={t('settings.voice.tabSettings.volcano.model')}
+                  value={settings.model}
+                  onChange={(e) => setSettings(prev => ({ ...prev, model: e.target.value }))}
+                  sx={{ mb: 2 }}
+                  helperText={t('settings.voice.tabSettings.volcano.modelHelper')}
+                >
+                  {MODEL_OPTIONS.map(opt => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {t(`settings.voice.tabSettings.volcano.${opt.labelKey}`)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            )}
+
+            {/* 版本与音色兼容性警告 */}
+            {versionMismatch && (
+              <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                {versionMismatch}
+              </Alert>
+            )}
 
             <Divider sx={{ mb: 3 }} />
 
