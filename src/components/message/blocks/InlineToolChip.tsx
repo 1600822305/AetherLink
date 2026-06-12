@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Typography, Collapse, useTheme, alpha } from '@mui/material';
-import { ChevronRight, Check, AlertCircle, Loader2, Wrench } from 'lucide-react';
+import { Box, Typography, Collapse, IconButton, useTheme, alpha } from '@mui/material';
+import { ChevronRight, Check, AlertCircle, Loader2, Wrench, Copy } from 'lucide-react';
 import { keyframes } from '@mui/material/styles';
 
+import { EventEmitter } from '../../../shared/services/infra/EventEmitter';
 import { MessageBlockStatus } from '../../../shared/types/newMessage';
 import type { ToolMessageBlock } from '../../../shared/types/newMessage';
 import { getCompactScrollbarStyles } from '../../../shared/utils/scrollbarStyles';
@@ -61,6 +62,24 @@ const InlineToolChip: React.FC<Props> = ({ block }) => {
     if (toolResponse?.response) return formatContent(toolResponse.response);
     return '';
   }, [block.content, toolResponse, formatContent]);
+
+  const handleCopyParams = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = formatParams();
+    if (text) {
+      navigator.clipboard.writeText(text);
+      EventEmitter.emit('ui:copy_success', { content: '已复制参数' });
+    }
+  }, [formatParams]);
+
+  const handleCopyResult = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = getResult();
+    if (text) {
+      navigator.clipboard.writeText(text);
+      EventEmitter.emit('ui:copy_success', { content: '已复制结果' });
+    }
+  }, [getResult]);
 
   const params = formatParams();
   const result = getResult();
@@ -146,9 +165,14 @@ const InlineToolChip: React.FC<Props> = ({ block }) => {
           <Box sx={{ px: 1, pb: 0.75 }}>
             {params && (
               <Box sx={{ mb: result ? 0.75 : 0 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
-                  参数
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
+                    参数
+                  </Typography>
+                  <IconButton size="small" onClick={handleCopyParams} sx={{ p: 0.25 }}>
+                    <Copy size={11} />
+                  </IconButton>
+                </Box>
                 <Box
                   component="pre"
                   sx={{
@@ -171,9 +195,14 @@ const InlineToolChip: React.FC<Props> = ({ block }) => {
             )}
             {result && (
               <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
-                  结果
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', fontWeight: 600 }}>
+                    结果
+                  </Typography>
+                  <IconButton size="small" onClick={handleCopyResult} sx={{ p: 0.25 }}>
+                    <Copy size={11} />
+                  </IconButton>
+                </Box>
                 <Box
                   component="pre"
                   sx={{
