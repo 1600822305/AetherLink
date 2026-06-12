@@ -114,7 +114,8 @@ const MessageEditor: React.FC<MessageEditorProps> = ({ message, topicId, open, o
 
     // 从数据库批量加载所有消息块
     try {
-      let messageBlocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
+      // 按 message.blocks 顺序获取块，保证编辑顺序和显示顺序一致
+      let messageBlocks = await dexieStorage.getMessageBlocksByIds(message.blocks);
 
       if (messageBlocks.length === 0) {
         // 如果批量获取失败，尝试逐个获取
