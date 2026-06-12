@@ -410,7 +410,10 @@ export async function prepareBasicBackupData(): Promise<{
         for (const message of topic.messages) {
           if (message && message.id) {
             try {
-              const blocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
+              // 按 message.blocks 顺序获取块，保证备份恢复后顺序一致
+              const blocks = Array.isArray((message as any).blocks) && (message as any).blocks.length > 0
+                ? await dexieStorage.getMessageBlocksByIds((message as any).blocks)
+                : await dexieStorage.getMessageBlocksByMessageId(message.id);
               (message as any).blocks = blocks;
             } catch (error) {
               console.error(`加载消息 ${message.id} 的块失败:`, error);

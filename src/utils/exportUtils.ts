@@ -620,8 +620,8 @@ export async function topicToMarkdown(topic: ChatTopic, exportReasoning = false)
     const messagesWithBlocks = [];
     for (const message of messages) {
       if (message.blocks && message.blocks.length > 0) {
-        // 获取消息的所有块
-        const blocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
+        // 按 message.blocks 顺序获取块，保证导出顺序和显示顺序一致
+        const blocks = await dexieStorage.getMessageBlocksByIds(message.blocks);
         // 创建完整的消息对象，包含块对象而不是块ID
         const messageWithBlocks = {
           ...message,
@@ -815,7 +815,7 @@ export async function exportTopicAsDocx(topic: ChatTopic, exportReasoning = fals
     const messagesWithBlocks = [];
     for (const message of messages) {
       if (message.blocks && message.blocks.length > 0) {
-        const blocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
+        const blocks = await dexieStorage.getMessageBlocksByIds(message.blocks);
         messagesWithBlocks.push({
           ...message,
           blockObjects: blocks

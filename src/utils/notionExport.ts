@@ -471,9 +471,11 @@ async function topicToMarkdownForNotion(topic: ChatTopic, exportReasoning = fals
     }
 
     // 批量获取所有消息的块数据，避免循环查询
-    const messageIds = messages.filter(msg => msg.blocks && msg.blocks.length > 0).map(msg => msg.id);
-    const allBlocks = messageIds.length > 0
-      ? await Promise.all(messageIds.map(id => dexieStorage.getMessageBlocksByMessageId(id)))
+    const messagesWithBlockIds = messages.filter(msg => msg.blocks && msg.blocks.length > 0);
+    const messageIds = messagesWithBlockIds.map(msg => msg.id);
+    // 按 message.blocks 顺序获取块，保证导出顺序和显示顺序一致
+    const allBlocks = messagesWithBlockIds.length > 0
+      ? await Promise.all(messagesWithBlockIds.map(msg => dexieStorage.getMessageBlocksByIds(msg.blocks!)))
       : [];
 
     // 创建块数据映射表，转换类型以兼容
