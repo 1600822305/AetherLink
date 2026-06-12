@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Switch,
   List,
   ListItem,
   ListItemText,
@@ -19,6 +18,7 @@ import {
   Chip,
   useTheme,
 } from '@mui/material';
+import CustomSwitch from '../../../components/CustomSwitch';
 import { Brain, Plus, Trash2, Edit3, Search, RefreshCw } from 'lucide-react';
 import { memoryService } from '../../../shared/services/memory/MemoryService';
 import type { MemoryItem } from '../../../shared/types/memory';
@@ -182,10 +182,9 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
               </Typography>
             </Box>
           </Box>
-          <Switch
+          <CustomSwitch
             checked={memoryEnabled}
             onChange={(e) => onMemoryEnabledChange?.(e.target.checked)}
-            color="primary"
           />
         </Box>
       </Paper>

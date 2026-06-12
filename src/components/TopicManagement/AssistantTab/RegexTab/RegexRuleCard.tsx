@@ -2,12 +2,12 @@ import React from 'react';
 import {
   Box,
   Typography,
-  Switch,
   IconButton,
   Chip,
   Paper,
   useTheme
 } from '@mui/material';
+import CustomSwitch from '../../../../components/CustomSwitch';
 import { Trash2, GripVertical } from 'lucide-react';
 import type { AssistantRegex } from '../../../../shared/types/Assistant';
 
@@ -101,12 +101,12 @@ const RegexRuleCard: React.FC<RegexRuleCardProps> = ({
             >
               {rule.name || '未命名规则'}
             </Typography>
-            <Switch
-              size="small"
-              checked={rule.enabled}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => onToggle(e.target.checked)}
-            />
+            <Box onClick={(e) => e.stopPropagation()}>
+              <CustomSwitch
+                checked={rule.enabled}
+                onChange={(e) => onToggle(e.target.checked)}
+              />
+            </Box>
           </Box>
 
           {/* 正则模式预览 */}

@@ -18,13 +18,13 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Switch,
   TextField,
   Toolbar,
   Tooltip,
   Typography,
   CircularProgress
 } from '@mui/material';
+import CustomSwitch from '../../components/CustomSwitch';
 import BackButtonDialog from '../../components/common/BackButtonDialog';
 import { useNavigate } from 'react-router-dom';
 import { useSmartBack } from '../../shared/hooks/useSmartBack';
@@ -535,7 +535,7 @@ const NoteSettings: React.FC = () => {
             <ListItem>
               <ListItemText primary="侧边栏入口" secondary="在聊天界面侧边栏显示笔记 Tab" />
               <ListItemSecondaryAction>
-                <Switch edge="end" checked={sidebarEnabled} onChange={handleSidebarToggle} />
+                <CustomSwitch checked={sidebarEnabled} onChange={handleSidebarToggle} />
               </ListItemSecondaryAction>
             </ListItem>
           </List>

@@ -28,9 +28,8 @@ import {
   Divider,
   ListSubheader,
   alpha,
-  Switch,
-  FormControlLabel
 } from '@mui/material';
+import CustomSwitch from '../../components/CustomSwitch';
 import BackButtonDialog from '../../components/common/BackButtonDialog';
 import { updateSettings } from '../../shared/store/settingsSlice';
 import {
@@ -272,15 +271,9 @@ const WorkspaceSettings: React.FC = () => {
                 在聊天侧边栏显示工作区标签页，方便快速访问
               </Typography>
             </Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={sidebarEnabled}
-                  onChange={handleSidebarToggle}
-                  color="primary"
-                />
-              }
-              label=""
+            <CustomSwitch
+              checked={sidebarEnabled}
+              onChange={handleSidebarToggle}
             />
           </Box>
         </Paper>
