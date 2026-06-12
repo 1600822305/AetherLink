@@ -12,7 +12,7 @@ import type { Message } from '../../shared/types/newMessage';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../../shared/store';
 import { upsertManyBlocks } from '../../shared/store/slices/messageBlocksSlice';
-import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
+import { makeSelectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
 
 import MessageGroup from './MessageGroup';
 import VirtualizedMessageContent from './VirtualizedMessageContent';
@@ -88,7 +88,8 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
     return ids;
   }, [messages]);
 
-  // 仅选择当前消息涉及的块实体
+  // 仅选择当前消息涉及的块实体（实例独立的记忆化 selector）
+  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
   const relatedBlocks = useSelector((state: RootState) => selectBlocksByIds(state, allBlockIds));
   const relatedBlockSet = useMemo(() => {
     const set = new Set<string>();

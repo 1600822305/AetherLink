@@ -1,3 +1,4 @@
+import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../index';
 import type { MessageBlock, CitationMessageBlock } from '../../types/newMessage';
 import { MessageBlockType } from '../../types/newMessage';
@@ -21,53 +22,23 @@ const shallowArrayEqual = <T>(a: T[], b: T[]): boolean => {
 export const selectBlockById = (state: RootState, blockId?: string) =>
   blockId ? state.messageBlocks.entities[blockId] : undefined;
 
-// 根据块ID数组查询块实体 - 优化版本
-// 使用双重缓存：输入参数缓存 + 结果缓存
-const createSelectBlocksByIds = () => {
-  let lastEntities: Record<string, MessageBlock | undefined> = {};
-  let lastBlockIds: string[] = [];
-  let lastResult: MessageBlock[] = [];
-
-  return (state: RootState, blockIds: string[]): MessageBlock[] => {
-    const entities = state.messageBlocks.entities;
-
-    // 检查输入是否完全相同
-    const entitiesUnchanged = entities === lastEntities;
-    const blockIdsUnchanged = shallowArrayEqual(blockIds, lastBlockIds);
-
-    if (entitiesUnchanged && blockIdsUnchanged) {
-      return lastResult;
+// 根据块ID数组查询块实体 - selector 工厂
+// 每个组件实例通过 useMemo(makeSelectBlocksByIds, []) 持有独立缓存槽，
+// 避免多个消息组件共用单一缓存时互相失效
+export const makeSelectBlocksByIds = () =>
+  createSelector(
+    [
+      (state: RootState) => state.messageBlocks.entities,
+      (_state: RootState, blockIds: string[]) => blockIds
+    ],
+    (entities, blockIds) =>
+      blockIds
+        .map(id => entities[id])
+        .filter((block): block is MessageBlock => block !== undefined),
+    {
+      memoizeOptions: { resultEqualityCheck: shallowArrayEqual }
     }
-
-    // 计算新结果
-    const result = blockIds
-      .map(id => entities[id])
-      .filter((block): block is MessageBlock => block !== undefined);
-
-    // 检查结果是否实际变化（即使输入变化，结果可能相同）
-    if (shallowArrayEqual(result, lastResult)) {
-      // 更新输入缓存，但复用旧结果
-      lastEntities = entities;
-      lastBlockIds = blockIds;
-      return lastResult;
-    }
-
-    // 完全更新缓存
-    lastEntities = entities;
-    lastBlockIds = blockIds;
-    lastResult = result;
-
-    return result;
-  };
-};
-
-export const selectBlocksByIds = createSelectBlocksByIds();
-
-// 检查指定块ID数组中是否存在流式块
-export const selectHasStreamingBlock = (state: RootState, blockIds: string[]): boolean => {
-  const blocks = selectBlocksByIds(state, blockIds);
-  return blocks.some(block => block.status === 'streaming');
-};
+  );
 
 // 针对消息的引用提取：只遍历该消息的块
 // 使用闭包缓存优化记忆化

@@ -33,7 +33,7 @@ import ConversationDivider from './ConversationDivider';
 import ChatDateHeader from './ChatDateHeader';
 import { getMessageDividerSetting } from '../../shared/utils/settingsUtils';
 import { useAppSelector } from '../../shared/store';
-import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
+import { makeSelectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
 import { upsertManyBlocks } from '../../shared/store/slices/messageBlocksSlice';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 
@@ -220,6 +220,7 @@ const VirtualizedMessageContent: React.FC<VirtualizedMessageContentProps> = ({
     () => collectBlockIdsForRows(visibleRows),
     [visibleRows]
   );
+  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
   const loadedBlocks = useAppSelector((state) => selectBlocksByIds(state, visibleBlockIds));
   const loadedBlockIdSet = useMemo(() => {
     const set = new Set<string>();

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useSelector, shallowEqual } from 'react-redux';
 import { Box, Fade, CircularProgress, Typography } from '@mui/material';
 import type { RootState } from '../../shared/store';
-import { selectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
+import { makeSelectBlocksByIds } from '../../shared/store/selectors/messageBlockSelectors';
 import type { MessageBlock, Message, ImageMessageBlock, VideoMessageBlock, MainTextMessageBlock, CodeMessageBlock, ToolMessageBlock, ContextSummaryMessageBlock, ThinkingMessageBlock } from '../../shared/types/newMessage';
 import { MessageBlockType, MessageBlockStatus, AssistantMessageStatus } from '../../shared/types/newMessage';
 
@@ -208,7 +208,8 @@ const MessageBlockRenderer: React.FC<Props> = ({
   extraPaddingRight = 0
 }) => {
   // 仅依赖自身块ID映射，避免全局实体导致重渲染
-  // 使用 shallowEqual 优化 selector 性能
+  // 每个组件实例持有独立的记忆化 selector，避免多消息共用单一缓存互相失效
+  const selectBlocksByIds = useMemo(makeSelectBlocksByIds, []);
   const renderedBlocks = useSelector(
     (state: RootState) => selectBlocksByIds(state, blocks),
     shallowEqual
