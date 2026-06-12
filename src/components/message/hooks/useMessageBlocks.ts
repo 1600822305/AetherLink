@@ -22,25 +22,12 @@ export const useMessageBlocks = (
     const loadBlocks = async () => {
       if (blocks.length === 0 && message.blocks.length > 0) {
         try {
-          const messageBlocks: MessageBlock[] = [];
-          for (const blockId of message.blocks) {
-            const block = await dexieStorage.getMessageBlock(blockId);
-            if (block) {
-              // 🔧 修复：验证对比分析块的数据完整性
-              if ('subType' in block && (block as any).subType === 'comparison') {
-                const comparisonBlock = block as any;
-                if (!comparisonBlock.comboResult || !comparisonBlock.comboResult.modelResults) {
-                  console.error(`[MessageItem] 对比分析块数据不完整: ${blockId}`);
-                  continue; // 跳过损坏的块
-                }
-                console.log(`[MessageItem] 成功加载对比分析块: ${blockId}`);
-              }
+          const messageBlocks: MessageBlock[] = await dexieStorage.getMessageBlocksByIds(message.blocks);
 
-              // 注意：multi_model 块类型已移除，多模型功能现在通过 askId 分组多个独立的助手消息实现
-              messageBlocks.push(block);
-            } else {
-              console.warn(`[MessageItem] 数据库中找不到块: ID=${blockId}`);
-            }
+          if (messageBlocks.length < message.blocks.length) {
+            const foundIds = new Set(messageBlocks.map(b => b.id));
+            const missingIds = message.blocks.filter(id => !foundIds.has(id));
+            console.warn(`[MessageItem] 数据库中找不到块: ID=${missingIds.join(', ')}`);
           }
 
           if (messageBlocks.length > 0) {

@@ -521,6 +521,14 @@ export class DexieStorageService extends Dexie {
     return block;
   }
 
+  // 按块ID数组批量获取，结果顺序与传入ID顺序一致，缺失的块被过滤
+  async getMessageBlocksByIds(blockIds: string[]): Promise<MessageBlock[]> {
+    if (blockIds.length === 0) return [];
+
+    const blocks = await this.message_blocks.bulkGet(blockIds);
+    return blocks.filter((block): block is MessageBlock => block !== undefined);
+  }
+
   async getMessageBlocksByMessageId(messageId: string): Promise<MessageBlock[]> {
     return await this.message_blocks.where('messageId').equals(messageId).toArray();
   }
