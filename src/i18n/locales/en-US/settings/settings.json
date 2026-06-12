@@ -31,7 +31,7 @@
     },
     "topicNaming": {
       "title": "Assistant Model Settings",
-      "description": "Configure topic naming, AI intent analysis and other assistant features"
+      "description": "Configure topic naming, AI intent analysis, vision recognition and other assistant features"
     },
     "agentPrompts": {
       "title": "Agent Prompts Collection",
@@ -48,10 +48,6 @@
     "webSearch": {
       "title": "Web Search",
       "description": "Configure web search and related services"
-    },
-    "visionRecognition": {
-      "title": "Vision Recognition",
-      "description": "Let non-vision models understand images"
     },
     "mcpServer": {
       "title": "MCP Server",

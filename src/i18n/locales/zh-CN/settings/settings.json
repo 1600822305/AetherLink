@@ -31,7 +31,7 @@
     },
     "topicNaming": {
       "title": "辅助模型设置",
-      "description": "配置话题命名、AI 意图分析等辅助功能"
+      "description": "配置话题命名、AI 意图分析、视觉识别等辅助功能"
     },
     "agentPrompts": {
       "title": "智能体提示词集合",
@@ -48,10 +48,6 @@
     "webSearch": {
       "title": "网络搜索",
       "description": "配置网络搜索和相关服务"
-    },
-    "visionRecognition": {
-      "title": "视觉识别",
-      "description": "让不支持视觉的模型也能理解图片"
     },
     "mcpServer": {
       "title": "MCP 服务器",

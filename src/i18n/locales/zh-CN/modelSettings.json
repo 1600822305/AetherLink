@@ -99,7 +99,12 @@
     "enableAIIntentAnalysis": "启用 AI 意图分析",
     "enableAIIntentAnalysisDesc": "关闭时直接注入搜索工具，开启时使用 AI 预分析提取关键词（更精准）",
     "aiIntentUseCurrentModel": "使用当前话题模型",
-    "aiIntentUseCurrentModelDesc": "使用当前对话所选择的模型进行意图分析"
+    "aiIntentUseCurrentModelDesc": "使用当前对话所选择的模型进行意图分析",
+    "tabs": {
+      "topicNaming": "话题命名",
+      "intentAnalysis": "意图分析",
+      "visionRecognition": "视觉识别"
+    }
   },
   "modelList": {
     "title": "模型设置",
