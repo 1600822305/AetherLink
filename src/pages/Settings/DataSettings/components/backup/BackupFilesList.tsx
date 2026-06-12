@@ -31,7 +31,6 @@ import {
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capacitor-community/file-opener';
 import { performFullRestore } from '../../utils/restoreUtils';
-import type { RestoreMode } from '../../utils/restoreUtils';
 import { unifiedFileManager } from '../../../../../shared/services/files/UnifiedFileManagerService';
 import { isCapacitor } from '../../../../../shared/utils/platformDetection';
 
@@ -49,8 +48,6 @@ interface BackupFilesListProps {
   onRestoreError: (message: string) => void;
   onFileDeleted: () => void;
   refreshTrigger?: number;
-  /** 恢复模式：替换（默认）或合并，由上层统一控制 */
-  restoreMode?: RestoreMode;
 }
 
 // localStorage key
@@ -60,8 +57,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
   onRestoreSuccess,
   onRestoreError,
   onFileDeleted,
-  refreshTrigger = 0,
-  restoreMode = 'replace'
+  refreshTrigger = 0
 }) => {
   const { t } = useTranslation();
   
@@ -297,7 +293,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
 
       const result = await performFullRestore(backupData, (stage, progress) => {
         setRestoreProgress({ active: true, stage, progress });
-      }, restoreMode);
+      });
 
       if (result.success) {
         let msg = '';
