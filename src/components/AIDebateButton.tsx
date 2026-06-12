@@ -425,11 +425,12 @@ const AIDebateButton: React.FC<AIDebateButtonProps> = ({
           {configGroups.length > 0 && (
             <Box sx={{ mb: 2 }}>
               <FormControl fullWidth size="small">
-                <InputLabel>{t('aiDebate.dialog.selectGroup')}</InputLabel>
+                <InputLabel shrink>{t('aiDebate.dialog.selectGroup')}</InputLabel>
                 <Select
                   value={selectedGroupId}
                   onChange={(e) => handleGroupSelect(e.target.value)}
                   label={t('aiDebate.dialog.selectGroup')}
+                  displayEmpty
                 >
                   <MenuItem value="">
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>

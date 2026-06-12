@@ -425,11 +425,12 @@ const SkillEditor: React.FC = () => {
           </Typography>
 
           <FormControl fullWidth size="small">
-            <InputLabel>{t('settings.skillsSettings.editor.selectMcpServer')}</InputLabel>
+            <InputLabel shrink>{t('settings.skillsSettings.editor.selectMcpServer')}</InputLabel>
             <Select
               value={mcpServerId}
               label={t('settings.skillsSettings.editor.selectMcpServer')}
               onChange={(e) => setMcpServerId(e.target.value)}
+              displayEmpty
             >
               <MenuItem value="">
                 <em>{t('settings.skillsSettings.editor.mcpNone')}</em>

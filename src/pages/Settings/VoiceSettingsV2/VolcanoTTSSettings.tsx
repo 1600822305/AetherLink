@@ -530,6 +530,8 @@ const VolcanoTTSSettings: React.FC = () => {
                   value={settings.resourceId}
                   onChange={(e) => setSettings(prev => ({ ...prev, resourceId: e.target.value }))}
                   sx={{ mb: 2 }}
+                  SelectProps={{ displayEmpty: true }}
+                  InputLabelProps={{ shrink: true }}
                   helperText={t('settings.voice.tabSettings.volcano.resourceIdHelper')}
                 >
                   {RESOURCE_ID_OPTIONS.map(opt => (
@@ -546,6 +548,8 @@ const VolcanoTTSSettings: React.FC = () => {
                   value={settings.model}
                   onChange={(e) => setSettings(prev => ({ ...prev, model: e.target.value }))}
                   sx={{ mb: 2 }}
+                  SelectProps={{ displayEmpty: true }}
+                  InputLabelProps={{ shrink: true }}
                   helperText={t('settings.voice.tabSettings.volcano.modelHelper')}
                 >
                   {MODEL_OPTIONS.map(opt => (

@@ -93,11 +93,12 @@ const OpenAIWhisperTab: React.FC<OpenAIWhisperTabProps> = ({ settings, onSetting
 
       {/* 语言选择 */}
       <FormControl fullWidth margin="normal" sx={{ mb: 3 }}>
-        <InputLabel>{t('settings.voice.tabSettings.whisper.language')}</InputLabel>
+        <InputLabel shrink>{t('settings.voice.tabSettings.whisper.language')}</InputLabel>
         <Select
           value={settings.language || ''}
           onChange={(e) => handleChange('language', e.target.value || undefined)}
           label={t('settings.voice.tabSettings.whisper.language')}
+          displayEmpty
         >
           <MenuItem value="">{t('settings.voice.tabSettings.whisper.languageAuto')}</MenuItem>
           <MenuItem value="zh">{t('settings.voice.tabSettings.whisper.languageZh')}</MenuItem>

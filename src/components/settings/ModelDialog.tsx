@@ -205,12 +205,13 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
       <DialogContent>
         <Box sx={{ mb: 3, mt: 1 }}>
           <FormControl fullWidth sx={{ mb: 3 }}>
-            <InputLabel id="preset-model-label">预设模型</InputLabel>
+            <InputLabel id="preset-model-label" shrink>预设模型</InputLabel>
             <Select
               labelId="preset-model-label"
               value={selectedPreset?.id || ''}
               onChange={handlePresetChange}
               label="预设模型"
+              displayEmpty
               MenuProps={{
                 disableAutoFocus: true,
                 disableRestoreFocus: true

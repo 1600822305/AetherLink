@@ -463,11 +463,12 @@ const KnowledgeSettings: React.FC = () => {
         <SectionContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <FormControl fullWidth size="small">
-              <InputLabel id="preprocess-provider-label">选择提供商</InputLabel>
+              <InputLabel id="preprocess-provider-label" shrink>选择提供商</InputLabel>
               <Select
                 labelId="preprocess-provider-label"
                 value={activeProviderId || ''}
                 label="选择提供商"
+                displayEmpty
                 onChange={(e) => {
                   const selectedId = e.target.value as PreprocessProviderId;
                   if (!selectedId) {
