@@ -19,8 +19,8 @@ const KnowledgeEditPage = lazy(() => import('../pages/KnowledgeBase/KnowledgeEdi
 const DocumentChunkView = lazy(() => import('../pages/KnowledgeBase/DocumentChunkView'));
 const KnowledgeSettings = lazy(() => import('../pages/Settings/KnowledgeSettings'));
 
-// 辅助模型设置（话题命名、AI意图分析等）
-const AssistantModelSettingsPage = lazy(() => import('../pages/Settings/DefaultModelSettings/index'));
+// 辅助模型设置（话题命名、AI意图分析、视觉识别）
+const AssistantModelSettingsPage = lazy(() => import('../pages/Settings/AssistantModelSettings'));
 const ModelProviderSettings = lazy(() => import('../pages/Settings/ModelProviders'));
 const MultiKeyManagementPage = lazy(() => import('../pages/Settings/ModelProviders/MultiKeyManagement'));
 const AdvancedAPIConfigPage = lazy(() => import('../pages/Settings/ModelProviders/AdvancedAPIConfig'));
@@ -82,7 +82,6 @@ const ThemeStyleSettings = lazy(() => import('../pages/Settings/ThemeStyleSettin
 // 导入Notion设置页面
 const NotionSettings = lazy(() => import('../pages/Settings/NotionSettings'));
 const NetworkProxySettings = lazy(() => import('../pages/Settings/NetworkProxySettings'));
-const VisionRecognitionSettings = lazy(() => import('../pages/Settings/VisionRecognitionSettings'));
 // 导入记忆设置页面
 const MemorySettings = lazy(() => import('../pages/Settings/MemorySettings'));
 const SkillsSettings = lazy(() => import('../pages/Settings/SkillsSettings'));
@@ -196,7 +195,6 @@ const AppRouter: React.FC = () => {
         <Route path="/settings/skills" element={<SkillsSettings />} />
         <Route path="/settings/skills/:skillId" element={<SkillEditor />} />
         <Route path="/settings/web-search" element={<WebSearchSettings />} />
-        <Route path="/settings/vision-recognition" element={<VisionRecognitionSettings />} />
         <Route path="/settings/mcp-server" element={<MCPServerSettings />} />
         <Route path="/settings/mcp-server/:serverId" element={<MCPServerDetail />} />
         <Route path="/settings/mcp-assistant/:serverId" element={<MCPAssistantDetail />} />

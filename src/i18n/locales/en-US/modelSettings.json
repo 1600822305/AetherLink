@@ -99,7 +99,12 @@
     "enableAIIntentAnalysis": "Enable AI Intent Analysis",
     "enableAIIntentAnalysisDesc": "Off: inject search tool directly, On: use AI to pre-analyze and extract keywords (more precise)",
     "aiIntentUseCurrentModel": "Use Current Topic Model",
-    "aiIntentUseCurrentModelDesc": "Use the model selected in current conversation for intent analysis"
+    "aiIntentUseCurrentModelDesc": "Use the model selected in current conversation for intent analysis",
+    "tabs": {
+      "topicNaming": "Topic Naming",
+      "intentAnalysis": "Intent Analysis",
+      "visionRecognition": "Vision Recognition"
+    }
   },
   "modelList": {
     "title": "Model Settings",
