@@ -78,7 +78,7 @@ class VersionService {
       const now = new Date().toISOString();
 
       // 克隆所有当前块，生成独立的块副本供版本持有
-      // 这样 resetAssistantMessageForRegenerate 删除当前块时不会影响版本数据
+      // 使用 version_ 前缀的 messageId 隔离版本块，防止 getMessageBlocksByMessageId 误删
       const clonedBlockIds: string[] = [];
       if (messageBlocks.length > 0) {
         const clonedBlocks: MessageBlock[] = messageBlocks.map(block => {
@@ -87,6 +87,7 @@ class VersionService {
           return {
             ...block,
             id: newBlockId,
+            messageId: `version_${versionId}`,
             createdAt: now,
             updatedAt: now
           };
@@ -218,7 +219,7 @@ class VersionService {
       const originalModelKey = `original_model_${messageId}`;
       const originalThinkingKey = `original_thinking_blocks_${messageId}`;
       const originalBlockOrderKey = `original_block_order_${messageId}`;
-      const currentBlocks = await dexieStorage.getMessageBlocksByMessageId(messageId);
+      const currentBlocks = await dexieStorage.getMessageBlocksByIds(targetMessage.blocks || []);
       const thinkingBlocks = currentBlocks.filter(block => block.type === 'thinking');
       
       // 获取版本内容
@@ -281,7 +282,7 @@ class VersionService {
         for (const block of versionBlocks) {
           const newId = uuid();
           newCurrentBlockIds.push(newId);
-          newCurrentBlocks.push({ ...block, id: newId, updatedAt: new Date().toISOString() });
+          newCurrentBlocks.push({ ...block, id: newId, messageId, updatedAt: new Date().toISOString() });
         }
         await dexieStorage.bulkSaveMessageBlocks(newCurrentBlocks);
         store.dispatch(upsertManyBlocks(newCurrentBlocks));
@@ -396,8 +397,8 @@ class VersionService {
       
       console.log(`[VersionService] 已找到原始内容备份，长度: ${originalContent.length}`);
       
-      // 更新消息块内容
-      const blocks = await dexieStorage.getMessageBlocksByMessageId(messageId);
+      // 更新消息块内容（只获取消息自身引用的块，避免误取版本克隆块）
+      const blocks = await dexieStorage.getMessageBlocksByIds(message.blocks || []);
       const mainTextBlock = blocks.find(block => block.type === 'main_text');
       
       if (mainTextBlock) {
@@ -537,8 +538,9 @@ class VersionService {
         return false;
       }
       
-      // 更新消息块内容
-      const blocks = await dexieStorage.getMessageBlocksByMessageId(messageId);
+      // 更新消息块内容（只获取消息自身引用的块）
+      const msg = await dexieStorage.getMessage(messageId);
+      const blocks = await dexieStorage.getMessageBlocksByIds(msg?.blocks || []);
       const mainTextBlock = blocks.find(block => block.type === 'main_text');
       
       if (mainTextBlock) {
@@ -678,7 +680,9 @@ class VersionService {
    */
   async getMessageContent(messageId: string): Promise<string> {
     try {
-      const blocks = await dexieStorage.getMessageBlocksByMessageId(messageId);
+      const message = await dexieStorage.getMessage(messageId);
+      if (!message) return '';
+      const blocks = await dexieStorage.getMessageBlocksByIds(message.blocks || []);
       const mainTextBlock = blocks.find(block => block.type === 'main_text');
       return (mainTextBlock as any)?.content || '';
     } catch (error) {

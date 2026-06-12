@@ -278,9 +278,8 @@ async function resetAssistantMessageForRegenerate(
   model: Model,
   dispatch: AppDispatch
 ): Promise<Message> {
-  // 获取并删除旧的消息块
-  const blocks = await dexieStorage.getMessageBlocksByMessageId(message.id);
-  const blockIds = blocks.map(block => block.id);
+  // 只删除消息自身引用的块，不删除版本克隆块（版本块使用独立的 messageId）
+  const blockIds = [...(message.blocks || [])];
 
   if (blockIds.length > 0) {
     dispatch(removeManyBlocks(blockIds));
