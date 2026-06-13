@@ -47,6 +47,8 @@ export interface VirtualizedModelGroupListProps {
   searchPlaceholder?: string;
   /** 滚动容器最大高度，默认 '70vh' */
   maxHeight?: number | string;
+  /** 是否给滚动容器加边框，默认 true（对话框等已有容器时可传 false） */
+  bordered?: boolean;
   /** 行高估算（变高时仅作为初始估算），默认 56 */
   estimateRowHeight?: number;
   /** overscan 行数，默认 8 */
@@ -170,6 +172,7 @@ function VirtualizedModelGroupList({
   enableSearch = true,
   searchPlaceholder,
   maxHeight = '70vh',
+  bordered = true,
   estimateRowHeight = 56,
   overscan = 8
 }: VirtualizedModelGroupListProps) {
@@ -322,9 +325,9 @@ function VirtualizedModelGroupList({
             maxHeight,
             overflowY: 'auto',
             overflowX: 'hidden',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 2,
+            ...(bordered
+              ? { border: '1px solid', borderColor: 'divider', borderRadius: 2 }
+              : {}),
             bgcolor: 'background.paper',
             // iOS 惯性滚动
             WebkitOverflowScrolling: 'touch'
