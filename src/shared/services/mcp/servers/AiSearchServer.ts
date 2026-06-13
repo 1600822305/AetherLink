@@ -11,6 +11,10 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { universalFetch } from '../../../utils/universalFetch';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('AI Search');
+
 
 // ─── 默认系统提示词（与原项目一致）───
 const DEFAULT_SYSTEM_PROMPT = `你是一个专业的搜索助手,擅长联网搜索并提供准确、详细的答案。
@@ -185,7 +189,7 @@ export class AiSearchServer {
       }
 
       const query = params.query;
-      console.log(`[AI Search] 搜索: ${query}`);
+      logger.debug(`搜索: ${query}`);
 
       let result: string;
 
@@ -201,13 +205,13 @@ export class AiSearchServer {
         result = await this.callApi(query);
       }
 
-      console.log(`[AI Search] 搜索完成，返回 ${result.length} 字符`);
+      logger.debug(`搜索完成，返回 ${result.length} 字符`);
 
       return {
         content: [{ type: 'text', text: result }]
       };
     } catch (error) {
-      console.error('[AI Search] 搜索失败:', error);
+      logger.error('搜索失败:', error);
       return {
         content: [{
           type: 'text',
@@ -229,11 +233,11 @@ export class AiSearchServer {
   // ═══════════════════════════════════════════════════
 
   private async multiDimensionSearch(query: string): Promise<string> {
-    console.log(`[AI Search] 多维度搜索: 拆分为 ${this.config.maxQueryPlan} 个子查询`);
+    logger.debug(`多维度搜索: 拆分为 ${this.config.maxQueryPlan} 个子查询`);
 
     // 1. 用 AI 拆分查询
     const subQueries = await this.splitQuery(query);
-    console.log(`[AI Search] 拆分完成: ${subQueries.length} 个子查询`);
+    logger.debug(`拆分完成: ${subQueries.length} 个子查询`);
 
     // 2. 并发执行所有子查询
     const startTime = Date.now();
@@ -244,7 +248,7 @@ export class AiSearchServer {
 
     const successCount = results.filter(r => r.status === 'fulfilled').length;
     const failCount = results.filter(r => r.status === 'rejected').length;
-    console.log(`[AI Search] 并发完成: 成功 ${successCount}, 失败 ${failCount}, 耗时 ${elapsed}ms`);
+    logger.debug(`并发完成: 成功 ${successCount}, 失败 ${failCount}, 耗时 ${elapsed}ms`);
 
     // 3. 组装结果
     let output = '';
@@ -273,7 +277,7 @@ export class AiSearchServer {
     const systemPrompt = '你是查询拆分助手。只返回 JSON 数组，不要任何解释、标记或其他文本。直接输出 JSON 数组。';
 
     const modelId = this.config.analysisModelId || this.config.modelId;
-    console.log(`[AI Search] 使用模型 ${modelId} 拆分查询`);
+    logger.debug(`使用模型 ${modelId} 拆分查询`);
 
     const response = await this.callApiWithModel(splitPrompt, systemPrompt, modelId);
 
@@ -289,7 +293,7 @@ export class AiSearchServer {
     try {
       subQueries = JSON.parse(cleaned);
     } catch {
-      console.error('[AI Search] JSON 解析失败，原始响应:', response);
+      logger.error('JSON 解析失败，原始响应:', response);
       throw new Error(`解析子查询失败，响应内容: ${cleaned}`);
     }
 
@@ -337,7 +341,7 @@ export class AiSearchServer {
         const statusCode = codeMatch ? parseInt(codeMatch[1], 10) : 0;
 
         if (attempt < this.config.retryCount && (retryableCodes.includes(statusCode) || statusCode === 0)) {
-          console.warn(`[AI Search] 请求失败，重试 ${attempt + 1}/${this.config.retryCount}`);
+          logger.warn(`请求失败，重试 ${attempt + 1}/${this.config.retryCount}`);
           await new Promise(resolve => setTimeout(resolve, 1000));
           continue;
         }

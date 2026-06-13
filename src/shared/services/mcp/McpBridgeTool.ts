@@ -11,6 +11,10 @@
 
 import type { MCPTool, MCPCallToolResponse } from '../../types';
 import { mcpService } from './index';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('McpBridge');
+
 
 // ======================== 工具定义 ========================
 
@@ -76,7 +80,7 @@ export async function executeBridgeToolCall(
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[McpBridge] 执行失败:`, error);
+    logger.error(`执行失败:`, error);
     return makeErrorResponse(`Bridge 执行失败: ${msg}`);
   }
 }
@@ -184,7 +188,7 @@ async function handleCallTool(
     );
   }
 
-  console.log(`[McpBridge] 调用 ${server.name}.${toolName}`, toolArgs);
+  logger.debug(`调用 ${server.name}.${toolName}`, toolArgs);
 
   // 执行调用（MCPService.callTool 内部会处理连接和重试）
   const result = await mcpService.callTool(server, toolName, toolArgs);

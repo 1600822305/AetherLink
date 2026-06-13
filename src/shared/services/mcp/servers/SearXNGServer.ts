@@ -11,6 +11,10 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { universalFetch } from '../../../utils/universalFetch';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('SearXNG');
+
 
 // ==================== 工具定义 ====================
 
@@ -205,7 +209,7 @@ export class SearXNGServer {
 
       const searchUrl = `${this.baseUrl}/search?${searchParams.toString()}`;
 
-      console.log('[SearXNG] 开始搜索:', { query, engines, language, categories, timeRange, pageno, safesearch });
+      logger.debug('开始搜索:', { query, engines, language, categories, timeRange, pageno, safesearch });
 
       // 发送搜索请求
       const response = await universalFetch(searchUrl, {
@@ -230,7 +234,7 @@ export class SearXNGServer {
       const corrections: string[] = data.corrections || [];
       const infoboxes: any[] = data.infoboxes || [];
 
-      console.log(`[SearXNG] 搜索完成，找到 ${results.length} 个结果，${suggestions.length} 条建议，${answers.length} 个直接答案，${infoboxes.length} 个信息卡片`);
+      logger.debug(`搜索完成，找到 ${results.length} 个结果，${suggestions.length} 条建议，${answers.length} 个直接答案，${infoboxes.length} 个信息卡片`);
 
       // 格式化输出
       let resultText = `## SearXNG 搜索结果\n\n`;
@@ -330,7 +334,7 @@ export class SearXNGServer {
         ]
       };
     } catch (error) {
-      console.error('[SearXNG] 搜索失败:', error);
+      logger.error('搜索失败:', error);
       return {
         content: [
           {
@@ -360,7 +364,7 @@ export class SearXNGServer {
     try {
       const { url, maxLength = 5000 } = params;
 
-      console.log('[SearXNG] 开始抓取网页:', url);
+      logger.debug('开始抓取网页:', url);
 
       // 直接抓取网页内容
       const response = await universalFetch(url, {
@@ -413,7 +417,7 @@ export class SearXNGServer {
       resultText += `\n---\n\n`;
       resultText += extractedContent;
 
-      console.log(`[SearXNG] 网页抓取完成，提取 ${extractedContent.length} 字符`);
+      logger.debug(`网页抓取完成，提取 ${extractedContent.length} 字符`);
 
       return {
         content: [
@@ -424,7 +428,7 @@ export class SearXNGServer {
         ]
       };
     } catch (error) {
-      console.error('[SearXNG] 网页抓取失败:', error);
+      logger.error('网页抓取失败:', error);
       return {
         content: [
           {

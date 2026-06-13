@@ -19,6 +19,10 @@ import type {
   ToolConfirmationRequest,
   ConfirmableToolEntry
 } from './types';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('ToolConfirmation');
+
 
 /** 确认系统事件名 */
 export const CONFIRMATION_EVENTS = {
@@ -70,7 +74,7 @@ export class ToolConfirmationService {
     summaryBuilder?: (args: Record<string, unknown>) => string
   ): void {
     this.registry.set(toolName, { toolName, risk, summaryBuilder });
-    console.log(`[ToolConfirmation] 已注册需确认工具: ${toolName} (${risk})`);
+    logger.debug(`已注册需确认工具: ${toolName} (${risk})`);
   }
 
   /**
@@ -133,7 +137,7 @@ export class ToolConfirmationService {
       // 超时自动拒绝
       const timer = setTimeout(() => {
         if (this.pending.has(request.id)) {
-          console.warn(`[ToolConfirmation] 确认请求超时，自动拒绝: ${toolName}`);
+          logger.warn(`确认请求超时，自动拒绝: ${toolName}`);
           this.pending.delete(request.id);
           EventEmitter.emit(CONFIRMATION_EVENTS.EXPIRED, { requestId: request.id });
           resolve(false);
@@ -143,7 +147,7 @@ export class ToolConfirmationService {
       this.pending.set(request.id, { request, resolve, timer });
 
       // 通知 UI 层
-      console.log(`[ToolConfirmation] 等待用户确认: ${toolName}`, request);
+      logger.debug(`等待用户确认: ${toolName}`, request);
       EventEmitter.emit(CONFIRMATION_EVENTS.REQUIRED, request);
     });
   }
@@ -154,14 +158,14 @@ export class ToolConfirmationService {
   respond(requestId: string, approved: boolean): void {
     const pending = this.pending.get(requestId);
     if (!pending) {
-      console.warn(`[ToolConfirmation] 未找到待处理的确认请求: ${requestId}`);
+      logger.warn(`未找到待处理的确认请求: ${requestId}`);
       return;
     }
 
     clearTimeout(pending.timer);
     this.pending.delete(requestId);
 
-    console.log(`[ToolConfirmation] 用户${approved ? '批准' : '拒绝'}了操作: ${pending.request.toolName}`);
+    logger.debug(`用户${approved ? '批准' : '拒绝'}了操作: ${pending.request.toolName}`);
     pending.resolve(approved);
   }
 

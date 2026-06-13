@@ -15,6 +15,11 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import type { MCPClientOptions, MCPTool, MCPCallToolResponse } from './MCPClientAdapter';
 import { isTauri, isDesktop, isWindows } from '../../../utils/platformDetection';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('Stdio MCP Client');
+const transportLogger = createLogger('Stdio Transport');
+
 
 // Tauri Shell 类型定义
 interface TauriChild {
@@ -81,11 +86,11 @@ class StdioTransport implements Transport {
     this.args = args;
     this.env = env;
     this.cwd = cwd;
-    console.log(`[Stdio Transport] 创建传输，命令: ${command} ${args.join(' ')}${cwd ? `, 工作目录: ${cwd}` : ''}`);
+    transportLogger.debug(`创建传输，命令: ${command} ${args.join(' ')}${cwd ? `, 工作目录: ${cwd}` : ''}`);
   }
 
   async start(): Promise<void> {
-    console.log('[Stdio Transport] 启动子进程...');
+    transportLogger.debug('启动子进程...');
 
     try {
       // 动态导入 Tauri Shell API
@@ -93,7 +98,7 @@ class StdioTransport implements Transport {
 
       // 将命令映射到 Tauri scope 中定义的名称
       const { scopeName, finalArgs } = mapCommandToScopeName(this.command, this.args);
-      console.log(`[Stdio Transport] 使用 scope 命令: ${scopeName}, 参数: ${finalArgs.join(' ')}`);
+      transportLogger.debug(`使用 scope 命令: ${scopeName}, 参数: ${finalArgs.join(' ')}`);
 
       // 创建命令 - 使用 scope 名称
       const spawnOptions: Record<string, any> = {
@@ -106,7 +111,7 @@ class StdioTransport implements Transport {
 
       // 监听 close 事件
       cmd.on('close', (data) => {
-        console.log(`[Stdio Transport] 子进程退出，代码: ${data.code}`);
+        transportLogger.debug(`子进程退出，代码: ${data.code}`);
         this.isRunning = false;
         this.child = null;
         if (this.onProcessExit) {
@@ -119,7 +124,7 @@ class StdioTransport implements Transport {
 
       // 监听 error 事件
       cmd.on('error', (error) => {
-        console.error('[Stdio Transport] 子进程错误:', error);
+        transportLogger.error('子进程错误:', error);
         if (this.onerror) {
           this.onerror(new Error(error));
         }
@@ -132,7 +137,7 @@ class StdioTransport implements Transport {
 
       // 监听 stderr - 显示 npx 下载进度等信息
       cmd.stderr.on('data', (line: string) => {
-        console.log('[Stdio Transport] stderr:', line);
+        transportLogger.debug('stderr:', line);
         // npx 下载进度通常输出到 stderr，这是正常的
       });
 
@@ -140,10 +145,10 @@ class StdioTransport implements Transport {
       this.child = await cmd.spawn();
       this.isRunning = true;
 
-      console.log(`[Stdio Transport] 子进程已启动, PID: ${this.child.pid}`);
+      transportLogger.debug(`子进程已启动, PID: ${this.child.pid}`);
 
     } catch (error) {
-      console.error('[Stdio Transport] 启动失败:', error);
+      transportLogger.error('启动失败:', error);
       throw error;
     }
   }
@@ -162,12 +167,12 @@ class StdioTransport implements Transport {
 
       try {
         const message = JSON.parse(trimmed) as JSONRPCMessage;
-        console.log('[Stdio Transport] 收到消息:', message);
+        transportLogger.debug('收到消息:', message);
         if (this.onmessage) {
           this.onmessage(message);
         }
       } catch (parseError) {
-        console.warn('[Stdio Transport] 无法解析行:', trimmed);
+        transportLogger.warn('无法解析行:', trimmed);
       }
     }
   }
@@ -183,21 +188,21 @@ class StdioTransport implements Transport {
     }
 
     const json = JSON.stringify(message) + '\n';
-    console.log('[Stdio Transport] 发送消息:', message);
+    transportLogger.debug('发送消息:', message);
     
     // Tauri 2.0 的 write 方法接受 string 或 number[]
     await this.child.write(json);
   }
 
   async close(): Promise<void> {
-    console.log('[Stdio Transport] 关闭连接');
+    transportLogger.debug('关闭连接');
     this.isRunning = false;
 
     if (this.child) {
       try {
         await this.child.kill();
       } catch (e) {
-        console.warn('[Stdio Transport] 终止子进程失败:', e);
+        transportLogger.warn('终止子进程失败:', e);
       }
       this.child = null;
     }
@@ -232,9 +237,9 @@ export class StdioMCPClient {
       throw new Error('Stdio 传输仅在 Tauri 桌面端可用');
     }
 
-    console.log(`[Stdio MCP Client] 创建客户端`);
-    console.log(`[Stdio MCP Client] 命令: ${options.command}`);
-    console.log(`[Stdio MCP Client] 参数: ${options.args?.join(' ') || ''}`);
+    logger.debug(`创建客户端`);
+    logger.debug(`命令: ${options.command}`);
+    logger.debug(`参数: ${options.args?.join(' ') || ''}`);
   }
 
   /**
@@ -255,7 +260,7 @@ export class StdioMCPClient {
    * 初始化连接
    */
   async initialize(): Promise<void> {
-    console.log('[Stdio MCP Client] 开始初始化连接');
+    logger.debug('开始初始化连接');
 
     try {
       // 创建客户端
@@ -274,7 +279,7 @@ export class StdioMCPClient {
         }
       );
 
-      console.log('[Stdio MCP Client] 客户端创建完成');
+      logger.debug('客户端创建完成');
 
       // 创建 stdio 传输
       this.transport = new StdioTransport(
@@ -286,7 +291,7 @@ export class StdioMCPClient {
 
       // 监听子进程退出事件，通知上层清理
       this.transport.onProcessExit = (code) => {
-        console.log(`[Stdio MCP Client] 子进程退出，code: ${code}`);
+        logger.debug(`子进程退出，code: ${code}`);
         if (this.onProcessExit) {
           this.onProcessExit(code);
         }
@@ -295,9 +300,9 @@ export class StdioMCPClient {
       // 连接
       await this.client.connect(this.transport);
 
-      console.log('[Stdio MCP Client] 连接成功');
+      logger.debug('连接成功');
     } catch (error) {
-      console.error('[Stdio MCP Client] 初始化失败:', error);
+      logger.error('初始化失败:', error);
       throw error;
     }
   }
@@ -310,9 +315,9 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[Stdio MCP Client] 列出工具');
+    logger.debug('列出工具');
     const result = await this.client.listTools();
-    console.log(`[Stdio MCP Client] 找到 ${result.tools.length} 个工具`);
+    logger.debug(`找到 ${result.tools.length} 个工具`);
 
     return result.tools as MCPTool[];
   }
@@ -325,14 +330,14 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[Stdio MCP Client] 调用工具: ${name}`, arguments_);
+    logger.debug(`调用工具: ${name}`, arguments_);
 
     const result = await this.client.callTool({
       name,
       arguments: arguments_
     });
 
-    console.log(`[Stdio MCP Client] 工具调用完成: ${name}`);
+    logger.debug(`工具调用完成: ${name}`);
 
     return {
       content: (result.content || []) as Array<{
@@ -353,9 +358,9 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[Stdio MCP Client] 列出提示词');
+    logger.debug('列出提示词');
     const result = await this.client.listPrompts();
-    console.log(`[Stdio MCP Client] 找到 ${result.prompts?.length || 0} 个提示词`);
+    logger.debug(`找到 ${result.prompts?.length || 0} 个提示词`);
 
     return result.prompts || [];
   }
@@ -368,7 +373,7 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[Stdio MCP Client] 获取提示词: ${name}`);
+    logger.debug(`获取提示词: ${name}`);
     const result = await this.client.getPrompt({
       name,
       arguments: arguments_
@@ -385,9 +390,9 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[Stdio MCP Client] 列出资源');
+    logger.debug('列出资源');
     const result = await this.client.listResources();
-    console.log(`[Stdio MCP Client] 找到 ${result.resources?.length || 0} 个资源`);
+    logger.debug(`找到 ${result.resources?.length || 0} 个资源`);
 
     return result.resources || [];
   }
@@ -400,7 +405,7 @@ export class StdioMCPClient {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[Stdio MCP Client] 读取资源: ${uri}`);
+    logger.debug(`读取资源: ${uri}`);
     const result = await this.client.readResource({ uri });
 
     return result;
@@ -411,7 +416,7 @@ export class StdioMCPClient {
    */
   async close(): Promise<void> {
     if (this.client) {
-      console.log('[Stdio MCP Client] 关闭连接');
+      logger.debug('关闭连接');
       await this.client.close();
       this.client = null;
       this.transport = null;

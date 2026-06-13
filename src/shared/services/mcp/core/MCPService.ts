@@ -11,6 +11,10 @@ import { MCPServerStore } from './MCPServerStore';
 import { MCPConnectionManager } from './MCPConnectionManager';
 import { MCPToolExecutor } from './MCPToolExecutor';
 import { AGENTIC_MODE_SERVER } from '../types/constants';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MCP');
+
 
 export class MCPService {
   private static instance: MCPService;
@@ -100,9 +104,9 @@ export class MCPService {
     if (isActive) {
       try {
         await this.connectionManager.initClient(server);
-        console.log(`[MCP] 服务器已启动: ${server.name}`);
+        logger.debug(`服务器已启动: ${server.name}`);
       } catch (error) {
-        console.error(`[MCP] 启动服务器失败: ${server.name}`, error);
+        logger.error(`启动服务器失败: ${server.name}`, error);
         await this.serverStore.setServerActive(serverId, false);
         throw error;
       }
@@ -114,14 +118,14 @@ export class MCPService {
     if (server) {
       const serverKey = this.connectionManager.getServerKey(server);
       await this.connectionManager.closeClient(serverKey);
-      console.log(`[MCP] 服务器已停止: ${server.name}`);
+      logger.debug(`服务器已停止: ${server.name}`);
     }
   }
 
   public async restartServer(serverId: string): Promise<void> {
     const server = this.serverStore.getServerById(serverId);
     if (server) {
-      console.log(`[MCP] 重启服务器: ${server.name}`);
+      logger.debug(`重启服务器: ${server.name}`);
       const serverKey = this.connectionManager.getServerKey(server);
       await this.connectionManager.closeClient(serverKey);
 
@@ -133,46 +137,46 @@ export class MCPService {
 
   public async stopAllActiveServers(): Promise<void> {
     const activeServers = this.serverStore.getActiveServers();
-    console.log(`[MCP] 正在关闭 ${activeServers.length} 个活跃服务器`);
+    logger.debug(`正在关闭 ${activeServers.length} 个活跃服务器`);
 
     this.serverStore.saveActiveServerIds();
 
     const promises = activeServers.map(async (server) => {
       try {
         await this.toggleServer(server.id, false);
-        console.log(`[MCP] 已关闭服务器: ${server.name}`);
+        logger.debug(`已关闭服务器: ${server.name}`);
       } catch (error) {
-        console.error(`[MCP] 关闭服务器失败: ${server.name}`, error);
+        logger.error(`关闭服务器失败: ${server.name}`, error);
       }
     });
 
     await Promise.all(promises);
-    console.log('[MCP] 所有活跃服务器已关闭');
+    logger.debug('所有活跃服务器已关闭');
   }
 
   public async restoreSavedActiveServers(): Promise<void> {
     if (!this.serverStore.hasSavedActiveServers()) {
-      console.log('[MCP] 没有保存的活跃服务器状态需要恢复');
+      logger.debug('没有保存的活跃服务器状态需要恢复');
       return;
     }
 
     const ids = this.serverStore.getSavedActiveServerIds();
-    console.log(`[MCP] 正在恢复 ${ids.length} 个服务器的活跃状态`);
+    logger.debug(`正在恢复 ${ids.length} 个服务器的活跃状态`);
 
     const promises = ids.map(async (serverId) => {
       try {
         const server = this.serverStore.getServerById(serverId);
         if (server) {
           await this.toggleServer(serverId, true);
-          console.log(`[MCP] 已恢复服务器: ${server.name}`);
+          logger.debug(`已恢复服务器: ${server.name}`);
         }
       } catch (error) {
-        console.error(`[MCP] 恢复服务器失败: ${serverId}`, error);
+        logger.error(`恢复服务器失败: ${serverId}`, error);
       }
     });
 
     await Promise.all(promises);
-    console.log('[MCP] 所有保存的活跃服务器状态已恢复');
+    logger.debug('所有保存的活跃服务器状态已恢复');
 
     this.serverStore.clearSavedActiveServerIds();
   }
@@ -207,9 +211,9 @@ export class MCPService {
       };
 
       await this.serverStore.addServer(serverConfig);
-      console.log(`[MCP] 成功添加内置服务器: ${serverName}`);
+      logger.debug(`成功添加内置服务器: ${serverName}`);
     } catch (error) {
-      console.error(`[MCP] 添加内置服务器失败: ${serverName}`, error);
+      logger.error(`添加内置服务器失败: ${serverName}`, error);
       throw error;
     }
   }

@@ -8,6 +8,11 @@ import { handleMemoryToolCall } from '../../memory/memoryToolHandler';
 import { ToolConfirmationService } from '../confirmation/ToolConfirmationService';
 import type { MCPConnectionManager } from './MCPConnectionManager';
 import type { MCPServerStore } from './MCPServerStore';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MCP');
+const memoryLogger = createLogger('Memory');
+
 
 /**
  * 构建函数调用工具名称
@@ -50,13 +55,13 @@ export class MCPToolExecutor {
 
   async listTools(server: MCPServer, options?: { includeDisabled?: boolean }): Promise<MCPTool[]> {
     try {
-      console.log(`[MCP] 获取服务器工具: ${server.name}`);
+      logger.debug(`获取服务器工具: ${server.name}`);
 
       const client = await this.connectionManager.initClient(server);
-      console.log(`[MCP] 客户端已连接，正在调用 listTools...`);
+      logger.debug(`客户端已连接，正在调用 listTools...`);
 
       const result = await client.listTools();
-      console.log(`[MCP] listTools 响应:`, result);
+      logger.debug(`listTools 响应:`, result);
 
       const allTools = result.tools.map(tool => ({
         name: tool.name,
@@ -73,12 +78,12 @@ export class MCPToolExecutor {
         : allTools;
 
       if (disabledTools.length > 0) {
-        console.log(`[MCP] 服务器 ${server.name} 过滤了 ${allTools.length - tools.length} 个禁用工具`);
+        logger.debug(`服务器 ${server.name} 过滤了 ${allTools.length - tools.length} 个禁用工具`);
       }
-      console.log(`[MCP] 服务器 ${server.name} 返回 ${tools.length} 个工具:`, tools.map(t => t.name));
+      logger.debug(`服务器 ${server.name} 返回 ${tools.length} 个工具:`, tools.map(t => t.name));
       return tools;
     } catch (error) {
-      console.error(`[MCP] 获取工具列表失败:`, error);
+      logger.error(`获取工具列表失败:`, error);
       return [];
     }
   }
@@ -88,25 +93,25 @@ export class MCPToolExecutor {
     const activeServers = await this.serverStore.getActiveServersAsync();
     const allTools: MCPTool[] = [];
 
-    console.log(`[MCP] 总服务器数量: ${allServers.length}, 活跃服务器数量: ${activeServers.length}`);
+    logger.debug(`总服务器数量: ${allServers.length}, 活跃服务器数量: ${activeServers.length}`);
 
     if (allServers.length > 0) {
-      console.log(`[MCP] 所有服务器:`, allServers.map(s => `${s.name}(${s.isActive ? '活跃' : '非活跃'})`).join(', '));
+      logger.debug(`所有服务器:`, allServers.map(s => `${s.name}(${s.isActive ? '活跃' : '非活跃'})`).join(', '));
     }
 
     if (activeServers.length === 0) {
-      console.log(`[MCP] 没有活跃的 MCP 服务器`);
+      logger.debug(`没有活跃的 MCP 服务器`);
       return allTools;
     }
 
     for (const server of activeServers) {
       try {
-        console.log(`[MCP] 正在获取服务器 ${server.name} 的工具...`);
+        logger.debug(`正在获取服务器 ${server.name} 的工具...`);
         const tools = await this.listTools(server);
-        console.log(`[MCP] 服务器 ${server.name} 提供 ${tools.length} 个工具`);
+        logger.debug(`服务器 ${server.name} 提供 ${tools.length} 个工具`);
         allTools.push(...tools);
       } catch (error) {
-        console.error(`[MCP] 获取服务器 ${server.name} 的工具失败:`, error);
+        logger.error(`获取服务器 ${server.name} 的工具失败:`, error);
       }
     }
 
@@ -122,7 +127,7 @@ export class MCPToolExecutor {
   ): Promise<MCPCallToolResponse> {
     // 记忆工具走内置处理器
     if (isMemoryTool(toolName)) {
-      console.log(`[Memory] 调用记忆工具: ${toolName}`, args);
+      memoryLogger.debug(`调用记忆工具: ${toolName}`, args);
       const result = await handleMemoryToolCall(toolName, args);
       return {
         content: [{ type: 'text', text: result.message }],
@@ -133,7 +138,7 @@ export class MCPToolExecutor {
     // 禁用工具拦截
     const disabledTools = server.disabledTools || [];
     if (disabledTools.includes(toolName)) {
-      console.warn(`[MCP] 工具 ${toolName} 已被用户禁用，拒绝调用`);
+      logger.warn(`工具 ${toolName} 已被用户禁用，拒绝调用`);
       return {
         content: [{ type: 'text', text: `工具 ${toolName} 已被用户禁用。` }],
         isError: true
@@ -169,7 +174,7 @@ export class MCPToolExecutor {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        console.log(`[MCP] 调用工具: ${server.name}.${toolName} (尝试 ${attempt + 1}/${maxRetries})`, args);
+        logger.debug(`调用工具: ${server.name}.${toolName} (尝试 ${attempt + 1}/${maxRetries})`, args);
 
         const client = await this.connectionManager.initClient(server);
         const result = await client.callTool(
@@ -189,7 +194,7 @@ export class MCPToolExecutor {
         };
       } catch (error) {
         lastError = error;
-        console.warn(`[MCP] 工具调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, error);
+        logger.warn(`工具调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, error);
 
         if (attempt < maxRetries - 1) {
           const delay = Math.pow(2, attempt) * 1000;
@@ -198,7 +203,7 @@ export class MCPToolExecutor {
       }
     }
 
-    console.error(`[MCP] 工具调用最终失败:`, lastError);
+    logger.error(`工具调用最终失败:`, lastError);
     return {
       content: [
         {
@@ -214,7 +219,7 @@ export class MCPToolExecutor {
 
   async listPrompts(server: MCPServer): Promise<MCPPrompt[]> {
     try {
-      console.log(`[MCP] 获取服务器提示词: ${server.name}`);
+      logger.debug(`获取服务器提示词: ${server.name}`);
 
       const client = await this.connectionManager.initClient(server);
       const result = await client.listPrompts();
@@ -228,17 +233,17 @@ export class MCPToolExecutor {
       }));
     } catch (error) {
       if (error instanceof Error && error.message.includes('-32601')) {
-        console.log(`[MCP] 服务器 ${server.name} 不支持提示词功能`);
+        logger.debug(`服务器 ${server.name} 不支持提示词功能`);
         return [];
       }
-      console.error(`[MCP] 获取提示词列表失败:`, error);
+      logger.error(`获取提示词列表失败:`, error);
       return [];
     }
   }
 
   async listResources(server: MCPServer): Promise<MCPResource[]> {
     try {
-      console.log(`[MCP] 获取服务器资源: ${server.name}`);
+      logger.debug(`获取服务器资源: ${server.name}`);
 
       const client = await this.connectionManager.initClient(server);
       const result = await client.listResources();
@@ -253,10 +258,10 @@ export class MCPToolExecutor {
       }));
     } catch (error) {
       if (error instanceof Error && error.message.includes('-32601')) {
-        console.log(`[MCP] 服务器 ${server.name} 不支持资源功能`);
+        logger.debug(`服务器 ${server.name} 不支持资源功能`);
         return [];
       }
-      console.error(`[MCP] 获取资源列表失败:`, error);
+      logger.error(`获取资源列表失败:`, error);
       return [];
     }
   }
