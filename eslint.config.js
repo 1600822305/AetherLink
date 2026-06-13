@@ -35,6 +35,20 @@ export default tseslint.config(
       'no-async-promise-executor': 'off',
       'prefer-const': 'off',
       'no-control-regex': 'error',
+      // 引导新代码改用统一 logger；现存裸 console 仅告警、不阻断（迁移完成后再升级为 error）
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+  {
+    // 日志基础设施本身必须直接使用 console
+    files: [
+      'src/shared/services/infra/logger/**/*.{ts,tsx}',
+      'src/shared/services/infra/EnhancedConsoleService.ts',
+      'src/shared/services/infra/LoggerService.ts',
+      'src/shared/utils/debugLogger.ts',
+    ],
+    rules: {
+      'no-console': 'off',
     },
   },
 )
