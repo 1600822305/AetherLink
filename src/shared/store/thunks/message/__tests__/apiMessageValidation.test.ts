@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ModelType, type Model } from '../../../../types';
+
 import {
   assertModelSupportsApiMessages,
   hasImageContentInApiMessages,
@@ -10,6 +11,12 @@ const baseModel: Model = {
   id: 'deepseek-chat',
   name: 'DeepSeek Chat',
   provider: 'deepseek'
+};
+
+const mimoModel: Model = {
+  id: 'mimo-v2.5',
+  name: 'mimo-v2.5',
+  provider: 'xiaomi'
 };
 
 describe('apiMessageValidation', () => {
@@ -45,6 +52,18 @@ describe('apiMessageValidation', () => {
 
     expect(modelSupportsImageInput(visionModel)).toBe(true);
     expect(() => assertModelSupportsApiMessages(visionModel, [
+      {
+        content: [
+          { type: 'text', text: 'describe this' },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,abc' } }
+        ]
+      }
+    ])).not.toThrow();
+  });
+
+  it('recognizes multimodal models matched by the shared vision model list', () => {
+    expect(modelSupportsImageInput(mimoModel)).toBe(true);
+    expect(() => assertModelSupportsApiMessages(mimoModel, [
       {
         content: [
           { type: 'text', text: 'describe this' },

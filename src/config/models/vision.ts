@@ -62,7 +62,9 @@ const visionAllowedModels = [
   'mistral-large-(2512|latest)',
   'mistral-medium-(2508|latest)',
   'mistral-small-(2506|latest)',
-  'minimax-m3(?:-[\\w-]+)?'
+  'minimax-m3(?:-[\\w-]+)?',
+  'mimo-vl(?:-[\\w-]+)?',
+  'mimo-v2(?:\\.\\d+)?(?:-[\\w-]+)?'
 ];
 
 // 视觉模型排除列表
