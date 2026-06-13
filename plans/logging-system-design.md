@@ -235,7 +235,7 @@ flowchart TD
 1. **阶段1 — 搭建新核心**：实现 `logger/` 目录全部模块，独立可用，不影响现有代码。
 2. **阶段2 — 兼容垫片**：`compat.ts` 让旧 `LoggerService.log()` 与 `debugLog.*` 转发到新系统；19 个旧文件无需立即改动。
 3. **阶段3 — ESLint 约束**：开启 `no-console`（允许 `error`/`warn` 或完全禁止），新代码强制走 `logger`。
-4. **阶段4 — 分模块迁移**：编写 codemod 脚本，按目录批量把 `console.xxx('[Mod] ...')` 替换为 `createLogger('Mod').xxx(...)`，逐模块验证。
+4. **阶段4 — 分模块迁移**：把 `console.xxx('[Mod] ...')` 替换为 `createLogger('Mod').xxx(...)`，逐模块验证。**实际执行采用手动分子系统迁移、每子系统一个小 PR，不做全仓盲目 codemod**（级别语义与命名空间需人判断，多行/多参调用易被正则改坏）——统一规则与进度见 §13。
 5. **阶段5 — 清理**：迁移完成后删除旧 `LoggerService.ts`、`debugLogger.ts`，移除垫片。
 6. **阶段6 — 日志查看器**：**复用现有 `DevToolsPage`/`ConsolePanel`**（见 3.3），改为从 `MemoryTransport` 读取并增加按模块/级别过滤与导出，不另起炉灶。
 
@@ -296,3 +296,62 @@ flowchart TD
 - ❌ 不为「企业级」而强行加抽象层；Transport 接口保持最小（一个 `write(entry)` 足够）。
 
 > 一句话：**统一入口 + 分级短路 + 结构化 + 脱敏 + 复用 DevTools 查看器**，就是本项目「够用的企业级」。远程上报/Sentry 作为 opt-in 可选项，其余一律不做。
+
+---
+
+## 13. 实施进度与迁移规范（执行记录）
+
+> 本节随实施滚动更新，记录已落地的 PR 与统一迁移规范（供后续分模块迁移 / 子代理照做）。
+
+### 13.1 已落地
+
+| 阶段 | 内容 | PR | 状态 |
+|------|------|----|------|
+| 1+2+3 | logger 核心 + 兼容垫片 + ESLint `no-console` | #240 | 已合并 |
+| 4 样板A | `src/shared/services/mcp`（222 处 / 15 文件） | #241 | 已合并 |
+| 4 样板B | `src/shared/store`（155 处 / 22 文件） | #242 | 已合并 |
+
+新 logger 位于 `src/shared/services/infra/logger/`，对外导出 `logger`、`createLogger(context)`、`Logger`、Transport 与类型。
+
+### 13.2 迁移规范（统一规则，分模块迁移一律照此执行）
+
+1. **建 logger**：每个文件在所有 `import` 之后新增一个模块级 logger：
+   ```ts
+   import { createLogger } from '../../services/infra/logger'; // 相对深度按文件实际层级
+   const logger = createLogger('<Context>');
+   ```
+   `<Context>` 取自该文件原有 `[前缀]` 标签（去掉方括号）；无前缀的文件取其主模块名（文件名/类名/函数名）。
+2. **相对路径**：仓库 `tsconfig` 无 `@/` 路径别名（`@` 仅在 Vite 构建生效），故 logger 导入**一律用相对路径**，按文件层级写 `../`。
+3. **级别映射**：`console.log` → `logger.debug`（绝大多数诊断/冗余日志，生产默认隐藏）；仅**真正有意义的运营里程碑**才升级为 `logger.info`。`console.info`→`info`、`console.debug`→`debug`、`console.warn`→`warn`、`console.error`→`error`；`console.group/groupEnd` 折叠为一条 `debug`。
+4. **剥前缀保参数**：去掉消息字符串里的 `[前缀]`（命名空间已携带），其余参数、顺序、emoji、错误对象尾参全部保留。
+   ```diff
+   - console.log('[MCP] 复用现有连接:', server.name)
+   + logger.debug('复用现有连接:', server.name)   // createLogger('MCP')
+   ```
+5. **混合前缀文件**：取主模块作模块级 logger，其余少数前缀用 `logger.withContext('Other')` 派生子 logger（注意 `withContext` 是**替换** context，不是层级拼接）。
+6. **只改日志出口**：不改任何业务行为；不改 logger 核心 / 旧 `LoggerService` / ESLint 配置。
+7. **验收**：目标目录内 `console.*` 归零（`warn`/`error` 虽被 ESLint 放行，但建议一并迁以保持一致）；`npm run type-check` 与 `npm run build`（`vite build`）**必须通过**（CI 门禁）。
+8. **方式**：手动分子系统、每子系统一个小 PR；**不做全仓盲目 codemod**。仅当某子系统「特别简单」（单行调用、统一带 `[前缀]`、无多行/多参歧义）时，允许用「按文件配置 + 全量 diff 复核 + 编译」的受控脚本辅助。
+
+### 13.3 剩余盘点（`console.*` 总量 / 必迁 `log·info·debug·group` / 文件数）
+
+| 子系统 | 总数 | 必迁 | 文件 | 状态 |
+|--------|------|------|------|------|
+| `shared/services/mcp` | 222 | — | 15 | ✅ #241 |
+| `shared/store` | 155 | — | 22 | ✅ #242 |
+| `shared/api` | 264 | 176 | 30 | 进行中 |
+| `shared/services`（非 mcp） | 1232 | 623 | 105 | 待迁（含 storage 183 / messages 169 / ai 138 / webSearch 120 / files 106 / knowledge 105 …） |
+| `shared/utils` | 207 | 107 | 33 | 待迁 |
+| `shared/hooks` | 40 | 21 | 9 | 待迁 |
+| `shared/providers` | 23 | 11 | 2 | 待迁 |
+| `components` | 326 | 116 | 101 | 待迁（多为 error/warn） |
+| `pages` | 418 | 162 | 67 | 待迁（多为 error/warn） |
+| `hooks`（顶层） | 49 | 27 | 8 | 待迁 |
+| `utils`（顶层） | 61 | 21 | 5 | 待迁 |
+
+> 注：`ConsoleTransport` / `EnhancedConsoleService` / `LoggerService` 等日志后端自身的 `console` 使用（约 16 处）为有意保留，已在 ESLint 中豁免，不计入迁移目标。
+
+### 13.4 已确定的决策（对应 §10）
+
+- ESLint `no-console` 力度：**保留 `error`/`warn`**，其余告警（不一次性禁止，避免 CI 爆 3000+ 错）。
+- 命名空间风格：**两者都提供** —— 文件级默认 `createLogger('Mod')`，文件内细分用 `logger.withContext('Sub')`。
