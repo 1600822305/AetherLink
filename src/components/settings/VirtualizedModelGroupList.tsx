@@ -81,11 +81,13 @@ const GroupHeaderRow = memo<{
         pr: button ? { xs: 6.5, sm: 5.5 } : { xs: 2, sm: 1.5 },
         cursor: 'pointer',
         userSelect: 'none',
-        bgcolor: 'background.paper',
+        // 灰色 section 带状 + 组间分隔，使分组头明显区别于白色模型行
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[100],
+        borderTop: '1px solid',
         borderBottom: '1px solid',
         borderColor: 'divider',
         '&:hover': {
-          bgcolor: alpha(theme.palette.primary.main, 0.04)
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[200]
         }
       }}
     >
@@ -100,7 +102,9 @@ const GroupHeaderRow = memo<{
       <Typography
         variant="subtitle2"
         sx={{
-          fontWeight: 600,
+          fontWeight: 700,
+          letterSpacing: '0.01em',
+          color: 'text.primary',
           fontSize: { xs: '0.95rem', sm: '0.875rem' },
           whiteSpace: 'nowrap',
           overflow: 'hidden',

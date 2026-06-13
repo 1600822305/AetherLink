@@ -37,11 +37,24 @@ function ModelItemSignals({
         display: 'flex',
         alignItems: 'center',
         py: { xs: 1.5, sm: 1 },
-        pl: { xs: 2.5, sm: 2 },
+        pl: { xs: 5.5, sm: 5 },
         pr: { xs: (testModeEnabled.value || alwaysShowTestButton) ? 12.5 : 9, sm: (testModeEnabled.value || alwaysShowTestButton) ? 11 : 8 },
-        transition: 'all 0.2s ease',
+        bgcolor: 'background.paper',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        transition: 'background-color 0.2s ease',
+        // 左侧引导竖线（缩进处），表明归属于上方分组
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: { xs: 24, sm: 20 },
+          top: 0,
+          bottom: 0,
+          width: '2px',
+          bgcolor: (theme) => alpha(theme.palette.text.primary, 0.22),
+        },
         '&:hover': {
-          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+          bgcolor: 'action.hover',
         },
       }}
     >
