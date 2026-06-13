@@ -3,6 +3,7 @@
  * 提供统一的日志记录功能
  */
 import { getStorageItem, setStorageItem, removeStorageItem } from '../../utils/storage';
+import { forwardLog } from './logger/compat';
 
 // 日志级别
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
@@ -42,61 +43,34 @@ function debouncedSaveLogs(): void {
 
 // 日志记录函数
 export function log(level: LogLevel, message: string, data?: any): void {
+  // 统一经新 logger 输出（含级别阈值短路与脱敏）
+  forwardLog(level, message, data);
+
+  // 保留内存缓存 + 防抖持久化，供应用内日志查看器（getRecentLogs）使用
   const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    level,
-    message,
-    data
-  };
-
-  // 根据不同级别使用不同的控制台方法
-  // 序列化数据对象，避免[object Object]
-  const serializedData = data ? JSON.stringify(data, null, 2) : '';
-
-  switch (level) {
-    case 'DEBUG':
-      console.log(`[${timestamp}] [DEBUG] ${message}`, serializedData);
-      break;
-    case 'INFO':
-      console.info(`[${timestamp}] [INFO] ${message}`, serializedData);
-      break;
-    case 'WARN':
-      console.warn(`[${timestamp}] [WARN] ${message}`, serializedData);
-      break;
-    case 'ERROR':
-      console.error(`[${timestamp}] [ERROR] ${message}`, serializedData);
-      break;
-  }
-
-  // 将日志存储到内存缓存，并异步持久化
   if (!cacheInitialized) {
     initLogsCache();
   }
-  
-  logsCache.push(logEntry);
-  
+
+  logsCache.push({ timestamp, level, message, data });
+
   // 保留最近的日志
   if (logsCache.length > MAX_LOGS) {
     logsCache.splice(0, logsCache.length - MAX_LOGS);
   }
-  
+
   // 防抖保存到Dexie
   debouncedSaveLogs();
 }
 
 // 记录API请求
 export function logApiRequest(endpoint: string, level: LogLevel, data: any): void {
-  // 确保请求数据被完整记录
-  console.log(`API请求详情 [${endpoint}]:`, JSON.stringify(data, null, 2));
   log(level, `API请求 [${endpoint}]`, data);
 }
 
 // 记录API响应
 export function logApiResponse(endpoint: string, statusCode: number, data: any): void {
-  const level = statusCode >= 400 ? 'ERROR' : 'INFO';
-  // 确保响应数据被完整记录
-  console.log(`API响应详情 [${endpoint}] 状态码: ${statusCode}:`, JSON.stringify(data, null, 2));
+  const level: LogLevel = statusCode >= 400 ? 'ERROR' : 'INFO';
   log(level, `API响应 [${endpoint}] 状态码: ${statusCode}`, data);
 }
 
