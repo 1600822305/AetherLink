@@ -1,6 +1,9 @@
 import type { WebDavConfig, WebDavSyncState, WebDavUploadResult, WebDavDownloadResult } from '../../types';
 import { WebDavManagerService } from './WebDavManagerService';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('WebDAV Backup');
 
 /**
  * 自动备份的数据来源。
@@ -48,7 +51,7 @@ export class WebDavBackupService {
       const result = await this.webdavService.checkConnection();
       return result.success;
     } catch (error) {
-      console.error('初始化 WebDAV 服务失败:', error);
+      logger.error('初始化 WebDAV 服务失败:', error);
       return false;
     }
   }
@@ -70,7 +73,7 @@ export class WebDavBackupService {
       const savedState = await getStorageItem('webdav-sync-state');
       return savedState ? { ...defaultState, ...JSON.parse(savedState as string) } : defaultState;
     } catch (error) {
-      console.error('获取同步状态失败:', error);
+      logger.error('获取同步状态失败:', error);
       return defaultState;
     }
   }
@@ -84,7 +87,7 @@ export class WebDavBackupService {
       const newState = { ...currentState, ...updates };
       await setStorageItem('webdav-sync-state', JSON.stringify(newState));
     } catch (error) {
-      console.error('更新同步状态失败:', error);
+      logger.error('更新同步状态失败:', error);
     }
   }
 
@@ -170,7 +173,7 @@ export class WebDavBackupService {
     try {
       return await this.webdavService.listBackupFiles();
     } catch (error) {
-      console.error('获取备份文件列表失败:', error);
+      logger.error('获取备份文件列表失败:', error);
       return [];
     }
   }
@@ -199,13 +202,13 @@ export class WebDavBackupService {
   ): Promise<boolean> {
     // 无效间隔直接视为关闭自动同步，避免 setInterval(0) 造成的高频循环
     if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
-      console.warn('[WebDAV] 自动同步间隔无效，已停止自动同步');
+      logger.warn('自动同步间隔无效，已停止自动同步');
       await this.stopAutoSync();
       return false;
     }
 
     if (!this.backupDataProvider) {
-      console.warn('[WebDAV] 未注册备份数据来源，自动同步将无法上传数据');
+      logger.warn('未注册备份数据来源，自动同步将无法上传数据');
     }
 
     // 幂等启动：先清理旧定时器，避免重复调用造成多个定时器叠加
@@ -275,22 +278,22 @@ export class WebDavBackupService {
   private async performAutoBackup(): Promise<void> {
     // 跳过条件：服务未初始化 / 未注册数据来源 / 已有同步进行中
     if (!this.webdavService) {
-      console.warn('[WebDAV] 自动备份跳过：服务未初始化');
+      logger.warn('自动备份跳过：服务未初始化');
       return;
     }
     if (!this.backupDataProvider) {
-      console.warn('[WebDAV] 自动备份跳过：未注册备份数据来源');
+      logger.warn('自动备份跳过：未注册备份数据来源');
       return;
     }
 
     const { syncing } = await this.getSyncState();
     if (syncing) {
-      console.log('[WebDAV] 自动备份跳过：已有同步任务进行中');
+      logger.debug('自动备份跳过：已有同步任务进行中');
       return;
     }
 
     try {
-      console.log('[WebDAV] 开始执行自动备份...');
+      logger.debug('开始执行自动备份...');
       const backupData = await this.backupDataProvider();
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const fileName = `AetherLink_AutoBackup_${timestamp}.json`;
@@ -298,13 +301,13 @@ export class WebDavBackupService {
       // 复用 backupToWebDav：其内部已统一处理 syncing 状态、lastSyncTime/lastSyncError 与旧备份清理
       const result = await this.backupToWebDav(backupData, fileName);
       if (result.success) {
-        console.log(`[WebDAV] 自动备份成功：${result.fileName}`);
+        logger.debug(`自动备份成功：${result.fileName}`);
       } else {
-        console.error(`[WebDAV] 自动备份失败：${result.error}`);
+        logger.error(`自动备份失败：${result.error}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[WebDAV] 自动备份异常：', message);
+      logger.error('自动备份异常：', message);
       await this.updateSyncState({ syncing: false, lastSyncError: message });
     }
   }
@@ -333,10 +336,10 @@ export class WebDavBackupService {
       
       for (const file of filesToDelete) {
         await this.deleteBackupFile(file.fileName);
-        console.log(`已删除旧备份文件: ${file.fileName}`);
+        logger.debug(`已删除旧备份文件: ${file.fileName}`);
       }
     } catch (error) {
-      console.error('清理旧备份失败:', error);
+      logger.error('清理旧备份失败:', error);
     }
   }
 
@@ -349,7 +352,7 @@ export class WebDavBackupService {
       const result = await service.checkConnection();
       return result.success;
     } catch (error) {
-      console.error('检查 WebDAV 连接失败:', error);
+      logger.error('检查 WebDAV 连接失败:', error);
       return false;
     }
   }

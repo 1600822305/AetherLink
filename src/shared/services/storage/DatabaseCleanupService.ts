@@ -1,4 +1,7 @@
 import { dexieStorage } from './DexieStorageService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('DatabaseCleanupService');
 
 export class DatabaseCleanupService {
   /**
@@ -6,7 +9,7 @@ export class DatabaseCleanupService {
    */
   static async cleanupDatabase(): Promise<void> {
     try {
-      console.log('[DatabaseCleanupService] 开始清理旧数据');
+      logger.debug('开始清理旧数据');
       
       // 清理旧消息和话题
       await dexieStorage.deleteAllMessages();
@@ -15,14 +18,14 @@ export class DatabaseCleanupService {
       // 确保消息块表存在
       await dexieStorage.createMessageBlocksTable();
       
-      console.log('[DatabaseCleanupService] 数据清理完成，准备使用新系统');
+      logger.debug('数据清理完成，准备使用新系统');
       
       // 设置标记，表示已完成清理
       localStorage.setItem('system_upgraded_to_blocks', 'true');
       
       return;
     } catch (error) {
-      console.error('[DatabaseCleanupService] 清理数据失败:', error);
+      logger.error('清理数据失败:', error);
       throw error;
     }
   }

@@ -3,6 +3,9 @@ import type { ChatTopic } from '../../types';
 import { generateMessageId } from '../../utils';
 import { handleError } from '../../utils/error';
 import { dexieStorage } from './DexieStorageService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('DataRepairService');
 
 /**
  * 统一数据修复服务 - 整合所有数据修复功能
@@ -25,7 +28,7 @@ export class DataRepairService {
     orphanTopicsRemoved: number;
     messagesRepaired: number;
   }> {
-    console.log('[DataRepairService] 开始统一数据修复');
+    logger.debug('开始统一数据修复');
 
     const {
       fixAssistantTopicRelations = true,
@@ -61,7 +64,7 @@ export class DataRepairService {
         result.messagesRepaired = migrateResult.repaired;
       }
 
-      console.log('[DataRepairService] 统一数据修复完成', result);
+      logger.debug('统一数据修复完成', result);
       return result;
     } catch (error) {
       handleError(error, 'DataRepairService.repairAllData', {
@@ -78,14 +81,14 @@ export class DataRepairService {
    * 返回是否存在一致性问题
    */
   static async checkDataConsistency(): Promise<boolean> {
-    console.log('[DataRepairService] 开始检查数据一致性');
+    logger.debug('开始检查数据一致性');
 
     try {
       // 获取所有助手和话题
       const assistants = await DataRepository.assistants.getAll();
       const topics = await DataRepository.topics.getAll();
 
-      console.log(`[DataRepairService] 找到 ${assistants.length} 个助手和 ${topics.length} 个话题`);
+      logger.debug(`找到 ${assistants.length} 个助手和 ${topics.length} 个话题`);
 
       // 检查助手的topicIds和话题的assistantId是否一致
       let inconsistencies = 0;
@@ -93,7 +96,7 @@ export class DataRepairService {
       // 检查每个话题
       for (const topic of topics) {
         if (!topic.assistantId) {
-          console.log(`[DataRepairService] 话题 ${topic.id} 没有assistantId字段`);
+          logger.debug(`话题 ${topic.id} 没有assistantId字段`);
           inconsistencies++;
           continue;
         }
@@ -101,14 +104,14 @@ export class DataRepairService {
         // 查找对应的助手
         const assistant = assistants.find(a => a.id === topic.assistantId);
         if (!assistant) {
-          console.log(`[DataRepairService] 话题 ${topic.id} 的助手 ${topic.assistantId} 不存在`);
+          logger.debug(`话题 ${topic.id} 的助手 ${topic.assistantId} 不存在`);
           inconsistencies++;
           continue;
         }
 
         // 检查助手的topicIds是否包含该话题
         if (!assistant.topicIds?.includes(topic.id)) {
-          console.log(`[DataRepairService] 助手 ${assistant.id} 的topicIds不包含话题 ${topic.id}`);
+          logger.debug(`助手 ${assistant.id} 的topicIds不包含话题 ${topic.id}`);
           inconsistencies++;
         }
       }
@@ -116,7 +119,7 @@ export class DataRepairService {
       // 检查每个助手的topicIds
       for (const assistant of assistants) {
         if (!assistant.topicIds || !Array.isArray(assistant.topicIds)) {
-          console.log(`[DataRepairService] 助手 ${assistant.id} 没有有效的topicIds数组`);
+          logger.debug(`助手 ${assistant.id} 没有有效的topicIds数组`);
           inconsistencies++;
           continue;
         }
@@ -125,23 +128,23 @@ export class DataRepairService {
         for (const topicId of assistant.topicIds) {
           const topic = topics.find(t => t.id === topicId);
           if (!topic) {
-            console.log(`[DataRepairService] 助手 ${assistant.id} 的topicId ${topicId} 对应的话题不存在`);
+            logger.debug(`助手 ${assistant.id} 的topicId ${topicId} 对应的话题不存在`);
             inconsistencies++;
             continue;
           }
 
           // 检查话题的assistantId是否指向当前助手
           if (topic.assistantId !== assistant.id) {
-            console.log(`[DataRepairService] 话题 ${topicId} 的assistantId (${topic.assistantId}) 与助手ID (${assistant.id}) 不一致`);
+            logger.debug(`话题 ${topicId} 的assistantId (${topic.assistantId}) 与助手ID (${assistant.id}) 不一致`);
             inconsistencies++;
           }
         }
       }
 
-      console.log(`[DataRepairService] 检查完成，发现 ${inconsistencies} 个数据一致性问题`);
+      logger.debug(`检查完成，发现 ${inconsistencies} 个数据一致性问题`);
       return inconsistencies > 0;
     } catch (error) {
-      console.error('[DataRepairService] 检查数据一致性失败:', error);
+      logger.error('检查数据一致性失败:', error);
       return true; // 如果发生错误，也认为需要修复
     }
   }
@@ -152,7 +155,7 @@ export class DataRepairService {
    * @returns 修复结果
    */
   static async repairDuplicateMessages(topicId?: string): Promise<{fixed: number, total: number}> {
-    console.log(`[DataRepairService] 修复重复消息 ${topicId ? `话题ID: ${topicId}` : '所有话题'}`);
+    logger.debug(`修复重复消息 ${topicId ? `话题ID: ${topicId}` : '所有话题'}`);
 
     let fixed = 0;
     let total = 0;
@@ -163,7 +166,7 @@ export class DataRepairService {
         ? [await DataRepository.topics.getById(topicId)].filter(Boolean) as ChatTopic[]
         : await DataRepository.topics.getAll();
 
-      console.log(`[DataRepairService] 开始处理 ${topics.length} 个话题`);
+      logger.debug(`开始处理 ${topics.length} 个话题`);
 
       // 统一架构：遍历话题，从 messages 表修复重复消息
       for (const topic of topics) {
@@ -192,7 +195,7 @@ export class DataRepairService {
             const originalId = message.id;
             message.id = generateMessageId();
             await DataRepository.messages.save(message);
-            console.log(`[DataRepairService] 修复重复消息ID: ${originalId} -> ${message.id}`);
+            logger.debug(`修复重复消息ID: ${originalId} -> ${message.id}`);
             hasChanges = true;
             fixed++;
           }
@@ -204,11 +207,11 @@ export class DataRepairService {
         if (hasChanges) {
           topic.messageIds = messages.map(m => m.id);
           await DataRepository.topics.save(topic);
-          console.log(`[DataRepairService] 话题 ${topic.id} 修复了消息`);
+          logger.debug(`话题 ${topic.id} 修复了消息`);
         }
       }
 
-      console.log(`[DataRepairService] 修复完成: 总计 ${fixed} 条消息被修复，共 ${total} 条消息`);
+      logger.debug(`修复完成: 总计 ${fixed} 条消息被修复，共 ${total} 条消息`);
       return { fixed, total };
 
     } catch (error) {
@@ -226,7 +229,7 @@ export class DataRepairService {
    * @returns 修复结果
    */
   static async repairMessagesData(): Promise<{repaired: number}> {
-    console.log('[DataRepairService] 开始修复消息数据...');
+    logger.debug('开始修复消息数据...');
 
     let totalRepaired = 0;
 
@@ -257,14 +260,14 @@ export class DataRepairService {
           topic.messageIds = [...validMessageIds, ...missingIds];
           await DataRepository.topics.save(topic);
           totalRepaired += missingIds.length;
-          console.log(`[DataRepairService] 话题 ${topic.id} 同步了 ${missingIds.length} 条消息ID`);
+          logger.debug(`话题 ${topic.id} 同步了 ${missingIds.length} 条消息ID`);
         }
       }
 
-      console.log(`[DataRepairService] 消息数据修复完成，共修复 ${totalRepaired} 条消息`);
+      logger.debug(`消息数据修复完成，共修复 ${totalRepaired} 条消息`);
       return { repaired: totalRepaired };
     } catch (error) {
-      console.error('[DataRepairService] 修复消息数据失败:', error);
+      logger.error('修复消息数据失败:', error);
       throw error;
     }
   }
@@ -280,13 +283,13 @@ export class DataRepairService {
     totalTopics: number;
   }> {
     try {
-      console.log('[DataRepairService] 开始修复所有助手和话题的关联关系');
+      logger.debug('开始修复所有助手和话题的关联关系');
 
       // 获取所有助手和话题
       const assistants = await DataRepository.assistants.getAll();
       const topics = await DataRepository.topics.getAll();
 
-      console.log(`[DataRepairService] 找到 ${assistants.length} 个助手和 ${topics.length} 个话题`);
+      logger.debug(`找到 ${assistants.length} 个助手和 ${topics.length} 个话题`);
 
       // 修复每个话题的assistantId
       for (const topic of topics) {
@@ -297,7 +300,7 @@ export class DataRepairService {
           );
 
           if (assistant) {
-            console.log(`[DataRepairService] 为话题 ${topic.id} 设置assistantId: ${assistant.id}`);
+            logger.debug(`为话题 ${topic.id} 设置assistantId: ${assistant.id}`);
             topic.assistantId = assistant.id;
             await DataRepository.topics.save(topic);
           }
@@ -312,7 +315,7 @@ export class DataRepairService {
         // 更新助手的topicIds数组
         assistant.topicIds = assistantTopics.map(t => t.id);
 
-        console.log(`[DataRepairService] 更新助手 ${assistant.id} 的topicIds，数量: ${assistant.topicIds.length}`);
+        logger.debug(`更新助手 ${assistant.id} 的topicIds，数量: ${assistant.topicIds.length}`);
 
         await DataRepository.assistants.save(assistant);
       }
@@ -320,7 +323,7 @@ export class DataRepairService {
       // 自动清理虚空话题（引用了不存在的助手的话题）
       let orphanTopicsRemoved = 0;
       if (autoCleanOrphanTopics) {
-        console.log('[DataRepairService] 开始清理虚空话题（引用了不存在的助手的话题）');
+        logger.debug('开始清理虚空话题（引用了不存在的助手的话题）');
 
         // 找出所有虚空话题
         const orphanTopics = topics.filter(topic => {
@@ -329,33 +332,33 @@ export class DataRepairService {
         });
 
         if (orphanTopics.length > 0) {
-          console.log(`[DataRepairService] 发现 ${orphanTopics.length} 个虚空话题，开始清理`);
+          logger.debug(`发现 ${orphanTopics.length} 个虚空话题，开始清理`);
 
           // 删除每个虚空话题
           for (const topic of orphanTopics) {
             try {
               await DataRepository.topics.delete(topic.id);
-              console.log(`[DataRepairService] 已删除虚空话题: ${topic.id}，引用的不存在助手: ${topic.assistantId}`);
+              logger.debug(`已删除虚空话题: ${topic.id}，引用的不存在助手: ${topic.assistantId}`);
               orphanTopicsRemoved++;
             } catch (error) {
-              console.error(`[DataRepairService] 删除虚空话题 ${topic.id} 失败:`, error);
+              logger.error(`删除虚空话题 ${topic.id} 失败:`, error);
             }
           }
 
-          console.log(`[DataRepairService] 虚空话题清理完成，共删除 ${orphanTopicsRemoved} 个话题`);
+          logger.debug(`虚空话题清理完成，共删除 ${orphanTopicsRemoved} 个话题`);
         } else {
-          console.log('[DataRepairService] 未发现虚空话题，无需清理');
+          logger.debug('未发现虚空话题，无需清理');
         }
       }
 
-      console.log('[DataRepairService] 修复完成');
+      logger.debug('修复完成');
       return {
         fixed: assistants.length, // 修复的助手数量
         orphanTopicsRemoved,
         totalTopics: topics.length - orphanTopicsRemoved
       };
     } catch (error) {
-      console.error('[DataRepairService] 修复失败:', error);
+      logger.error('修复失败:', error);
       return {
         fixed: 0,
         orphanTopicsRemoved: 0,
@@ -374,7 +377,7 @@ export class DataRepairService {
     missingMessages: number;
     repaired: number;
   }> {
-    console.log('[DataRepairService] 开始检查消息完整性...');
+    logger.debug('开始检查消息完整性...');
     
     const result = {
       orphanMessages: 0,  // 孤立消息（在messages表但不在任何topic.messageIds中）
@@ -387,7 +390,7 @@ export class DataRepairService {
       const topics = await dexieStorage.getAllTopics();
       const allMessages = await dexieStorage.messages.toArray();
       
-      console.log(`[DataRepairService] 找到 ${topics.length} 个话题, ${allMessages.length} 条消息`);
+      logger.debug(`找到 ${topics.length} 个话题, ${allMessages.length} 条消息`);
       
       // 2. 构建消息ID集合
       const messageIdsInTopics = new Set<string>();
@@ -403,7 +406,7 @@ export class DataRepairService {
       for (const msgId of messageIdsInTable) {
         if (!messageIdsInTopics.has(msgId)) {
           result.orphanMessages++;
-          console.log(`[DataRepairService] 发现孤立消息: ${msgId}`);
+          logger.debug(`发现孤立消息: ${msgId}`);
         }
       }
       
@@ -420,7 +423,7 @@ export class DataRepairService {
           } else {
             result.missingMessages++;
             hasInvalidIds = true;
-            console.log(`[DataRepairService] 话题 ${topic.id} 引用了不存在的消息: ${msgId}`);
+            logger.debug(`话题 ${topic.id} 引用了不存在的消息: ${msgId}`);
           }
         }
         
@@ -429,15 +432,15 @@ export class DataRepairService {
           topic.messageIds = validMessageIds;
           await dexieStorage.saveTopic(topic);
           result.repaired++;
-          console.log(`[DataRepairService] 已修复话题 ${topic.id} 的消息引用`);
+          logger.debug(`已修复话题 ${topic.id} 的消息引用`);
         }
       }
       
-      console.log('[DataRepairService] 消息完整性检查完成:', result);
+      logger.debug('消息完整性检查完成:', result);
       return result;
       
     } catch (error) {
-      console.error('[DataRepairService] 消息完整性检查失败:', error);
+      logger.error('消息完整性检查失败:', error);
       return result;
     }
   }
