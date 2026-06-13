@@ -17,7 +17,7 @@ const visionAllowedModels = [
   'gemini-1\\.5',
   'gemini-2\\.0',
   'gemini-2\\.5',
-  'gemini-3-(?:flash|pro)(?:-preview)?',
+  'gemini-3(?:\\.\\d)?-(?:flash|pro)(?:-preview)?',
   'gemini-(flash|pro|flash-lite)-latest',
   'gemini-exp',
   'claude-3',
@@ -30,6 +30,7 @@ const visionAllowedModels = [
   'qwen2-vl',
   'qwen2.5-vl',
   'qwen3-vl',
+  'qwen3\\.[5-9](?:-[\\w-]+)?',
   'qwen2.5-omni',
   'qwen3-omni(?:-[\\w-]+)?',
   'qvq',
@@ -47,9 +48,11 @@ const visionAllowedModels = [
   'o3(?:-[\\w-]+)?',
   'o4(?:-[\\w-]+)?',
   'deepseek-vl(?:[\\w-]+)?',
+  'kimi-k2\\.[56](?:-[\\w-]+)?',
   'kimi-latest',
-  'gemma-3(?:-[\\w-]+)',
+  'gemma-?[3-4](?:[-.\\w]+)?',
   'doubao-seed-1[.-][68](?:-[\\w-]+)?',
+  'doubao-seed-2[.-]0(?:-[\\w-]+)?',
   'doubao-seed-code(?:-[\\w-]+)?',
   'kimi-thinking-preview',
   `gemma3(?:[-:\\w]+)?`,
@@ -61,10 +64,12 @@ const visionAllowedModels = [
   'qwen-omni(?:-[\\w-]+)?',
   'mistral-large-(2512|latest)',
   'mistral-medium-(2508|latest)',
-  'mistral-small-(2506|latest)',
+  'mistral-small-(2506|2603|latest)',
   'minimax-m3(?:-[\\w-]+)?',
   'mimo-vl(?:-[\\w-]+)?',
-  'mimo-v2(?:\\.\\d+)?(?:-[\\w-]+)?'
+  'mimo-v2\\.5(?!-)',
+  'mimo-v2-omni(?:-[\\w-]+)?',
+  'glm-5v-turbo'
 ];
 
 // 视觉模型排除列表
@@ -100,7 +105,7 @@ const IMAGE_ENHANCEMENT_MODELS = [
   'gpt-image-1',
   'gemini-2.5-flash-image(?:-[\\w-]+)?',
   'gemini-2.0-flash-preview-image-generation',
-  'gemini-3(?:\\.\\d+)?-pro-image(?:-[\\w-]+)?'
+  'gemini-3(?:\\.\\d+)?-(?:flash|pro)-image(?:-[\\w-]+)?'
 ];
 
 const IMAGE_ENHANCEMENT_MODELS_REGEX = new RegExp(IMAGE_ENHANCEMENT_MODELS.join('|'), 'i');
