@@ -4,6 +4,9 @@ import { getStorageItem, setStorageItem } from '../../utils/storage';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { isTauri } from '../../utils/platformDetection';
 import { testTauriProxyConnection } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('networkProxySlice');
 
 /**
  * 代理类型枚举
@@ -126,7 +129,7 @@ export const loadNetworkProxySettings = createAsyncThunk(
       }
       return null;
     } catch (e) {
-      console.error('Failed to load network proxy settings:', e);
+      logger.error('Failed to load network proxy settings:', e);
       return null;
     }
   }
@@ -145,7 +148,7 @@ export const saveNetworkProxySettings = createAsyncThunk(
       });
       return true;
     } catch (e) {
-      console.error('Failed to save network proxy settings:', e);
+      logger.error('Failed to save network proxy settings:', e);
       return false;
     }
   }
@@ -166,7 +169,7 @@ export const testProxyConnection = createAsyncThunk(
       
       // Tauri 桌面端使用专用测试函数
       if (isTauri()) {
-        console.log('[networkProxySlice] Tauri 桌面端代理测试');
+        logger.debug('Tauri 桌面端代理测试');
         const result = await testTauriProxyConnection(
           {
             enabled: true,
@@ -182,7 +185,7 @@ export const testProxyConnection = createAsyncThunk(
       }
       
       // 移动端使用 CorsBypass 插件
-      console.log('[networkProxySlice] 移动端代理测试 (CorsBypass)');
+      logger.debug('移动端代理测试 (CorsBypass)');
       const result = await CorsBypass.testProxy(
         {
           enabled: true,
@@ -198,7 +201,7 @@ export const testProxyConnection = createAsyncThunk(
 
       return result as ProxyTestResult;
     } catch (error: any) {
-      console.error('[networkProxySlice] 代理测试失败:', error);
+      logger.error('代理测试失败:', error);
       return rejectWithValue({
         success: false,
         error: error.message || '代理测试失败',
@@ -219,7 +222,7 @@ export const applyGlobalProxy = createAsyncThunk(
       // Tauri 桌面端：代理配置已保存到 storage，universalFetch 会自动读取
       // 不需要额外操作，但我们记录日志以便调试
       if (isTauri()) {
-        console.log('[networkProxySlice] Tauri 桌面端代理配置已更新:', {
+        logger.debug('Tauri 桌面端代理配置已更新:', {
           enabled: config.enabled,
           type: config.type,
           host: config.host,
@@ -246,7 +249,7 @@ export const applyGlobalProxy = createAsyncThunk(
 
       return true;
     } catch (error: any) {
-      console.error('Failed to apply global proxy:', error);
+      logger.error('Failed to apply global proxy:', error);
       return rejectWithValue(error.message || '应用代理失败');
     }
   }

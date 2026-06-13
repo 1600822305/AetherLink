@@ -2,6 +2,9 @@
  * 助手信息获取辅助函数
  */
 import { dexieStorage } from '../../../../services/storage/DexieStorageService';
+import { createLogger } from '../../../../services/infra/logger';
+
+const logger = createLogger('processAssistantResponse');
 
 /**
  * 获取助手信息
@@ -11,7 +14,7 @@ export async function fetchAssistantInfo(topicId: string): Promise<any> {
     const topic = await dexieStorage.getTopic(topicId);
     if (topic?.assistantId) {
       const assistant = await dexieStorage.getAssistant(topic.assistantId);
-      console.log(`[processAssistantResponse] 获取到助手信息:`, {
+      logger.debug(`获取到助手信息:`, {
         id: assistant?.id,
         name: assistant?.name,
         temperature: assistant?.temperature,
@@ -22,7 +25,7 @@ export async function fetchAssistantInfo(topicId: string): Promise<any> {
       return assistant;
     }
   } catch (error) {
-    console.error('[processAssistantResponse] 获取助手信息失败:', error);
+    logger.error('获取助手信息失败:', error);
   }
   return null;
 }

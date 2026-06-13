@@ -4,6 +4,9 @@ import { nanoid } from '../../utils';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
 import { makeSerializable, diagnoseSerializationIssues } from '../../utils/serialization';
 import { dexieStorage } from '../../services/storage/DexieStorageService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('groupsSlice');
 
 // 类型定义
 type AppDispatch = any;
@@ -37,7 +40,7 @@ const saveGroupsToStorage = async (groups: Group[]): Promise<void> => {
     const { hasCircularRefs, nonSerializableProps } = diagnoseSerializationIssues(groups);
 
     if (hasCircularRefs || nonSerializableProps.length > 0) {
-      console.warn('分组数据存在序列化问题，将尝试修复：', {
+      logger.warn('分组数据存在序列化问题，将尝试修复：', {
         hasCircularRefs,
         nonSerializableProps
       });
@@ -54,12 +57,12 @@ const saveGroupsToStorage = async (groups: Group[]): Promise<void> => {
 
 
   } catch (error) {
-    console.error('保存分组失败:', error);
+    logger.error('保存分组失败:', error);
     // 记录更详细的错误信息，帮助诊断问题
     if (error instanceof Error) {
-      console.error('错误类型:', error.name);
-      console.error('错误消息:', error.message);
-      console.error('错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
   }
 };
@@ -70,14 +73,14 @@ const saveGroupsToStorage = async (groups: Group[]): Promise<void> => {
 const saveMapToStorage = async (key: string, map: Record<string, any>): Promise<void> => {
   try {
     if (process.env.NODE_ENV === 'development') {
-      console.log(`开始保存${key}数据...`);
+      logger.debug(`开始保存${key}数据...`);
     }
 
     // 先诊断数据是否存在序列化问题
     const { hasCircularRefs, nonSerializableProps } = diagnoseSerializationIssues(map);
 
     if (hasCircularRefs || nonSerializableProps.length > 0) {
-      console.warn(`${key}数据存在序列化问题，将尝试修复：`, {
+      logger.warn(`${key}数据存在序列化问题，将尝试修复：`, {
         hasCircularRefs,
         nonSerializableProps
       });
@@ -93,15 +96,15 @@ const saveMapToStorage = async (key: string, map: Record<string, any>): Promise<
     await setStorageItem(key, serializableMap);
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`${key}数据保存成功`);
+      logger.debug(`${key}数据保存成功`);
     }
   } catch (error) {
-    console.error(`保存${key}失败:`, error);
+    logger.error(`保存${key}失败:`, error);
     // 记录更详细的错误信息
     if (error instanceof Error) {
-      console.error('错误类型:', error.name);
-      console.error('错误消息:', error.message);
-      console.error('错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
   }
 };
@@ -127,7 +130,7 @@ const initializeGroups = async (dispatch: any) => {
         const firstValue = Object.values(savedTopicGroupMap)[0];
         if (typeof firstValue === 'string') {
           // 这是旧格式，需要迁移
-          console.log('检测到旧格式的topicGroupMap，开始迁移...');
+          logger.debug('检测到旧格式的topicGroupMap，开始迁移...');
           const oldMap = savedTopicGroupMap as unknown as Record<string, string>;
           const newMap: Record<string, Record<string, string>> = {};
 
@@ -147,12 +150,12 @@ const initializeGroups = async (dispatch: any) => {
 
           // 保存迁移后的数据
           await dexieStorage.saveSetting('topicGroupMap', newMap);
-          console.log('topicGroupMap迁移完成');
+          logger.debug('topicGroupMap迁移完成');
         }
       }
 
     } catch (dexieError) {
-      console.warn('从dexieStorage直接加载分组数据失败，尝试使用getStorageItem:', dexieError);
+      logger.warn('从dexieStorage直接加载分组数据失败，尝试使用getStorageItem:', dexieError);
 
       // 如果直接加载失败，尝试使用getStorageItem
       savedGroups = await getStorageItem<Group[]>('groups');
@@ -185,11 +188,11 @@ const initializeGroups = async (dispatch: any) => {
 
     dispatch(loadGroupsSuccess(payload));
   } catch (error) {
-    console.error('加载分组数据失败:', error);
+    logger.error('加载分组数据失败:', error);
     if (error instanceof Error) {
-      console.error('错误类型:', error.name);
-      console.error('错误消息:', error.message);
-      console.error('错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
   }
 };
@@ -446,7 +449,7 @@ export const saveGroups = () => async (_dispatch: AppDispatch, getState: () => R
     await saveMapToStorage('topicGroupMap', topicGroupMap);
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.error('保存分组数据失败:', error);
+      logger.error('保存分组数据失败:', error);
     }
   }
 };

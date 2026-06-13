@@ -2,6 +2,9 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { WebSearchSettings, WebSearchCustomProvider, WebSearchProvider, WebSearchProviderConfig, SearchEngine } from '../../types';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('webSearchSlice');
 
 // 存储键名
 const STORAGE_KEY = 'webSearchSettings';
@@ -99,7 +102,7 @@ const loadFromStorage = async (): Promise<WebSearchSettings> => {
       };
     }
   } catch (error) {
-    console.error('Failed to load webSearchSettings from IndexedDB', error);
+    logger.error('Failed to load webSearchSettings from IndexedDB', error);
   }
 
   // 默认初始状态
@@ -187,7 +190,7 @@ export const initializeWebSearchSettings = async () => {
     // 这个函数会在store初始化后被调用
     return settings;
   } catch (err) {
-    console.error('加载网络搜索设置失败:', err);
+    logger.error('加载网络搜索设置失败:', err);
     return null;
   } finally {
     isInitialized = true;
@@ -235,7 +238,7 @@ const saveToStorage = (state: WebSearchSettings) => {
   };
 
   setStorageItem(STORAGE_KEY, serializableState).catch(error => {
-    console.error('Failed to save webSearchSettings to IndexedDB', error);
+    logger.error('Failed to save webSearchSettings to IndexedDB', error);
   });
 };
 

@@ -19,6 +19,10 @@ import type { AssistantRegex } from '../../../types/Assistant';
 import { searchRelevantMemories, buildMemoryPrompt, isMemoryEnabled, isMemoryAllowedForAssistant, setActiveMemoryAssistant } from './memoryIntegration';
 import { SkillPromptBuilder } from '../../../services/skills/SkillPromptBuilder';
 import { SkillManager } from '../../../services/skills/SkillManager';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('prepareMessagesForApi');
+const knowledgeLogger = logger.withContext('performKnowledgeSearchIfNeeded');
 
 /** 知识库搜索引用，用于注入到当前用户提问 */
 export interface KnowledgeSearchReference {
@@ -48,7 +52,7 @@ export const performKnowledgeSearchIfNeeded = async (
   assistantMessageId: string
 ): Promise<KnowledgeSearchReference[] | null> => {
   try {
-    console.log('[performKnowledgeSearchIfNeeded] 开始检查知识库选择状态...');
+    knowledgeLogger.debug('开始检查知识库选择状态...');
 
     const storeState = store.getState();
     // 优先使用多选列表，兼容旧的单选
@@ -56,7 +60,7 @@ export const performKnowledgeSearchIfNeeded = async (
     const contextData = getKnowledgeSelectionFromStore(storeState);
 
     if (selectedKBs.length === 0 && !contextData) {
-      console.log('[performKnowledgeSearchIfNeeded] 没有选中知识库，直接返回');
+      knowledgeLogger.debug('没有选中知识库，直接返回');
       return null;
     }
 
@@ -67,7 +71,7 @@ export const performKnowledgeSearchIfNeeded = async (
 
     if (knowledgeBasesToSearch.length === 0) return null;
 
-    console.log(`[performKnowledgeSearchIfNeeded] 检测到 ${knowledgeBasesToSearch.length} 个知识库，开始并行搜索...`);
+    knowledgeLogger.debug(`检测到 ${knowledgeBasesToSearch.length} 个知识库，开始并行搜索...`);
 
     // 设置助手消息状态为搜索中
     store.dispatch(newMessagesActions.updateMessage({
@@ -80,7 +84,7 @@ export const performKnowledgeSearchIfNeeded = async (
     // 获取话题消息
     const messages = await dexieStorage.getTopicMessages(topicId);
     if (!messages || messages.length === 0) {
-      console.warn('[performKnowledgeSearchIfNeeded] 无法获取话题消息');
+      knowledgeLogger.warn('无法获取话题消息');
       return null;
     }
 
@@ -90,18 +94,18 @@ export const performKnowledgeSearchIfNeeded = async (
       .pop();
 
     if (!userMessage) {
-      console.warn('[performKnowledgeSearchIfNeeded] 未找到用户消息');
+      knowledgeLogger.warn('未找到用户消息');
       return null;
     }
 
     // 获取用户消息的文本内容
     const userContent = getMainTextContent(userMessage);
     if (!userContent) {
-      console.warn('[performKnowledgeSearchIfNeeded] 用户消息内容为空');
+      knowledgeLogger.warn('用户消息内容为空');
       return null;
     }
 
-    console.log('[performKnowledgeSearchIfNeeded] 用户消息内容:', userContent);
+    knowledgeLogger.debug('用户消息内容:', userContent);
 
     // 并行搜索所有选中的知识库
     const knowledgeService = MobileKnowledgeService.getInstance();
@@ -116,7 +120,7 @@ export const performKnowledgeSearchIfNeeded = async (
         });
         return { kb, results };
       } catch (err) {
-        console.warn(`[performKnowledgeSearchIfNeeded] 知识库 "${kb.name}" 搜索失败:`, err);
+        knowledgeLogger.warn(`知识库 "${kb.name}" 搜索失败:`, err);
         return { kb, results: [] };
       }
     });
@@ -146,7 +150,7 @@ export const performKnowledgeSearchIfNeeded = async (
     allReferences.forEach((ref, i) => { ref.id = i + 1; });
 
     const totalResults = allReferences.length;
-    console.log(`[performKnowledgeSearchIfNeeded] 并行搜索完成: ${knowledgeBasesToSearch.length} 个知识库, ${totalResults} 个结果`);
+    knowledgeLogger.debug(`并行搜索完成: ${knowledgeBasesToSearch.length} 个知识库, ${totalResults} 个结果`);
 
     if (totalResults > 0) {
       // 发送知识库搜索完成事件
@@ -165,7 +169,7 @@ export const performKnowledgeSearchIfNeeded = async (
 
     return totalResults > 0 ? allReferences : null;
   } catch (error) {
-    console.error('[performKnowledgeSearchIfNeeded] 知识库搜索失败:', error);
+    knowledgeLogger.error('知识库搜索失败:', error);
     store.dispatch(clearSelectedKnowledgeBase());
     return null;
   }
@@ -181,17 +185,17 @@ export const prepareMessagesForApi = async (
     knowledgeReferences?: KnowledgeSearchReference[]; // 提前搜索好的知识库引用，注入到当前用户提问
   }
 ) => {
-  console.log('[prepareMessagesForApi] 开始准备API消息', { topicId, assistantMessageId });
+  logger.debug('开始准备API消息', { topicId, assistantMessageId });
 
   // 获取上下文设置（类似 Roo Code 的 manageContext）
   const { contextCount, contextWindowSize, maxOutputTokens } = await getContextSettings();
-  console.log(`[prepareMessagesForApi] 上下文设置: contextCount=${contextCount}, contextWindowSize=${contextWindowSize}, maxOutputTokens=${maxOutputTokens}`);
+  logger.debug(`上下文设置: contextCount=${contextCount}, contextWindowSize=${contextWindowSize}, maxOutputTokens=${maxOutputTokens}`);
 
   // 3. 获取包含content字段的消息
   // 优先使用传入的 messages，避免重复查询数据库
   const messages = options?.messages || await dexieStorage.getTopicMessages(topicId);
   if (options?.messages) {
-    console.log(`[prepareMessagesForApi] 使用缓存的消息列表，消息数: ${messages.length}`);
+    logger.debug(`使用缓存的消息列表，消息数: ${messages.length}`);
   }
 
   // messages 已按 topic.messageIds 插入顺序排列（getTopicMessages），无需再按时间戳排序
@@ -221,7 +225,7 @@ export const prepareMessagesForApi = async (
   // 如果找到了 clear 消息，只保留 clear 消息之后的消息
   if (clearIndex !== -1) {
     contextFilteredMessages = contextFilteredMessages.slice(clearIndex + 1);
-    console.log(`[prepareMessagesForApi] 发现 clear 消息，过滤后消息数: ${contextFilteredMessages.length}`);
+    logger.debug(`发现 clear 消息，过滤后消息数: ${contextFilteredMessages.length}`);
   }
 
   // 然后应用 contextCount 限制（使用 takeRight 逻辑）
@@ -232,7 +236,7 @@ export const prepareMessagesForApi = async (
     ? contextFilteredMessages  // 无限制
     : contextFilteredMessages.slice(-actualMessageCount);
   
-  console.log(`[prepareMessagesForApi] 消息轮数限制: 原始消息数=${messages.length}, 过滤后消息数=${contextFilteredMessages.length}, 限制后消息数=${limitedMessages.length}, 设置轮数=${contextCount}`);
+  logger.debug(`消息轮数限制: 原始消息数=${messages.length}, 过滤后消息数=${contextFilteredMessages.length}, 限制后消息数=${limitedMessages.length}, 设置轮数=${contextCount}`);
 
   // 类似 Roo Code：如果设置了上下文窗口大小，应用 Token 限制
   if (contextWindowSize > 0) {
@@ -244,7 +248,7 @@ export const prepareMessagesForApi = async (
     // 只有当 allowedTokens 为正数时才进行限制
     if (allowedTokens > 0) {
       let currentTokens = estimateMessagesTokenCount(limitedMessages);
-      console.log(`[prepareMessagesForApi] Token 检查: ${currentTokens}/${allowedTokens} (窗口: ${contextWindowSize})`);
+      logger.debug(`Token 检查: ${currentTokens}/${allowedTokens} (窗口: ${contextWindowSize})`);
       
       // 如果超出限制，进行滑动窗口截断（最多尝试 10 次，避免无限循环）
       let attempts = 0;
@@ -255,16 +259,16 @@ export const prepareMessagesForApi = async (
         
         // 如果消息数没有减少，退出循环
         if (limitedMessages.length >= prevLength) {
-          console.log(`[prepareMessagesForApi] 无法继续截断，退出`);
+          logger.debug(`无法继续截断，退出`);
           break;
         }
         
         currentTokens = estimateMessagesTokenCount(limitedMessages);
-        console.log(`[prepareMessagesForApi] 滑动窗口截断后: Token=${currentTokens}/${allowedTokens}, 消息数=${limitedMessages.length}`);
+        logger.debug(`滑动窗口截断后: Token=${currentTokens}/${allowedTokens}, 消息数=${limitedMessages.length}`);
         attempts++;
       }
     } else {
-      console.log(`[prepareMessagesForApi] 跳过 Token 限制: allowedTokens=${allowedTokens} (窗口太小或输出 Token 太大)`);
+      logger.debug(`跳过 Token 限制: allowedTokens=${allowedTokens} (窗口太小或输出 Token 太大)`);
     }
   }
 
@@ -294,14 +298,14 @@ export const prepareMessagesForApi = async (
     let enabledSkills: import('../../../types/Skill').Skill[] = [];
     try {
       if (assistant.skillIds?.length) {
-        console.log(`[prepareMessagesForApi] 助手有 ${assistant.skillIds.length} 个绑定技能 ID:`, assistant.skillIds);
+        logger.debug(`助手有 ${assistant.skillIds.length} 个绑定技能 ID:`, assistant.skillIds);
         enabledSkills = await SkillManager.getSkillsForAssistant(assistant.id);
-        console.log(`[prepareMessagesForApi] 获取到 ${enabledSkills.length} 个已启用技能:`, enabledSkills.map(s => s.name));
+        logger.debug(`获取到 ${enabledSkills.length} 个已启用技能:`, enabledSkills.map(s => s.name));
       } else {
-        console.log(`[prepareMessagesForApi] 助手没有绑定技能 (skillIds=${JSON.stringify(assistant.skillIds)})`);
+        logger.debug(`助手没有绑定技能 (skillIds=${JSON.stringify(assistant.skillIds)})`);
       }
     } catch (error) {
-      console.warn('[prepareMessagesForApi] 获取技能信息失败，降级到无技能模式:', error);
+      logger.warn('获取技能信息失败，降级到无技能模式:', error);
     }
 
     // 使用 SkillPromptBuilder 统一组装 system prompt（OpenClaw 风格精简列表）
@@ -335,7 +339,7 @@ export const prepareMessagesForApi = async (
   const regexRules: AssistantRegex[] = assistant?.regexRules || [];
   const hasRegexRules = regexRules.length > 0;
   if (hasRegexRules) {
-    console.log(`[prepareMessagesForApi] 检测到 ${regexRules.length} 条正则规则`);
+    logger.debug(`检测到 ${regexRules.length} 条正则规则`);
   }
 
   // 知识库引用注入到上下文中最后一条用户消息（即当前提问）
@@ -350,7 +354,7 @@ export const prepareMessagesForApi = async (
       const originalContent = content;
       content = applyRegexRulesForSending(content, regexRules, scope);
       if (content !== originalContent) {
-        console.log(`[prepareMessagesForApi] 对 ${scope} 消息应用了正则规则`);
+        logger.debug(`对 ${scope} 消息应用了正则规则`);
       }
     }
 
@@ -362,7 +366,7 @@ export const prepareMessagesForApi = async (
       options?.knowledgeReferences?.length
     ) {
       content = applyKnowledgeReferences(content, options.knowledgeReferences);
-      console.log(`[prepareMessagesForApi] 为消息 ${message.id} 注入知识库引用，数量: ${options.knowledgeReferences.length}`);
+      logger.debug(`为消息 ${message.id} 注入知识库引用，数量: ${options.knowledgeReferences.length}`);
     }
 
     // 检查是否有文件或图片块
@@ -383,7 +387,7 @@ export const prepareMessagesForApi = async (
           })
           .join('\n\n');
         content = (content || '') + '\n\n' + toolUseTags;
-        console.log(`[prepareMessagesForApi] 为 assistant 消息添加工具调用标签，工具数量: ${toolBlocksForContent.length}`);
+        logger.debug(`为 assistant 消息添加工具调用标签，工具数量: ${toolBlocksForContent.length}`);
       }
     }
 
@@ -442,7 +446,7 @@ export const prepareMessagesForApi = async (
                 });
               }
             } catch (error) {
-              console.error(`[prepareMessagesForApi] 读取文件内容失败:`, error);
+              logger.error(`读取文件内容失败:`, error);
             }
           }
         }
@@ -487,7 +491,7 @@ export const prepareMessagesForApi = async (
             role: 'user',
             content: toolResults
           });
-          console.log(`[prepareMessagesForApi] 添加工具结果消息，工具数量: ${toolBlocks.length}`);
+          logger.debug(`添加工具结果消息，工具数量: ${toolBlocks.length}`);
         }
       }
     }
@@ -515,12 +519,12 @@ export const prepareMessagesForApi = async (
           if (memories.length > 0) {
             const memoryPrompt = buildMemoryPrompt(memories);
             processedSystemPrompt = processedSystemPrompt + '\n' + memoryPrompt;
-            console.log(`[prepareMessagesForApi] 已注入 ${memories.length} 条相关记忆到系统提示词`);
+            logger.debug(`已注入 ${memories.length} 条相关记忆到系统提示词`);
           }
         }
       }
     } catch (error) {
-      console.error('[prepareMessagesForApi] 记忆搜索失败:', error);
+      logger.error('记忆搜索失败:', error);
     }
   }
 
@@ -529,7 +533,7 @@ export const prepareMessagesForApi = async (
     content: processedSystemPrompt
   });
 
-  console.log(`[prepareMessagesForApi] 准备完成，系统提示词长度: ${processedSystemPrompt.length}，API消息数量: ${apiMessages.length}，上下文限制: ${contextCount}`);
+  logger.debug(`准备完成，系统提示词长度: ${processedSystemPrompt.length}，API消息数量: ${apiMessages.length}，上下文限制: ${contextCount}`);
 
   return apiMessages;
 };

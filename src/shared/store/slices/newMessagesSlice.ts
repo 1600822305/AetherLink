@@ -5,6 +5,9 @@ import type { RootState } from '../index';
 import { dexieStorage } from '../../services/storage/DexieStorageService';
 import { topicCacheManager } from '../../services/topics/TopicCacheManager';
 import { upsertManyBlocks } from './messageBlocksSlice';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('loadTopicMessagesThunk');
 
 // 1. 创建实体适配器
 const messagesAdapter = createEntityAdapter<Message>();
@@ -555,7 +558,7 @@ export const loadTopicMessagesThunk = createAsyncThunk(
 
       // 优化：检查是否已完成加载（fulfilledByTopic）
       if (state.messages.fulfilledByTopic[topicId]) {
-        console.log(`[loadTopicMessagesThunk] 话题 ${topicId} 已加载，跳过`);
+        logger.debug(`话题 ${topicId} 已加载，跳过`);
         dispatch(newMessagesActions.setCurrentTopicId(topicId));
         return [];
       }
@@ -568,7 +571,7 @@ export const loadTopicMessagesThunk = createAsyncThunk(
       dispatch(newMessagesActions.setCurrentTopicId(topicId));
 
       if (hasActualMessages) {
-        console.log(`[loadTopicMessagesThunk] 话题 ${topicId} 消息已缓存，跳过加载`);
+        logger.debug(`话题 ${topicId} 消息已缓存，跳过加载`);
         // 标记为已完成加载
         dispatch(newMessagesActions.setTopicFulfilled({ topicId, fulfilled: true }));
         return []; // 直接返回，不重新加载
@@ -629,7 +632,7 @@ export const loadTopicMessagesThunk = createAsyncThunk(
 
       return messagesFromTopic;
     } catch (error) {
-      console.error(`[loadTopicMessagesThunk] 加载话题 ${topicId} 消息失败:`, error);
+      logger.error(`加载话题 ${topicId} 消息失败:`, error);
 
       // 创建错误信息对象
       const errorInfo: ErrorInfo = {

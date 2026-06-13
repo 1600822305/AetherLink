@@ -3,6 +3,9 @@
  */
 import { dexieStorage } from '../../../../services/storage/DexieStorageService';
 import type { Message } from '../../../../types/newMessage';
+import { createLogger } from '../../../../services/infra/logger';
+
+const logger = createLogger('prepareOriginalMessages');
 
 /**
  * 准备原始消息（用于 Gemini provider）
@@ -18,7 +21,7 @@ export async function prepareOriginalMessages(
   // 优先使用缓存的消息，避免重复查询
   const originalMessages = cachedMessages || await dexieStorage.getTopicMessages(topicId);
   if (cachedMessages) {
-    console.log(`[prepareOriginalMessages] 使用缓存的消息列表，消息数: ${originalMessages.length}`);
+    logger.debug(`使用缓存的消息列表，消息数: ${originalMessages.length}`);
   }
   
   const sortedMessages = [...originalMessages].sort((a, b) =>

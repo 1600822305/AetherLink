@@ -10,7 +10,10 @@ import { messageBlockRepository } from '../../../../services/messages/MessageBlo
 import { isGeminiModel as isGeminiProvider } from '../../../../../config/models';
 import type { Model } from '../../../../types';
 import type { Message } from '../../../../types/newMessage';
+import { createLogger } from '../../../../services/infra/logger';
 import type { AppDispatch } from '../../../index';
+
+const logger = createLogger('imageGeneration');
 
 interface ImageGenerationContext {
   dispatch: AppDispatch;
@@ -71,7 +74,7 @@ async function saveBase64Image(
     });
     return `[图片:${imageId}]`;
   } catch (error) {
-    console.error('保存生成的图片失败，使用原始base64:', error);
+    logger.error('保存生成的图片失败，使用原始base64:', error);
     return imageUrl;
   }
 }

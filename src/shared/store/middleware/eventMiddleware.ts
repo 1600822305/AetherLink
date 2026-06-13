@@ -1,6 +1,9 @@
 import type { Middleware } from '@reduxjs/toolkit';
 import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { dexieStorage } from '../../services/storage/DexieStorageService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('EventMiddleware');
 
 /**
  * Redux中间件，用于在特定操作发生时触发事件
@@ -32,7 +35,7 @@ export const eventMiddleware: Middleware = _store => next => action => {
     // 移除重复的事件发送，避免与流式处理器的事件冲突
     // 流式事件应该只由实际的流式处理器发送
     const { topicId, streaming } = payload;
-    console.log(`[EventMiddleware] 话题流式状态变化: ${topicId}, streaming: ${streaming}`);
+    logger.debug(`话题流式状态变化: ${topicId}, streaming: ${streaming}`);
   }
 
   // 块相关事件
@@ -66,9 +69,9 @@ export const eventMiddleware: Middleware = _store => next => action => {
       Promise.resolve().then(async () => {
         try {
           await dexieStorage.saveTopic(defaultTopic);
-          console.log(`[EventMiddleware] 自动创建的默认话题已保存到数据库: ${defaultTopic.id}`);
+          logger.debug(`自动创建的默认话题已保存到数据库: ${defaultTopic.id}`);
         } catch (error) {
-          console.error('[EventMiddleware] 保存自动创建的默认话题失败:', error);
+          logger.error('保存自动创建的默认话题失败:', error);
         }
       });
     }

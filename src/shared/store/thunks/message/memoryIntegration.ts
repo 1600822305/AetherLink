@@ -6,6 +6,9 @@ import store from '../../index';
 import { memoryService } from '../../../services/memory/MemoryService';
 import { MemoryProcessor, type MemoryProcessorConfig } from '../../../services/memory/MemoryProcessor';
 import { setCurrentAssistantId } from '../../slices/memorySlice';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('Memory');
 
 /**
  * 创建 MemoryProcessor 实例
@@ -113,13 +116,13 @@ export async function searchRelevantMemories(
     });
     
     if (results.memories.length > 0) {
-      console.log(`[Memory] 找到 ${results.memories.length} 条相关记忆`);
+      logger.debug(`找到 ${results.memories.length} 条相关记忆`);
       return results.memories.map(m => m.memory);
     }
     
     return [];
   } catch (error) {
-    console.error('[Memory] 搜索记忆失败:', error);
+    logger.error('搜索记忆失败:', error);
     return [];
   }
 }
@@ -159,7 +162,7 @@ export async function extractAndSaveMemories(
   const assistantId = assistantIdOverride || getCurrentAssistantId();
   const processor = getMemoryProcessor(assistantId);
   if (!processor) {
-    console.log('[Memory] MemoryProcessor 未初始化，跳过记忆提取');
+    logger.debug('MemoryProcessor 未初始化，跳过记忆提取');
     return;
   }
   
@@ -176,10 +179,10 @@ export async function extractAndSaveMemories(
     const result = await processor.processConversation(messages);
     
     if (result.addedCount > 0) {
-      console.log(`[Memory] 成功提取并保存 ${result.addedCount} 条新记忆`);
+      logger.info(`成功提取并保存 ${result.addedCount} 条新记忆`);
     }
   } catch (error) {
-    console.error('[Memory] 提取记忆失败:', error);
+    logger.error('提取记忆失败:', error);
   }
 }
 

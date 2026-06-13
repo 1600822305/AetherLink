@@ -8,10 +8,13 @@ import { refreshTopicPreview } from '../../../services/topics/TopicPreviewServic
 import { processAssistantResponse } from './assistantResponse';
 import { versionService } from '../../../services/messages/VersionService';
 import { getModelIdentityKey } from '../../../utils/modelUtils';
+import { createLogger } from '../../../services/infra/logger';
 import type { Message } from '../../../types/newMessage';
 import type { Model } from '../../../types';
 import type { RootState, AppDispatch } from '../../index';
 import { AssistantMessageStatus } from '../../../types/newMessage';
+
+const logger = createLogger('regenerateResponse');
 
 /**
  * 统一的重新生成选项接口
@@ -92,7 +95,7 @@ export const deleteMessage = (messageId: string, topicId: string) => async (disp
 
     return true;
   } catch (error) {
-    console.error(`删除消息失败:`, error);
+    logger.error(`删除消息失败:`, error);
     throw error;
   }
 };
@@ -108,7 +111,7 @@ export const regenerateResponse = (options: RegenerateOptions) =>
   async (dispatch: AppDispatch, getState: () => RootState) => {
     const { messageId, topicId, model, source, saveVersion = true } = options;
     
-    console.log(`[regenerateResponse] 开始重新生成响应`, {
+    logger.debug(`开始重新生成响应`, {
       messageId,
       topicId,
       source,
@@ -156,7 +159,7 @@ export const regenerateResponse = (options: RegenerateOptions) =>
 
       return true;
     } catch (error) {
-      console.error(`[regenerateResponse] 重新生成失败:`, error);
+      logger.error(`重新生成失败:`, error);
 
       // 清除加载状态
       dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
@@ -252,12 +255,12 @@ async function saveMessageVersionIfNeeded(message: Message): Promise<Message> {
     // 重新获取消息以获取最新的版本信息
     const messageWithVersions = await dexieStorage.getMessage(message.id);
     if (messageWithVersions) {
-      console.log(`[regenerateResponse] 版本数: ${messageWithVersions.versions?.length || 0}`);
+      logger.debug(`版本数: ${messageWithVersions.versions?.length || 0}`);
       return messageWithVersions;
     }
     return message;
   } catch (versionError) {
-    console.error(`[regenerateResponse] 保存版本失败:`, versionError);
+    logger.error(`保存版本失败:`, versionError);
     return message; // 版本保存失败不影响主流程
   }
 }
@@ -290,7 +293,7 @@ async function resetAssistantMessageForRegenerate(
     currentVersionId: undefined
   };
 
-  console.log(`[regenerateResponse] 消息已重置`, {
+  logger.debug(`消息已重置`, {
     messageId: resetMessage.id,
     newModelId: resetMessage.modelId,
     newModelName: resetMessage.model?.name

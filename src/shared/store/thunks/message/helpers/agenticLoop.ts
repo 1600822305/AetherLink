@@ -12,6 +12,9 @@ import {
   getTooManyMistakesMessage,
   getMaxIterationsReachedMessage 
 } from '../../../../prompts/agentic/sections/responses';
+import { createLogger } from '../../../../services/infra/logger';
+
+const logger = createLogger('Agentic');
 
 /**
  * 工具调用结果类型
@@ -41,7 +44,7 @@ export function checkAgenticMode(mcpTools: { serverName?: string }[]): boolean {
  * 启动 Agentic 循环
  */
 export function startAgenticLoop(topicId: string): void {
-  console.log(`[Agentic] 检测到 @aether/file-editor，启用 Agentic 模式`);
+  logger.debug(`检测到 @aether/file-editor，启用 Agentic 模式`);
   agenticLoopService.startLoop(topicId);
   // 启用文件跟踪器
   agenticFileTracker.enable(topicId);
@@ -205,7 +208,7 @@ export function buildMessagesWithToolResults(
 export function processAgenticIteration(): number {
   if (agenticLoopService.getState().isAgenticMode) {
     const iteration = agenticLoopService.startIteration();
-    console.log(`[Agentic] 开始第 ${iteration} 次迭代`);
+    logger.debug(`开始第 ${iteration} 次迭代`);
     return iteration;
   }
   return 0;
@@ -243,7 +246,7 @@ export function handleCompletionSignal(completionResult: ToolCallResultInfo): vo
     isCompletion: true,
     content: completionResult
   });
-  console.log(`[Agentic] 检测到 attempt_completion，任务完成`);
+  logger.debug(`检测到 attempt_completion，任务完成`);
 }
 
 /**
@@ -259,7 +262,7 @@ export function shouldContinueLoop(): boolean {
 export function endAgenticLoop(): void {
   if (agenticLoopService.getState().isAgenticMode) {
     const finalState = agenticLoopService.endLoop();
-    console.log(`[Agentic] 循环结束:`, {
+    logger.debug(`循环结束:`, {
       totalIterations: finalState.currentIteration,
       completionReason: finalState.completionReason,
       hasCompletionResult: !!finalState.completionResult
@@ -273,7 +276,7 @@ export function endAgenticLoop(): void {
 export function cancelAgenticLoop(): void {
   if (agenticLoopService.getState().isAgenticMode) {
     agenticLoopService.cancel();
-    console.log(`[Agentic] 由于错误取消循环`);
+    logger.debug(`由于错误取消循环`);
   }
 }
 
