@@ -916,6 +916,7 @@ const ModelProviderSettings: React.FC = () => {
                 showEmptyState={true}
                 emptyStateKey={t('modelSettings.provider.noModels')}
                 defaultExpanded={[]}
+                bordered={false}
                 renderModelItem={(model) => (
                   <ModelItemSignals
                     key={model.id}
@@ -952,21 +953,22 @@ const ModelProviderSettings: React.FC = () => {
                         }
                       }}
                       sx={{
-                        width: { xs: 40, sm: 36 },
-                        height: { xs: 40, sm: 36 },
-                        minWidth: { xs: 40, sm: 36 },
-                        borderRadius: 1.5,
+                        width: { xs: 34, sm: 30 },
+                        height: { xs: 34, sm: 30 },
+                        minWidth: { xs: 34, sm: 30 },
+                        borderRadius: 1.25,
                         p: 0,
-                        bgcolor: (theme) => isPending 
-                          ? theme.palette.error.main 
-                          : alpha(theme.palette.error.main, 0.12),
-                        color: isPending ? 'white' : 'error.main',
+                        bgcolor: (theme) => isPending
+                          ? theme.palette.error.main
+                          : 'transparent',
+                        color: isPending ? 'white' : 'text.secondary',
                         '&:hover': {
+                          color: isPending ? 'white' : 'error.main',
                           bgcolor: (theme) => isPending
                             ? theme.palette.error.dark
-                            : alpha(theme.palette.error.main, 0.2),
+                            : alpha(theme.palette.error.main, 0.1),
                         },
-                        transition: 'all 0.2s ease',
+                        transition: 'color 0.2s ease, background-color 0.2s ease',
                         // 待确认状态时添加动画效果
                         ...(isPending && {
                           animation: 'pulse 1s ease-in-out infinite',
@@ -978,7 +980,7 @@ const ModelProviderSettings: React.FC = () => {
                       }}
                       title={isPending ? `再次点击确认删除 ${models.length} 个模型` : `删除 ${groupName} 组`}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </IconButton>
                   );
                 }}

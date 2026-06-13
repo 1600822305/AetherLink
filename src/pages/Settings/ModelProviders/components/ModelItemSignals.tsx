@@ -38,7 +38,7 @@ function ModelItemSignals({
         alignItems: 'center',
         py: { xs: 1.5, sm: 1 },
         pl: { xs: 2.5, sm: 2 },
-        pr: { xs: (testModeEnabled.value || alwaysShowTestButton) ? 15 : 11, sm: (testModeEnabled.value || alwaysShowTestButton) ? 13 : 9.5 },
+        pr: { xs: (testModeEnabled.value || alwaysShowTestButton) ? 12.5 : 9, sm: (testModeEnabled.value || alwaysShowTestButton) ? 11 : 8 },
         transition: 'all 0.2s ease',
         '&:hover': {
           bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
@@ -83,7 +83,7 @@ function ModelItemSignals({
           transform: 'translateY(-50%)',
           display: 'flex',
           alignItems: 'center',
-          gap: { xs: 1, sm: 0.75 },
+          gap: { xs: 0.5, sm: 0.5 },
         }}
       >
           {(testModeEnabled.value || alwaysShowTestButton) && (
@@ -92,23 +92,24 @@ function ModelItemSignals({
             onClick={() => onTest(model)}
             disabled={testingModelId.value !== null}
             sx={{
-              width: { xs: 40, sm: 36 },
-              height: { xs: 40, sm: 36 },
-              minWidth: { xs: 40, sm: 36 },
-              borderRadius: 1.5,
+              width: { xs: 34, sm: 30 },
+              height: { xs: 34, sm: 30 },
+              minWidth: { xs: 34, sm: 30 },
+              borderRadius: 1.25,
               p: 0,
-              bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-              color: 'success.main',
+              color: 'text.secondary',
+              bgcolor: 'transparent',
               '&:hover': {
-                bgcolor: (theme) => alpha(theme.palette.success.main, 0.2),
+                color: 'success.main',
+                bgcolor: (theme) => alpha(theme.palette.success.main, 0.1),
               },
-              transition: 'all 0.2s ease',
+              transition: 'color 0.2s ease, background-color 0.2s ease',
             }}
           >
             {testingModelId.value === model.id ? (
-              <CircularProgress size={16} color="success" />
+              <CircularProgress size={14} color="success" />
             ) : (
-              <CheckCircle size={18} />
+              <CheckCircle size={16} />
             )}
           </IconButton>
         )}
@@ -117,40 +118,42 @@ function ModelItemSignals({
           aria-label="edit"
           onClick={() => onEdit(model)}
           sx={{
-            width: { xs: 40, sm: 36 },
-            height: { xs: 40, sm: 36 },
-            minWidth: { xs: 40, sm: 36 },
-            borderRadius: 1.5,
+            width: { xs: 34, sm: 30 },
+            height: { xs: 34, sm: 30 },
+            minWidth: { xs: 34, sm: 30 },
+            borderRadius: 1.25,
             p: 0,
-            bgcolor: (theme) => alpha(theme.palette.info.main, 0.12),
-            color: 'info.main',
+            color: 'text.secondary',
+            bgcolor: 'transparent',
             '&:hover': {
-              bgcolor: (theme) => alpha(theme.palette.info.main, 0.2),
+              color: 'info.main',
+              bgcolor: (theme) => alpha(theme.palette.info.main, 0.1),
             },
-            transition: 'all 0.2s ease',
+            transition: 'color 0.2s ease, background-color 0.2s ease',
           }}
         >
-          <Edit size={18} />
+          <Edit size={16} />
         </IconButton>
 
         <IconButton
           aria-label="delete"
           onClick={() => onDelete(model.id)}
           sx={{
-            width: { xs: 40, sm: 36 },
-            height: { xs: 40, sm: 36 },
-            minWidth: { xs: 40, sm: 36 },
-            borderRadius: 1.5,
+            width: { xs: 34, sm: 30 },
+            height: { xs: 34, sm: 30 },
+            minWidth: { xs: 34, sm: 30 },
+            borderRadius: 1.25,
             p: 0,
-            bgcolor: (theme) => alpha(theme.palette.error.main, 0.12),
-            color: 'error.main',
+            color: 'text.secondary',
+            bgcolor: 'transparent',
             '&:hover': {
-              bgcolor: (theme) => alpha(theme.palette.error.main, 0.2),
+              color: 'error.main',
+              bgcolor: (theme) => alpha(theme.palette.error.main, 0.1),
             },
-            transition: 'all 0.2s ease',
+            transition: 'color 0.2s ease, background-color 0.2s ease',
           }}
         >
-          <Trash2 size={18} />
+          <Trash2 size={16} />
         </IconButton>
       </Box>
     </Box>
