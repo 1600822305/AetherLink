@@ -14,6 +14,11 @@ import type { Model, MCPTool } from '../../types';
 import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK } from './tools';
 import store from '../../store';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('AI SDK Stream');
+const nonStreamLogger = createLogger('AI SDK NonStream');
+
 
 /**
  * 获取模型对应的供应商配置
@@ -31,7 +36,7 @@ function getProviderConfig(model: Model): ModelProvider | null {
     const provider = providers.find((p: ModelProvider) => p.id === model.provider);
     return provider || null;
   } catch (error) {
-    console.error('[AI SDK Stream] 获取供应商配置失败:', error);
+    logger.error('获取供应商配置失败:', error);
     return null;
   }
 }
@@ -194,7 +199,7 @@ export async function streamCompletion(
   additionalParams?: StreamParams,
   onChunk?: (chunk: Chunk) => void
 ): Promise<StreamResult> {
-  console.log(`[AI SDK Stream] 开始流式响应, 模型: ${modelId}`);
+  logger.debug(`开始流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -263,7 +268,7 @@ export async function streamCompletion(
     let tools: any = undefined;
     if (enableTools && mcpTools.length > 0 && mcpMode === 'function') {
       tools = convertMcpToolsToAISDK(mcpTools);
-      console.log(`[AI SDK Stream] 启用 ${Object.keys(tools).length} 个工具`);
+      logger.debug(`启用 ${Object.keys(tools).length} 个工具`);
     }
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
@@ -279,7 +284,7 @@ export async function streamCompletion(
       providerOptions = {
         openai: extraBody
       };
-      console.log(`[AI SDK Stream] 合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
+      logger.debug(`合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
     }
 
     // 根据 useResponsesAPI 开关选择 API 类型
@@ -289,7 +294,7 @@ export async function streamCompletion(
       ? client.responses(modelId)  // Responses API
       : client.chat(modelId);       // Chat Completions API
 
-    console.log(`[AI SDK Stream] 使用 ${useResponsesAPI ? 'Responses' : 'Chat Completions'} API`);
+    logger.debug(`使用 ${useResponsesAPI ? 'Responses' : 'Chat Completions'} API`);
 
     const result = await streamText({
       model: modelInstance,
@@ -335,7 +340,7 @@ export async function streamCompletion(
           break;
 
         case 'tool-call':
-          console.log(`[AI SDK Stream] 检测到工具调用: ${part.toolName}`);
+          logger.debug(`检测到工具调用: ${part.toolName}`);
           // AI SDK v6 使用 input 而不是 args
           const toolInput = (part as any).input || (part as any).args || {};
           toolCalls.push({
@@ -406,7 +411,7 @@ export async function streamCompletion(
           break;
 
         case 'finish':
-          console.log(`[AI SDK Stream] 流式响应完成`);
+          logger.debug(`流式响应完成`);
           break;
       }
     }
@@ -456,7 +461,7 @@ export async function streamCompletion(
 
     // 检查工具使用标签（XML 模式）
     if (hasToolUseTags(fullContent)) {
-      console.log(`[AI SDK Stream] 检测到 XML 工具使用标签`);
+      logger.debug(`检测到 XML 工具使用标签`);
       EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
         content: fullContent,
         model: modelId
@@ -464,7 +469,7 @@ export async function streamCompletion(
     }
 
     const endTime = Date.now();
-    console.log(`[AI SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
+    logger.debug(`完成，耗时: ${endTime - startTime}ms`);
 
     // 返回结果
     return {
@@ -476,7 +481,7 @@ export async function streamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[AI SDK Stream] 流式响应失败:', error);
+    logger.error('流式响应失败:', error);
 
     EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
       provider: 'openai-aisdk',
@@ -500,7 +505,7 @@ export async function nonStreamCompletion(
   maxTokens?: number,
   additionalParams?: StreamParams
 ): Promise<StreamResult> {
-  console.log(`[AI SDK NonStream] 开始非流式响应, 模型: ${modelId}`);
+  nonStreamLogger.debug(`开始非流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -543,7 +548,7 @@ export async function nonStreamCompletion(
       providerOptions = {
         openai: extraBody
       };
-      console.log(`[AI SDK NonStream] 合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
+      nonStreamLogger.debug(`合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
     }
 
     // 根据 useResponsesAPI 开关选择 API 类型
@@ -551,7 +556,7 @@ export async function nonStreamCompletion(
       ? client.responses(modelId)  // Responses API
       : client.chat(modelId);       // Chat Completions API
 
-    console.log(`[AI SDK NonStream] 使用 ${useResponsesAPI ? 'Responses' : 'Chat Completions'} API`);
+    nonStreamLogger.debug(`使用 ${useResponsesAPI ? 'Responses' : 'Chat Completions'} API`);
 
     const result = await generateText({
       model: modelInstance,
@@ -565,7 +570,7 @@ export async function nonStreamCompletion(
     });
 
     const endTime = Date.now();
-    console.log(`[AI SDK NonStream] 完成，耗时: ${endTime - startTime}ms`);
+    nonStreamLogger.debug(`完成，耗时: ${endTime - startTime}ms`);
 
     // 提取推理内容（如果有）
     const reasoning = (result as any).reasoning;
@@ -579,7 +584,7 @@ export async function nonStreamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[AI SDK NonStream] 非流式响应失败:', error);
+    nonStreamLogger.error('非流式响应失败:', error);
     throw error;
   }
 }

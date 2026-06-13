@@ -4,6 +4,10 @@
  */
 import type { Model } from '../../types';
 import { getEmbeddingDimensions } from '../../config/embeddingModels';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('GeminiEmbeddingService');
+
 
 /**
  * Gemini 嵌入服务接口
@@ -59,7 +63,7 @@ export function createGeminiEmbeddingService(model: Model): GeminiEmbeddingServi
         
         throw new Error('Gemini 嵌入响应格式错误');
       } catch (error) {
-        console.error('[GeminiEmbeddingService] 获取嵌入失败:', error);
+        logger.error('获取嵌入失败:', error);
         throw error;
       }
     },
@@ -104,7 +108,7 @@ export function createGeminiEmbeddingService(model: Model): GeminiEmbeddingServi
         
         throw new Error('Gemini 批量嵌入响应格式错误');
       } catch (error) {
-        console.error('[GeminiEmbeddingService] 批量获取嵌入失败:', error);
+        logger.error('批量获取嵌入失败:', error);
         throw error;
       }
     },
@@ -124,7 +128,7 @@ export function createGeminiEmbeddingService(model: Model): GeminiEmbeddingServi
         const testVector = await this.getEmbedding('test', embeddingModel);
         return testVector.length;
       } catch (error) {
-        console.error('[GeminiEmbeddingService] 获取嵌入维度失败:', error);
+        logger.error('获取嵌入维度失败:', error);
         // 默认返回 768（text-embedding-004 的默认维度）
         return 768;
       }

@@ -15,6 +15,10 @@ import type {
   UnifiedReasoningParameters
 } from './types';
 import { parameterSyncService } from '../../services/assistant/ParameterSyncService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('UnifiedParameterManager');
+
 
 /**
  * 统一参数管理器类
@@ -220,7 +224,7 @@ export class UnifiedParameterManager {
       customParameters, // 🆕 添加
     };
 
-    console.log('[UnifiedParameterManager] 参数:', unified);
+    logger.debug('参数:', unified);
 
     return unified;
   }

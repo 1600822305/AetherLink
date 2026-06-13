@@ -15,6 +15,10 @@ import { UnifiedParameterManager } from '../UnifiedParameterManager';
 import { isReasoningModel } from '../../../../config/models';
 import { encodeReasoningParams, type ReasoningApiFlavor } from '../reasoning/encodeReasoning';
 import { getDefaultThinkingEffort, getAppSettings } from '../../../utils/settingsUtils';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('OpenAIParameterAdapter');
+
 
 /**
  * Chat Completions API 推理参数接口
@@ -325,7 +329,7 @@ export class OpenAIParameterAdapter implements ParameterAdapter<'openai'> {
     const extraBody = model.extraBody || model.providerExtraBody;
     if (extraBody && typeof extraBody === 'object') {
       Object.assign(completeParams, extraBody);
-      console.log(`[OpenAIParameterAdapter] 合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
+      logger.debug(`合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
     }
 
     return completeParams;

@@ -13,6 +13,11 @@ import type { Model, MCPTool } from '../../types';
 import { convertMcpToolsToAISDK } from './tools';
 import { supportsExtendedThinking, isClaudeReasoningModel } from './client';
 import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Anthropic SDK Stream');
+const nonStreamLogger = createLogger('Anthropic SDK NonStream');
+
 
 /**
  * 解析推理标签内容（用于兼容非原生推理模式）
@@ -155,7 +160,7 @@ export async function streamCompletion(
   additionalParams?: StreamParams,
   onChunk?: (chunk: Chunk) => void
 ): Promise<StreamResult> {
-  console.log(`[Anthropic SDK Stream] 开始流式响应, 模型: ${modelId}`);
+  logger.debug(`开始流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -198,7 +203,7 @@ export async function streamCompletion(
     let tools: any = undefined;
     if (enableTools && mcpTools.length > 0 && mcpMode === 'function') {
       tools = convertMcpToolsToAISDK(mcpTools);
-      console.log(`[Anthropic SDK Stream] 启用 ${Object.keys(tools).length} 个工具`);
+      logger.debug(`启用 ${Object.keys(tools).length} 个工具`);
     }
 
     // 🛡️ Prompt 模式防幻觉：添加 stopSequences
@@ -220,7 +225,7 @@ export async function streamCompletion(
         },
         ...(extraBody || {})
       };
-      console.log(`[Anthropic SDK Stream] 启用 Extended Thinking, 预算: ${thinkingBudgetTokens} tokens`);
+      logger.debug(`启用 Extended Thinking, 预算: ${thinkingBudgetTokens} tokens`);
     } else if (extraBody && typeof extraBody === 'object' && Object.keys(extraBody).length > 0) {
       providerOptions.anthropic = extraBody;
     }
@@ -234,7 +239,7 @@ export async function streamCompletion(
       headers = {
         'anthropic-beta': 'interleaved-thinking-2025-05-14'
       };
-      console.log(`[Anthropic SDK Stream] 启用交错思考模式`);
+      logger.debug(`启用交错思考模式`);
     }
 
     const result = await streamText({
@@ -303,11 +308,11 @@ export async function streamCompletion(
 
         case 'reasoning-end':
           // 推理结束
-          console.log(`[Anthropic SDK Stream] 推理完成`);
+          logger.debug(`推理完成`);
           break;
 
         case 'tool-call':
-          console.log(`[Anthropic SDK Stream] 检测到工具调用: ${part.toolName}`);
+          logger.debug(`检测到工具调用: ${part.toolName}`);
           const toolInput = (part as any).input || (part as any).args || {};
           toolCalls.push({
             id: part.toolCallId,
@@ -331,7 +336,7 @@ export async function streamCompletion(
           break;
 
         case 'finish':
-          console.log(`[Anthropic SDK Stream] 流式响应完成`);
+          logger.debug(`流式响应完成`);
           break;
       }
     }
@@ -380,7 +385,7 @@ export async function streamCompletion(
 
     // 检查工具使用标签（XML 模式）
     if (hasToolUseTags(fullContent)) {
-      console.log(`[Anthropic SDK Stream] 检测到 XML 工具使用标签`);
+      logger.debug(`检测到 XML 工具使用标签`);
       EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
         content: fullContent,
         model: modelId
@@ -388,7 +393,7 @@ export async function streamCompletion(
     }
 
     const endTime = Date.now();
-    console.log(`[Anthropic SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
+    logger.debug(`完成，耗时: ${endTime - startTime}ms`);
 
     return {
       content: fullContent,
@@ -399,7 +404,7 @@ export async function streamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[Anthropic SDK Stream] 流式响应失败:', error);
+    logger.error('流式响应失败:', error);
 
     EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
       provider: 'anthropic-aisdk',
@@ -423,7 +428,7 @@ export async function nonStreamCompletion(
   maxTokens?: number,
   additionalParams?: StreamParams
 ): Promise<StreamResult> {
-  console.log(`[Anthropic SDK NonStream] 开始非流式响应, 模型: ${modelId}`);
+  nonStreamLogger.debug(`开始非流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -485,7 +490,7 @@ export async function nonStreamCompletion(
     });
 
     const endTime = Date.now();
-    console.log(`[Anthropic SDK NonStream] 完成，耗时: ${endTime - startTime}ms`);
+    nonStreamLogger.debug(`完成，耗时: ${endTime - startTime}ms`);
 
     // 提取推理内容
     const reasoning = (result as any).reasoning || (result as any).reasoningText;
@@ -500,7 +505,7 @@ export async function nonStreamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[Anthropic SDK NonStream] 非流式响应失败:', error);
+    nonStreamLogger.error('非流式响应失败:', error);
     throw error;
   }
 }

@@ -21,6 +21,10 @@ import { getMainTextContent, findImageBlocks, findFileBlocks } from '../../utils
 import { readFileContent, getFileTypeByExtension, FileTypes } from '../../utils/fileUtils';
 import { UnifiedParameterManager } from '../parameters/UnifiedParameterManager';
 import { GeminiParameterFormatter } from '../parameters/formatters';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Gemini AI SDK Provider');
+
 
 /**
  * AI SDK Gemini Provider 基类
@@ -182,14 +186,14 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
                 parts.push({ type: 'text', text: `${fileName}\n${fileContent}` });
               }
             } catch (error) {
-              console.error('[Gemini AI SDK Provider] 读取文件内容失败:', error);
+              logger.error('读取文件内容失败:', error);
             }
           }
         }
 
         apiMessages.push({ role: message.role, content: parts });
       } catch (error) {
-        console.error(`[Gemini AI SDK Provider] 处理消息失败:`, error);
+        logger.error(`处理消息失败:`, error);
       }
     }
 
@@ -262,7 +266,7 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
       });
       return Boolean(result.text);
     } catch (error) {
-      console.error('[Gemini AI SDK Provider] API 连接测试失败:', error);
+      logger.error('API 连接测试失败:', error);
       return false;
     }
   }
@@ -312,7 +316,7 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolCalls.map(tc => tc.function?.name || tc.name || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[Gemini AI SDK Provider] 处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
@@ -340,7 +344,7 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolResponses.map(tr => tr.tool?.name || tr.tool?.id || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[Gemini AI SDK Provider] 处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const results = await parseAndCallTools(content, mcpTools, onChunk);
     const messages: any[] = [];
@@ -378,7 +382,7 @@ export abstract class BaseGeminiAISDKProvider extends AbstractBaseProvider {
 export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
   constructor(model: Model) {
     super(model);
-    console.log(`[GeminiAISDKProvider] 初始化完成，模型: ${model.id}`);
+    logger.debug(`初始化完成，模型: ${model.id}`);
   }
 
   /**
@@ -397,7 +401,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
       assistant?: any;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[GeminiAISDKProvider] 开始 API 调用, 模型: ${this.model.id}`);
+    logger.debug(`开始 API 调用, 模型: ${this.model.id}`);
 
     const {
       onChunk,
@@ -429,7 +433,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
     const maxTokens = apiParams.maxOutputTokens;
     const thinkingBudget = apiParams.thinkingConfig?.thinkingBudget;
 
-    console.log(`[GeminiAISDKProvider] API 请求参数:`, {
+    logger.debug(`API 请求参数:`, {
       model: this.model.id,
       temperature,
       maxTokens,
@@ -441,7 +445,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
 
     // 检查 API 密钥
     if (!this.model.apiKey) {
-      console.error('[GeminiAISDKProvider] 错误: API 密钥未设置');
+      logger.error('错误: API 密钥未设置');
       throw new Error('API 密钥未设置，请在设置中配置 Gemini API 密钥');
     }
 
@@ -473,7 +477,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        console.log('[GeminiAISDKProvider] 请求被用户中断');
+        logger.debug('请求被用户中断');
         throw new DOMException('Operation aborted', 'AbortError');
       }
 
@@ -482,7 +486,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
         throw new Error(`模型 ${modelName} 不支持当前的最大输出 token 设置 (${maxTokens})。`);
       }
 
-      console.error('[GeminiAISDKProvider] API 请求失败:', error);
+      logger.error('API 请求失败:', error);
       throw error;
     }
   }
@@ -522,7 +526,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
 
     while (iteration < maxIterations) {
       iteration++;
-      console.log(`[GeminiAISDKProvider] 流式工具调用迭代 ${iteration}`);
+      logger.debug(`流式工具调用迭代 ${iteration}`);
 
       // 准备工具配置
       const usePromptMode = this.getUseSystemPromptForTools();
@@ -550,7 +554,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
 
       // 检查是否有工具调用
       if (result.hasToolCalls) {
-        console.log(`[GeminiAISDKProvider] 检测到工具调用`);
+        logger.debug(`检测到工具调用`);
 
         const content = result.content;
         const nativeToolCalls = result.nativeToolCalls;
@@ -570,7 +574,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
             currentMessages.push(...xmlToolResults);
 
             if (hasCompletion) {
-              console.log(`[GeminiAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -616,7 +620,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
             currentMessages.push(...toolResults);
 
             if (hasCompletion) {
-              console.log(`[GeminiAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -628,7 +632,7 @@ export class GeminiAISDKProvider extends BaseGeminiAISDKProvider {
       return this.formatResult(result);
     }
 
-    console.warn(`[GeminiAISDKProvider] 达到最大迭代次数 ${maxIterations}`);
+    logger.warn(`达到最大迭代次数 ${maxIterations}`);
     return '';
   }
 

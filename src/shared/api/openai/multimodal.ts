@@ -14,6 +14,10 @@ import {
   isGemmaModel
 } from '../../../config/models';
 import { mobileFileStorage } from '../../services/files/MobileFileStorageService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Multimodal');
+
 
 // 定义消息参数类型，避免使用OpenAI类型
 export interface ChatCompletionMessageParam {
@@ -58,7 +62,7 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
     const hasDirectImages = Array.isArray(apiMsg.images) && apiMsg.images.length > 0;
 
     // 添加调试日志
-    console.log(`[OpenAI API] 处理消息类型: ${apiMsg.role}, 复杂内容: ${isComplexContent}, 直接图片: ${hasDirectImages}`);
+    logger.debug(`处理消息类型: ${apiMsg.role}, 复杂内容: ${isComplexContent}, 直接图片: ${hasDirectImages}`);
 
     // 保持原始角色，不再将system角色转换为user角色
     const role = apiMsg.role;
@@ -84,7 +88,7 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
       if (isComplexContent) {
         const content = apiMsg.content as {text?: string; images?: ImageContent[]};
         if (content.images && content.images.length > 0) {
-          console.log(`[OpenAI API] 处理旧格式图片，数量: ${content.images.length}`);
+          logger.debug(`处理旧格式图片，数量: ${content.images.length}`);
           content.images.forEach((image, index) => {
             if (image.base64Data) {
               contentArray.push({
@@ -94,7 +98,7 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
                   detail: 'auto'
                 }
               });
-              console.log(`[OpenAI API] 添加base64图片 ${index+1}, 开头: ${image.base64Data.substring(0, 30)}...`);
+              logger.debug(`添加base64图片 ${index+1}, 开头: ${image.base64Data.substring(0, 30)}...`);
             } else if (image.url) {
               contentArray.push({
                 type: 'image_url',
@@ -103,7 +107,7 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
                   detail: 'auto'
                 }
               });
-              console.log(`[OpenAI API] 添加URL图片 ${index+1}: ${image.url}`);
+              logger.debug(`添加URL图片 ${index+1}: ${image.url}`);
             }
           });
         }
@@ -111,7 +115,7 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
 
       // 添加直接附加的图片（新格式）
       if (hasDirectImages) {
-        console.log(`[OpenAI API] 处理新格式图片，数量: ${apiMsg.images!.length}`);
+        logger.debug(`处理新格式图片，数量: ${apiMsg.images!.length}`);
         apiMsg.images!.forEach((imgFormat, index) => {
           if (imgFormat.image_url && imgFormat.image_url.url) {
             contentArray.push({
@@ -121,16 +125,16 @@ export function convertToOpenAIMessages(messages: Message[]): Array<ChatCompleti
                 detail: 'auto'
               }
             });
-            console.log(`[OpenAI API] 添加新格式图片 ${index+1}: ${imgFormat.image_url.url.substring(0, 30)}...`);
+            logger.debug(`添加新格式图片 ${index+1}: ${imgFormat.image_url.url.substring(0, 30)}...`);
           }
         });
       }
 
-      console.log(`[OpenAI API] 转换后内容数组长度: ${contentArray.length}, 包含图片数量: ${contentArray.filter(item => item.type === 'image_url').length}`);
+      logger.debug(`转换后内容数组长度: ${contentArray.length}, 包含图片数量: ${contentArray.filter(item => item.type === 'image_url').length}`);
 
       // 处理空内容的极端情况
       if (contentArray.length === 0) {
-        console.warn('[OpenAI API] 警告: 生成了空内容数组，添加默认文本');
+        logger.warn('警告: 生成了空内容数组，添加默认文本');
         contentArray.push({
           type: 'text',
           text: '图片'
@@ -226,7 +230,7 @@ export async function processMessageWithFiles(
     // 默认返回文本内容
     return handleTextOnlyMessage(textContent, message.role, model);
   } catch (error) {
-    console.error('[multimodal] 处理消息内容失败:', error);
+    logger.error('处理消息内容失败:', error);
     // 降级处理：返回基础文本消息
     return handleTextOnlyMessage(getMainTextContent(message), message.role, model);
   }
@@ -341,7 +345,7 @@ async function handleClaudeMultimodal(
             }
           });
         } catch (error) {
-          console.error('[multimodal] Claude PDF处理失败:', error);
+          logger.error('Claude PDF处理失败:', error);
           // 降级为文本处理
           const fileContent = await readFileContent(block.file);
           parts.push({
@@ -358,7 +362,7 @@ async function handleClaudeMultimodal(
             text: `文件: ${block.file.origin_name}\n\n${fileContent}`
           });
         } catch (error) {
-          console.error('[multimodal] Claude文本文件处理失败:', error);
+          logger.error('Claude文本文件处理失败:', error);
         }
       }
     }
@@ -411,7 +415,7 @@ async function handleGeminiMultimodal(
             text: `文件: ${block.file.origin_name}\n\n${fileContent}`
           });
         } catch (error) {
-          console.error('[multimodal] Gemini文件处理失败:', error);
+          logger.error('Gemini文件处理失败:', error);
         }
       }
     }
@@ -471,7 +475,7 @@ async function handleOpenAIMultimodal(
             text: `文件: ${block.file.origin_name}\n\n${fileContent}`
           });
         } catch (error) {
-          console.error('[multimodal] OpenAI文件处理失败:', error);
+          logger.error('OpenAI文件处理失败:', error);
         }
       }
     }
@@ -501,7 +505,7 @@ async function handleTextWithFiles(
           const fileContent = await readFileContent(block.file);
           combinedContent += `文件: ${block.file.origin_name}\n\n${fileContent}\n\n`;
         } catch (error) {
-          console.error('[multimodal] 文件内容读取失败:', error);
+          logger.error('文件内容读取失败:', error);
           combinedContent += `文件: ${block.file.origin_name} (读取失败)\n\n`;
         }
       }

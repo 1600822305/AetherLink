@@ -7,6 +7,10 @@ import type { Model } from '../../types';
 import { createClient } from './client';
 import { logApiRequest, logApiResponse } from '../../services/infra/LoggerService';
 import { universalFetch } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Models');
+
 
 /**
  * 解析模型列表响应 - 支持多种格式
@@ -17,55 +21,55 @@ import { universalFetch } from '../../utils/universalFetch';
 export function parseModelsResponse(data: any): any[] {
   // 空数据检查
   if (!data) {
-    console.warn('[parseModelsResponse] 响应数据为空');
+    logger.warn('响应数据为空');
     return [];
   }
 
   // 格式1: 标准 OpenAI 格式 {object: "list", data: [...]}
   if (data.object === 'list' && Array.isArray(data.data)) {
-    console.log(`[parseModelsResponse] 检测到标准OpenAI格式, ${data.data.length}个模型`);
+    logger.debug(`检测到标准OpenAI格式, ${data.data.length}个模型`);
     return data.data;
   }
 
   // 格式2: 简化格式 {data: [...]}
   if (data.data && Array.isArray(data.data)) {
-    console.log(`[parseModelsResponse] 检测到简化data格式, ${data.data.length}个模型`);
+    logger.debug(`检测到简化data格式, ${data.data.length}个模型`);
     return data.data;
   }
 
   // 格式3: 直接数组格式 [...]
   if (Array.isArray(data)) {
-    console.log(`[parseModelsResponse] 检测到直接数组格式, ${data.length}个模型`);
+    logger.debug(`检测到直接数组格式, ${data.length}个模型`);
     return data;
   }
 
   // 格式4: {models: [...]} 格式（某些中转站使用）
   if (data.models && Array.isArray(data.models)) {
-    console.log(`[parseModelsResponse] 检测到models字段格式, ${data.models.length}个模型`);
+    logger.debug(`检测到models字段格式, ${data.models.length}个模型`);
     return data.models;
   }
 
   // 格式5: {result: [...]} 格式（某些中转站使用）
   if (data.result && Array.isArray(data.result)) {
-    console.log(`[parseModelsResponse] 检测到result字段格式, ${data.result.length}个模型`);
+    logger.debug(`检测到result字段格式, ${data.result.length}个模型`);
     return data.result;
   }
 
   // 格式6: {results: [...]} 格式
   if (data.results && Array.isArray(data.results)) {
-    console.log(`[parseModelsResponse] 检测到results字段格式, ${data.results.length}个模型`);
+    logger.debug(`检测到results字段格式, ${data.results.length}个模型`);
     return data.results;
   }
 
   // 格式7: {items: [...]} 格式
   if (data.items && Array.isArray(data.items)) {
-    console.log(`[parseModelsResponse] 检测到items字段格式, ${data.items.length}个模型`);
+    logger.debug(`检测到items字段格式, ${data.items.length}个模型`);
     return data.items;
   }
 
   // 格式8: {list: [...]} 格式
   if (data.list && Array.isArray(data.list)) {
-    console.log(`[parseModelsResponse] 检测到list字段格式, ${data.list.length}个模型`);
+    logger.debug(`检测到list字段格式, ${data.list.length}个模型`);
     return data.list;
   }
 
@@ -73,11 +77,11 @@ export function parseModelsResponse(data: any): any[] {
   if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
     const nested = data.data;
     if (Array.isArray(nested.models)) {
-      console.log(`[parseModelsResponse] 检测到嵌套data.models格式, ${nested.models.length}个模型`);
+      logger.debug(`检测到嵌套data.models格式, ${nested.models.length}个模型`);
       return nested.models;
     }
     if (Array.isArray(nested.data)) {
-      console.log(`[parseModelsResponse] 检测到嵌套data.data格式, ${nested.data.length}个模型`);
+      logger.debug(`检测到嵌套data.data格式, ${nested.data.length}个模型`);
       return nested.data;
     }
   }
@@ -93,13 +97,13 @@ export function parseModelsResponse(data: any): any[] {
     const arr = data[preferredKey];
     // 验证数组内容看起来像模型对象（有id字段）
     if (arr.length > 0 && (arr[0].id || arr[0].model || arr[0].name)) {
-      console.log(`[parseModelsResponse] 自动检测到字段 "${preferredKey}", ${arr.length}个模型`);
+      logger.debug(`自动检测到字段 "${preferredKey}", ${arr.length}个模型`);
       return arr;
     }
   }
 
   // 无法识别的格式
-  console.warn('[parseModelsResponse] 无法识别的响应格式:', JSON.stringify(data).substring(0, 200));
+  logger.warn('无法识别的响应格式:', JSON.stringify(data).substring(0, 200));
   return [];
 }
 
@@ -134,7 +138,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     const apiKey = provider.apiKey;
     
     if (!apiKey) {
-      console.warn('[fetchOpenAIModels] 警告: 未提供API密钥，可能导致请求失败');
+      logger.warn('警告: 未提供API密钥，可能导致请求失败');
     }
     
     // 构建API端点
@@ -150,7 +154,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
       endpoint = `${cleanBaseUrl}/v1/models`;
     }
     
-    console.log(`[fetchOpenAIModels] 请求端点: ${endpoint}`);
+    logger.debug(`请求端点: ${endpoint}`);
     
     // 构建请求头 (GET 请求不应包含 Content-Type)
     // 参考 Cherry Studio 的请求头配置，确保与各种中转站兼容
@@ -184,7 +188,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.warn(`[fetchOpenAIModels] API请求失败: ${response.status}, ${errorText}`);
+      logger.warn(`API请求失败: ${response.status}, ${errorText}`);
       
       // 记录API响应
       logApiResponse('OpenAI Models', response.status, {
@@ -204,7 +208,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
       .map(normalizeModel)
       .filter((m: any) => m && m.id); // 过滤掉无效模型
     
-    console.log(`[fetchOpenAIModels] 成功获取模型列表, 找到 ${normalizedModels.length} 个模型`);
+    logger.debug(`成功获取模型列表, 找到 ${normalizedModels.length} 个模型`);
     
     // 记录API响应
     logApiResponse('OpenAI Models', 200, {
@@ -214,7 +218,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     
     return normalizedModels;
   } catch (error) {
-    console.error('[fetchOpenAIModels] 获取模型失败:', error);
+    logger.error('获取模型失败:', error);
     throw error;
   }
 }
@@ -251,7 +255,7 @@ export async function fetchModelsWithSDK(model: Model): Promise<any[]> {
     
     return models;
   } catch (error) {
-    console.error('[fetchModelsWithSDK] 获取模型失败:', error);
+    logger.error('获取模型失败:', error);
     throw error;
   }
 }

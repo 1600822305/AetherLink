@@ -17,6 +17,10 @@ import { ChunkType } from '../../types/chunk';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import type { Model } from '../../types';
 import type { Chunk } from '../../types/chunk';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('UnifiedStreamProcessor');
+
 
 /**
  * 统一流处理选项
@@ -112,10 +116,10 @@ export class UnifiedStreamProcessor {
       return await this.processAdvancedStream(stream);
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('[UnifiedStreamProcessor] 流式响应被用户中断');
+        logger.debug('流式响应被用户中断');
         throw new DOMException('Operation aborted', 'AbortError');
       }
-      console.error('[UnifiedStreamProcessor] 处理流式响应失败:', error);
+      logger.error('处理流式响应失败:', error);
       throw error;
     } finally {
       if (this.cleanup) {
@@ -128,7 +132,7 @@ export class UnifiedStreamProcessor {
    * 流处理模式 - 使用中间件和完整功能
    */
   private async processAdvancedStream(stream: AsyncIterable<any>): Promise<StreamProcessingResult> {
-    console.log(`[UnifiedStreamProcessor] 处理流式响应，模型: ${this.options.model.id}`);
+    logger.debug(`处理流式响应，模型: ${this.options.model.id}`);
 
     this.state.startTime = Date.now();
 
@@ -188,7 +192,7 @@ export class UnifiedStreamProcessor {
 
       // 如果是推理阶段结束，先发送推理完成事件
       if (isFirstContent && this.options.onChunk && this.state.reasoning && !this.state.thinkingCompleteSent) {
-        console.log('[UnifiedStreamProcessor] 推理阶段结束，发送 THINKING_COMPLETE');
+        logger.debug('推理阶段结束，发送 THINKING_COMPLETE');
         this.state.thinkingCompleteSent = true;
         await this.options.onChunk({
           type: ChunkType.THINKING_COMPLETE,
@@ -250,7 +254,7 @@ export class UnifiedStreamProcessor {
     } else if (chunk.type === 'finish') {
       // 先发送 THINKING_COMPLETE（如果有推理内容且还没发送过）
       if (this.state.reasoning && this.options.onChunk && !this.state.thinkingCompleteSent) {
-        console.log('[UnifiedStreamProcessor] finish: 发送 THINKING_COMPLETE');
+        logger.debug('finish: 发送 THINKING_COMPLETE');
         this.state.thinkingCompleteSent = true;
         await this.options.onChunk({
           type: ChunkType.THINKING_COMPLETE,
@@ -262,7 +266,7 @@ export class UnifiedStreamProcessor {
 
       // 处理完成 - 对于只有推理内容没有普通内容的模型（如纯推理模型）
       if (this.state.content.trim() === '' && this.state.reasoning && this.state.reasoning.trim() !== '') {
-        console.log('[UnifiedStreamProcessor] 纯推理模型：使用推理内容作为最终回复');
+        logger.debug('纯推理模型：使用推理内容作为最终回复');
         // 将推理内容设置为最终内容
         this.state.content = this.state.reasoning;
 
@@ -357,7 +361,7 @@ export class UnifiedStreamProcessor {
       if (!this.state.emittedToolIndices.has(index) && this.state.toolCalls[index].function.name) {
         this.state.emittedToolIndices.add(index);
         const toolCall = this.state.toolCalls[index];
-        console.log(`[UnifiedStreamProcessor] 检测到原生工具调用: ${toolCall.function.name} (等待参数完整后处理)`);
+        logger.debug(`检测到原生工具调用: ${toolCall.function.name} (等待参数完整后处理)`);
       }
     }
   }
@@ -376,7 +380,7 @@ export class UnifiedStreamProcessor {
     if (this.state.toolCalls.length > 0) {
       result.hasToolCalls = true;
       result.nativeToolCalls = this.state.toolCalls;
-      console.log(`[UnifiedStreamProcessor] 流式积累完成，原生工具调用数量: ${this.state.toolCalls.length}`);
+      logger.debug(`流式积累完成，原生工具调用数量: ${this.state.toolCalls.length}`);
     }
 
     // 检查 XML 格式工具调用
@@ -395,7 +399,7 @@ export class UnifiedStreamProcessor {
    */
   public setThinkingBlockId(blockId: string): void {
     if (blockId && blockId !== this.options.thinkingBlockId) {
-      console.log(`[UnifiedStreamProcessor] 更新思考块ID: ${blockId}`);
+      logger.debug(`更新思考块ID: ${blockId}`);
       this.options.thinkingBlockId = blockId;
     }
   }

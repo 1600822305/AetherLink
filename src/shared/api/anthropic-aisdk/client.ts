@@ -8,6 +8,10 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import type { AnthropicProvider as AISDKAnthropicProvider } from '@ai-sdk/anthropic';
 import type { Model } from '../../types';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Anthropic SDK Client');
+
 
 
 /**
@@ -85,7 +89,7 @@ export function createClient(model: Model): AISDKAnthropicProvider {
   try {
     const apiKey = model.apiKey;
     if (!apiKey) {
-      console.error('[Anthropic SDK Client] 错误: 未提供 API 密钥');
+      logger.error('错误: 未提供 API 密钥');
       throw new Error('未提供 Anthropic API 密钥，请在设置中配置');
     }
 
@@ -96,7 +100,7 @@ export function createClient(model: Model): AISDKAnthropicProvider {
     if (import.meta.env.DEV && baseURL.includes('code.newcli.com')) {
       const proxyPath = baseURL.replace('https://code.newcli.com', '/api/newcli');
       baseURL = `${window.location.origin}${proxyPath}`;
-      console.log(`[Anthropic SDK Client] 开发环境代理转换`);
+      logger.debug(`开发环境代理转换`);
     }
 
     // 确保 baseURL 格式正确
@@ -109,7 +113,7 @@ export function createClient(model: Model): AISDKAnthropicProvider {
       baseURL = baseURL.slice(0, -3);
     }
 
-    console.log(`[Anthropic SDK Client] 创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 30)}...`);
+    logger.debug(`创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 30)}...`);
 
     // 构建配置
     const config: Parameters<typeof createAnthropic>[0] = {
@@ -127,7 +131,7 @@ export function createClient(model: Model): AISDKAnthropicProvider {
     // 添加模型级别额外头部
     if (model.extraHeaders) {
       Object.assign(customHeaders, model.extraHeaders);
-      console.log(`[Anthropic SDK Client] 设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
+      logger.debug(`设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
     }
 
     // 添加供应商级别额外头部
@@ -143,7 +147,7 @@ export function createClient(model: Model): AISDKAnthropicProvider {
       });
 
       if (headersToRemove.length > 0) {
-        console.log(`[Anthropic SDK Client] 配置删除请求头: ${headersToRemove.join(', ')}`);
+        logger.debug(`配置删除请求头: ${headersToRemove.join(', ')}`);
       }
     }
 
@@ -172,18 +176,18 @@ export function createClient(model: Model): AISDKAnthropicProvider {
 
     // 创建并返回 AI SDK Anthropic Provider
     const client = createAnthropic(config);
-    console.log(`[Anthropic SDK Client] 客户端创建成功`);
+    logger.debug(`客户端创建成功`);
     return client;
 
   } catch (error) {
-    console.error('[Anthropic SDK Client] 创建客户端失败:', error);
+    logger.error('创建客户端失败:', error);
     
     // 创建后备客户端
     const fallbackClient = createAnthropic({
       apiKey: 'sk-missing-key-please-configure',
       baseURL: 'https://api.anthropic.com',
     });
-    console.warn('[Anthropic SDK Client] 使用后备客户端配置');
+    logger.warn('使用后备客户端配置');
     return fallbackClient;
   }
 }
@@ -195,7 +199,7 @@ export async function testConnection(model: Model): Promise<boolean> {
   try {
     const client = createClient(model);
     
-    console.log(`[Anthropic SDK Client] 测试连接: ${model.id}`);
+    logger.debug(`测试连接: ${model.id}`);
     
     const result = await generateText({
       model: client(model.id),
@@ -205,7 +209,7 @@ export async function testConnection(model: Model): Promise<boolean> {
 
     return Boolean(result.text);
   } catch (error) {
-    console.error('[Anthropic SDK Client] 连接测试失败:', error);
+    logger.error('连接测试失败:', error);
     return false;
   }
 }
