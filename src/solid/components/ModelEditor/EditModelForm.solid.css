@@ -1,0 +1,323 @@
+/* EditModelForm - SolidJS 模型编辑表单样式
+ * 主题颜色通过 React 外壳注入的 CSS 变量驱动（与 ModelManagementDialogSolid 一致）
+ */
+.emdl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--theme-text-primary, #1a1a1a);
+  font-size: 14px;
+}
+
+.emdl-form *,
+.emdl-form *::before,
+.emdl-form *::after {
+  box-sizing: border-box;
+}
+
+/* 头像卡片 */
+.emdl-avatar-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 10px;
+  background-color: var(--theme-primary-bg, rgba(25, 118, 210, 0.08));
+  border: 1px solid var(--theme-primary-border, rgba(25, 118, 210, 0.2));
+}
+
+.emdl-avatar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.emdl-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--theme-primary, #1677ff);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.emdl-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.emdl-avatar-fallback {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.emdl-avatar-title {
+  font-weight: 500;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.emdl-avatar-desc {
+  font-size: 12px;
+  color: var(--theme-text-secondary, #666);
+  margin-top: 2px;
+}
+
+/* 图标按钮 */
+.emdl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--theme-text-secondary, #666);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.emdl-icon-btn:hover {
+  background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+  color: var(--theme-primary, #1677ff);
+}
+
+.emdl-icon-btn-primary {
+  color: var(--theme-primary, #1677ff);
+  background-color: var(--theme-primary-bg, rgba(25, 118, 210, 0.12));
+}
+
+.emdl-icon-btn-primary:hover {
+  background-color: var(--theme-primary-border, rgba(25, 118, 210, 0.2));
+}
+
+/* 表单字段 */
+.emdl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.emdl-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-secondary, #666);
+}
+
+.emdl-label-inline {
+  font-size: 14px;
+  color: var(--theme-text-primary, #1a1a1a);
+}
+
+.emdl-required {
+  color: var(--theme-error, #d32f2f);
+}
+
+.emdl-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--theme-border-default, rgba(0, 0, 0, 0.23));
+  border-radius: 8px;
+  background-color: var(--theme-bg-paper, #fff);
+  color: var(--theme-text-primary, #1a1a1a);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.emdl-input:focus {
+  border-color: var(--theme-primary, #1677ff);
+  box-shadow: 0 0 0 2px var(--theme-primary-bg, rgba(22, 119, 255, 0.15));
+}
+
+.emdl-input-error {
+  border-color: var(--theme-error, #d32f2f);
+}
+
+.emdl-input-error:focus {
+  box-shadow: 0 0 0 2px var(--theme-error-bg, rgba(211, 47, 47, 0.15));
+}
+
+/* select */
+.emdl-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.emdl-select {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 12px;
+  border: 1px solid var(--theme-border-default, rgba(0, 0, 0, 0.23));
+  border-radius: 8px;
+  background-color: var(--theme-bg-paper, #fff);
+  color: var(--theme-text-primary, #1a1a1a);
+  font-size: 14px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.emdl-select:focus {
+  border-color: var(--theme-primary, #1677ff);
+  box-shadow: 0 0 0 2px var(--theme-primary-bg, rgba(22, 119, 255, 0.15));
+}
+
+.emdl-select-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--theme-text-secondary, #666);
+}
+
+.emdl-helper {
+  font-size: 12px;
+  color: var(--theme-text-secondary, #666);
+  line-height: 1.4;
+}
+
+.emdl-helper-error {
+  color: var(--theme-error, #d32f2f);
+}
+
+/* 模型类型头部 */
+.emdl-type-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emdl-type-header-left,
+.emdl-type-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.emdl-info-hint {
+  display: inline-flex;
+  align-items: center;
+  color: var(--theme-text-secondary, #666);
+  cursor: help;
+}
+
+/* 开关 */
+.emdl-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--theme-text-primary, #1a1a1a);
+  cursor: pointer;
+}
+
+.emdl-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+}
+
+.emdl-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.emdl-switch-slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--theme-border-default, rgba(0, 0, 0, 0.25));
+  border-radius: 22px;
+  transition: background-color 0.2s ease;
+}
+
+.emdl-switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.emdl-switch input:checked + .emdl-switch-slider {
+  background-color: var(--theme-primary, #1677ff);
+}
+
+.emdl-switch input:checked + .emdl-switch-slider::before {
+  transform: translateX(16px);
+}
+
+/* 类型面板 */
+.emdl-type-panel {
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px solid var(--theme-border-default, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  background-color: var(--theme-bg-paper, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.emdl-type-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--theme-text-secondary, #888);
+  margin-bottom: 8px;
+}
+
+.emdl-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.emdl-chip {
+  padding: 5px 14px;
+  border: 1px solid var(--theme-border-default, rgba(0, 0, 0, 0.23));
+  border-radius: 16px;
+  background-color: transparent;
+  color: var(--theme-text-secondary, #666);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.emdl-chip:hover:not(.emdl-chip-disabled) {
+  background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+}
+
+.emdl-chip-active {
+  background-color: var(--theme-primary-bg, rgba(22, 119, 255, 0.15));
+  border-color: var(--theme-primary, #1677ff);
+  color: var(--theme-primary, #1677ff);
+  font-weight: 500;
+}
+
+.emdl-chip-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

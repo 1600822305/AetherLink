@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Box,
@@ -22,7 +22,7 @@ const DIALOG_ID = 'sidebar-width-dialog';
 
 /**
  * 侧边栏宽度调整对话框
- * 支持滑块、输入框和快捷预设；改动需点击"保存"后才会生效
+ * 支持滑块、输入框和快捷预设；拖动实时预览，点"保存"确认，取消恢复原值
  */
 const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
   open,
@@ -30,44 +30,57 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
   currentWidth,
   onWidthChange,
 }) => {
-  // 使用返回键处理
-  const { handleClose } = useDialogBackHandler(DIALOG_ID, open, onClose);
+  // 打开时记录原始宽度，取消时恢复
+  const originalWidthRef = useRef(currentWidth);
 
-  // 当前屏幕允许的最大宽度（对话框打开时随当前视口实时计算）
+  // 当前屏幕允许的最大宽度
   const safeMaxWidth = getSafeMaxSidebarWidth();
-
   const clamp = (value: number) =>
     Math.min(safeMaxWidth, Math.max(SIDEBAR_WIDTH_MIN, value));
 
-  // 草稿宽度：仅在点击"保存"后才应用到实际设置
+  // 草稿宽度
   const [draftWidth, setDraftWidth] = useState(() => clamp(currentWidth));
+  // 输入框文本状态（允许中间编辑状态，不立即 clamp）
+  const [inputText, setInputText] = useState(() => String(clamp(currentWidth)));
 
-  // 每次打开对话框时同步当前宽度
+  // 每次打开时同步并记录原始值
   useEffect(() => {
     if (open) {
-      setDraftWidth(clamp(currentWidth));
+      const clamped = clamp(currentWidth);
+      setDraftWidth(clamped);
+      setInputText(String(clamped));
+      originalWidthRef.current = clamped;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentWidth]);
+  }, [open, currentWidth, safeMaxWidth]);
 
+  // 拖动时实时预览
   const handleDraftChange = (newWidth: number) => {
-    setDraftWidth(clamp(newWidth));
+    const clamped = clamp(newWidth);
+    setDraftWidth(clamped);
+    setInputText(String(clamped));
+    onWidthChange(clamped);
   };
 
-  const handleSave = () => {
-    onWidthChange(clamp(draftWidth));
+  // 取消：恢复原宽度
+  const handleCancel = () => {
+    onWidthChange(originalWidthRef.current);
     onClose();
   };
 
+  // 返回键处理
+  useDialogBackHandler(DIALOG_ID, open, handleCancel);
+
   if (!open) return null;
+
+  const handleSave = () => onClose();
 
   const presets = [340, 400, 500, 600].filter((p) => p <= safeMaxWidth);
 
   return createPortal(
     <>
-      {/* 点击外部关闭（不保存） */}
+      {/* 点击外部关闭（恢复原宽度） */}
       <Box
-        onClick={handleClose}
+        onClick={handleCancel}
         sx={{
           position: 'fixed',
           top: 0,
@@ -97,7 +110,7 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
           侧边栏宽度
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          范围 {SIDEBAR_WIDTH_MIN}–{safeMaxWidth}px，修改后点击"保存"生效
+          范围 {SIDEBAR_WIDTH_MIN}–{safeMaxWidth}px，实时预览，点"保存"确认
         </Typography>
         
         {/* 滑块 */}
@@ -120,11 +133,24 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
         <TextField
           type="number"
           size="small"
-          value={draftWidth}
+          value={inputText}
           onChange={(e) => {
-            const value = parseInt(e.target.value, 10);
+            // 仅更新文本，不立即 clamp，允许用户自由编辑
+            setInputText(e.target.value);
+          }}
+          onBlur={() => {
+            // 失焦时 clamp 并应用
+            const value = parseInt(inputText, 10);
             if (!isNaN(value)) {
               handleDraftChange(value);
+            } else {
+              // 非法输入恢复
+              setInputText(String(draftWidth));
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              (e.target as HTMLInputElement).blur();
             }
           }}
           InputProps={{
@@ -165,7 +191,7 @@ const SidebarWidthDialog: React.FC<SidebarWidthDialogProps> = ({
 
         {/* 操作按钮 */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
-          <Button size="small" color="inherit" onClick={handleClose}>
+          <Button size="small" color="inherit" onClick={handleCancel}>
             取消
           </Button>
           <Button size="small" variant="contained" onClick={handleSave}>

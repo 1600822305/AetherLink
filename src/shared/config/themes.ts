@@ -433,6 +433,12 @@ export const createCustomTheme = (
       borderRadius: 8,
     },
     components: {
+      // 全局关闭涟漪效果（所有基于 ButtonBase 的组件：Button/IconButton/Tab/MenuItem 等）
+      MuiButtonBase: {
+        defaultProps: {
+          disableRipple: true,
+        },
+      },
       MuiPaper: {
         styleOverrides: {
           root: {

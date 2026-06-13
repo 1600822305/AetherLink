@@ -36,8 +36,8 @@ function ModelItemSignals({
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        py: { xs: 1.5, sm: 1 },
-        pl: { xs: 4, sm: 3.5 },
+        py: { xs: 1.25, sm: 0.875 },
+        pl: { xs: 3, sm: 2.5 },
         pr: { xs: (testModeEnabled.value || alwaysShowTestButton) ? 12.5 : 9, sm: (testModeEnabled.value || alwaysShowTestButton) ? 11 : 8 },
         bgcolor: 'background.paper',
         borderBottom: '1px solid',
@@ -51,8 +51,8 @@ function ModelItemSignals({
       <Typography
         variant="subtitle2"
         sx={{
-          fontWeight: 600,
-          fontSize: { xs: '0.95rem', sm: '0.875rem' },
+          fontWeight: 500,
+          fontSize: { xs: '0.9rem', sm: '0.875rem' },
           flex: 1,
           mr: 1,
         }}

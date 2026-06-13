@@ -15,7 +15,6 @@ import React, { memo, useCallback, useDeferredValue, useMemo, useRef, useState }
 import {
   Box,
   Typography,
-  Chip,
   TextField,
   InputAdornment,
   useTheme,
@@ -68,7 +67,6 @@ const GroupHeaderRow = memo<{
   onToggle: () => void;
   button?: React.ReactNode;
 }>(({ groupName, count, expanded, onToggle, button }) => {
-  const theme = useTheme();
   return (
     <Box
       onClick={onToggle}
@@ -76,30 +74,30 @@ const GroupHeaderRow = memo<{
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        gap: { xs: 2, sm: 1.5 },
-        minHeight: { xs: 48, sm: 44 },
+        gap: { xs: 1.5, sm: 1.25 },
+        minHeight: { xs: 44, sm: 40 },
         px: { xs: 2, sm: 1.5 },
-        py: { xs: 1, sm: 0.75 },
+        py: { xs: 0.75, sm: 0.5 },
         pr: button ? { xs: 6.5, sm: 5.5 } : { xs: 2, sm: 1.5 },
         cursor: 'pointer',
         userSelect: 'none',
-        // 轻量 section 行：极淡底色 + 仅底部分隔线，区别于模型行又不厚重
-        bgcolor: theme.palette.mode === 'dark'
+        bgcolor: (theme) => theme.palette.mode === 'dark'
           ? alpha(theme.palette.common.white, 0.04)
-          : alpha(theme.palette.common.black, 0.022),
+          : alpha(theme.palette.common.black, 0.025),
         borderBottom: '1px solid',
         borderColor: 'divider',
         '&:hover': {
-          bgcolor: theme.palette.mode === 'dark'
+          bgcolor: (theme) => theme.palette.mode === 'dark'
             ? alpha(theme.palette.common.white, 0.07)
-            : alpha(theme.palette.common.black, 0.045)
+            : alpha(theme.palette.common.black, 0.05)
         }
       }}
     >
       <ChevronDown
-        size={18}
+        size={16}
         style={{
           flexShrink: 0,
+          opacity: 0.6,
           transition: 'transform 0.2s ease',
           transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)'
         }}
@@ -109,7 +107,7 @@ const GroupHeaderRow = memo<{
         sx={{
           fontWeight: 600,
           color: 'text.primary',
-          fontSize: { xs: '0.95rem', sm: '0.875rem' },
+          fontSize: { xs: '0.9rem', sm: '0.875rem' },
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis'
@@ -117,18 +115,16 @@ const GroupHeaderRow = memo<{
       >
         {groupName}
       </Typography>
-      <Chip
-        label={count}
-        size="small"
+      <Typography
+        variant="caption"
         sx={{
-          height: { xs: 22, sm: 20 },
-          fontSize: { xs: '0.72rem', sm: '0.7rem' },
-          fontWeight: 600,
-          bgcolor: alpha(theme.palette.success.main, 0.12),
-          color: 'success.main',
-          '& .MuiChip-label': { px: { xs: 1.25, sm: 1 } }
+          flexShrink: 0,
+          fontWeight: 500,
+          color: 'text.secondary'
         }}
-      />
+      >
+        {count}
+      </Typography>
       {button && (
         <Box
           onClick={(e) => e.stopPropagation()}

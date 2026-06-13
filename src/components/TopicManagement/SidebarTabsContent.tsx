@@ -158,7 +158,10 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
                 margin: hasExtraTabs ? '0' : '0 10px',
                 padding: hasExtraTabs ? '8px 2px' : '10px 0',
                 '& .MuiTabs-indicator': {
-                  display: 'none',
+                  height: '2px',
+                  borderRadius: '1px',
+                  backgroundColor: 'var(--theme-primary-color, currentColor)',
+                  opacity: 0.55,
                 },
                 ...(hasExtraTabs ? {
                   '& .MuiTabs-flexContainer': {
@@ -187,12 +190,15 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
                       marginBottom: '2px',
                     },
                   }),
-                  transition: 'none',
+                  transition: 'background-color 0.15s, opacity 0.15s',
+                  opacity: 0.6,
                   '&.Mui-selected': {
                     backgroundColor: 'var(--theme-selected-color)',
+                    opacity: 1,
                   },
                   '&:hover': {
                     backgroundColor: 'var(--theme-hover-color)',
+                    opacity: 0.85,
                   },
                 },
               }}

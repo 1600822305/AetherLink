@@ -130,7 +130,8 @@ const ImageBlock: React.FC<Props> = ({ block, isSingle = true }) => {
           maxHeight: isSingle ? '300px' : '180px',
           borderRadius: '8px',
           cursor: 'pointer',
-          objectFit: 'cover'
+          objectFit: 'cover',
+          WebkitTapHighlightColor: 'transparent'
         }}
         onClick={handleOpen}
       />

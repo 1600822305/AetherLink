@@ -7,15 +7,19 @@
 // 侧边栏宽度限制
 export const SIDEBAR_WIDTH_MIN = 340;
 export const SIDEBAR_WIDTH_MAX = 800;
-// 保证侧边栏不会铺满整个屏幕，否则恢复入口（宽度按钮）会被挤出可视区域
+// 保证桌面端侧边栏不会铺满整个屏幕，否则恢复入口（宽度按钮）会被挤出可视区域
 export const SIDEBAR_VIEWPORT_SAFE_MARGIN = 120;
+// 移动端断点，与 useMediaQuery(theme.breakpoints.down('md')) 对齐
+const SIDEBAR_MOBILE_BREAKPOINT = 900;
+// 移动端宽度上限
+const SIDEBAR_MOBILE_MAX = 400;
 
-// 计算当前屏幕下允许的最大宽度，避免设置过大导致无法恢复
+// 计算当前屏幕下允许的最大宽度
+// 移动端固定 400；桌面端 min(800, 视口-120)
 export const getSafeMaxSidebarWidth = (): number => {
-  const viewportLimit =
-    typeof window !== 'undefined'
-      ? window.innerWidth - SIDEBAR_VIEWPORT_SAFE_MARGIN
-      : SIDEBAR_WIDTH_MAX;
+  if (typeof window === 'undefined') return SIDEBAR_WIDTH_MAX;
+  if (window.innerWidth < SIDEBAR_MOBILE_BREAKPOINT) return SIDEBAR_MOBILE_MAX;
+  const viewportLimit = window.innerWidth - SIDEBAR_VIEWPORT_SAFE_MARGIN;
   return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, viewportLimit));
 };
 

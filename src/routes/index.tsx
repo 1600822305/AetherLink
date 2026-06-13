@@ -25,6 +25,7 @@ const ModelProviderSettings = lazy(() => import('../pages/Settings/ModelProvider
 const MultiKeyManagementPage = lazy(() => import('../pages/Settings/ModelProviders/MultiKeyManagement'));
 const AdvancedAPIConfigPage = lazy(() => import('../pages/Settings/ModelProviders/AdvancedAPIConfig'));
 const AddProviderPage = lazy(() => import('../pages/Settings/ModelProviders/AddProvider'));
+const EditModelPage = lazy(() => import('../pages/Settings/ModelProviders/EditModelPage'));
 const AboutPage = lazy(() => import('../pages/Settings/AboutPage'));
 // 导入语音设置页面
 const VoiceSettings = lazy(() => import('../pages/Settings/VoiceSettingsV2'));
@@ -174,6 +175,7 @@ const AppRouter: React.FC = () => {
         <Route path="/settings/model-provider/:providerId" element={<ModelProviderSettings />} />
         <Route path="/settings/model-provider/:providerId/multi-key" element={<MultiKeyManagementPage />} />
         <Route path="/settings/model-provider/:providerId/advanced-api" element={<AdvancedAPIConfigPage />} />
+        <Route path="/settings/model-provider/:providerId/edit-model" element={<EditModelPage />} />
         <Route path="/settings/add-provider" element={<AddProviderPage />} />
         <Route path="/settings/about" element={<AboutPage />} />
         <Route path="/settings/voice" element={<VoiceSettings />} />

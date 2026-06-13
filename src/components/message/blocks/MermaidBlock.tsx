@@ -475,6 +475,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ code, id, messageRole }) =>
             padding: '16px',
             color: isDarkMode ? '#94a3b8' : '#64748b',
             cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
             '&:hover': {
               backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(248, 250, 252, 0.5)'
             }

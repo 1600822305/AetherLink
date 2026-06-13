@@ -100,6 +100,7 @@ const ContextSummaryBlock: React.FC<Props> = ({ block }) => {
           py: 1.5,
           cursor: 'pointer',
           userSelect: 'none',
+          WebkitTapHighlightColor: 'transparent',
           backgroundColor: theme.palette.mode === 'dark'
             ? alpha(theme.palette.primary.main, 0.15)
             : alpha(theme.palette.primary.main, 0.08),

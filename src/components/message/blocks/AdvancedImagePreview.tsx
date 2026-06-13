@@ -350,6 +350,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
             color: '#d32f2f',
             fontSize: '12px',
             cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
           }}
           onClick={() => window.open(src, '_blank')}
           title="点击在新标签页打开原图"
@@ -371,6 +372,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
             margin: '8px 0',
             display: 'block',
             cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
             objectFit: 'contain',
             ...style
           }}

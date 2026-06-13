@@ -37,7 +37,6 @@ import { updateSettings, updateProvider } from '../../../shared/store/settingsSl
 import { alpha } from '@mui/material/styles';
 import ModelManagementDialogSolid from '../../../components/dialogs/ModelManagementDialogSolid';
 import { SafeAreaContainer } from "../../../components/settings/SettingComponents";
-import SimpleModelDialog from '../../../components/settings/SimpleModelDialog';
 import VirtualizedModelGroupList from '../../../components/settings/VirtualizedModelGroupList';
 import {
   isOpenAIProvider,
@@ -110,9 +109,6 @@ const ModelProviderSettings: React.FC = () => {
     setOpenAddModelDialog,
     openDeleteDialog,
     setOpenDeleteDialog,
-    openEditModelDialog,
-    setOpenEditModelDialog,
-    modelToEdit,
     newModelName,
     setNewModelName,
     newModelValue,
@@ -154,9 +150,7 @@ const ModelProviderSettings: React.FC = () => {
     handleOpenCustomEndpointDialog,
     handleSaveCustomEndpoint,
     handleAddModel,
-    handleEditModel,
     handleDeleteModel,
-    openModelEditDialog,
     handleAddModelFromApi,
     handleBatchAddModels,
     handleBatchRemoveModels,
@@ -923,7 +917,7 @@ const ModelProviderSettings: React.FC = () => {
                     key={model.id}
                     model={model}
                     alwaysShowTestButton={alwaysShowModelTestButton || false}
-                    onEdit={openModelEditDialog}
+                    onEdit={(model) => navigate(`/settings/model-provider/${provider.id}/edit-model?mid=${encodeURIComponent(model.id)}`)}
                     onDelete={handleDeleteModel}
                     onTest={handleTestModelConnection}
                   />
@@ -1016,14 +1010,6 @@ const ModelProviderSettings: React.FC = () => {
         onModelNameChange={setNewModelName}
         onModelValueChange={setNewModelValue}
         onAddModel={handleAddModel}
-      />
-
-      {/* 编辑模型对话框 */}
-      <SimpleModelDialog
-        open={openEditModelDialog}
-        onClose={() => setOpenEditModelDialog(false)}
-        onSave={handleEditModel}
-        editModel={modelToEdit}
       />
 
       {/* 删除确认对话框 */}

@@ -416,6 +416,8 @@ const Header = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(0.75, 1),
   cursor: 'pointer',
+  WebkitTapHighlightColor: 'transparent',
+  userSelect: 'none',
   backgroundColor: theme.palette.mode === 'dark' 
     ? alpha(theme.palette.background.default, 0.5)
     : theme.palette.grey[50],

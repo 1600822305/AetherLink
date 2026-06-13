@@ -72,8 +72,6 @@ export const useProviderSettings = (provider: Provider | undefined) => {
   const [isEnabled, setIsEnabled] = useState(true);
   const [openAddModelDialog, setOpenAddModelDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  const [openEditModelDialog, setOpenEditModelDialog] = useState(false);
-  const [modelToEdit, setModelToEdit] = useState<Model | undefined>(undefined);
   const [newModelName, setNewModelName] = useState('');
   const [newModelValue, setNewModelValue] = useState('');
   const [baseUrlError, setBaseUrlError] = useState('');
@@ -553,25 +551,6 @@ export const useProviderSettings = (provider: Provider | undefined) => {
     }
   };
 
-  const handleEditModel = (updatedModel: Model) => {
-    if (provider && updatedModel && modelToEdit) {
-      logModelOperation('编辑模型', { oldId: modelToEdit.id, newId: updatedModel.id, name: updatedModel.name });
-      
-      // 查找并替换原有模型（保持位置不变）
-      const updatedModels = provider.models.map(m =>
-        modelMatchesIdentity(m, modelToEdit, provider.id) ? updatedModel : m
-      );
-
-      // 只保存模型列表
-      if (updateProviderModels(updatedModels)) {
-        logModelOperation('编辑成功', { modelId: updatedModel.id });
-        // 清理状态
-        setModelToEdit(undefined);
-        setOpenEditModelDialog(false);
-      }
-    }
-  };
-
   const handleDeleteModel = useCallback((modelId: string) => {
     if (provider) {
       logModelOperation('删除模型', { modelId, provider: provider.id });
@@ -592,13 +571,6 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       updateProviderModels(updatedModels);
     }
   }, [provider, updateProviderModels]);
-
-  const openModelEditDialog = useCallback((model: Model) => {
-    setModelToEdit(model);
-    setNewModelName(model.name);
-    setNewModelValue(model.id); // 使用模型ID作为value
-    setOpenEditModelDialog(true);
-  }, [setModelToEdit, setNewModelName, setNewModelValue, setOpenEditModelDialog]);
 
   const handleAddModelFromApi = useCallback((model: Model) => {
     if (provider) {
@@ -716,10 +688,6 @@ export const useProviderSettings = (provider: Provider | undefined) => {
     setOpenAddModelDialog,
     openDeleteDialog,
     setOpenDeleteDialog,
-    openEditModelDialog,
-    setOpenEditModelDialog,
-    modelToEdit,
-    setModelToEdit,
     newModelName,
     setNewModelName,
     newModelValue,
@@ -790,9 +758,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
     handleOpenCustomEndpointDialog,
     handleSaveCustomEndpoint,
     handleAddModel,
-    handleEditModel,
     handleDeleteModel,
-    openModelEditDialog,
     handleAddModelFromApi,
     handleBatchAddModels,
     handleBatchRemoveModels,
