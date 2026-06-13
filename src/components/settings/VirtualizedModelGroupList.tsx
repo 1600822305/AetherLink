@@ -49,6 +49,8 @@ export interface VirtualizedModelGroupListProps {
   maxHeight?: number | string;
   /** 是否给滚动容器加边框，默认 true（对话框等已有容器时可传 false） */
   bordered?: boolean;
+  /** 是否在滚动容器底部预留移动端安全区（home indicator），默认 false */
+  safeAreaBottom?: boolean;
   /** 行高估算（变高时仅作为初始估算），默认 56 */
   estimateRowHeight?: number;
   /** overscan 行数，默认 8 */
@@ -81,13 +83,16 @@ const GroupHeaderRow = memo<{
         pr: button ? { xs: 6.5, sm: 5.5 } : { xs: 2, sm: 1.5 },
         cursor: 'pointer',
         userSelect: 'none',
-        // 灰色 section 带状 + 组间分隔，使分组头明显区别于白色模型行
-        bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[100],
-        borderTop: '1px solid',
+        // 轻量 section 行：极淡底色 + 仅底部分隔线，区别于模型行又不厚重
+        bgcolor: theme.palette.mode === 'dark'
+          ? alpha(theme.palette.common.white, 0.04)
+          : alpha(theme.palette.common.black, 0.022),
         borderBottom: '1px solid',
         borderColor: 'divider',
         '&:hover': {
-          bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[200]
+          bgcolor: theme.palette.mode === 'dark'
+            ? alpha(theme.palette.common.white, 0.07)
+            : alpha(theme.palette.common.black, 0.045)
         }
       }}
     >
@@ -102,8 +107,7 @@ const GroupHeaderRow = memo<{
       <Typography
         variant="subtitle2"
         sx={{
-          fontWeight: 700,
-          letterSpacing: '0.01em',
+          fontWeight: 600,
           color: 'text.primary',
           fontSize: { xs: '0.95rem', sm: '0.875rem' },
           whiteSpace: 'nowrap',
@@ -177,6 +181,7 @@ function VirtualizedModelGroupList({
   searchPlaceholder,
   maxHeight = '70vh',
   bordered = true,
+  safeAreaBottom = false,
   estimateRowHeight = 56,
   overscan = 8
 }: VirtualizedModelGroupListProps) {
@@ -332,6 +337,8 @@ function VirtualizedModelGroupList({
             ...(bordered
               ? { border: '1px solid', borderColor: 'divider', borderRadius: 2 }
               : {}),
+            // 移动端：底部预留安全区，避免最后一行被 home indicator 遮挡
+            ...(safeAreaBottom ? { pb: 'var(--safe-area-bottom-computed, 0px)' } : {}),
             bgcolor: 'background.paper',
             // iOS 惯性滚动
             WebkitOverflowScrolling: 'touch'
