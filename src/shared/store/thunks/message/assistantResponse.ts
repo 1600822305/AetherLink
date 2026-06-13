@@ -49,6 +49,14 @@ import {
   prepareOriginalMessages,
   extractGeminiSystemPrompt
 } from './helpers';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('processAssistantResponse');
+const mcpLogger = logger.withContext('MCP');
+const webSearchLogger = logger.withContext('WebSearch');
+const agenticLogger = logger.withContext('Agentic');
+const sendMessageLogger = logger.withContext('sendMessage');
+const memoryLogger = logger.withContext('Memory');
 
 /**
  * 处理文本生成响应
@@ -82,19 +90,19 @@ async function handleTextGeneration(context: {
     ? [...filteredOriginalMessages]
     : [...apiMessages];
 
-  console.log(`[processAssistantResponse] Provider类型: ${model.provider}, 使用${isActualGeminiProvider ? '原始' : 'API'}格式消息，消息数量: ${currentMessagesToSend.length}`);
+  logger.debug(`Provider类型: ${model.provider}, 使用${isActualGeminiProvider ? '原始' : 'API'}格式消息，消息数量: ${currentMessagesToSend.length}`);
 
   // 获取 MCP 模式设置（统一使用 Dexie 存储）
   const savedMcpMode = await dexieStorage.getSetting('mcp-mode');
   const mcpMode: 'prompt' | 'function' = (savedMcpMode === 'prompt' || savedMcpMode === 'function') ? savedMcpMode : 'function';
-  console.log(`[MCP] 当前模式: ${mcpMode}`);
+  mcpLogger.debug(`当前模式: ${mcpMode}`);
 
   // 准备工具列表（包含网络搜索工具）
   let allTools = [...mcpTools];
   if (webSearchTool && webSearchProviderId) {
     const webSearchMcpTool = createWebSearchMcpTool(webSearchTool, webSearchProviderId, extractedKeywords);
     allTools.push(webSearchMcpTool);
-    console.log('[WebSearch] 网络搜索工具已添加到工具列表，AI 可自主决定是否调用');
+    webSearchLogger.debug('网络搜索工具已添加到工具列表，AI 可自主决定是否调用');
   }
 
   // 提取系统提示词（所有供应商都需要）
@@ -132,16 +140,16 @@ async function handleTextGeneration(context: {
 
     // 收集工具调用结果
     const toolResults = await collectToolResults(assistantMessage.id, consumedBlockIds);
-    console.log(`[Agentic] 收集到 ${toolResults.length} 个工具结果`);
+    agenticLogger.debug(`收集到 ${toolResults.length} 个工具结果`);
 
     if (toolResults.length === 0) {
       // AI 没有使用任何工具，增加错误计数并注入提醒消息
       const mistakeCount = incrementMistakeCount();
-      console.log(`[Agentic] AI 没有使用工具，连续错误次数: ${mistakeCount}`);
+      agenticLogger.debug(`AI 没有使用工具，连续错误次数: ${mistakeCount}`);
 
       // 检查是否达到错误限制
       if (hasReachedMistakeLimit()) {
-        console.log(`[Agentic] 达到连续错误限制，结束循环`);
+        agenticLogger.debug(`达到连续错误限制，结束循环`);
         break;
       }
 
@@ -150,11 +158,11 @@ async function handleTextGeneration(context: {
       if (assistantContent) {
         const assistantMsg = buildAssistantMessage(assistantContent, isActualGeminiProvider);
         currentMessagesToSend = [...currentMessagesToSend, assistantMsg];
-        console.log(`[Agentic] 添加 AI 回复到消息历史: ${assistantContent.substring(0, 100)}...`);
+        agenticLogger.debug(`添加 AI 回复到消息历史: ${assistantContent.substring(0, 100)}...`);
       }
 
       // 注入提醒消息，让 AI 继续
-      console.log(`[Agentic] 注入提醒消息，要求 AI 使用工具`);
+      agenticLogger.debug(`注入提醒消息，要求 AI 使用工具`);
       const reminderMessage = buildNoToolsUsedMessage(isActualGeminiProvider);
       currentMessagesToSend = [...currentMessagesToSend, reminderMessage];
       
@@ -174,7 +182,7 @@ async function handleTextGeneration(context: {
 
     // 检查是否应该继续
     if (!shouldContinueLoop()) {
-      console.log(`[Agentic] 循环终止条件满足，结束循环`);
+      agenticLogger.debug(`循环终止条件满足，结束循环`);
       break;
     }
 
@@ -185,11 +193,11 @@ async function handleTextGeneration(context: {
     if (assistantContent) {
       const assistantMsg = buildAssistantMessage(assistantContent, isActualGeminiProvider);
       currentMessagesToSend = [...currentMessagesToSend, assistantMsg];
-      console.log(`[Agentic] 添加 AI 的 assistant 消息（含工具调用）到消息历史`);
+      agenticLogger.debug(`添加 AI 的 assistant 消息（含工具调用）到消息历史`);
     }
 
     // 将工具结果添加到消息历史
-    console.log(`[Agentic] 工具执行完成，将结果发回 AI 继续下一轮`);
+    agenticLogger.debug(`工具执行完成，将结果发回 AI 继续下一轮`);
     currentMessagesToSend = buildMessagesWithToolResults(
       currentMessagesToSend,
       toolResults,
@@ -224,7 +232,7 @@ export const processAssistantResponse = async (
 
     // 3. 创建占位符块
     const placeholderBlock = createPlaceholderBlock(assistantMessage.id);
-    console.log(`[sendMessage] 创建占位符块: ${placeholderBlock.id}`);
+    sendMessageLogger.debug(`创建占位符块: ${placeholderBlock.id}`);
 
     await messageBlockRepository.createBlockAndAttach(placeholderBlock);
 
@@ -250,7 +258,7 @@ export const processAssistantResponse = async (
     // 9. 准备消息（参考 Cherry-Studio：一次加载，多格式输出）
     // 只加载一次消息列表
     const messages = await dexieStorage.getTopicMessages(topicId);
-    console.log(`[processAssistantResponse] 加载消息列表，消息数: ${messages.length}`);
+    logger.debug(`加载消息列表，消息数: ${messages.length}`);
 
     // 传递给两个函数，避免重复查询
     const apiMessages = await prepareMessagesForApi(topicId, assistantMessage.id, mcpTools, {
@@ -350,12 +358,12 @@ export const processAssistantResponse = async (
                 .filter(Boolean);
               // 异步提取记忆，不阻塞响应
               extractAndSaveMemories(userContent, finalContent, assistant?.id, priorMessages).catch(err => {
-                console.error('[Memory] 自动记忆提取失败:', err);
+                memoryLogger.error('自动记忆提取失败:', err);
               });
             }
           }
         } catch (memError) {
-          console.error('[Memory] 记忆提取过程出错:', memError);
+          memoryLogger.error('记忆提取过程出错:', memError);
         }
       }
 
@@ -365,7 +373,7 @@ export const processAssistantResponse = async (
       cancelAgenticLoop();
 
       if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        console.log('[processAssistantResponse] 请求被用户中断');
+        logger.debug('请求被用户中断');
         return await responseHandler.completeWithInterruption();
       }
 
@@ -377,7 +385,7 @@ export const processAssistantResponse = async (
     }
 
   } catch (error) {
-    console.error('处理助手响应失败:', error);
+    logger.error('处理助手响应失败:', error);
 
     dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));
     dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming: false }));

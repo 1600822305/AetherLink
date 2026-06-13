@@ -8,6 +8,11 @@ import { MCP_BRIDGE_TOOL_DEFINITION } from '../../../../services/mcp/McpBridgeTo
 import { READ_SKILL_TOOL_DEFINITION } from '../../../../services/skills/SkillReadTool';
 import { getStorageItem } from '../../../../utils/storage';
 import type { MCPTool } from '../../../../types';
+import { createLogger } from '../../../../services/infra/logger';
+
+const logger = createLogger('MCP');
+const memoryLogger = logger.withContext('Memory');
+const skillLogger = logger.withContext('Skill');
 
 /**
  * 获取 MCP 工具
@@ -18,14 +23,14 @@ export async function fetchMcpTools(toolsEnabled?: boolean, hasSkills?: boolean)
   // 技能独立开关（与 MCP 总开关分离，统一使用 Dexie 存储）
   const skillsEnabled = (await getStorageItem<boolean>('skills-enabled')) ?? false;
   const shouldInjectSkills = skillsEnabled && hasSkills;
-  console.log(`[MCP] fetchMcpTools 参数: toolsEnabled=${toolsEnabled}, hasSkills=${hasSkills}, skillsEnabled=${skillsEnabled}, shouldInjectSkills=${shouldInjectSkills}`);
+  logger.debug(`fetchMcpTools 参数: toolsEnabled=${toolsEnabled}, hasSkills=${hasSkills}, skillsEnabled=${skillsEnabled}, shouldInjectSkills=${shouldInjectSkills}`);
 
   if (!toolsEnabled) {
     if (shouldInjectSkills) {
-      console.log(`[MCP] MCP 工具未启用，但技能已开启 — 仅注入 read_skill`);
+      logger.debug(`MCP 工具未启用，但技能已开启 — 仅注入 read_skill`);
       return [READ_SKILL_TOOL_DEFINITION];
     }
-    console.log(`[MCP] 工具未启用 (toolsEnabled=${toolsEnabled})`);
+    logger.debug(`工具未启用 (toolsEnabled=${toolsEnabled})`);
     return [];
   }
 
@@ -33,49 +38,49 @@ export async function fetchMcpTools(toolsEnabled?: boolean, hasSkills?: boolean)
   const bridgeMode = await getStorageItem<boolean>('mcp-bridge-mode');
   if (bridgeMode) {
     const allServers = await mcpService.getServersAsync();
-    console.log(`[MCP] 桥梁模式激活 — 仅注入 mcp_bridge 工具（替代 ${allServers.length} 个服务器的所有工具）`);
+    logger.debug(`桥梁模式激活 — 仅注入 mcp_bridge 工具（替代 ${allServers.length} 个服务器的所有工具）`);
     const tools: MCPTool[] = [MCP_BRIDGE_TOOL_DEFINITION];
 
     // 记忆工具仍然正常注入（它不是 MCP server 工具）
     if (isMemoryToolEnabled()) {
       const memoryTools = getMemoryToolDefinitions();
       tools.push(...memoryTools);
-      console.log(`[Memory] 添加 ${memoryTools.length} 个记忆工具`);
+      memoryLogger.debug(`添加 ${memoryTools.length} 个记忆工具`);
     }
 
     // read_skill 独立注入（受技能开关控制）
     if (shouldInjectSkills) {
       tools.push(READ_SKILL_TOOL_DEFINITION);
-      console.log(`[Skill] 添加 read_skill 工具`);
+      skillLogger.debug(`添加 read_skill 工具`);
     }
 
     return tools;
   }
 
   try {
-    console.log(`[MCP] 开始获取工具，可能需要连接网络服务器...`);
+    logger.debug(`开始获取工具，可能需要连接网络服务器...`);
     const mcpTools = await mcpService.getAllAvailableTools();
     
     // 如果记忆工具开关开启，添加记忆工具
     if (isMemoryToolEnabled()) {
       const memoryTools = getMemoryToolDefinitions();
       mcpTools.push(...memoryTools);
-      console.log(`[Memory] 添加 ${memoryTools.length} 个记忆工具`);
+      memoryLogger.debug(`添加 ${memoryTools.length} 个记忆工具`);
     }
 
     // read_skill 独立注入（受技能开关控制）
     if (shouldInjectSkills) {
       mcpTools.push(READ_SKILL_TOOL_DEFINITION);
-      console.log(`[Skill] 添加 read_skill 工具`);
+      skillLogger.debug(`添加 read_skill 工具`);
     }
     
-    console.log(`[MCP] 获取到 ${mcpTools.length} 个可用工具`);
+    logger.debug(`获取到 ${mcpTools.length} 个可用工具`);
     if (mcpTools.length > 0) {
-      console.log(`[MCP] 工具列表:`, mcpTools.map(t => t.name || t.id).join(', '));
+      logger.debug(`工具列表:`, mcpTools.map(t => t.name || t.id).join(', '));
     }
     return mcpTools;
   } catch (error) {
-    console.error('[MCP] 获取工具失败:', error);
+    logger.error('获取工具失败:', error);
     return [];
   }
 }

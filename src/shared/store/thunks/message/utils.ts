@@ -2,6 +2,9 @@ import { dexieStorage } from '../../../services/storage/DexieStorageService';
 import { throttle } from 'lodash';
 import type { Message, MessageBlock } from '../../../types/newMessage';
 import { refreshTopicPreview } from '../../../services/topics/TopicPreviewService';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('saveMessageAndBlocksToDB');
 
 export const saveMessageAndBlocksToDB = async (message: Message, blocks: MessageBlock[]) => {
   try {
@@ -30,9 +33,9 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
         // 如果消息不存在，添加到messageIds数组
         if (!topic.messageIds.includes(message.id)) {
           topic.messageIds.push(message.id);
-          console.log(`[saveMessageAndBlocksToDB] 添加新消息 ${message.id} 到话题 ${topic.id}`);
+          logger.debug(`添加新消息 ${message.id} 到话题 ${topic.id}`);
         } else {
-          console.log(`[saveMessageAndBlocksToDB] 消息 ${message.id} 已存在于话题 ${topic.id}`);
+          logger.debug(`消息 ${message.id} 已存在于话题 ${topic.id}`);
         }
 
         // 更新话题的lastMessageTime
@@ -40,7 +43,7 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
 
         // 保存更新后的话题
         await dexieStorage.topics.put(topic);
-        console.log(`[saveMessageAndBlocksToDB] 话题 ${topic.id} 现有 ${topic.messageIds.length} 条消息`);
+        logger.debug(`话题 ${topic.id} 现有 ${topic.messageIds.length} 条消息`);
       }
     });
 
@@ -48,7 +51,7 @@ export const saveMessageAndBlocksToDB = async (message: Message, blocks: Message
     // 与消息主流程解耦，失败不影响保存。
     void refreshTopicPreview(message.topicId);
   } catch (error) {
-    console.error('保存消息和块到数据库失败:', error);
+    logger.error('保存消息和块到数据库失败:', error);
     throw error;
   }
 };

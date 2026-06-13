@@ -17,6 +17,9 @@ import type { MCPTool } from '../../../../types';
 import type { Message } from '../../../../types/newMessage';
 import { MessageBlockType } from '../../../../types/newMessage';
 import type { RootState } from '../../../index';
+import { createLogger } from '../../../../services/infra/logger';
+
+const logger = createLogger('SearchTools');
 
 export interface WebSearchConfig {
   webSearchTool: any | null;
@@ -145,7 +148,7 @@ export async function configureSearchTools(
       result.extractedKeywords = { question: [userContent] };
       result.webSearchTool = createWebSearchToolDefinition(result.extractedKeywords);
     }
-    console.log('[SearchTools] AI 意图分析已关闭，直接注入工具');
+    logger.debug('AI 意图分析已关闭，直接注入工具');
     return result;
   }
 
@@ -155,7 +158,7 @@ export async function configureSearchTools(
     shouldKnowledgeSearch
   };
 
-  console.log('[SearchTools] 开始统一意图分析:', analysisOptions);
+  logger.debug('开始统一意图分析:', analysisOptions);
 
   const intentResult = await analyzeUnifiedSearchIntent(
     userContent,
@@ -171,13 +174,13 @@ export async function configureSearchTools(
   if (intentResult.websearch) {
     result.extractedKeywords = intentResult.websearch;
     result.webSearchTool = createWebSearchToolDefinition(result.extractedKeywords);
-    console.log('[SearchTools] Web 搜索关键词:', result.extractedKeywords.question);
+    logger.debug('Web 搜索关键词:', result.extractedKeywords.question);
   }
 
   // 知识库搜索关键词（传递给知识库搜索流程使用）
   if (intentResult.knowledge) {
     result.knowledgeKeywords = intentResult.knowledge;
-    console.log('[SearchTools] 知识库搜索关键词:', result.knowledgeKeywords.question);
+    logger.debug('知识库搜索关键词:', result.knowledgeKeywords.question);
   }
 
   return result;

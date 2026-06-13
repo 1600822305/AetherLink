@@ -8,6 +8,9 @@ import { saveMessageAndBlocksToDB } from './utils';
 import { processAssistantResponse } from './assistantResponse';
 import { AssistantMessageStatus } from '../../../types/newMessage';
 import { getModelIdentityKey } from '../../../utils/modelUtils';
+import { createLogger } from '../../../services/infra/logger';
+
+const logger = createLogger('sendMessage');
 
 export const sendMessage = (
   content: string,
@@ -78,7 +81,7 @@ export const sendMessage = (
 
     return userMessage.id;
   } catch (error) {
-    console.error('发送消息失败:', error);
+    logger.error('发送消息失败:', error);
 
     // 清除加载状态
     dispatch(newMessagesActions.setTopicLoading({ topicId, loading: false }));

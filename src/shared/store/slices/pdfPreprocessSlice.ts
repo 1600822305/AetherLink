@@ -12,6 +12,9 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
 import type { PreprocessProviderId } from '../../services/knowledge/preprocess/types';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('PdfPreprocess');
 
 // ==================== 存储键 ====================
 
@@ -70,7 +73,7 @@ const saveToStorage = (state: PdfPreprocessState) => {
   };
 
   setStorageItem(STORAGE_KEY, serializable).catch((error) => {
-    console.error('[PdfPreprocess] 保存设置失败:', error);
+    logger.error('保存设置失败:', error);
   });
 };
 
@@ -85,7 +88,7 @@ const loadFromStorage = async (): Promise<PdfPreprocessState> => {
       };
     }
   } catch (error) {
-    console.error('[PdfPreprocess] 加载设置失败:', error);
+    logger.error('加载设置失败:', error);
   }
   return getDefaultState();
 };
@@ -100,7 +103,7 @@ export const initializePdfPreprocessSettings = async (): Promise<PdfPreprocessSt
     const settings = await loadFromStorage();
     return settings;
   } catch (err) {
-    console.error('[PdfPreprocess] 初始化失败:', err);
+    logger.error('初始化失败:', err);
     return null;
   } finally {
     isInitialized = true;

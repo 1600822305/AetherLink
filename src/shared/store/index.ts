@@ -2,6 +2,10 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import type { WebStorage } from 'redux-persist';
 import { dexieStorage } from '../services/storage/DexieStorageService';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('Store');
+const storageLogger = logger.withContext('Redux Storage');
 
 // 🚀 使用 Dexie (IndexedDB) 作为 Redux Persist 的存储后端
 // 相比 localStorage: 容量更大、不阻塞主线程、支持大型状态
@@ -11,7 +15,7 @@ const storage: WebStorage = {
       const value = await dexieStorage.getSetting(`redux_${key}`);
       return value !== null && value !== undefined ? JSON.stringify(value) : null;
     } catch (error) {
-      console.error('[Redux Storage] getItem error:', error);
+      storageLogger.error('getItem error:', error);
       return null;
     }
   },
@@ -20,14 +24,14 @@ const storage: WebStorage = {
       const parsed = JSON.parse(value);
       await dexieStorage.saveSetting(`redux_${key}`, parsed);
     } catch (error) {
-      console.error('[Redux Storage] setItem error:', error);
+      storageLogger.error('setItem error:', error);
     }
   },
   removeItem: async (key) => {
     try {
       await dexieStorage.deleteSetting(`redux_${key}`);
     } catch (error) {
-      console.error('[Redux Storage] removeItem error:', error);
+      storageLogger.error('removeItem error:', error);
     }
   },
 };
@@ -135,7 +139,7 @@ initializeWebSearchSettings().then(settings => {
     store.dispatch({ type: 'webSearch/setWebSearchSettings', payload: settings });
   }
 }).catch(error => {
-  console.error('初始化网络搜索设置失败:', error);
+  logger.error('初始化网络搜索设置失败:', error);
 });
 
 // 初始化 PDF 预处理设置
@@ -144,7 +148,7 @@ initializePdfPreprocessSettings().then(settings => {
     store.dispatch(setPdfPreprocessSettings(settings));
   }
 }).catch(error => {
-  console.error('初始化 PDF 预处理设置失败:', error);
+  logger.error('初始化 PDF 预处理设置失败:', error);
 });
 
 // 初始化视觉识别设置
@@ -153,13 +157,13 @@ initializeVisionRecognitionSettings().then(settings => {
     store.dispatch(setVisionRecognitionSettings(settings));
   }
 }).catch(error => {
-  console.error('初始化视觉识别设置失败:', error);
+  logger.error('初始化视觉识别设置失败:', error);
 });
 
 // 初始化网络代理设置，Capacitor 平台加载后自动恢复代理到插件
 store.dispatch(loadNetworkProxySettings() as any).then((result: any) => {
   if (result.payload?.globalProxy?.enabled && Capacitor.isNativePlatform()) {
-    console.log('[Store] Capacitor 平台：恢复代理配置到 CorsBypass 插件');
+    logger.debug('Capacitor 平台：恢复代理配置到 CorsBypass 插件');
     store.dispatch(applyGlobalProxy(result.payload.globalProxy) as any);
   }
 });

@@ -10,6 +10,9 @@ export type { SettingsState } from './settings/types';
 import type { SettingsState } from './settings/types';
 import { ensureModelIdentityKey, setDefaultFlags, canonicalModelKey, createSetter } from './settings/helpers';
 import { DEFAULT_HAPTIC_FEEDBACK, DEFAULT_CONTEXT_CONDENSE, DEFAULT_TOOLBAR_BUTTONS, getInitialState } from './settings/defaults';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('settingsSlice');
 
 const initialState = getInitialState();
 
@@ -234,7 +237,7 @@ const settingsSlice = createSlice({
         const validModelSelectorDisplayStyles = ['icon', 'text'] as const;
         const displayStyle = updates.topToolbar.modelSelectorDisplayStyle;
         if (displayStyle !== undefined && !validModelSelectorDisplayStyles.includes(displayStyle as any)) {
-          console.warn(`[settingsSlice] 修复无效的 modelSelectorDisplayStyle: "${displayStyle}", 重置为 "icon"`);
+          logger.warn(`修复无效的 modelSelectorDisplayStyle: "${displayStyle}", 重置为 "icon"`);
           updates.topToolbar = {
             ...updates.topToolbar,
             modelSelectorDisplayStyle: 'icon'
@@ -244,7 +247,7 @@ const settingsSlice = createSlice({
         const validModelSelectorStyles = ['dialog', 'dropdown'] as const;
         const selectorStyle = updates.topToolbar.modelSelectorStyle;
         if (selectorStyle !== undefined && !validModelSelectorStyles.includes(selectorStyle as any)) {
-          console.warn(`[settingsSlice] 修复无效的 modelSelectorStyle: "${selectorStyle}", 重置为 "dialog"`);
+          logger.warn(`修复无效的 modelSelectorStyle: "${selectorStyle}", 重置为 "dialog"`);
           updates.topToolbar = {
             ...updates.topToolbar,
             modelSelectorStyle: 'dialog'
@@ -256,7 +259,7 @@ const settingsSlice = createSlice({
       if (updates.modelSelectorStyle !== undefined) {
         const validStyles = ['dialog', 'dropdown'] as const;
         if (!validStyles.includes(updates.modelSelectorStyle as any)) {
-          console.warn(`[settingsSlice] 修复无效的全局 modelSelectorStyle: "${updates.modelSelectorStyle}", 重置为 "dialog"`);
+          logger.warn(`修复无效的全局 modelSelectorStyle: "${updates.modelSelectorStyle}", 重置为 "dialog"`);
           updates.modelSelectorStyle = 'dialog';
         }
       }
