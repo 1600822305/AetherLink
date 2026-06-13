@@ -14,11 +14,23 @@
 |---------|------|------|------|
 | 裸 `console.*`（log/error/warn/info/debug） | 约 3040 处 | 约 99% | 散落全线，无分级、无开关、生产照样打印 |
 | `LoggerService`（`infra/LoggerService.ts`） | 约 30 处（19 个文件导入） | 小于 1% | 仅网络层/API 层使用 |
-| `debugLog`（`utils/debugLogger.ts`） | 10 处 | 小于 1% | 几乎无人使用 |
+| `debugLog`（`utils/debugLogger.ts`） | 10 处 | 小于 1% | 几乎无人使用，且用 `process.env.NODE_ENV` 判断环境（浏览器不可靠） |
+
+### 1.1.1 已有的采集 / 查看基础设施（易被忽略，但必须纳入）
+
+除了上面三种「写日志」的方式，项目里其实已经有一套「采集 + 查看」设施，设计时**不能当作不存在**：
+
+| 模块 | 能力 | 现状 |
+|------|------|------|
+| `EnhancedConsoleService`（`infra/EnhancedConsoleService.ts`） | 启动即全局拦截所有 `console.*`、捕获 `window error` / `unhandledrejection`、1000 条环形缓冲、监听器 + 过滤/搜索、噪音 error 过滤 | 在 `initializeServices` 中**无条件初始化（生产也常驻）** |
+| `EnhancedNetworkService` + `DevTools/NetworkPanel` | 网络请求拦截与查看 | 已上线 |
+| `DevToolsPage`（`/devtools` 路由）+ `ConsolePanel` | 应用内控制台/日志查看器 | 已上线 |
+
+> 也就是说，本方案里当作「待新建」的 **内存环形缓冲、全局错误采集、应用内日志查看器（阶段6）**，其实大部分已经存在。新系统应当**复用/对接**它们，而不是重复造轮子。
 
 ### 1.2 核心问题
 
-1. **三套体系并存且互不相干**，没有统一入口。
+1. **多套体系并存且互不相干**（裸 console / LoggerService / debugLog，且与上方 `EnhancedConsoleService` 采集层割裂），没有统一入口。
 2. **设计较好的 `LoggerService` 未被推广**，覆盖率不足 1%。
 3. **99% 是裸 console**，导致：
    - 生产构建全量输出，泄露信息、拖慢性能；
@@ -28,10 +40,11 @@
 
 ### 1.3 现有 `LoggerService` 可复用的优点
 
-- 已有 `LogLevel` 分级（DEBUG/INFO/WARN/ERROR）；
+- 已有 `LogLevel` 类型（DEBUG/INFO/WARN/ERROR）——注意：**当前 `log()` 并未做阈值过滤，任何级别都照打照存**，所谓「分级」只有类型没有控制；
 - 已有内存缓存 + 防抖持久化到 Dexie（保留最近 100 条）；
 - 已有 `getRecentLogs` / `clearLogs` 查询接口；
 - 已有 `logApiRequest` / `logApiResponse` 专用方法。
+- 此外 `EnhancedConsoleService` 的环形缓冲 + 全局错误捕获、`DevToolsPage`/`ConsolePanel` 的查看器，都可直接复用为新系统的 Memory 通道与查看 UI。
 
 > 新系统将继承这些优点，并扩展为多端、多 Transport、命名空间化的完整体系。
 
@@ -86,6 +99,20 @@ src/shared/services/infra/logger/
 │   └── RemoteTransport.ts    # 可选：远程上报（预留）
 └── compat.ts             # 兼容垫片：转发旧 LoggerService / debugLog 签名
 ```
+
+### 3.3 与现有 DevTools / EnhancedConsoleService 的整合（不要重复造轮子）
+
+这是本次新增的关键决策。`EnhancedConsoleService` 的原理是「**拦截 console**」，而新系统的目标是「**统一走 logger、收敛 console**」，两者若不协调会冲突：
+
+- 若生产构建 `drop` 掉 `console.debug/trace` → DevTools 控制台**丢数据**；
+- 若 `ConsoleTransport` 仍调 `console.*` → 每条日志被 `EnhancedConsoleService` **二次捕获**，两个环形缓冲（新 500 + 旧 1000）内存浪费、格式不一致。
+
+**决策（二选一，推荐 A）**：
+
+- **A. logger 作为唯一结构化数据源**：`MemoryTransport` 复用/取代 `EnhancedConsoleService` 的环形缓冲；`DevTools/ConsolePanel` 改为从 `MemoryTransport` 读取；保留全局 `error`/`unhandledrejection` 捕获和噪音 error 过滤逻辑（迁移进新系统，不能丢）。`EnhancedConsoleService` 的 console 拦截**逐步退役**。
+- **B. 暂不动 `EnhancedConsoleService`**：`ConsoleTransport` 照常输出，由它继续兜底捕获；新系统先不引入独立 MemoryTransport，避免双缓冲。迁移完成后再切到 A。
+
+> 无论选哪种，都**不要新建一个和 `DevToolsPage` 平行的日志查看器**。
 
 ---
 
@@ -186,10 +213,9 @@ flowchart LR
 
 两种手段叠加：
 
-1. **构建期剥离**：Vite/esbuild 配置 `drop` 或自定义插件，在生产构建移除 `logger.debug` / `logger.trace` 调用（需保证调用形态可被静态识别）。
-2. **运行期短路**：级别阈值在最外层判断，未达阈值的日志直接 return，不做字符串拼接与序列化。
-
-> 建议优先依赖运行期短路（实现简单、行为可预期），构建期剥离作为进阶优化。
+1. **运行期短路（首选）**：级别阈值在最外层判断，未达阈值直接 return，不做字符串拼接与序列化。环境判定统一用 `import.meta.env.DEV` / `__DEV__`（已在 vite.config define），**不要用 `process.env.NODE_ENV`**。
+2. **惰性求值**：对开销大的日志提供 `logger.debug(() => buildMsg())` 形态，未达阈值时连实参都不计算（普通函数调用的实参仍会 eager 求值，这点务必说明）。
+3. **构建期剥离（可选/进阶）**：本仓库是 Vite 8 / Rolldown，esbuild 的 `drop` 只能删 `console.*`，**删不掉自定义 `logger.debug()`**，且 Rolldown 行为可能不同。建议待验证后再启用，首期只靠运行期短路 + 惰性求值。
 
 ---
 
@@ -211,7 +237,7 @@ flowchart TD
 3. **阶段3 — ESLint 约束**：开启 `no-console`（允许 `error`/`warn` 或完全禁止），新代码强制走 `logger`。
 4. **阶段4 — 分模块迁移**：编写 codemod 脚本，按目录批量把 `console.xxx('[Mod] ...')` 替换为 `createLogger('Mod').xxx(...)`，逐模块验证。
 5. **阶段5 — 清理**：迁移完成后删除旧 `LoggerService.ts`、`debugLogger.ts`，移除垫片。
-6. **阶段6 — 日志查看器**：在设置页增加日志查看/过滤/导出界面（可选增强）。
+6. **阶段6 — 日志查看器**：**复用现有 `DevToolsPage`/`ConsolePanel`**（见 3.3），改为从 `MemoryTransport` 读取并增加按模块/级别过滤与导出，不另起炉灶。
 
 ### 迁移优先级建议
 
@@ -247,3 +273,26 @@ flowchart TD
 ## 11. 下一步
 
 评审通过后，切换到 Code 模式按阶段实施。建议首批交付：阶段 1（核心）+ 阶段 2（垫片）+ 阶段 3（ESLint），即可让新代码立即受益且不破坏现状。
+
+---
+
+## 12. 务实增强与边界（够用即可，不过度工程）
+
+本项目是开源**客户端**应用，不需要自建可观测性后端管线。在上面统一 logger 的基础上，只挑性价比最高的几项「企业级」做法，其余明确不做。
+
+### 12.1 值得做（轻量、收益高）
+
+1. **结构化事件**：`LogEntry` 用 `{ message, args, context }` 分离，而不是把变量拼进字符串——后续检索/过滤/上报都依赖它。
+2. **脱敏作为核心步骤**：在 Transport 写出前统一过滤 API Key / token / 敏感字段（本项目大量 `logApiRequest/Response` 会打这些），不要只当「风险对策」。
+3. **可选的远程上报（opt-in）**：仅在用户**主动同意 / 点击「导出并上报日志」**时，把内存/持久化日志打包上传（或接入 Sentry 这类现成错误监控）。默认关闭，复用已有的全局错误捕获对接即可。
+4. **基础关联字段**：`context` 里带上 `platform / release(版本) / sessionId`，线上排障定位用，成本极低。
+
+### 12.2 明确不做（避免过度工程）
+
+- ❌ 不自建日志采集网关 / 存储 / 看板（OTel Collector、Loki、ELK 等）——客户端项目用不上。
+- ❌ 不默认开启任何自动远程上报（隐私 + 成本）。
+- ❌ 不引入完整分布式 tracing（traceId 串前后端）——除非将来有自有后端服务再说。
+- ❌ 不做 Metrics / 告警 / 采样限流这套后端可观测性。
+- ❌ 不为「企业级」而强行加抽象层；Transport 接口保持最小（一个 `write(entry)` 足够）。
+
+> 一句话：**统一入口 + 分级短路 + 结构化 + 脱敏 + 复用 DevTools 查看器**，就是本项目「够用的企业级」。远程上报/Sentry 作为 opt-in 可选项，其余一律不做。
