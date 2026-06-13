@@ -1,4 +1,5 @@
-import { ModelType, type Model } from '../../../types';
+import type { Model } from '../../../types';
+import { isVisionModel } from '../../../../config/models/vision';
 
 export function hasImageContentInApiMessages(apiMessages: Array<{ content?: unknown }>): boolean {
   return apiMessages.some((message) => {
@@ -11,26 +12,11 @@ export function hasImageContentInApiMessages(apiMessages: Array<{ content?: unkn
 }
 
 export function modelSupportsImageInput(model: Model): boolean {
-  if (model.capabilities?.vision || model.capabilities?.multimodal || model.multimodal) {
+  if (model.multimodal) {
     return true;
   }
 
-  if (model.modelTypes?.includes(ModelType.Vision)) {
-    return true;
-  }
-
-  const modelId = model.id.toLowerCase();
-  return [
-    'gpt-4o',
-    'gpt-4.1',
-    'gpt-4-vision',
-    'gemini',
-    'claude-3',
-    'qwen-vl',
-    'qwen2-vl',
-    'qwen2.5-vl',
-    'vision'
-  ].some((visionModelId) => modelId.includes(visionModelId));
+  return isVisionModel(model);
 }
 
 export function assertModelSupportsApiMessages(model: Model, apiMessages: Array<{ content?: unknown }>): void {
