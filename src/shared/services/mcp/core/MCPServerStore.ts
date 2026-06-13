@@ -5,6 +5,10 @@
 import type { MCPServer } from '../../../types';
 import { getStorageItem, setStorageItem } from '../../../utils/storage';
 import { getBuiltinMCPServers, isBuiltinServer } from '../../../config/builtinMCPServers';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MCP');
+
 
 export class MCPServerStore {
   private servers: MCPServer[] = [];
@@ -30,10 +34,10 @@ export class MCPServerStore {
       const saved = await getStorageItem<MCPServer[]>('mcp_servers');
       if (saved) {
         this.servers = saved;
-        console.log(`[MCP] 成功加载 ${saved.length} 个服务器配置`);
+        logger.debug(`成功加载 ${saved.length} 个服务器配置`);
       }
     } catch (error) {
-      console.error('[MCP] 加载服务器配置失败:', error);
+      logger.error('加载服务器配置失败:', error);
     } finally {
       this.isLoaded = true;
       this.loadingPromise = null;
@@ -44,7 +48,7 @@ export class MCPServerStore {
     try {
       await setStorageItem('mcp_servers', this.servers);
     } catch (error) {
-      console.error('[MCP] 保存服务器配置失败:', error);
+      logger.error('保存服务器配置失败:', error);
     }
   }
 
@@ -91,7 +95,7 @@ export class MCPServerStore {
   async addServer(server: MCPServer): Promise<void> {
     await this.ensureLoaded();
     this.servers.push(server);
-    console.log(`[MCP] 添加服务器: ${server.name}, type=${server.type}, command=${server.command || 'N/A'}`);
+    logger.debug(`添加服务器: ${server.name}, type=${server.type}, command=${server.command || 'N/A'}`);
     await this.saveServers();
   }
 
@@ -99,11 +103,11 @@ export class MCPServerStore {
     await this.ensureLoaded();
     const idx = this.servers.findIndex(s => s.id === updatedServer.id);
     if (idx !== -1) {
-      console.log(`[MCP] 更新服务器: ${updatedServer.name}, type=${updatedServer.type}, command=${updatedServer.command || 'N/A'}`);
+      logger.debug(`更新服务器: ${updatedServer.name}, type=${updatedServer.type}, command=${updatedServer.command || 'N/A'}`);
       this.servers[idx] = updatedServer;
       await this.saveServers();
     } else {
-      console.warn(`[MCP] 未找到要更新的服务器: ${updatedServer.id}`);
+      logger.warn(`未找到要更新的服务器: ${updatedServer.id}`);
     }
   }
 
@@ -139,7 +143,7 @@ export class MCPServerStore {
     for (const s of this.servers.filter(s => s.isActive)) {
       this.savedActiveServerIds.add(s.id);
     }
-    console.log(`[MCP] 已保存 ${this.savedActiveServerIds.size} 个活跃服务器的状态`);
+    logger.debug(`已保存 ${this.savedActiveServerIds.size} 个活跃服务器的状态`);
   }
 
   getSavedActiveServerIds(): string[] {

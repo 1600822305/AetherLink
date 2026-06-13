@@ -7,6 +7,10 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('Calendar MCP');
+
 
 // 工具定义
 const GET_CALENDARS_TOOL: Tool = {
@@ -204,7 +208,7 @@ export class CalendarServer {
     if (typeof window !== 'undefined' && (window as any).plugins?.calendar) {
       this.calendarPlugin = (window as any).plugins.calendar;
     } else {
-      console.warn('[Calendar MCP] Cordova Calendar plugin not found, running in mock mode');
+      logger.warn('Cordova Calendar plugin not found, running in mock mode');
     }
   }
 

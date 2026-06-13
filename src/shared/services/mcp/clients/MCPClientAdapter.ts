@@ -11,6 +11,10 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { universalFetch } from '../../../utils/universalFetch';
 import { Capacitor } from '@capacitor/core';
 import { MobileSSETransport } from './MobileSSETransport';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MCP Client');
+
 
 export interface MCPClientOptions {
   baseUrl: string;
@@ -42,17 +46,17 @@ export class MCPClientAdapter {
 
   constructor(options: MCPClientOptions) {
     this.options = options;
-    console.log(`[MCP Client] 创建客户端适配器`);
-    console.log(`[MCP Client] 基础URL: ${options.baseUrl}`);
-    console.log(`[MCP Client] 类型: ${options.type || 'sse'}`);
-    console.log(`[MCP Client] 平台: ${Capacitor.isNativePlatform() ? '移动端' : 'Web端'}`);
+    logger.debug(`创建客户端适配器`);
+    logger.debug(`基础URL: ${options.baseUrl}`);
+    logger.debug(`类型: ${options.type || 'sse'}`);
+    logger.debug(`平台: ${Capacitor.isNativePlatform() ? '移动端' : 'Web端'}`);
   }
 
   /**
    * 初始化连接
    */
   async initialize(): Promise<void> {
-    console.log(`[MCP Client] 开始初始化连接`);
+    logger.debug(`开始初始化连接`);
 
     try {
       // 创建客户端
@@ -71,7 +75,7 @@ export class MCPClientAdapter {
         }
       );
       
-      console.log('[MCP Client] 客户端创建完成');
+      logger.debug('客户端创建完成');
 
       // 创建传输层
       this.transport = await this.createTransport();
@@ -79,9 +83,9 @@ export class MCPClientAdapter {
       // 连接
       await this.client.connect(this.transport);
 
-      console.log(`[MCP Client] 连接成功`);
+      logger.debug(`连接成功`);
     } catch (error) {
-      console.error('[MCP Client] 初始化失败:', error);
+      logger.error('初始化失败:', error);
       throw error;
     }
   }
@@ -95,8 +99,8 @@ export class MCPClientAdapter {
     // 创建自定义 fetch 函数，完全模仿 Cherry Studio 的方式
     const customFetch = async (url: string | URL, init?: RequestInit) => {
       const urlString = typeof url === 'string' ? url : url.toString();
-      console.log(`[MCP Client] Fetch: ${urlString}`);
-      console.log(`[MCP Client] Fetch init:`, init);
+      logger.debug(`Fetch: ${urlString}`);
+      logger.debug(`Fetch init:`, init);
       
       // 直接传递所有参数给 universalFetch，不修改
       return universalFetch(urlString, init);
@@ -110,8 +114,8 @@ export class MCPClientAdapter {
 
     // StreamableHTTP 传输
     if (type === 'streamableHttp') {
-      console.log('[MCP Client] 使用 StreamableHTTP 传输');
-      console.log('[MCP Client] Headers:', JSON.stringify(prepareHeaders()));
+      logger.debug('使用 StreamableHTTP 传输');
+      logger.debug('Headers:', JSON.stringify(prepareHeaders()));
       
       const transport = new StreamableHTTPClientTransport(new URL(baseUrl), {
         fetch: customFetch,
@@ -120,28 +124,28 @@ export class MCPClientAdapter {
         }
       });
       
-      console.log('[MCP Client] StreamableHTTP 传输创建完成');
+      logger.debug('StreamableHTTP 传输创建完成');
       return transport;
     }
 
     // SSE 传输（默认）
-    console.log('[MCP Client] 使用 SSE 传输');
-    console.log('[MCP Client] Headers:', JSON.stringify(prepareHeaders()));
-    console.log('[MCP Client] 平台检测:', Capacitor.isNativePlatform() ? '移动端（MobileSSETransport）' : 'Web 端（SSEClientTransport）');
+    logger.debug('使用 SSE 传输');
+    logger.debug('Headers:', JSON.stringify(prepareHeaders()));
+    logger.debug('平台检测:', Capacitor.isNativePlatform() ? '移动端（MobileSSETransport）' : 'Web 端（SSEClientTransport）');
     
     // 移动端：使用自定义的 MobileSSETransport（基于 CorsBypass.startSSE）
     // Web 端：使用标准的 SSEClientTransport
     if (Capacitor.isNativePlatform()) {
-      console.log('[MCP Client] 移动端：使用 MobileSSETransport（CorsBypass.startSSE）');
+      logger.debug('移动端：使用 MobileSSETransport（CorsBypass.startSSE）');
       const headers = prepareHeaders();
-      console.log('[MCP Client] 准备传递给 MobileSSETransport 的 headers:', JSON.stringify(headers));
+      logger.debug('准备传递给 MobileSSETransport 的 headers:', JSON.stringify(headers));
       
       return new MobileSSETransport(new URL(baseUrl), {
         headers,
         fetch: customFetch  // 用于发送消息（HTTP POST）
       });
     } else {
-      console.log('[MCP Client] Web 端：使用标准 SSE 配置');
+      logger.debug('Web 端：使用标准 SSE 配置');
       return new SSEClientTransport(new URL(baseUrl), {
         fetch: customFetch,
         eventSourceInit: {
@@ -162,9 +166,9 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[MCP Client] 列出工具');
+    logger.debug('列出工具');
     const result = await this.client.listTools();
-    console.log(`[MCP Client] 找到 ${result.tools.length} 个工具`);
+    logger.debug(`找到 ${result.tools.length} 个工具`);
     
     return result.tools as MCPTool[];
   }
@@ -177,14 +181,14 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[MCP Client] 调用工具: ${name}`, arguments_);
+    logger.debug(`调用工具: ${name}`, arguments_);
     
     const result = await this.client.callTool({
       name,
       arguments: arguments_
     });
 
-    console.log(`[MCP Client] 工具调用完成: ${name}`);
+    logger.debug(`工具调用完成: ${name}`);
     
     return {
       content: (result.content || []) as Array<{
@@ -205,9 +209,9 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[MCP Client] 列出提示词');
+    logger.debug('列出提示词');
     const result = await this.client.listPrompts();
-    console.log(`[MCP Client] 找到 ${result.prompts?.length || 0} 个提示词`);
+    logger.debug(`找到 ${result.prompts?.length || 0} 个提示词`);
     
     return result.prompts || [];
   }
@@ -220,7 +224,7 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[MCP Client] 获取提示词: ${name}`);
+    logger.debug(`获取提示词: ${name}`);
     const result = await this.client.getPrompt({
       name,
       arguments: arguments_
@@ -237,9 +241,9 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log('[MCP Client] 列出资源');
+    logger.debug('列出资源');
     const result = await this.client.listResources();
-    console.log(`[MCP Client] 找到 ${result.resources?.length || 0} 个资源`);
+    logger.debug(`找到 ${result.resources?.length || 0} 个资源`);
     
     return result.resources || [];
   }
@@ -252,7 +256,7 @@ export class MCPClientAdapter {
       throw new Error('客户端未初始化');
     }
 
-    console.log(`[MCP Client] 读取资源: ${uri}`);
+    logger.debug(`读取资源: ${uri}`);
     const result = await this.client.readResource({ uri });
     
     return result;
@@ -263,7 +267,7 @@ export class MCPClientAdapter {
    */
   async close(): Promise<void> {
     if (this.client) {
-      console.log('[MCP Client] 关闭连接');
+      logger.debug('关闭连接');
       await this.client.close();
       this.client = null;
       this.transport = null;

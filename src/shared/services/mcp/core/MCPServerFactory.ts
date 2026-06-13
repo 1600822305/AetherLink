@@ -11,13 +11,17 @@ import { DexEditorServer } from '../servers/DexEditorServer';
 import { SearXNGServer } from '../servers/SearXNGServer';
 import { AiSearchServer } from '../servers/AiSearchServer';
 import { SettingsServer } from '../servers/settings/SettingsServer';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MCP');
+
 
 /**
  * 创建内存 MCP 服务器
  * 工厂函数用于创建内置的 MCP 服务器实例
  */
 export function createInMemoryMCPServer(name: string, args: string[] = [], envs: Record<string, string> = {}): Server {
-  console.log(`[MCP] 创建内存 MCP 服务器: ${name}，参数: ${args}，环境变量: ${JSON.stringify(envs)}`);
+  logger.debug(`创建内存 MCP 服务器: ${name}，参数: ${args}，环境变量: ${JSON.stringify(envs)}`);
 
   switch (name) {
     case '@aether/time': {

@@ -8,6 +8,12 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { universalFetch } from '../../../utils/universalFetch';
+import { createLogger } from '../../infra/logger';
+
+const chatLogger = createLogger('Metaso Chat');
+const readerLogger = createLogger('Metaso Reader');
+const searchLogger = createLogger('Metaso Search');
+
 
 // 工具定义
 const METASO_SEARCH_TOOL: Tool = {
@@ -194,7 +200,7 @@ export class MetasoSearchServer {
       };
 
       // 记录API调用参数（便于调试）
-      console.log('[Metaso Search] API请求参数:', {
+      searchLogger.debug('API请求参数:', {
         query: params.query,
         scope: requestBody.scope,
         size: requestBody.size,
@@ -286,7 +292,7 @@ export class MetasoSearchServer {
         ]
       };
     } catch (error) {
-      console.error('[Metaso Search] 搜索失败:', error);
+      searchLogger.error('搜索失败:', error);
       return {
         content: [
           {
@@ -364,7 +370,7 @@ ${content}
         ]
       };
     } catch (error) {
-      console.error('[Metaso Reader] 阅读失败:', error);
+      readerLogger.error('阅读失败:', error);
       return {
         content: [
           {
@@ -417,7 +423,7 @@ ${content}
       };
 
       // 记录API调用参数
-      console.log('[Metaso Chat] API请求参数:', {
+      chatLogger.debug('API请求参数:', {
         query: params.query,
         model,
         scope,
@@ -579,7 +585,7 @@ ${content}
         };
       }
     } catch (error) {
-      console.error('[Metaso Chat] 对话失败:', error);
+      chatLogger.error('对话失败:', error);
       return {
         content: [
           {
