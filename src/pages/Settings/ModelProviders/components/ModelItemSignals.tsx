@@ -3,6 +3,7 @@
  * 使用 @preact/signals-react 实现细粒度响应式更新
  */
 
+import { memo } from 'react';
 import { Box, Typography, IconButton, CircularProgress } from '@mui/material';
 import { Edit, Trash2, CheckCircle } from 'lucide-react';
 import { alpha } from '@mui/material/styles';
@@ -156,4 +157,4 @@ function ModelItemSignals({
   );
 }
 
-export default ModelItemSignals;
+export default memo(ModelItemSignals);

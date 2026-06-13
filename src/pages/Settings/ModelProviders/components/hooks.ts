@@ -572,7 +572,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
     }
   };
 
-  const handleDeleteModel = (modelId: string) => {
+  const handleDeleteModel = useCallback((modelId: string) => {
     if (provider) {
       logModelOperation('删除模型', { modelId, provider: provider.id });
       
@@ -591,14 +591,14 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       // 只保存模型列表
       updateProviderModels(updatedModels);
     }
-  };
+  }, [provider, updateProviderModels]);
 
-  const openModelEditDialog = (model: Model) => {
+  const openModelEditDialog = useCallback((model: Model) => {
     setModelToEdit(model);
     setNewModelName(model.name);
     setNewModelValue(model.id); // 使用模型ID作为value
     setOpenEditModelDialog(true);
-  };
+  }, [setModelToEdit, setNewModelName, setNewModelValue, setOpenEditModelDialog]);
 
   const handleAddModelFromApi = useCallback((model: Model) => {
     if (provider) {

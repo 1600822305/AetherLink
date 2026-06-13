@@ -52,6 +52,8 @@
     "defaultBadge": "Default",
     "modelId": "ID: {{id}}",
     "noModels": "No models added yet",
+    "searchModels": "Search models...",
+    "noModelsFound": "No matching models",
     "noCombos": "No combos created yet",
     "createCombo": "Create Combo",
     "testSuccess": "Test successful!",

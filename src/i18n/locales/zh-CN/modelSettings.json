@@ -52,6 +52,8 @@
     "defaultBadge": "默认",
     "modelId": "ID: {{id}}",
     "noModels": "尚未添加任何模型",
+    "searchModels": "搜索模型...",
+    "noModelsFound": "没有匹配的模型",
     "noCombos": "尚未创建任何模型组合",
     "createCombo": "创建模型组合",
     "testSuccess": "连接测试成功!",
