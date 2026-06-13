@@ -38,7 +38,7 @@ import { alpha } from '@mui/material/styles';
 import ModelManagementDialogSolid from '../../../components/dialogs/ModelManagementDialogSolid';
 import { SafeAreaContainer } from "../../../components/settings/SettingComponents";
 import SimpleModelDialog from '../../../components/settings/SimpleModelDialog';
-import ModelGroup from '../../../components/settings/ModelGroup';
+import VirtualizedModelGroupList from '../../../components/settings/VirtualizedModelGroupList';
 import {
   isOpenAIProvider,
   getCompleteApiUrl
@@ -909,9 +909,9 @@ const ModelProviderSettings: React.FC = () => {
               )}
             </List>
           ) : (
-            /* 普通供应商 - 使用新的 ModelGroup 组件 */
+            /* 普通供应商 - 使用虚拟化分组列表（搜索 + 粘性分组头 + 窗口化渲染） */
             <Box sx={{ width: '100%' }}>
-              <ModelGroup
+              <VirtualizedModelGroupList
                 modelGroups={groupedModels}
                 showEmptyState={true}
                 emptyStateKey={t('modelSettings.provider.noModels')}
