@@ -20,7 +20,7 @@ import { fetchModels } from '../../shared/services/network/APIService';
 import type { Model } from '../../shared/types';
 import { debounce } from 'lodash';
 import { useTranslation } from 'react-i18next';
-import ModelGroup from '../settings/ModelGroup';
+import VirtualizedModelGroupList from '../settings/VirtualizedModelGroupList';
 import { getDefaultGroupName, modelMatchesIdentity } from '../../shared/utils/modelUtils';
 
 // 定义分组模型的类型
@@ -349,7 +349,7 @@ const ModelManagementDialog: React.FC<ModelManagementDialogProps> = ({
         </Box>
 
         {/* 模型列表 */}
-        <Box sx={{ flex: 1, overflow: 'auto', px: 1.5 }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', px: 1.5 }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
@@ -361,10 +361,13 @@ const ModelManagementDialog: React.FC<ModelManagementDialogProps> = ({
               </Typography>
             </Box>
           ) : (
-            <ModelGroup
+            <VirtualizedModelGroupList
               modelGroups={groupedModelsList}
               showEmptyState={false}
               defaultExpanded={[]}
+              enableSearch={false}
+              bordered={false}
+              maxHeight="calc(80vh - 96px)"
               renderModelItem={(model) => {
                 const added = isModelInProvider(model.id);
                 return (
