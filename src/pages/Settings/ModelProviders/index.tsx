@@ -917,6 +917,7 @@ const ModelProviderSettings: React.FC = () => {
                 emptyStateKey={t('modelSettings.provider.noModels')}
                 defaultExpanded={[]}
                 bordered={false}
+                safeAreaBottom
                 renderModelItem={(model) => (
                   <ModelItemSignals
                     key={model.id}
