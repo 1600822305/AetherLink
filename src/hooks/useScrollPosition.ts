@@ -7,6 +7,7 @@ const logger = createLogger('useScrollPosition');
 interface UseScrollPositionOptions {
   throttleTime?: number;
   autoRestore?: boolean;
+  /** @deprecated 自动恢复已改用 useLayoutEffect 同步恢复，此项不再生效，仅为兼容调用方保留 */
   restoreDelay?: number;
   onScroll?: (position: number) => void;
 }
@@ -20,7 +21,6 @@ export function useScrollPosition(key: string, options: UseScrollPositionOptions
   const {
     throttleTime = 100,
     autoRestore = true,
-    restoreDelay = 50,
     onScroll,
   } = options;
 
