@@ -43,7 +43,7 @@ const AppContent = memo(() => {
       }
       
       if (process.env.NODE_ENV === 'development') {
-        logger.info('✅ CSS Variables 系统已初始化');
+        logger.debug('✅ CSS Variables 系统已初始化');
         // 🚀 性能优化：记录启动屏隐藏时间
         recordMetric('splashScreenHide');
       }

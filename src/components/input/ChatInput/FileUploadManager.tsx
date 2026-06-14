@@ -67,10 +67,10 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         if (topic) {
           setCurrentTopicState(topic);
         } else {
-          logger.warn('[FileUploadManager] 缓存或数据库中找不到话题:', currentTopicId);
+          logger.warn('缓存或数据库中找不到话题:', currentTopicId);
         }
       } catch (error) {
-        logger.error('[FileUploadManager] 加载话题信息失败:', error);
+        logger.error('加载话题信息失败:', error);
       }
     };
 

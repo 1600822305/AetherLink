@@ -312,7 +312,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     // 批量提交 — 队列自动并发调度，不再逐个 await
     // queue:drained 事件会触发 loadDocuments 和状态重置
     taskQueue.addTasks(tasks).catch(err => {
-      logger.error('[DocumentManager] 任务队列提交失败:', err);
+      logger.error('任务队列提交失败:', err);
       setError('文档处理失败，请重试');
       setUploading(false);
       setProgress({ active: false, current: 0, total: 0 });
@@ -345,7 +345,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       setUploading(true);
       setProgress(prev => ({ ...prev, active: true, total: prev.total || 1 }));
       taskQueue.addTask(task).catch(err => {
-        logger.error('[DocumentManager] 重试任务失败:', err);
+        logger.error('重试任务失败:', err);
       });
     } else {
       updateDocumentItemStatus(itemId, { status: 'pending', progress: 0, error: undefined });
@@ -420,7 +420,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       // 提交到队列 — queue:drained 事件会触发 loadDocuments
       taskQueue.addTask(task).catch(err => {
-        logger.error('[DocumentManager] 刷新任务失败:', err);
+        logger.error('刷新任务失败:', err);
         setError('刷新文档失败，请稍后再试');
       });
     } catch (err) {

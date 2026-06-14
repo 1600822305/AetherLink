@@ -125,7 +125,7 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
 
   // 处理知识库选择
   const handleKnowledgeSelect = (knowledgeBase: { id: string; name: string }, searchResults: unknown[]) => {
-    logger.info('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
+    logger.debug('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
     // Redux dispatch 已由 KnowledgeSelector 内部处理（支持多选）
     // 关闭选择器
     setShowKnowledgeSelector(false);

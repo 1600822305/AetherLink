@@ -311,17 +311,17 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
 
   // 删除消息 - 根据渲染模式使用不同的删除逻辑
   const handleDeleteClick = useCallback(() => {
-    logger.info('[MessageActions] 删除消息:', message.id);
+    logger.debug('删除消息:', message.id);
 
     try {
       if (onDelete) {
         onDelete(message.id);
-        logger.info('[MessageActions] 删除消息成功');
+        logger.debug('删除消息成功');
       } else {
-        logger.warn('[MessageActions] 没有删除回调函数');
+        logger.warn('没有删除回调函数');
       }
     } catch (error) {
-      logger.error('[MessageActions] 删除消息失败:', error);
+      logger.error('删除消息失败:', error);
       toastManager.error('删除失败: ' + (error instanceof Error ? error.message : '未知错误'), '删除错误');
     } finally {
       // 重置删除按钮状态
@@ -375,7 +375,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
   // 创建分支 - 使用最佳实例的事件机制
   const handleCreateBranch = useCallback(() => {
     if (messageIndex === undefined) {
-      logger.error('[MessageActions] 无法创建分支: 缺少messageIndex');
+      logger.error('无法创建分支: 缺少messageIndex');
       return;
     }
 

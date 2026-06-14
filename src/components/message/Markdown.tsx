@@ -140,7 +140,7 @@ const Markdown: React.FC<Props> = ({ block, content, allowHtml = false, messageR
   const onSaveCodeBlock = useCallback(
     (id: string, newContent: string) => {
       // TODO: 实现代码块保存逻辑
-      logger.info('保存代码块:', id, newContent);
+      logger.debug('保存代码块:', id, newContent);
     },
     []
   );

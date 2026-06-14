@@ -50,9 +50,9 @@ const KnowledgeButton: React.FC<KnowledgeButtonProps> = ({
 
   // 处理知识库选择
   const handleKnowledgeSelect = useCallback((knowledgeBase: KnowledgeBaseSelection, searchResults?: unknown[]) => {
-    logger.info('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
+    logger.debug('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
     // Redux dispatch 已由 KnowledgeSelector 内部处理（支持多选）
-    logger.info(`[知识库选择] 已选择知识库: ${knowledgeBase.name}，将在发送消息时自动搜索相关内容`);
+    logger.debug(`已选择知识库: ${knowledgeBase.name}，将在发送消息时自动搜索相关内容`);
     // 关闭知识库选择器
     setShowKnowledgeSelector(false);
   }, []);

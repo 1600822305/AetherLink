@@ -60,7 +60,7 @@ export const HarmonyOSClipboardButton: React.FC<ClipboardButtonProps> = ({
       // 2秒后恢复
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      logger.error('[HarmonyOS] 复制失败:', error);
+      logger.error('复制失败:', error);
       const errorMessage = error instanceof Error ? error.message : '复制失败';
       onError?.(errorMessage);
     }

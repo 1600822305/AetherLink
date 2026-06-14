@@ -30,16 +30,16 @@ export const useMessageBlocks = (
           if (messageBlocks.length < message.blocks.length) {
             const foundIds = new Set(messageBlocks.map(b => b.id));
             const missingIds = message.blocks.filter(id => !foundIds.has(id));
-            logger.warn(`[MessageItem] 数据库中找不到块: ID=${missingIds.join(', ')}`);
+            logger.warn(`数据库中找不到块: ID=${missingIds.join(', ')}`);
           }
 
           if (messageBlocks.length > 0) {
             dispatch(upsertManyBlocks(messageBlocks));
           } else {
-            logger.warn(`[MessageItem] 数据库中没有找到任何块: 消息ID=${message.id}`);
+            logger.warn(`数据库中没有找到任何块: 消息ID=${message.id}`);
           }
         } catch (error) {
-          logger.error(`[MessageItem] 加载消息块失败: 消息ID=${message.id}`, error);
+          logger.error(`加载消息块失败: 消息ID=${message.id}`, error);
         }
       }
     };

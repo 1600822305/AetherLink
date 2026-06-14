@@ -117,7 +117,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
 
         if (isTauri()) {
           // Tauri 桌面端：使用 Tauri HTTP 插件
-          logger.info('[AdvancedImagePreview] Tauri 端加载外部图片:', src);
+          logger.debug('Tauri 端加载外部图片:', src);
           const { fetch: tauriHttpFetch } = await import('@tauri-apps/plugin-http');
           response = await tauriHttpFetch(src, {
             method: 'GET',
@@ -125,7 +125,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           });
         } else if (Capacitor.isNativePlatform()) {
           // 移动端：使用 CorsBypass 插件
-          logger.info('[AdvancedImagePreview] 移动端加载外部图片:', src);
+          logger.debug('移动端加载外部图片:', src);
           const result = await CorsBypass.request({
             url: src,
             method: 'GET',
@@ -148,7 +148,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           throw new Error('No data received from CorsBypass');
         } else {
           // Web 端：使用代理服务器
-          logger.info('[AdvancedImagePreview] Web 端通过代理加载外部图片:', src);
+          logger.debug('Web 端通过代理加载外部图片:', src);
           const proxyUrl = buildCorsProxyRequestUrl(src);
           response = await fetch(proxyUrl, {
             method: 'GET',
@@ -168,7 +168,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           setIsLoading(false);
         }
       } catch (error) {
-        logger.error('[AdvancedImagePreview] 加载外部图片失败:', error);
+        logger.error('加载外部图片失败:', error);
         if (isMounted) {
           setLoadError(error instanceof Error ? error.message : '图片加载失败');
           setIsLoading(false);

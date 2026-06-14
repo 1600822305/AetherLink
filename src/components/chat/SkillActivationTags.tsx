@@ -39,7 +39,7 @@ const SkillActivationTags: React.FC = () => {
       const skills = await SkillManager.getSkillsForAssistant(currentAssistant.id);
       setBoundSkills(skills);
     } catch (error) {
-      logger.error('[SkillActivationTags] 加载绑定技能失败:', error);
+      logger.error('加载绑定技能失败:', error);
       setBoundSkills([]);
     }
   }, [currentAssistant?.id, currentAssistant?.skillIds]);
@@ -83,13 +83,13 @@ const SkillActivationTags: React.FC = () => {
 
             if (server && serverWasInactive) {
               await mcpService.toggleServer(skill.mcpServerId, true);
-              logger.info(`[SkillActivationTags] 自动启动 MCP 服务器: ${server.name}`);
+              logger.debug(`自动启动 MCP 服务器: ${server.name}`);
             }
 
             // 确保工具总开关开启
             if (toolsWasOff) {
               window.dispatchEvent(new CustomEvent('mcp-tools-toggle', { detail: { enabled: true } }));
-              logger.info('[SkillActivationTags] 自动开启 MCP 工具总开关');
+              logger.debug('自动开启 MCP 工具总开关');
             }
 
             // 通知 MCPToolsButton 刷新服务器列表
@@ -101,7 +101,7 @@ const SkillActivationTags: React.FC = () => {
               toolsWasOff,
             };
           } catch (error) {
-            logger.warn('[SkillActivationTags] MCP 服务器自动启动失败:', error);
+            logger.warn('MCP 服务器自动启动失败:', error);
           }
         }
       } else if (isCurrentlyActive) {
@@ -114,29 +114,29 @@ const SkillActivationTags: React.FC = () => {
             const server = await mcpService.getServerByIdAsync(mcpState.serverId);
             if (server?.isActive) {
               await mcpService.toggleServer(mcpState.serverId, false);
-              logger.info(`[SkillActivationTags] 自动关闭 MCP 服务器: ${server.name}`);
+              logger.debug(`自动关闭 MCP 服务器: ${server.name}`);
             }
 
             // 如果工具总开关是技能自动打开的，恢复关闭
             if (mcpState.toolsWasOff) {
               window.dispatchEvent(new CustomEvent('mcp-tools-toggle', { detail: { enabled: false } }));
-              logger.info('[SkillActivationTags] 自动关闭 MCP 工具总开关（恢复原状态）');
+              logger.debug('自动关闭 MCP 工具总开关（恢复原状态）');
             }
 
             // 通知 MCPToolsButton 刷新服务器列表
             window.dispatchEvent(new CustomEvent('mcp-servers-changed'));
           } catch (error) {
-            logger.warn('[SkillActivationTags] MCP 服务器自动关闭失败:', error);
+            logger.warn('MCP 服务器自动关闭失败:', error);
           }
           skillStartedMcpRef.current = null;
         }
       }
 
-      logger.info(
-        `[SkillActivationTags] ${isCurrentlyActive ? '停用' : '激活'}技能: ${skill?.name || skillId}`
+      logger.debug(
+        `${isCurrentlyActive ? '停用' : '激活'}技能: ${skill?.name || skillId}`
       );
     } catch (error) {
-      logger.error('[SkillActivationTags] 切换技能激活状态失败:', error);
+      logger.error('切换技能激活状态失败:', error);
     }
   }, [currentAssistant, boundSkills, dispatch]);
 

@@ -138,7 +138,7 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
       debugName="ModelManagementDrawer"
       debug={process.env.NODE_ENV === 'development'}
       onError={(error) => {
-        logger.error('[ModelManagementDialog] SolidJS 组件错误:', error);
+        logger.error('SolidJS 组件错误:', error);
       }}
     />
   );

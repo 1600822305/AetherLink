@@ -149,12 +149,12 @@ const useMenuManager = ({
   // 处理多模型发送
   const handleMultiModelSend = useCallback(async (selectedModels: Model[]) => {
     if (!message.trim() && files.length === 0) {
-      logger.info('没有内容可发送');
+      logger.debug('没有内容可发送');
       return;
     }
 
     if (!selectedModels || selectedModels.length === 0) {
-      logger.info('没有选择模型');
+      logger.debug('没有选择模型');
       return;
     }
 
@@ -162,7 +162,7 @@ const useMenuManager = ({
     const formattedImages = await processImages();
     const nonImageFiles = files.filter((f: FileContent) => !f.mimeType.startsWith('image/'));
 
-    logger.info('发送多模型消息:', {
+    logger.debug('发送多模型消息:', {
       message: processedMessage,
       models: selectedModels.map(m => `${m.provider || m.providerType}:${m.id}`),
       images: formattedImages.length,

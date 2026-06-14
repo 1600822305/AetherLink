@@ -106,7 +106,7 @@ const MarkdownCodeBlock: React.FC<MarkdownCodeBlockProps> = ({
         html={safeChildren}
         isStreaming={isActuallyStreaming}
         onSave={(newContent) => {
-          logger.info('保存 HTML:', id, newContent);
+          logger.debug('保存 HTML:', id, newContent);
         }}
       />
     );
@@ -151,7 +151,7 @@ const MarkdownCodeBlock: React.FC<MarkdownCodeBlockProps> = ({
     <CodeBlockView
       language={language}
       onSave={(newContent) => {
-        logger.info('保存代码块:', id, newContent);
+        logger.debug('保存代码块:', id, newContent);
       }}
       messageRole={messageRole}
     >

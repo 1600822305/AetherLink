@@ -139,7 +139,7 @@ const KnowledgeReferenceBlock: React.FC<KnowledgeReferenceBlockProps> = ({ block
     const targetFileId = fileId || block.metadata?.fileId;
     if (targetFileId) {
       // TODO: 实现文件打开功能
-      logger.info('打开文件:', targetFileId);
+      logger.debug('打开文件:', targetFileId);
     }
   };
 

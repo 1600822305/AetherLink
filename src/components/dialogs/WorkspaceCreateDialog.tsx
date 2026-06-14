@@ -77,7 +77,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
       // 首先检查权限（Tauri 桌面端会自动返回 granted）
       const permissionResult = await unifiedFileManager.checkPermissions();
       if (!permissionResult.granted) {
-        logger.info('权限未授予，尝试请求权限...');
+        logger.debug('权限未授予，尝试请求权限...');
         const requestResult = await unifiedFileManager.requestPermissions();
         if (!requestResult.granted) {
           setError(requestResult.message || '需要文件访问权限才能选择文件夹');
@@ -95,7 +95,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
       if (!result.cancelled && result.directories.length > 0) {
         const selectedDir = result.directories[0];
 
-        logger.info('选择的目录信息:', selectedDir);
+        logger.debug('选择的目录信息:', selectedDir);
 
         // 优先使用转换后的友好路径，如果没有则使用原始路径
         const pathToUse = selectedDir.displayPath || selectedDir.path || selectedDir.uri || (typeof selectedDir === 'string' ? selectedDir : '');

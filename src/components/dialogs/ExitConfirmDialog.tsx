@@ -53,7 +53,7 @@ const ExitConfirmDialog: React.FC = () => {
         await CapApp.exitApp();
         return;
       } catch (error) {
-        logger.error('[ExitConfirmDialog] Capacitor exitApp 失败:', error);
+        logger.error('Capacitor exitApp 失败:', error);
       }
     }
     
@@ -64,7 +64,7 @@ const ExitConfirmDialog: React.FC = () => {
         await getCurrentWindow().close();
         return;
       } catch (error) {
-        logger.error('[ExitConfirmDialog] Tauri close 失败:', error);
+        logger.error('Tauri close 失败:', error);
       }
     }
     

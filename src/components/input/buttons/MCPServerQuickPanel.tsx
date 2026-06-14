@@ -151,8 +151,8 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
         await setStorageItem('skills-saved-ids', currentSkillIds);
         const updated = { ...currentAssistant, skillIds: [] };
         dispatch(updateAssistant(updated));
-        try { await dexieStorage.saveAssistant(updated); } catch (e) { logger.error('[Skills] 保存失败:', e); }
-        logger.info(`[Skills] 开关关闭，已保存 ${currentSkillIds.length} 个技能绑定`);
+        try { await dexieStorage.saveAssistant(updated); } catch (e) { logger.error('保存失败:', e); }
+        logger.debug(`开关关闭，已保存 ${currentSkillIds.length} 个技能绑定`);
       }
     } else if (enabled && currentAssistant) {
       // 开启时：恢复之前保存的技能绑定
@@ -163,9 +163,9 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
           dispatch(updateAssistant(updated));
           await dexieStorage.saveAssistant(updated);
           await setStorageItem('skills-saved-ids', null);
-          logger.info(`[Skills] 开关开启，已恢复 ${saved.length} 个技能绑定`);
+          logger.debug(`开关开启，已恢复 ${saved.length} 个技能绑定`);
         }
-      } catch (e) { logger.error('[Skills] 恢复失败:', e); }
+      } catch (e) { logger.error('恢复失败:', e); }
     }
     setSkillsEnabledState(enabled);
     await setStorageItem('skills-enabled', enabled);
@@ -190,7 +190,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       const skills = await SkillManager.getEnabledSkills();
       setAllEnabledSkills(skills);
     } catch (error) {
-      logger.error('[MCPPanel] 加载技能失败:', error);
+      logger.error('加载技能失败:', error);
       setAllEnabledSkills([]);
     } finally {
       setSkillsLoading(false);
@@ -216,7 +216,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
     try {
       await dexieStorage.saveAssistant(updated);
     } catch (err) {
-      logger.error('[MCPPanel] 保存技能绑定失败:', err);
+      logger.error('保存技能绑定失败:', err);
     }
   }, [currentAssistant, dispatch]);
 

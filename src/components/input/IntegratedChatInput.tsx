@@ -277,7 +277,7 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
       const formattedImages = await processImagesLocal();
       const nonImageFiles = files.filter((f: FileContent) => !f.mimeType.startsWith('image/'));
       
-      logger.info('智能发送：使用多模型模式', {
+      logger.debug('智能发送：使用多模型模式', {
         models: menuManager.mentionedModels.map(m => m.id),
         message: message.trim()
       });

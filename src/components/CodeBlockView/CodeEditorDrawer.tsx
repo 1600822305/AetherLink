@@ -288,7 +288,7 @@ const CodeEditorDrawer: React.FC<CodeEditorDrawerProps> = ({
 
   // 编辑器主题 - 直接从Redux获取，无需复杂映射
   const codeMirrorTheme = useMemo(() => {
-    logger.info('🎨 Editor Theme:', safeEditorTheme);
+    logger.debug('🎨 Editor Theme:', safeEditorTheme);
     
     // 直接返回对应的CodeMirror主题
     switch (safeEditorTheme) {
@@ -319,7 +319,7 @@ const CodeEditorDrawer: React.FC<CodeEditorDrawerProps> = ({
       case 'monokai':
         return monokai;
       default:
-        logger.info('→ Using oneDark (fallback)');
+        logger.debug('→ Using oneDark (fallback)');
         return oneDark;
     }
   }, [safeEditorTheme]);

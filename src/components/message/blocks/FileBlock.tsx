@@ -118,7 +118,7 @@ const FileBlock: React.FC<Props> = ({ block }) => {
 
   // 处理文件保存（暂时只是提示，实际保存需要更复杂的逻辑）
   const handleSaveFile = async (content: string) => {
-    logger.info('保存文件内容:', content);
+    logger.debug('保存文件内容:', content);
     // TODO: 实现实际的保存逻辑
     alert('文件保存功能暂未实现，这是演示版本');
   };

@@ -203,13 +203,13 @@ const BackButtonHandler: React.FC = () => {
     // 获取当前路径
     const currentPath = window.location.hash.replace('#', '') || '/';
     
-    logger.info('[BackButtonHandler] 返回键触发, 当前路径:', currentPath);
+    logger.debug('返回键触发, 当前路径:', currentPath);
 
     // 优先处理对话框关闭
     if (hasOpenDialogs()) {
       const closed = closeLastDialog();
       if (closed) {
-        logger.info('[BackButtonHandler] 已关闭对话框');
+        logger.debug('已关闭对话框');
         return true; // 已处理
       }
     }

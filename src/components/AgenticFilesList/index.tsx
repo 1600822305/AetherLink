@@ -377,7 +377,7 @@ const AgenticFilesList: React.FC = () => {
         });
       }
     } catch (error) {
-      logger.error('[AgenticFilesList] 恢复文件失败:', error);
+      logger.error('恢复文件失败:', error);
     }
     
     dispatch(rejectFileChange(change.id));

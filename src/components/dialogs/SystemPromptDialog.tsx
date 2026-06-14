@@ -170,7 +170,7 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
             throw new Error('没有找到助手信息');
           }
 
-          logger.info('[SystemPromptDialog] 保存助手系统提示词:', {
+          logger.debug('保存助手系统提示词:', {
             assistantId: assistant.id,
             assistantName: assistant.name,
             systemPrompt: trimmedPrompt.substring(0, 50) + (trimmedPrompt.length > 50 ? '...' : '')
@@ -182,13 +182,13 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
           };
 
           await dexieStorage.saveAssistant(updatedAssistant);
-          logger.info('[SystemPromptDialog] 已保存助手系统提示词到数据库');
+          logger.debug('已保存助手系统提示词到数据库');
 
           // 派发事件通知其他组件更新
           window.dispatchEvent(new CustomEvent('assistantUpdated', {
             detail: { assistant: updatedAssistant }
           }));
-          logger.info('[SystemPromptDialog] 已派发助手更新事件');
+          logger.debug('已派发助手更新事件');
           break;
 
         case 'topic':
@@ -216,7 +216,7 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
       // 使用handleClose来清理对话框状态并关闭
       handleClose();
     } catch (error) {
-      logger.error('[SystemPromptDialog] 保存系统提示词失败:', error);
+      logger.error('保存系统提示词失败:', error);
       setError(error instanceof Error ? error.message : '保存系统提示词失败');
     } finally {
       setSaving(false);
@@ -227,16 +227,16 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
   const handleSaveToTopic = async (promptContent: string) => {
     // 如果没有话题但有助手，先创建话题
     if (!topic && assistant) {
-      logger.info('[SystemPromptDialog] 没有当前话题，尝试创建新话题');
+      logger.debug('没有当前话题，尝试创建新话题');
       const newTopic = await TopicService.createNewTopic();
 
       if (newTopic) {
-        logger.info('[SystemPromptDialog] 成功创建新话题:', newTopic.id);
+        logger.debug('成功创建新话题:', newTopic.id);
 
         // 更新新话题的提示词
         (newTopic as any).prompt = promptContent;
         await TopicService.saveTopic(newTopic);
-        logger.info('[SystemPromptDialog] 已保存话题提示词');
+        logger.debug('已保存话题提示词');
         return;
       } else {
         throw new Error('创建话题失败');
@@ -245,12 +245,12 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
 
     // 更新现有话题提示词
     if (topic) {
-      logger.info('[SystemPromptDialog] 更新现有话题的系统提示词');
+      logger.debug('更新现有话题的系统提示词');
       const updatedTopic = { ...topic, prompt: promptContent };
 
       // 保存到数据库
       await TopicService.saveTopic(updatedTopic);
-      logger.info('[SystemPromptDialog] 已保存话题提示词到数据库');
+      logger.debug('已保存话题提示词到数据库');
 
       // 强制刷新Redux状态
       if (assistant) {
@@ -258,12 +258,12 @@ const SystemPromptDialog: React.FC<SystemPromptDialogProps> = ({
           assistantId: assistant.id,
           topic: updatedTopic
         }));
-        logger.info('[SystemPromptDialog] 已通过Redux更新话题状态');
+        logger.debug('已通过Redux更新话题状态');
       }
 
       // 调用保存回调，通知父组件更新
       if (onSave) {
-        logger.info('[SystemPromptDialog] 调用onSave回调，通知父组件更新');
+        logger.debug('调用onSave回调，通知父组件更新');
         onSave(updatedTopic);
       }
     }
