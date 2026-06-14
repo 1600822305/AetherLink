@@ -5,7 +5,6 @@
 
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
-import LoggerService from '../infra/LoggerService';
 import { createLogger } from '../infra/logger';
 
 const logger = createLogger('CORSBypass');
@@ -81,7 +80,7 @@ export class CORSBypassService {
       responseType = 'json'
     } = options;
 
-    LoggerService.log('DEBUG', `[CORS Bypass] 开始请求: ${method} ${url}`, {
+    logger.debug(`开始请求: ${method} ${url}`, {
       method,
       url,
       headers,
@@ -110,7 +109,7 @@ export class CORSBypassService {
       const response = await CorsBypass.request(requestConfig);
       const duration = Date.now() - startTime;
 
-      LoggerService.log('INFO', `[CORS Bypass] 请求成功: ${method} ${url} (${duration}ms)`, {
+      logger.info(`请求成功: ${method} ${url} (${duration}ms)`, {
         status: response.status,
         duration
       });
@@ -128,7 +127,7 @@ export class CORSBypassService {
     } catch (error: any) {
       const duration = Date.now() - startTime;
 
-      LoggerService.log('ERROR', `[CORS Bypass] 请求失败: ${method} ${url} (${duration}ms)`, {
+      logger.error(`请求失败: ${method} ${url} (${duration}ms)`, {
         error: error.message,
         duration
       });
@@ -274,7 +273,7 @@ export class CORSBypassService {
     // CorsBypass 插件目前实际只支持 json 和 text
     // 如果请求了不支持的类型，记录警告并回退到合适的类型
     if (responseType === 'blob' || responseType === 'arraybuffer') {
-      LoggerService.log('WARN', `[CORS Bypass] 响应类型 '${responseType}' 暂不支持，回退到 'text'`);
+      logger.warn(`响应类型 '${responseType}' 暂不支持，回退到 'text'`);
       return 'text';
     }
     

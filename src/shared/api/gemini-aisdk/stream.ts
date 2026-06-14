@@ -5,7 +5,6 @@
  */
 import { streamText, generateText } from 'ai';
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google';
-import { logApiRequest } from '../../services/infra/LoggerService';
 import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
@@ -14,7 +13,7 @@ import type { Model, MCPTool } from '../../types';
 import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK, parseGroundingMetadata } from './tools';
 import store from '../../store';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('Gemini AI SDK Stream');
 const nonStreamLogger = createLogger('Gemini AI SDK NonStream');
@@ -119,7 +118,7 @@ export async function streamCompletion(
     }));
 
     // 记录 API 请求
-    logApiRequest('AI SDK Gemini Stream', 'INFO', {
+    logger.logApiRequest('AI SDK Gemini Stream', LogLevel.INFO, {
       provider: 'gemini-aisdk',
       model: modelId,
       messageCount: processedMessages.length,

@@ -5,10 +5,9 @@
  */
 import type { Message, Model, MCPTool } from '../../types';
 import type { Chunk } from '../../types/chunk';
-import { logApiRequest } from '../../services/infra/LoggerService';
 import { isAbortError } from '../../utils/abortController';
 import { OpenAIProvider } from './provider';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('OpenAI Chat');
 
@@ -101,7 +100,7 @@ function logChatRequest(messages: Message[], model: Model, options: NormalizedCh
   logger.debug(`配置 - 网页搜索: ${options.enableWebSearch}, 工具: ${options.enableTools}, 系统提示: ${options.systemPrompt ? '有' : '无'}`);
 
   // 记录API请求到日志服务
-  logApiRequest('OpenAI Chat', 'INFO', {
+  logger.logApiRequest('OpenAI Chat', LogLevel.INFO, {
     method: 'POST',
     model: model.id,
     provider: model.provider,

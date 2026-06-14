@@ -1,5 +1,5 @@
 import type { Model } from '../../types';
-import { log } from '../infra/LoggerService';
+import { createLogger } from '../infra/logger';
 import { TopicService } from '../topics/TopicService';
 import { MessageBlockStatus } from '../../types/newMessage';
 import store from '../../store';
@@ -8,6 +8,8 @@ import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 import { AssistantMessageStatus } from '../../types/newMessage';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
 import { messageBlockRepository } from '../messages/MessageBlockRepository';
+
+const logger = createLogger('VideoTaskManager');
 
 /**
  * 视频生成任务接口
@@ -38,9 +40,9 @@ export class VideoTaskManager {
       const tasks = await this.getTasks();
       tasks[task.id] = task;
       await setStorageItem(this.STORAGE_KEY, tasks);
-      log('INFO', `保存视频生成任务: ${task.id}`, { requestId: task.requestId });
+      logger.info(`保存视频生成任务: ${task.id}`, { requestId: task.requestId });
     } catch (error) {
-      log('ERROR', '保存视频任务失败', { error, taskId: task.id });
+      logger.error('保存视频任务失败', { error, taskId: task.id });
     }
   }
 
@@ -52,9 +54,9 @@ export class VideoTaskManager {
       const tasks = await this.getTasks();
       delete tasks[taskId];
       await setStorageItem(this.STORAGE_KEY, tasks);
-      log('INFO', `删除视频生成任务: ${taskId}`);
+      logger.info(`删除视频生成任务: ${taskId}`);
     } catch (error) {
-      log('ERROR', '删除视频任务失败', { error, taskId });
+      logger.error('删除视频任务失败', { error, taskId });
     }
   }
 
@@ -75,7 +77,7 @@ export class VideoTaskManager {
         if (taskAge < this.MAX_TASK_AGE) {
           validTasks[id] = task;
         } else {
-          log('INFO', `清理过期视频任务: ${id}`, { age: taskAge });
+          logger.info(`清理过期视频任务: ${id}`, { age: taskAge });
         }
       }
       
@@ -86,7 +88,7 @@ export class VideoTaskManager {
       
       return validTasks;
     } catch (error) {
-      log('ERROR', '获取视频任务失败', { error });
+      logger.error('获取视频任务失败', { error });
       return {};
     }
   }
@@ -99,11 +101,11 @@ export class VideoTaskManager {
     const taskList = Object.values(tasks);
     
     if (taskList.length === 0) {
-      log('INFO', '没有需要恢复的视频生成任务');
+      logger.info('没有需要恢复的视频生成任务');
       return;
     }
     
-    log('INFO', `发现 ${taskList.length} 个未完成的视频生成任务，开始恢复`);
+    logger.info(`发现 ${taskList.length} 个未完成的视频生成任务，开始恢复`);
     
     // 并行恢复所有任务
     const resumePromises = taskList.map(task => this.resumeTask(task));
@@ -115,7 +117,7 @@ export class VideoTaskManager {
    */
   private static async resumeTask(task: VideoTask): Promise<void> {
     try {
-      log('INFO', `恢复视频生成任务: ${task.id}`, { 
+      logger.info(`恢复视频生成任务: ${task.id}`, { 
         requestId: task.requestId,
         prompt: task.prompt.substring(0, 50)
       });
@@ -130,7 +132,7 @@ export class VideoTaskManager {
       await this.completeTask(task, videoUrl);
       
     } catch (error) {
-      log('ERROR', `恢复视频任务失败: ${task.id}`, { error });
+      logger.error(`恢复视频任务失败: ${task.id}`, { error });
       await this.failTask(task, error instanceof Error ? error.message : String(error));
     }
   }
@@ -174,7 +176,7 @@ export class VideoTaskManager {
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        log('INFO', `轮询视频状态 (${attempt}/${maxAttempts})`, { requestId });
+        logger.info(`轮询视频状态 (${attempt}/${maxAttempts})`, { requestId });
 
         const response = await fetch(`${baseUrl}/video/status`, {
           method: 'POST',
@@ -198,7 +200,7 @@ export class VideoTaskManager {
         }
 
         const result: any = await response.json();
-        log('INFO', `视频状态: ${result.status}`, { requestId, attempt });
+        logger.info(`视频状态: ${result.status}`, { requestId, attempt });
 
         switch (result.status) {
           case 'completed':
@@ -228,7 +230,7 @@ export class VideoTaskManager {
             }
 
           default:
-            log('WARN', `未知的视频状态: ${result.status}`, { requestId, result });
+            logger.warn(`未知的视频状态: ${result.status}`, { requestId, result });
             if (attempt < maxAttempts) {
               await this.sleep(pollInterval);
               break;
@@ -269,7 +271,7 @@ export class VideoTaskManager {
         }
       }));
     } catch (error) {
-      log('ERROR', '更新任务状态失败', { error, taskId: task.id });
+      logger.error('更新任务状态失败', { error, taskId: task.id });
     }
   }
 
@@ -315,10 +317,10 @@ export class VideoTaskManager {
       // 删除任务
       await this.removeTask(task.id);
       
-      log('INFO', `视频生成任务完成: ${task.id}`, { videoUrl: videoUrl.substring(0, 50) });
+      logger.info(`视频生成任务完成: ${task.id}`, { videoUrl: videoUrl.substring(0, 50) });
       
     } catch (error) {
-      log('ERROR', '完成视频任务失败', { error, taskId: task.id });
+      logger.error('完成视频任务失败', { error, taskId: task.id });
       throw error;
     }
   }
@@ -344,10 +346,10 @@ export class VideoTaskManager {
       // 删除任务
       await this.removeTask(task.id);
       
-      log('ERROR', `视频生成任务失败: ${task.id}`, { error: errorMessage });
+      logger.error(`视频生成任务失败: ${task.id}`, { error: errorMessage });
       
     } catch (error) {
-      log('ERROR', '处理视频任务失败失败', { error, taskId: task.id });
+      logger.error('处理视频任务失败失败', { error, taskId: task.id });
     }
   }
 

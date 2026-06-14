@@ -1,5 +1,7 @@
 import type { Model } from '../../types';
-import { log } from '../../services/infra/LoggerService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Video');
 
 /**
  * 视频生成参数接口 - 符合硅基流动官方API
@@ -60,7 +62,7 @@ export async function generateVideo(
   params: VideoGenerationParams
 ): Promise<string> {
   try {
-    log('INFO', `开始视频生成: ${model.name}`, {
+    logger.info(`开始视频生成: ${model.name}`, {
       modelId: model.id,
       prompt: params.prompt.substring(0, 100),
       imageSize: params.image_size
@@ -77,7 +79,7 @@ export async function generateVideo(
     // 1. 提交视频生成请求
     const requestId = await submitVideoGeneration(baseUrl, apiKey, model.id, params);
     
-    log('INFO', `视频生成请求已提交: ${requestId}`, {
+    logger.info(`视频生成请求已提交: ${requestId}`, {
       modelId: model.id,
       requestId
     });
@@ -85,7 +87,7 @@ export async function generateVideo(
     // 2. 轮询获取结果
     const videoUrl = await pollVideoStatusInternal(baseUrl, apiKey, requestId);
 
-    log('INFO', `视频生成完成: ${videoUrl.substring(0, 50)}...`, {
+    logger.info(`视频生成完成: ${videoUrl.substring(0, 50)}...`, {
       modelId: model.id,
       requestId
     });
@@ -93,7 +95,7 @@ export async function generateVideo(
     return videoUrl;
 
   } catch (error: any) {
-    log('ERROR', `视频生成失败: ${error.message}`, {
+    logger.error(`视频生成失败: ${error.message}`, {
       modelId: model.id,
       error
     });
@@ -131,7 +133,7 @@ export async function submitVideoGeneration(
       requestBody.seed = params.seed;
     }
 
-    log('INFO', '发送视频生成请求', {
+    logger.info('发送视频生成请求', {
       url: `${baseUrl}/video/submit`,
       model: modelId,
       hasImage: !!params.image
@@ -161,7 +163,7 @@ export async function submitVideoGeneration(
     return result.requestId;
 
   } catch (error: any) {
-    log('ERROR', `提交视频生成请求失败: ${error.message}`, { error });
+    logger.error(`提交视频生成请求失败: ${error.message}`, { error });
     throw error;
   }
 }
@@ -179,7 +181,7 @@ export async function pollVideoStatusInternal(
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      log('INFO', `轮询视频状态 (${attempt}/${maxAttempts})`, { requestId });
+      logger.info(`轮询视频状态 (${attempt}/${maxAttempts})`, { requestId });
 
       const response = await fetch(`${baseUrl}/video/status`, {
         method: 'POST',
@@ -192,7 +194,7 @@ export async function pollVideoStatusInternal(
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        log('WARN', `轮询状态请求失败: ${response.status}`, { errorData });
+        logger.warn(`轮询状态请求失败: ${response.status}`, { errorData });
         
         // 如果是客户端错误，直接抛出异常
         if (response.status >= 400 && response.status < 500) {
@@ -210,7 +212,7 @@ export async function pollVideoStatusInternal(
 
       const result: VideoStatusResponse = await response.json();
       
-      log('INFO', `视频状态: ${result.status}`, { requestId, attempt });
+      logger.info(`视频状态: ${result.status}`, { requestId, attempt });
 
       switch (result.status) {
         case 'completed':
@@ -222,11 +224,11 @@ export async function pollVideoStatusInternal(
                           null;
 
           if (!videoUrl) {
-            log('ERROR', '视频生成完成但未返回视频URL', result);
+            logger.error('视频生成完成但未返回视频URL', result);
             throw new Error('视频生成完成但未返回视频URL');
           }
 
-          log('INFO', `视频生成完成: ${videoUrl}`, { requestId });
+          logger.info(`视频生成完成: ${videoUrl}`, { requestId });
           return videoUrl;
 
         case 'failed':
@@ -244,7 +246,7 @@ export async function pollVideoStatusInternal(
           }
 
         default:
-          log('WARN', `未知的视频状态: ${result.status}`, { requestId, result });
+          logger.warn(`未知的视频状态: ${result.status}`, { requestId, result });
           if (attempt < maxAttempts) {
             await sleep(pollInterval);
             break;
@@ -254,7 +256,7 @@ export async function pollVideoStatusInternal(
       }
 
     } catch (error: any) {
-      log('ERROR', `轮询视频状态失败 (${attempt}/${maxAttempts}): ${error.message}`, {
+      logger.error(`轮询视频状态失败 (${attempt}/${maxAttempts}): ${error.message}`, {
         requestId,
         error
       });

@@ -5,10 +5,9 @@
 import OpenAI from 'openai';
 import type { ClientOptions } from 'openai';
 import type { Model } from '../../types';
-import { logApiRequest } from '../../services/infra/LoggerService';
 import { isReasoningModel } from '../../../config/models';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('OpenAI Client');
 
@@ -289,7 +288,7 @@ export async function testConnection(model: Model): Promise<boolean> {
     const openai = createClient(model);
 
     // 记录API请求
-    logApiRequest('OpenAI Connection Test', 'INFO', {
+    logger.logApiRequest('OpenAI Connection Test', LogLevel.INFO, {
       method: 'POST',
       model: modelId,
       baseUrl

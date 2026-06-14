@@ -3,9 +3,14 @@
  * 提供错误格式化、错误详情提取、统一错误处理等功能
  * 添加完整的 AI SDK 错误序列化支持
  */
-import LoggerService from '../services/infra/LoggerService';
-import { createLogger } from '../services/infra/logger';
+import { createLogger, LogLevel } from '../services/infra/logger';
 const logger = createLogger('Error');
+const LOG_LEVEL_MAP: Record<'DEBUG' | 'INFO' | 'WARN' | 'ERROR', LogLevel> = {
+  DEBUG: LogLevel.DEBUG,
+  INFO: LogLevel.INFO,
+  WARN: LogLevel.WARN,
+  ERROR: LogLevel.ERROR,
+};
 import type {
   AiSdkErrorUnion,
   SerializedError,
@@ -169,7 +174,7 @@ export function handleError(
 
   // 检查是否为中止错误，如果是则不记录
   if (isAbortError(error)) {
-    LoggerService.log('DEBUG', `[${context}] 请求被中止`, { error: getErrorMessage(error) });
+    logger.debug(`[${context}] 请求被中止`, { error: getErrorMessage(error) });
     return;
   }
 
@@ -187,8 +192,8 @@ export function handleError(
     ...additionalData
   };
 
-  // 使用LoggerService记录错误
-  LoggerService.log(logLevel, `[${context}] ${errorMessage}`, logData);
+  // 记录错误
+  logger.logAt(LOG_LEVEL_MAP[logLevel], `[${context}] ${errorMessage}`, logData);
 
   // 如果需要显示给用户（可以在这里集成Toast或其他用户通知）
   if (showUser) {

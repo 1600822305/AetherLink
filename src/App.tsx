@@ -15,10 +15,11 @@ import KnowledgeProvider from './components/KnowledgeManagement/KnowledgeProvide
 import { CodeStyleProvider } from './context/CodeStyleProvider';
 import AppContent from './components/AppContent';
 import { GlobalToastContainer } from './components/EnhancedToast';
-import LoggerService from './shared/services/infra/LoggerService';
+import { createLogger } from './shared/services/infra/logger';
 
 // 初始化日志拦截器
-LoggerService.log('INFO', '应用初始化');
+const logger = createLogger('App');
+logger.info('应用初始化');
 
 // 🚀 性能优化：非阻塞式恢复 Redux 状态
 // 在后台恢复状态，不阻塞渲染

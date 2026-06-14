@@ -14,7 +14,7 @@ import store from '../../store';
 import type { Model } from '../../types';
 import type { VisionRecognitionState } from '../../store/slices/visionRecognitionSlice';
 import { createClient } from '../../api/openai/client';
-import { log } from '../infra/LoggerService';
+import { createLogger } from '../infra/logger';
 import type { ApiMessage, ImageUrlPart } from '../../store/thunks/message/visionFallback';
 import {
   extractLastUserImages,
@@ -25,6 +25,8 @@ import {
   modelSupportsImageInput,
   assertModelSupportsApiMessages,
 } from '../../store/thunks/message/apiMessageValidation';
+
+const logger = createLogger('VisionRecognition');
 
 /** 独立API配置对应的虚拟 provider 标识 */
 export const VISION_CUSTOM_PROVIDER_ID = 'vision-custom';
@@ -98,7 +100,7 @@ export async function analyzeImagesWithVisionModel(options: {
 }): Promise<string> {
   const { model, images, userText, prompt, timeoutMs, abortSignal } = options;
 
-  log('INFO', `[VisionRecognition] 开始分析图片，模型: ${model.id}，图片数: ${images.length}`);
+  logger.info(`开始分析图片，模型: ${model.id}，图片数: ${images.length}`);
 
   const client = createClient(model);
 
@@ -128,7 +130,7 @@ export async function analyzeImagesWithVisionModel(options: {
     throw new Error('视觉模型返回了空的分析结果');
   }
 
-  log('INFO', `[VisionRecognition] 图片分析完成，结果长度: ${content.length}`);
+  logger.info(`图片分析完成，结果长度: ${content.length}`);
   return content;
 }
 
@@ -181,7 +183,7 @@ export async function applyVisionFallbackIfNeeded(
     }
     const message = error instanceof Error ? error.message : String(error);
     if (state.onFailure === 'continueWithoutImage') {
-      log('WARN', `[VisionRecognition] 图片分析失败，按降级策略继续发送（无图）: ${message}`);
+      logger.warn(`图片分析失败，按降级策略继续发送（无图）: ${message}`);
       return applyVisionAnalysisToApiMessages(apiMessages, null);
     }
     throw new Error(`视觉识别分析失败: ${message}`, { cause: error });
