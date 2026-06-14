@@ -36,9 +36,13 @@ export async function initializeServices(): Promise<void> {
   try {
     // 初始化开发者工具服务
     try {
-      const { default: EnhancedConsoleService } = await import('./infra/EnhancedConsoleService');
-      EnhancedConsoleService.getInstance();
-      logger.debug('控制台拦截服务初始化完成');
+      // 阶段6：日志查看器改读统一 logger 的内存缓冲；
+      // 噪音过滤与全局错误捕获从旧 EnhancedConsoleService 迁入新日志系统
+      const { installConsoleNoiseFilter } = await import('./infra/logger/consoleNoiseFilter');
+      const { installGlobalErrorCapture } = await import('./infra/logger/globalErrorCapture');
+      installConsoleNoiseFilter();
+      installGlobalErrorCapture();
+      logger.debug('日志查看器与全局错误捕获初始化完成');
 
       EnhancedNetworkService.getInstance();
       logger.debug('网络拦截服务初始化完成');

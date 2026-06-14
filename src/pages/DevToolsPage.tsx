@@ -39,7 +39,7 @@ import ConsolePanel from '../components/DevTools/ConsolePanel';
 import type { ConsolePanelRef } from '../components/DevTools/ConsolePanel';
 import NetworkPanel from '../components/DevTools/NetworkPanel';
 import type { NetworkPanelRef } from '../components/DevTools/NetworkPanel';
-import EnhancedConsoleService from '../shared/services/infra/EnhancedConsoleService';
+import { logViewerService } from '../shared/services/infra/logger/logViewer';
 import EnhancedNetworkService from '../shared/services/network/EnhancedNetworkService';
 import { SafeAreaContainer } from '../components/settings/SettingComponents';
 import { toastManager } from '../components/EnhancedToast';
@@ -87,7 +87,7 @@ const DevToolsPage: React.FC = () => {
   const consolePanelRef = useRef<ConsolePanelRef>(null);
   const networkPanelRef = useRef<NetworkPanelRef>(null);
 
-  const consoleService = EnhancedConsoleService.getInstance();
+  const consoleService = logViewerService;
   const networkService = EnhancedNetworkService.getInstance();
 
   // 监听 autoScroll 变化并保存到 localStorage
@@ -166,9 +166,11 @@ const DevToolsPage: React.FC = () => {
       textToCopy = selectedEntries.map((entry: any) => {
         const time = new Date(entry.timestamp).toLocaleTimeString();
         const level = entry.level.toUpperCase();
-        const message = entry.args.map((arg: any) => consoleService.formatArg(arg)).join(' ');
+        const ctx = entry.context ? ` [${entry.context}]` : '';
+        const argsText = entry.args.map((arg: any) => consoleService.formatArg(arg)).join(' ');
+        const message = `${entry.message}${argsText ? ` ${argsText}` : ''}`;
         const stack = entry.stack ? `\n${entry.stack}` : '';
-        return `[${time}] [${level}] ${message}${stack}`;
+        return `[${time}] [${level}]${ctx} ${message}${stack}`;
       }).join('\n\n');
     } else if (tabValue === 1) {
       const entries = networkPanelRef.current?.getFilteredEntries() || [];
@@ -217,9 +219,11 @@ const DevToolsPage: React.FC = () => {
           ...entries.map((entry: any) => {
             const time = new Date(entry.timestamp).toLocaleString();
             const level = entry.level.toUpperCase();
-            const message = entry.args.map((arg: any) => consoleService.formatArg(arg)).join(' ');
+            const ctx = entry.context ? ` [${entry.context}]` : '';
+            const argsText = entry.args.map((arg: any) => consoleService.formatArg(arg)).join(' ');
+            const message = `${entry.message}${argsText ? ` ${argsText}` : ''}`;
             const stack = entry.stack ? `\n堆栈信息: ${entry.stack}` : '';
-            return `[${time}] [${level}] ${message}${stack}`;
+            return `[${time}] [${level}]${ctx} ${message}${stack}`;
           })
         ].join('\n');
 
