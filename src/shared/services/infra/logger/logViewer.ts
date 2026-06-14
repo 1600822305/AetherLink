@@ -3,7 +3,8 @@
  * 映射为 DevTools/ConsolePanel 渲染所需的视图模型，并提供过滤/导出/REPL。
  * 取代旧 EnhancedConsoleService 作为查看器数据源（阶段6）。
  */
-import type { LogLevel, LogLevelName, StoredLogEntry } from './types';
+import { LogLevel } from './types';
+import type { LogLevelName, StoredLogEntry } from './types';
 import { LEVEL_LABEL } from './config';
 import { memoryTransport, createLogger } from './index';
 import { formatArg, extractStack } from './logFormat';
@@ -97,9 +98,14 @@ class LogViewerService {
   executeCommand(command: string): void {
     const trimmed = command.trim();
     if (!trimmed) return;
+    // REPL 是用户主动触发的交互输出，必须出现在查看器中，不应被默认级别（生产为 WARN）挡掉：
+    // 成功结果用「不低于当前阈值的可见级别」记录，错误用 error（除 SILENT 外恒可见）。
+    const visibleLevel = replLogger.isLevelEnabled(LogLevel.INFO)
+      ? LogLevel.INFO
+      : replLogger.getLevel();
     try {
       const result = window.eval(trimmed);
-      replLogger.info(`> ${trimmed}`, result);
+      replLogger.logAt(visibleLevel, `> ${trimmed}`, result);
     } catch (error) {
       replLogger.error(`> ${trimmed}`, error);
     }

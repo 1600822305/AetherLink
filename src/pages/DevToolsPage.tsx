@@ -45,7 +45,7 @@ import { SafeAreaContainer } from '../components/settings/SettingComponents';
 import { toastManager } from '../components/EnhancedToast';
 import { shareTextAsFile } from '../utils/exportUtils';
 import dayjs from 'dayjs';
-import { createLogger } from '../shared/services/infra/logger';
+import { createLogger, setDebugMode, readDebugFlag } from '../shared/services/infra/logger';
 
 const logger = createLogger('DevToolsPage');
 
@@ -79,6 +79,9 @@ const DevToolsPage: React.FC = () => {
     }
   });
   
+  // 调试模式开关：持久化在 localStorage（debug_mode），决定 logger 是否记录 debug/info
+  const [debugMode, setDebugModeState] = useState(() => readDebugFlag());
+
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedConsoleIds, setSelectedConsoleIds] = useState<Set<string>>(new Set());
   const [selectedNetworkIds, setSelectedNetworkIds] = useState<Set<string>>(new Set());
@@ -107,6 +110,12 @@ const DevToolsPage: React.FC = () => {
       logger.warn('保存保持日志设置失败:', error);
     }
   }, [preserveLog]);
+
+  // 切换调试模式：持久化开关并立即应用日志级别（DEBUG / 环境默认阈值）
+  const handleDebugModeChange = useCallback((enabled: boolean) => {
+    setDebugModeState(enabled);
+    setDebugMode(enabled);
+  }, []);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -575,6 +584,26 @@ const DevToolsPage: React.FC = () => {
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {t('devtools.settingsDialog.preserveLog.description')}
+                  </Typography>
+                </Box>
+              }
+              sx={{ alignItems: 'flex-start', m: 0 }}
+            />
+            <Divider />
+            <FormControlLabel
+              control={
+                <CustomSwitch
+                  checked={debugMode}
+                  onChange={(e) => handleDebugModeChange(e.target.checked)}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {t('devtools.settingsDialog.debugMode.label')}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('devtools.settingsDialog.debugMode.description')}
                   </Typography>
                 </Box>
               }

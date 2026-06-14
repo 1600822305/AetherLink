@@ -21,6 +21,10 @@
       "label": "保留日志",
       "description": "页面刷新后保留日志记录"
     },
+    "debugMode": {
+      "label": "调试模式",
+      "description": "记录 debug/info 级别日志（生产环境默认只记录 warn/error）"
+    },
     "close": "关闭"
   },
   "clearDialog": {
