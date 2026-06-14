@@ -322,12 +322,16 @@ flowchart TD
 | 4 收尾(小批) | `services/{network,tts-v2,skills,ui,notes,translate}`（约 119 处 / 19 文件） | `5a7c8f4a` | 已合并 |
 | 4 | `src/shared/utils`（207 处 / 33 文件） | `ee2c9fa6` | 已合并 |
 | 修复 | `MemoryService.replaceInCache` 缓存键（TS2345 + 命中一致性） | #252 | 已合并 |
+| 4 低优先 | `src/components`（约 325 处 / 101 文件，含收尾剥残留前缀） | `e47621d8` + `668fdaca` | 已合并 |
+| 4 低优先 | `src/pages`（418 处 / 67 文件） | `250b5539` | 已合并 |
+| 修复 | 3 处真实 app 类型报错（ChartBlock/SettingItem/ChatScrollController） | #254 | 已合并 |
+| 修复 | `ChatPageUI` `onSendMultiModelMessage` 恒真条件（TS2774） | `28569929` | 已合并 |
 
-> `59edd645`/`5a7c8f4a`/`ee2c9fa6` 三批为节省额度改由用户 IDE 模型按本节规范执行、直接提交 `main`（无独立 PR 号，故以 commit SHA 记录）；主会话已逐批复查：目标目录 `console.*` 归零、相对导入无 `@/`、级别映射克制（0 误升 info）、`[前缀]` 已剥离、strict `tsc -p tsconfig.app.json` 与 `build` 通过。
+> `59edd645`/`5a7c8f4a`/`ee2c9fa6`/`e47621d8`/`668fdaca`/`250b5539`/`28569929` 等批次为节省额度改由用户 IDE 模型按本节规范执行、直接提交 `main`（无独立 PR 号，故以 commit SHA 记录）；主会话已逐批复查：目标目录 `console.*` 归零、相对导入无 `@/`、级别映射克制（0 误升 info）、`[前缀]` 已剥离、strict `tsc -p tsconfig.app.json` 与 `build` 通过。
 
 新 logger 位于 `src/shared/services/infra/logger/`，对外导出 `logger`、`createLogger(context)`、`Logger`、Transport 与类型。
 
-**累计**：`shared/services` 全部业务子系统（mcp / store* / api* / storage / messages / ai / webSearch / files / knowledge / assistant / topics / memory / platform / network / tts-v2 / skills / ui / notes / translate，*store/api 在 `shared/` 下）+ `shared/utils` 均已迁移并归零，约 **2045 处** `console.*` 清零；`src` 全量剩余约 **971 处**（集中在 `components` / `pages` / 顶层 `hooks·utils` / `shared/hooks·providers`）。CI（type-check + build）全绿。
+**累计**：`shared/services` 全部业务子系统（mcp / store* / api* / storage / messages / ai / webSearch / files / knowledge / assistant / topics / memory / platform / network / tts-v2 / skills / ui / notes / translate，*store/api 在 `shared/` 下）+ `shared/utils` + **`src/pages`（418 处 / 67 文件）+ `src/components`（约 325 处 / 101 文件）** 均已迁移并归零，约 **2800 处** `console.*` 清零；全仓已有 **368 个文件**接入 `createLogger`。`src` 全量真实剩余约 **228 处**（排除 `//` 注释；集中在顶层 `hooks·utils` / `shared/{hooks,providers,plugins}` / `solid` + 零散）。CI（type-check + build）全绿。
 
 ### 13.2 迁移规范（统一规则，分模块迁移一律照此执行）
 
@@ -351,17 +355,20 @@ flowchart TD
 
 ### 13.3 剩余盘点（基于 `main`；`console.*` 总量 / 必迁 `log·info·debug·group` / 文件数）
 
-> `shared/services`（全部业务子系统）、`shared/store`、`shared/api`、`shared/utils` 均已归零，不再列出。`src` 全量剩余约 **971 处**（下表主力区域 + 约 55 处零散/后端豁免）。
+> `shared/services`（全部业务子系统）、`shared/store`、`shared/api`、`shared/utils`，以及 **`src/pages`（原 418 处）、`src/components`（原约 325 处）** 均已归零，不再列入待迁。`src` 全量真实 `console.*`（排除 `//` 注释）现约 **228 处**（下表 + 后端豁免）；下表数据实测于 `main` HEAD `28569929`。
 
 | 区域 | 总数 | 必迁 | 文件 | 备注 |
 |--------|------|------|------|------|
-| `pages` | 418 | 162 | 67 | 待迁（多为 error/warn） |
-| `components` | 325 | 116 | 101 | 待迁（多为 error/warn） |
-| `utils`（顶层） | 61 | 20 | 5 | 待迁 |
-| `hooks`（顶层） | 49 | 27 | 8 | 待迁 |
+| 顶层 `hooks` | 49 | 27 | 8 | 待迁（其余为 error/warn） |
+| 顶层 `utils` | 61 | 21 | 5 | 待迁（其余为 error/warn） |
 | `shared/hooks` | 40 | 21 | 9 | 待迁 |
 | `shared/providers` | 23 | 11 | 2 | 待迁 |
-| 其余零散 | ~55 | — | — | `routes` / `solid` / `shared/{adapters,bridges,config,database,plugins}` 等零散，逐步收尾 |
+| `shared/plugins` | 3 | 3 | 1 | 待迁 |
+| `solid` | 5 | 3 | 2 | 待迁 |
+| `shared/services` 零散 | 12 | 5 | 4 | `index.ts`(6) / `KeyboardManager.ts`(2) / `infra/EventService.ts`(1) 漏网；`infra/LoggerService.ts`(3) 属阶段5 待删后端，已豁免 |
+| 其余零散 | ~20 | ~6 | — | `shared/{adapters,bridges,config,database,data}` / `routes` 等零散，逐步收尾 |
+
+> 必迁合计约 **90 处**，体量小，约 1–2 个小 PR 可收尾阶段4。
 
 > 注：`ConsoleTransport` / `EnhancedConsoleService` / `LoggerService`（旧服务，阶段5 移除）等日志后端自身的 `console` 使用为有意保留，已在 ESLint 中豁免，不计入迁移目标。
 
