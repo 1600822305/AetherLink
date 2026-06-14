@@ -13,6 +13,7 @@ import {
   alpha,
   Tooltip,
   Checkbox,
+  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -26,8 +27,10 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from '../../i18n';
-import EnhancedConsoleService from '../../shared/services/infra/EnhancedConsoleService';
-import type { ConsoleEntry, ConsoleLevel, ConsoleFilter } from '../../shared/services/infra/EnhancedConsoleService';
+import { logViewerService } from '../../shared/services/infra/logger/logViewer';
+import type { LogViewerEntry, LogViewerFilter, LogLevelName } from '../../shared/services/infra/logger/logViewer';
+
+const ALL_LEVELS: LogLevelName[] = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'];
 
 interface ConsolePanelProps {
   autoScroll?: boolean;
@@ -37,7 +40,7 @@ interface ConsolePanelProps {
 }
 
 export interface ConsolePanelRef {
-  getFilteredEntries: () => ConsoleEntry[];
+  getFilteredEntries: () => LogViewerEntry[];
 }
 
 const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({ 
@@ -48,9 +51,10 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
 }, ref) => {
   const { t } = useTranslation();
   const theme = useTheme();
-  const [entries, setEntries] = useState<ConsoleEntry[]>([]);
-  const [filter, setFilter] = useState<ConsoleFilter>({
-    levels: new Set(['log', 'info', 'warn', 'error', 'debug']),
+  const [entries, setEntries] = useState<LogViewerEntry[]>([]);
+  const [filter, setFilter] = useState<LogViewerFilter>({
+    levels: new Set<LogLevelName>(ALL_LEVELS),
+    context: null,
     searchText: '',
     showTimestamps: true
   });
@@ -59,16 +63,16 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
-  const consoleService = EnhancedConsoleService.getInstance();
+  const consoleService = logViewerService;
 
   useEffect(() => {
-    const unsubscribe = consoleService.addListener((newEntries) => {
-      setEntries(newEntries);
+    const unsubscribe = consoleService.addListener(() => {
+      setEntries(consoleService.getEntries());
     });
 
     setEntries(consoleService.getEntries());
     return unsubscribe;
-  }, []);
+  }, [consoleService]);
 
   useEffect(() => {
     if (autoScroll && consoleEndRef.current) {
@@ -110,35 +114,37 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
     }
   };
 
-  const getConsoleColor = (level: ConsoleLevel) => {
+  const getConsoleColor = (level: LogLevelName) => {
     switch (level) {
-      case 'error':
+      case 'ERROR':
         return theme.palette.error.main;
-      case 'warn':
+      case 'WARN':
         return theme.palette.warning.main;
-      case 'info':
+      case 'INFO':
         return theme.palette.info.main;
-      case 'debug':
+      case 'DEBUG':
         return theme.palette.success.main;
       default:
         return theme.palette.text.primary;
     }
   };
 
-  const getConsoleIcon = (level: ConsoleLevel) => {
+  const getConsoleIcon = (level: LogLevelName) => {
     switch (level) {
-      case 'error':
+      case 'ERROR':
         return <ErrorIcon size={16} />;
-      case 'warn':
+      case 'WARN':
         return <WarningIcon size={16} />;
-      case 'info':
+      case 'INFO':
         return <InfoIcon size={16} />;
-      case 'debug':
+      case 'DEBUG':
         return <BugReportIcon size={16} />;
       default:
         return <TerminalIcon size={16} />;
     }
   };
+
+  const contexts = consoleService.getContexts();
 
   const filteredEntries = consoleService.getFilteredEntries(filter);
 
@@ -214,13 +220,13 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
             <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 500 }}>
               {t('devtools.console.level')}
             </Typography>
-            {(['error', 'warn', 'info', 'log', 'debug'] as ConsoleLevel[]).map(level => (
+            {ALL_LEVELS.map(level => (
               <Chip
                 key={level}
-                label={level.toUpperCase()}
+                label={level}
                 size="small"
                 variant={filter.levels.has(level) ? "filled" : "outlined"}
-                color={level === 'error' ? 'error' : level === 'warn' ? 'warning' : 'default'}
+                color={level === 'ERROR' ? 'error' : level === 'WARN' ? 'warning' : 'default'}
                 onClick={() => {
                   const newLevels = new Set(filter.levels);
                   if (newLevels.has(level)) {
@@ -240,6 +246,28 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
                 }}
               />
             ))}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 500 }}>
+              模块
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={filter.context ?? '__all__'}
+              onChange={(e) =>
+                setFilter(prev => ({
+                  ...prev,
+                  context: e.target.value === '__all__' ? null : e.target.value,
+                }))
+              }
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="__all__">全部</MenuItem>
+              {contexts.map(ctx => (
+                <MenuItem key={ctx} value={ctx}>{ctx}</MenuItem>
+              ))}
+            </TextField>
           </Box>
         </Box>
       </Paper>
@@ -281,10 +309,13 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
             </Box>
           ) : (
             filteredEntries.map((entry, index) => {
-              const hasLongContent = entry.args.some(arg => {
-                const formatted = consoleService.formatArg(arg);
-                return formatted.length > 200 || formatted.split('\n').length > 5;
-              });
+              const hasLongContent =
+                entry.message.length > 200 ||
+                entry.message.split('\n').length > 5 ||
+                entry.args.some(arg => {
+                  const formatted = consoleService.formatArg(arg);
+                  return formatted.length > 200 || formatted.split('\n').length > 5;
+                });
               const isSelected = selectedIds.has(entry.id);
               
               return (
@@ -355,7 +386,7 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
                           </Typography>
                         )}
                         <Chip
-                          label={entry.level.toUpperCase()}
+                          label={entry.level}
                           size="small"
                           sx={{
                             height: 18,
@@ -366,6 +397,20 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
                             border: `1px solid ${alpha(getConsoleColor(entry.level), 0.3)}`,
                           }}
                         />
+                        {entry.context && (
+                          <Chip
+                            label={entry.context}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              height: 18,
+                              fontSize: '0.65rem',
+                              fontWeight: 500,
+                              color: 'text.secondary',
+                              borderColor: alpha(theme.palette.text.secondary, 0.3),
+                            }}
+                          />
+                        )}
                       </Box>
                       <Box
                         sx={{
@@ -397,6 +442,16 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
                           },
                         }}
                       >
+                        {entry.message && (
+                          <span
+                            style={{
+                              marginRight: '8px',
+                              color: theme.palette.text.primary,
+                            }}
+                          >
+                            {entry.message}
+                          </span>
+                        )}
                         {entry.args.map((arg, argIndex) => (
                           <span 
                             key={argIndex} 

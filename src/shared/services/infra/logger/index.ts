@@ -7,18 +7,22 @@
  *   log.info('连接成功', { server });
  *   log.debug(() => `耗时 ${expensiveCompute()}ms`); // 惰性，未达阈值不求值
  *
- * 首批（阶段1）按设计方案 §3.3 的 B 方案，仅注册 ConsoleTransport，
- * 避免与现有 EnhancedConsoleService 形成双缓冲；阶段6 再启用 MemoryTransport
- * 并让 DevTools/ConsolePanel 改读它。
+ * 阶段6 起同时注册 ConsoleTransport 与 MemoryTransport：前者输出到原生控制台，
+ * 后者维护内存环形缓冲，供应用内日志查看器（DevTools/ConsolePanel）读取，
+ * 取代旧 EnhancedConsoleService 的环形缓冲。
  */
 import { Logger, type LoggerCore } from './Logger';
 import { ConsoleTransport } from './transports/ConsoleTransport';
+import { MemoryTransport } from './transports/MemoryTransport';
 import { getDefaultLevel, resolvePlatform } from './config';
 import { defaultRedact } from './redact';
 
+/** 应用内日志查看器的数据源：500 条环形缓冲 */
+export const memoryTransport = new MemoryTransport(500);
+
 const core: LoggerCore = {
   level: getDefaultLevel(),
-  transports: [new ConsoleTransport()],
+  transports: [new ConsoleTransport(), memoryTransport],
   redact: defaultRedact,
   platform: resolvePlatform(),
 };

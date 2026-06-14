@@ -35,6 +35,17 @@ export interface Transport {
   write(entry: LogEntry): void;
 }
 
+/** 内存缓冲中存储的日志条目：在 LogEntry 基础上附带稳定 id，供查看器列表渲染/选择使用 */
+export interface StoredLogEntry extends LogEntry {
+  id: string;
+}
+
+/** 可查询的内存通道能力：供 Logger 暴露 getRecentLogs/exportLogs/clearLogs */
+export interface LogQuerySink {
+  getEntries(): readonly StoredLogEntry[];
+  clear(): void;
+}
+
 /** 惰性消息：未达阈值时不会被调用，避免无谓的字符串拼接 */
 export type LazyMessage = string | (() => string);
 

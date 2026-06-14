@@ -6,10 +6,14 @@ import {
   LogLevel,
   type LazyMessage,
   type LogEntry,
+  type LogQuerySink,
   type Platform,
   type Redactor,
+  type StoredLogEntry,
   type Transport,
 } from './types';
+import { LEVEL_LABEL } from './config';
+import { formatArg } from './logFormat';
 
 /** 多个 logger 实例（根 + withContext 子实例）共享同一份可变核心状态 */
 export interface LoggerCore {
@@ -91,6 +95,46 @@ export class Logger {
   logApiResponse(endpoint: string, statusCode: number, data: unknown): void {
     const level = statusCode >= 400 ? LogLevel.ERROR : LogLevel.INFO;
     this.emit(level, `API响应 [${endpoint}] 状态码: ${statusCode}`, [data]);
+  }
+
+  /** 定位可查询的内存通道（MemoryTransport），供查看器/导出读取最近日志 */
+  private querySink(): (Transport & LogQuerySink) | undefined {
+    return this.core.transports.find(
+      (t): t is Transport & LogQuerySink => 'getEntries' in t && 'clear' in t,
+    );
+  }
+
+  /** 读取最近 count 条日志（不传则全部）；无内存通道时返回空数组 */
+  getRecentLogs(count?: number): readonly StoredLogEntry[] {
+    const sink = this.querySink();
+    if (!sink) return [];
+    const entries = sink.getEntries();
+    if (count === undefined || count >= entries.length) return entries;
+    return entries.slice(entries.length - count);
+  }
+
+  /** 导出日志为 JSON 或纯文本 */
+  exportLogs(format: 'json' | 'text' = 'text'): string {
+    const entries = this.getRecentLogs();
+    if (format === 'json') {
+      return JSON.stringify(entries, null, 2);
+    }
+    return entries
+      .map((e) => {
+        const time = new Date(e.timestamp).toISOString();
+        const label = LEVEL_LABEL[e.level] ?? 'LOG';
+        const ctx = e.context ? ` [${e.context}]` : '';
+        const extra = e.args.length
+          ? ` ${e.args.map((a) => formatArg(a)).join(' ')}`
+          : '';
+        return `[${time}] [${label}]${ctx} ${e.message}${extra}`;
+      })
+      .join('\n');
+  }
+
+  /** 清空内存日志缓冲 */
+  clearLogs(): void {
+    this.querySink()?.clear();
   }
 
   private emit(level: LogLevel, message: LazyMessage, args: unknown[]): void {
