@@ -4,6 +4,9 @@ import { dexieStorage } from '../storage/DexieStorageService';
 import { MessageBlockType } from '../../types/newMessage';
 import type { Message } from '../../types/newMessage';
 import type { ChatTopic } from '../../types';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('TopicPreviewService');
 
 /**
  * 话题预览服务
@@ -128,7 +131,7 @@ export async function refreshTopicPreview(topicId: string): Promise<void> {
       store.dispatch(updateTopic({ assistantId: topic.assistantId, topic: updated }));
     }
   } catch (error) {
-    console.error(`[TopicPreviewService] 刷新话题预览失败 (${topicId}):`, error);
+    logger.error(`刷新话题预览失败 (${topicId}):`, error);
   }
 }
 
@@ -171,8 +174,8 @@ export async function migrateTopicPreviews(): Promise<void> {
       store.dispatch(updateAssistantTopics({ assistantId: assistant.id, topics: merged }));
     }
 
-    console.log(`[TopicPreviewService] 话题预览一次性回填完成，共 ${updatedById.size} 个话题`);
+    logger.debug(`话题预览一次性回填完成，共 ${updatedById.size} 个话题`);
   } catch (error) {
-    console.error('[TopicPreviewService] 话题预览迁移回填失败:', error);
+    logger.error('话题预览迁移回填失败:', error);
   }
 }

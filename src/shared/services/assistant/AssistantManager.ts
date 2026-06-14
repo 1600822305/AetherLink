@@ -1,5 +1,8 @@
 import type { Assistant, ChatTopic } from '../../types/Assistant';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AssistantManager');
 
 /**
  * 核心助手管理服务 - 负责助手的基本CRUD操作
@@ -12,11 +15,11 @@ export class AssistantManager {
     try {
       // 直接从dexieStorage获取数据
       const assistants = await dexieStorage.getAllAssistants();
-      console.log(`[AssistantManager.getUserAssistants] 从数据库获取到 ${assistants.length} 个助手`);
+      logger.debug(`从数据库获取到 ${assistants.length} 个助手`);
 
       // 检查emoji字段
       assistants.forEach(assistant => {
-        console.log(`[AssistantManager.getUserAssistants] 助手 ${assistant.name} (${assistant.id}) emoji: "${assistant.emoji}"`);
+        logger.debug(`助手 ${assistant.name} (${assistant.id}) emoji: "${assistant.emoji}"`);
       });
 
       // ：为每个助手预加载话题数据
@@ -51,14 +54,14 @@ export class AssistantManager {
         return assistant;
       });
 
-      console.log(`[AssistantManager.getUserAssistants] 返回 ${result.length} 个助手，emoji检查:`);
+      logger.debug(`返回 ${result.length} 个助手，emoji检查:`);
       result.forEach(assistant => {
-        console.log(`  - ${assistant.name}: "${assistant.emoji}"`);
+        logger.debug(`  - ${assistant.name}: "${assistant.emoji}"`);
       });
 
       return result;
     } catch (error) {
-      console.error('获取用户助手失败:', error);
+      logger.error('获取用户助手失败:', error);
       return [];
     }
   }
@@ -104,7 +107,7 @@ export class AssistantManager {
       // 直接返回助手数据，emoji字段已经在数据库中正确保存
       return assistant;
     } catch (error) {
-      console.error('获取当前助手失败:', error);
+      logger.error('获取当前助手失败:', error);
       return null;
     }
   }
@@ -118,7 +121,7 @@ export class AssistantManager {
       await dexieStorage.saveSetting('currentAssistant', assistantId);
       return true;
     } catch (error) {
-      console.error('设置当前助手失败:', error);
+      logger.error('设置当前助手失败:', error);
       return false;
     }
   }
@@ -161,7 +164,7 @@ export class AssistantManager {
 
       return true;
     } catch (error) {
-      console.error('添加助手失败:', error);
+      logger.error('添加助手失败:', error);
       return false;
     }
   }
@@ -171,7 +174,7 @@ export class AssistantManager {
    */
   static async updateAssistant(assistant: Assistant): Promise<boolean> {
     try {
-      console.log('[AssistantManager.updateAssistant] 开始更新助手:', {
+      logger.debug('开始更新助手:', {
         id: assistant.id,
         name: assistant.name,
         systemPrompt: assistant.systemPrompt ?
@@ -187,17 +190,17 @@ export class AssistantManager {
 
       // 保存助手到数据库
       await dexieStorage.saveAssistant(assistantToSave);
-      console.log('[AssistantManager.updateAssistant] 已保存助手到数据库');
+      logger.debug('已保存助手到数据库');
 
       // 派发事件通知其他组件
       window.dispatchEvent(new CustomEvent('assistantUpdated', {
         detail: { assistant: assistantToSave }
       }));
-      console.log('[AssistantManager.updateAssistant] 已派发assistantUpdated事件');
+      logger.debug('已派发assistantUpdated事件');
 
       return true;
     } catch (error) {
-      console.error('[AssistantManager.updateAssistant] 更新助手失败:', error);
+      logger.error('更新助手失败:', error);
       return false;
     }
   }
@@ -218,7 +221,7 @@ export class AssistantManager {
 
       return true;
     } catch (error) {
-      console.error('删除助手失败:', error);
+      logger.error('删除助手失败:', error);
       return false;
     }
   }

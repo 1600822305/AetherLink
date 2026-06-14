@@ -9,6 +9,9 @@ import { EventEmitter, EVENT_NAMES } from '../infra/EventService';
 import { updateTopic } from '../../store/slices/assistantsSlice';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { stripMarkdown } from '../tts-v2/utils/textProcessor';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('TopicNamingService');
 
 export class TopicNamingService {
   static shouldNameTopic(topic: ChatTopic): boolean {
@@ -154,7 +157,7 @@ export class TopicNamingService {
 
       return newTitle;
     } catch (error) {
-      console.error('生成话题标题失败:', error);
+      logger.error('生成话题标题失败:', error);
       return null;
     }
   }

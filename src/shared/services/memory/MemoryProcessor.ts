@@ -18,6 +18,9 @@ import {
 } from './prompts';
 import type { MemoryConfig } from '../../types/memory';
 import type { Model } from '../../types';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MemoryProcessor');
 
 // ========================================================================
 // 类型定义
@@ -82,12 +85,12 @@ export class MemoryProcessor {
       // 1. 提取事实
       const facts = await this.extractFacts(messages);
       if (!facts || facts.length === 0) {
-        console.log('[MemoryProcessor] 未提取到任何事实');
+        logger.debug('未提取到任何事实');
         return result;
       }
 
       result.extractedFacts = facts;
-      console.log('[MemoryProcessor] 提取到事实:', facts);
+      logger.debug('提取到事实:', facts);
 
       // 2. 更新记忆
       const updateResult = await this.updateMemories(facts);
@@ -98,7 +101,7 @@ export class MemoryProcessor {
 
       return result;
     } catch (error) {
-      console.error('[MemoryProcessor] 处理对话失败:', error);
+      logger.error('处理对话失败:', error);
       result.errors.push(String(error));
       return result;
     }
@@ -110,7 +113,7 @@ export class MemoryProcessor {
   public async extractFacts(messages: string[]): Promise<string[]> {
     const llmModel = this.config.memoryConfig.llmModel;
     if (!llmModel) {
-      console.warn('[MemoryProcessor] 未配置 LLM 模型，跳过事实提取');
+      logger.warn('未配置 LLM 模型，跳过事实提取');
       return [];
     }
 
@@ -123,27 +126,27 @@ export class MemoryProcessor {
       // 调用 LLM
       const response = await this.callLLM(llmModel, systemPrompt, userPrompt);
       if (!response) {
-        console.warn('[MemoryProcessor] LLM 未返回响应');
+        logger.warn('LLM 未返回响应');
         return [];
       }
 
       // 解析响应
       const parsed = parseJsonSafe<FactRetrievalResult>(response);
       if (!parsed || !Array.isArray(parsed.facts)) {
-        console.warn('[MemoryProcessor] 无法解析事实提取结果');
+        logger.warn('无法解析事实提取结果');
         return [];
       }
 
       // 验证
       const validated = FactRetrievalSchema.safeParse(parsed);
       if (!validated.success) {
-        console.warn('[MemoryProcessor] 事实提取结果验证失败:', validated.error);
+        logger.warn('事实提取结果验证失败:', validated.error);
         return parsed.facts || [];
       }
 
       return validated.data.facts;
     } catch (error) {
-      console.error('[MemoryProcessor] 事实提取失败:', error);
+      logger.error('事实提取失败:', error);
       return [];
     }
   }
@@ -190,7 +193,7 @@ export class MemoryProcessor {
       // 调用 LLM 获取更新决策
       const response = await this.callLLM(llmModel, updateMemorySystemPrompt, userPrompt);
       if (!response) {
-        console.warn('[MemoryProcessor] LLM 未返回更新决策');
+        logger.warn('LLM 未返回更新决策');
         // 降级：直接添加新事实
         for (const fact of facts) {
           const memory = await memoryService.add(fact, {
@@ -206,7 +209,7 @@ export class MemoryProcessor {
       // 解析更新决策，失败时降级为直接添加新事实，避免静默丢数据
       const parsed = parseJsonSafe<MemoryUpdateResult>(response);
       if (!parsed || !Array.isArray(parsed)) {
-        console.warn('[MemoryProcessor] 无法解析更新决策，降级为直接添加事实');
+        logger.warn('无法解析更新决策，降级为直接添加事实');
         for (const fact of facts) {
           const memory = await memoryService.add(fact, {
             userId: this.config.userId,
@@ -246,14 +249,14 @@ export class MemoryProcessor {
               break;
           }
         } catch (opError) {
-          console.error('[MemoryProcessor] 执行操作失败:', operation, opError);
+          logger.error('执行操作失败:', operation, opError);
           result.errors.push(`操作 ${operation.event} 失败: ${opError}`);
         }
       }
 
       return result;
     } catch (error) {
-      console.error('[MemoryProcessor] 更新记忆失败:', error);
+      logger.error('更新记忆失败:', error);
       result.errors.push(String(error));
       return result;
     }
@@ -275,7 +278,7 @@ export class MemoryProcessor {
 
       return result.memories.map(m => m.memory);
     } catch (error) {
-      console.error('[MemoryProcessor] 搜索记忆失败:', error);
+      logger.error('搜索记忆失败:', error);
       return [];
     }
   }
@@ -316,7 +319,7 @@ export class MemoryProcessor {
       const data = await response.json();
       return data.choices?.[0]?.message?.content || null;
     } catch (error) {
-      console.error('[MemoryProcessor] LLM 调用失败:', error);
+      logger.error('LLM 调用失败:', error);
       return null;
     }
   }

@@ -6,6 +6,9 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MobilePasteService');
 
 /**
  * 移动端粘贴服务类
@@ -39,7 +42,7 @@ export class MobilePasteService {
       }
       return false;
     } catch (error) {
-      console.error('[MobilePasteService] 检查剪贴板内容失败:', error);
+      logger.error('检查剪贴板内容失败:', error);
       return false;
     }
   }
@@ -59,7 +62,7 @@ export class MobilePasteService {
       }
       return null;
     } catch (error) {
-      console.error('[MobilePasteService] 获取剪贴板文本失败:', error);
+      logger.error('获取剪贴板文本失败:', error);
       return null;
     }
   }
@@ -80,7 +83,7 @@ export class MobilePasteService {
       }
       return false;
     } catch (error) {
-      console.error('[MobilePasteService] 复制到剪贴板失败:', error);
+      logger.error('复制到剪贴板失败:', error);
       return false;
     }
   }

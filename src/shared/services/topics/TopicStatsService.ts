@@ -1,6 +1,9 @@
 import type { ChatTopic } from '../../types';
 import { TopicService } from './TopicService';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('TopicStatsService');
 
 /**
  * 话题统计服务
@@ -28,7 +31,7 @@ export class TopicStatsService {
 
     // 只对无效话题输出详细日志，避免日志过多
     if (!isValid) {
-      console.log('话题验证失败:', {
+      logger.debug('话题验证失败:', {
         topicId: topic?.id || '无ID',
         hasBasicFields,
         hasMessages,
@@ -72,13 +75,13 @@ export class TopicStatsService {
       // 优先使用TopicService获取话题
       topics = await TopicService.getAllTopics();
     } catch (error) {
-      console.error('通过TopicService获取话题失败，尝试通过dexieStorage获取', error);
+      logger.error('通过TopicService获取话题失败，尝试通过dexieStorage获取', error);
 
       try {
         // 备选方案：使用dexieStorage
         topics = await dexieStorage.getAllTopics();
       } catch (dexieError) {
-        console.error('通过dexieStorage获取话题失败', dexieError);
+        logger.error('通过dexieStorage获取话题失败', dexieError);
         // 如果两种方式都失败，返回空结果
         return {
           totalCount: 0,
@@ -164,7 +167,7 @@ export class TopicStatsService {
           removedCount++;
         }
       } catch (error) {
-        console.error(`删除无效话题 ${topic.id} 失败:`, error);
+        logger.error(`删除无效话题 ${topic.id} 失败:`, error);
       }
     }
 

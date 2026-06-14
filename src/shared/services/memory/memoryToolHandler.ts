@@ -6,6 +6,9 @@
 import { memoryService } from './MemoryService';
 import { MEMORY_TOOL_NAMES } from './memoryTools';
 import store from '../../store';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MemoryTool');
 
 /**
  * 处理记忆工具调用
@@ -37,7 +40,7 @@ export async function handleMemoryToolCall(
           }
         });
         
-        console.log('[MemoryTool] 创建记忆:', memory?.id);
+        logger.debug('创建记忆:', memory?.id);
         return { 
           success: true, 
           message: `已记住: "${content}"`,
@@ -57,7 +60,7 @@ export async function handleMemoryToolCall(
           return { success: false, message: `未找到 ID 为 ${id} 的记忆` };
         }
         
-        console.log('[MemoryTool] 更新记忆:', id);
+        logger.debug('更新记忆:', id);
         return { 
           success: true, 
           message: `已更新记忆: "${content}"`,
@@ -76,7 +79,7 @@ export async function handleMemoryToolCall(
           return { success: false, message: `未找到 ID 为 ${id} 的记忆` };
         }
         
-        console.log('[MemoryTool] 删除记忆:', id);
+        logger.debug('删除记忆:', id);
         return { 
           success: true, 
           message: '已删除记忆',
@@ -88,7 +91,7 @@ export async function handleMemoryToolCall(
         return { success: false, message: `未知的记忆工具: ${toolName}` };
     }
   } catch (error) {
-    console.error('[MemoryTool] 工具调用失败:', error);
+    logger.error('工具调用失败:', error);
     return { 
       success: false, 
       message: `操作失败: ${error instanceof Error ? error.message : String(error)}`

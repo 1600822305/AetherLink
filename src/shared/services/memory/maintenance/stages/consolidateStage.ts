@@ -21,6 +21,9 @@ import type {
   DuplicateCluster,
   MaintenanceProgress,
 } from '../types';
+import { createLogger } from '../../../infra/logger';
+
+const logger = createLogger('MemoryConsolidate');
 
 /**
  * 调用 LLM 获取单个簇的整合决策（解析或校验失败返回 null → 调用方按 KEEP 处理）
@@ -59,7 +62,7 @@ async function requestDecision(
     const validated = ConsolidationDecisionSchema.safeParse(parsed);
     return validated.success ? validated.data : null;
   } catch (error) {
-    console.error('[MemoryMaintenance] 整合决策调用失败:', error);
+    logger.error('整合决策调用失败:', error);
     return null;
   }
 }

@@ -18,6 +18,9 @@ import type {
 } from '../../types/memory';
 import type { Memory } from '../../database/config';
 import { createHash } from '../../utils/hash.ts';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MemoryService');
 
 // 使用数据库的 Memory 类型作为 MemoryItem
 type MemoryItem = Memory & { memory: string };
@@ -94,9 +97,9 @@ class MemoryService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
-    console.log('[MemoryService] 初始化记忆服务...');
+    logger.debug('初始化记忆服务...');
     this.isInitialized = true;
-    console.log('[MemoryService] 记忆服务初始化完成');
+    logger.debug('记忆服务初始化完成');
   }
 
   /**
@@ -142,7 +145,7 @@ class MemoryService {
       // 检查是否存在相同哈希的记忆
       const existing = await this.findByHash(hash, userId);
       if (existing) {
-        console.log('[MemoryService] 记忆已存在（相同哈希），跳过添加');
+        logger.debug('记忆已存在（相同哈希），跳过添加');
         return existing;
       }
 
@@ -156,7 +159,7 @@ class MemoryService {
           const dedupThreshold = this.config.similarityThreshold ?? DEFAULT_DEDUP_THRESHOLD;
           const similar = await this.findSimilar(embedding, userId, dedupThreshold);
           if (similar) {
-            console.log('[MemoryService] 发现高度相似的记忆，跳过添加');
+            logger.debug('发现高度相似的记忆，跳过添加');
             return similar;
           }
         }
@@ -186,10 +189,10 @@ class MemoryService {
       await dexieStorage.memories.put(memoryItem);
       this.appendToCache(userId, memoryItem);
       
-      console.log('[MemoryService] 记忆已添加:', memoryItem.id);
+      logger.debug('记忆已添加:', memoryItem.id);
       return memoryItem as MemoryItem;
     } catch (error) {
-      console.error('[MemoryService] 添加记忆失败:', error);
+      logger.error('添加记忆失败:', error);
       return null;
     }
   }
@@ -222,7 +225,7 @@ class MemoryService {
     try {
       const existing = await dexieStorage.memories.get(id);
       if (!existing) {
-        console.warn('[MemoryService] 找不到要更新的记忆:', id);
+        logger.warn('找不到要更新的记忆:', id);
         return null;
       }
 
@@ -253,10 +256,10 @@ class MemoryService {
       await dexieStorage.memories.put(updated);
       this.replaceInCache(updated);
       
-      console.log('[MemoryService] 记忆已更新:', id);
+      logger.debug('记忆已更新:', id);
       return updated as MemoryItem;
     } catch (error) {
-      console.error('[MemoryService] 更新记忆失败:', error);
+      logger.error('更新记忆失败:', error);
       return null;
     }
   }
@@ -268,7 +271,7 @@ class MemoryService {
     try {
       const existing = await dexieStorage.memories.get(id);
       if (!existing) {
-        console.warn('[MemoryService] 找不到要删除的记忆:', id);
+        logger.warn('找不到要删除的记忆:', id);
         return false;
       }
 
@@ -279,10 +282,10 @@ class MemoryService {
       });
       this.invalidateMemoryCache(existing.userId);
 
-      console.log('[MemoryService] 记忆已删除:', id);
+      logger.debug('记忆已删除:', id);
       return true;
     } catch (error) {
-      console.error('[MemoryService] 删除记忆失败:', error);
+      logger.error('删除记忆失败:', error);
       return false;
     }
   }
@@ -294,10 +297,10 @@ class MemoryService {
     try {
       await dexieStorage.memories.delete(id);
       this.invalidateMemoryCache();
-      console.log('[MemoryService] 记忆已永久删除:', id);
+      logger.debug('记忆已永久删除:', id);
       return true;
     } catch (error) {
-      console.error('[MemoryService] 永久删除记忆失败:', error);
+      logger.error('永久删除记忆失败:', error);
       return false;
     }
   }
@@ -311,7 +314,7 @@ class MemoryService {
       if (!memory || !memory.memory) return null;
       return memory as MemoryItem;
     } catch (error) {
-      console.error('[MemoryService] 获取记忆失败:', error);
+      logger.error('获取记忆失败:', error);
       return null;
     }
   }
@@ -344,7 +347,7 @@ class MemoryService {
         count,
       };
     } catch (error) {
-      console.error('[MemoryService] 获取记忆列表失败:', error);
+      logger.error('获取记忆列表失败:', error);
       return { memories: [], count: 0, error: String(error) };
     }
   }
@@ -418,7 +421,7 @@ class MemoryService {
         count: selected.length,
       };
     } catch (error) {
-      console.error('[MemoryService] 搜索记忆失败:', error);
+      logger.error('搜索记忆失败:', error);
       return { memories: [], count: 0, error: String(error) };
     }
   }
@@ -450,7 +453,7 @@ class MemoryService {
         count: filtered.length,
       };
     } catch (error) {
-      console.error('[MemoryService] 文本搜索失败:', error);
+      logger.error('文本搜索失败:', error);
       return { memories: [], count: 0, error: String(error) };
     }
   }
@@ -468,7 +471,7 @@ class MemoryService {
       const userIds = new Set(memories.map(m => m.userId).filter(Boolean));
       return Array.from(userIds) as string[];
     } catch (error) {
-      console.error('[MemoryService] 获取用户列表失败:', error);
+      logger.error('获取用户列表失败:', error);
       return [];
     }
   }
@@ -486,10 +489,10 @@ class MemoryService {
         await this.delete(memory.id);
       }
 
-      console.log('[MemoryService] 已删除用户所有记忆:', userId);
+      logger.debug('已删除用户所有记忆:', userId);
       return true;
     } catch (error) {
-      console.error('[MemoryService] 删除用户记忆失败:', error);
+      logger.error('删除用户记忆失败:', error);
       return false;
     }
   }
@@ -507,10 +510,10 @@ class MemoryService {
         await this.delete(memory.id);
       }
 
-      console.log('[MemoryService] 已删除助手所有记忆:', assistantId);
+      logger.debug('已删除助手所有记忆:', assistantId);
       return true;
     } catch (error) {
-      console.error('[MemoryService] 删除助手记忆失败:', error);
+      logger.error('删除助手记忆失败:', error);
       return false;
     }
   }
@@ -520,7 +523,7 @@ class MemoryService {
    */
   public async deleteUser(userId: string): Promise<boolean> {
     if (userId === 'default-user') {
-      console.warn('[MemoryService] 无法删除默认用户');
+      logger.warn('无法删除默认用户');
       return false;
     }
 
@@ -581,7 +584,7 @@ class MemoryService {
    */
   private async getEmbedding(text: string): Promise<number[] | undefined> {
     if (!this.config.embeddingModel) {
-      console.warn('[MemoryService] 未配置嵌入模型');
+      logger.warn('未配置嵌入模型');
       return undefined;
     }
 
@@ -609,7 +612,7 @@ class MemoryService {
         return embedding;
       }
     } catch (error) {
-      console.error('[MemoryService] 获取嵌入失败:', error);
+      logger.error('获取嵌入失败:', error);
     }
 
     return undefined;
@@ -645,7 +648,7 @@ class MemoryService {
       const data = await response.json();
       return data.data?.[0]?.embedding;
     } catch (error) {
-      console.error('[MemoryService] 嵌入 API 调用失败:', error);
+      logger.error('嵌入 API 调用失败:', error);
       return undefined;
     }
   }

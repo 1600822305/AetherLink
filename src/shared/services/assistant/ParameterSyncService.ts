@@ -6,6 +6,9 @@
 import type { CustomParameter } from '../../types/Assistant';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { getStorageItem, setStorageItem } from '../../utils/storage';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('ParameterSyncService');
 
 // 持久化防抖间隔（毫秒）
 const SAVE_DEBOUNCE_MS = 300;
@@ -162,7 +165,7 @@ class ParameterSyncService {
         // 以存储值为基底，叠加初始化期间可能已发生的写入，避免丢失这些写入
         this.cache = { ...(stored || {}), ...this.cache };
       } catch (error) {
-        console.error('[ParameterSyncService] 初始化设置缓存失败:', error);
+        logger.error('初始化设置缓存失败:', error);
       } finally {
         this.ready = true;
         // 通知订阅者：缓存已就绪，需要用真实持久化数据重新渲染
@@ -416,10 +419,10 @@ class ParameterSyncService {
         await dexieStorage.saveAssistant(updatedAssistant);
       }
       
-      console.log(`[ParameterSyncService] 已同步 ${Object.keys(paramsToSync).length} 个参数到 ${assistants.length} 个助手`);
+      logger.debug(`已同步 ${Object.keys(paramsToSync).length} 个参数到 ${assistants.length} 个助手`);
       return true;
     } catch (error) {
-      console.error('[ParameterSyncService] 同步失败:', error);
+      logger.error('同步失败:', error);
       return false;
     }
   }

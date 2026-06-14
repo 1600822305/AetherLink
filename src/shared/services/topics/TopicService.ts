@@ -15,6 +15,9 @@ import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 // 导入助手类型模块，避免动态导入
 import { getDefaultTopic } from '../assistant/types';
 import { handleError } from '../../utils/error';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('TopicService');
 
 /**
  * 话题服务 - 集中处理话题的创建、关联和管理
@@ -57,7 +60,7 @@ export class TopicService {
    */
   static async createNewTopic(): Promise<ChatTopic | null> {
     try {
-      console.log('[TopicService] 开始创建新话题');
+      logger.debug('开始创建新话题');
 
       const currentAssistantId = await this.getCurrentAssistantId();
       if (!currentAssistantId) {
@@ -89,7 +92,7 @@ export class TopicService {
           await dexieStorage.saveTopic(topic);
           await AssistantService.addAssistantMessagesToTopic({ assistant, topic });
         } catch (error) {
-          console.error('[TopicService] 后台保存话题失败:', error);
+          logger.error('后台保存话题失败:', error);
           // 发送错误事件，让UI知道保存失败
           EventEmitter.emit(EVENT_NAMES.SERVICE_ERROR, {
             serviceName: 'TopicService',
@@ -118,13 +121,13 @@ export class TopicService {
       const currentAssistant = await AssistantService.getCurrentAssistant();
       if (currentAssistant && currentAssistant.id) return currentAssistant.id;
     } catch (error) {
-      // console.warn('[TopicService] 从AssistantService获取当前助手失败');
+      // 从AssistantService获取当前助手失败，忽略
     }
     try {
       const storedId = await dexieStorage.getSetting('currentAssistant');
       if (storedId) return storedId;
     } catch (error) {
-      // console.warn('[TopicService] 从IndexedDB获取当前助手ID失败', error);
+      // 从IndexedDB获取当前助手ID失败，忽略
     }
     try {
       const assistants = await AssistantService.getUserAssistants();
@@ -135,7 +138,7 @@ export class TopicService {
         return firstAssistant.id;
       }
     } catch (error) {
-      console.error('[TopicService] 获取助手列表失败，无法确定当前助手ID');
+      logger.error('获取助手列表失败，无法确定当前助手ID');
     }
     return null;
   }
@@ -150,7 +153,7 @@ export class TopicService {
       // 获取话题
       const topic = await dexieStorage.getTopic(topicId);
       if (!topic) {
-        console.warn(`[TopicService] 清空话题内容失败: 话题 ${topicId} 不存在`);
+        logger.warn(`清空话题内容失败: 话题 ${topicId} 不存在`);
         return false;
       }
 
@@ -164,19 +167,19 @@ export class TopicService {
         dexieStorage.files
       ], async () => {
         // 1. 清理图片数据（images + imageMetadata）
-        console.log(`[TopicService] 开始清理话题 ${topicId} 的图片数据`);
+        logger.debug(`开始清理话题 ${topicId} 的图片数据`);
         const imageMetadataList = await dexieStorage.getImageMetadataByTopicId(topicId);
         if (imageMetadataList.length > 0) {
-          console.log(`[TopicService] 找到 ${imageMetadataList.length} 个图片，开始删除`);
+          logger.debug(`找到 ${imageMetadataList.length} 个图片，开始删除`);
           for (const metadata of imageMetadataList) {
             await dexieStorage.deleteImage(metadata.id); // 同时删除images和imageMetadata
           }
-          console.log(`[TopicService] 已删除 ${imageMetadataList.length} 个图片`);
+          logger.debug(`已删除 ${imageMetadataList.length} 个图片`);
         }
 
         // 2. 获取所有消息
         const messages = await dexieStorage.getTopicMessages(topicId);
-        console.log(`[TopicService] 找到 ${messages.length} 条消息`);
+        logger.debug(`找到 ${messages.length} 条消息`);
 
         // 3. 清理消息块和关联文件
         let totalBlocksDeleted = 0;
@@ -209,9 +212,9 @@ export class TopicService {
                 try {
                   await dexieStorage.files.delete(block.file.id);
                   totalFilesDeleted++;
-                  console.log(`[TopicService] 已删除文件: ${block.file.id}`);
+                  logger.debug(`已删除文件: ${block.file.id}`);
                 } catch (fileError) {
-                  console.warn(`[TopicService] 删除文件失败: ${block.file.id}`, fileError);
+                  logger.warn(`删除文件失败: ${block.file.id}`, fileError);
                 }
               }
             }
@@ -222,11 +225,11 @@ export class TopicService {
           }
         }
 
-        console.log(`[TopicService] 已删除 ${totalBlocksDeleted} 个消息块，${totalFilesDeleted} 个文件`);
+        logger.debug(`已删除 ${totalBlocksDeleted} 个消息块，${totalFilesDeleted} 个文件`);
 
         // 4. 从数据库中删除主题的所有消息
         await dexieStorage.messages.where('topicId').equals(topicId).delete();
-        console.log(`[TopicService] 已删除 ${messages.length} 条消息`);
+        logger.debug(`已删除 ${messages.length} 条消息`);
 
         // 5. 清空话题的messageIds数组
         const updatedTopic = {
@@ -234,10 +237,10 @@ export class TopicService {
           messageIds: []
         };
         await dexieStorage.topics.put(updatedTopic);
-        console.log(`[TopicService] 已清空话题的messageIds数组`);
+        logger.debug(`已清空话题的messageIds数组`);
       });
 
-      console.log(`[TopicService] ✅ 已完整清空话题 ${topicId} 的所有消息和关联数据`);
+      logger.debug(`✅ 已完整清空话题 ${topicId} 的所有消息和关联数据`);
 
       // 6. 统一使用新的Redux状态管理
       store.dispatch(newMessagesActions.clearTopicMessages(topicId));
@@ -247,7 +250,7 @@ export class TopicService {
 
       return true;
     } catch (error) {
-      console.error('[TopicService] 清空话题内容失败:', error);
+      logger.error('清空话题内容失败:', error);
       EventEmitter.emit(EVENT_NAMES.SERVICE_ERROR, {
         serviceName: 'TopicService',
         error,
@@ -330,7 +333,7 @@ export class TopicService {
 
       return newTopic!;
     } catch (error) {
-      console.error('[TopicService] 创建独立话题失败:', error);
+      logger.error('创建独立话题失败:', error);
       throw error;
     }
   }
@@ -340,14 +343,14 @@ export class TopicService {
    */
   static async createDefaultTopicForAssistant(assistantId: string, options?: { previousTopicId?: string }): Promise<ChatTopic | null> {
     if (!assistantId) {
-      console.error('[TopicService.createDefaultTopicForAssistant] 助手ID不能为空');
+      logger.error('助手ID不能为空');
       return null;
     }
 
     try {
       const assistant = await dexieStorage.getAssistant(assistantId);
       if (!assistant) {
-        console.warn(`[TopicService.createDefaultTopicForAssistant] 未找到助手 ${assistantId}`);
+        logger.warn(`未找到助手 ${assistantId}`);
         return null;
       }
 
@@ -378,7 +381,7 @@ export class TopicService {
 
       return topic;
     } catch (error) {
-      console.error('[TopicService.createDefaultTopicForAssistant] 创建默认话题失败:', error);
+      logger.error('创建默认话题失败:', error);
       return null;
     }
   }
@@ -399,7 +402,7 @@ export class TopicService {
         }));
       }
     } catch (error) {
-      console.error(`[TopicService] 保存话题 ${topic.id} 失败:`, error);
+      logger.error(`保存话题 ${topic.id} 失败:`, error);
       EventEmitter.emit(EVENT_NAMES.SERVICE_ERROR, { serviceName: 'TopicService', error, message: `Failed to save topic ${topic.id}` });
       throw error;
     }
@@ -410,7 +413,7 @@ export class TopicService {
    */
   static async deleteTopic(id: string): Promise<void> {
     try {
-      console.log(`[TopicService] 开始删除话题数据: ${id}`);
+      logger.debug(`开始删除话题数据: ${id}`);
 
       // 🚀 优化：不再立即更新Redux store，由调用方处理乐观更新
       // 获取话题信息用于事件发送
@@ -437,22 +440,22 @@ export class TopicService {
               }
 
               await dexieStorage.assistants.put(assistant);
-              console.log(`[TopicService] 助手 ${assistantId} 的topicIds已更新`);
+              logger.debug(`助手 ${assistantId} 的topicIds已更新`);
 
               if (remainingTopicIds.length === 0) {
-                console.log(`[TopicService] 助手 ${assistantId} 没有话题了，自动创建默认话题`);
+                logger.debug(`助手 ${assistantId} 没有话题了，自动创建默认话题`);
                 await TopicService.createDefaultTopicForAssistant(assistantId, { previousTopicId: id });
               }
             }
           } catch (error) {
-            console.error(`[TopicService] 更新助手topicIds失败:`, error);
+            logger.error(`更新助手topicIds失败:`, error);
           }
         });
       }
 
-      console.log(`[TopicService] 话题删除完成: ${id}`);
+      logger.debug(`话题删除完成: ${id}`);
     } catch (error) {
-      console.error(`[TopicService] 删除话题失败: ${id}`, error);
+      logger.error(`删除话题失败: ${id}`, error);
       EventEmitter.emit(EVENT_NAMES.SERVICE_ERROR, { serviceName: 'TopicService', error, message: `Failed to delete topic ${id}` });
       throw error;
     }
@@ -515,9 +518,9 @@ export class TopicService {
         store.dispatch(upsertManyBlocks(blocks));
       }
 
-      console.log(`[TopicService] 已保存消息 ${message.id} 和 ${blocks.length} 个块到话题 ${message.topicId}`);
+      logger.debug(`已保存消息 ${message.id} 和 ${blocks.length} 个块到话题 ${message.topicId}`);
     } catch (error) {
-      console.error(`[TopicService] 保存消息和块失败:`, error);
+      logger.error(`保存消息和块失败:`, error);
       throw error;
     }
   }
@@ -535,7 +538,7 @@ export class TopicService {
       // 获取话题
       const topic = await dexieStorage.topics.get(topicId);
       if (!topic) {
-        console.warn(`[TopicService] 话题 ${topicId} 不存在`);
+        logger.warn(`话题 ${topicId} 不存在`);
         return [];
       }
 
@@ -544,7 +547,7 @@ export class TopicService {
 
       // 从messageIds加载消息
       if (topic.messageIds && Array.isArray(topic.messageIds) && topic.messageIds.length > 0) {
-        console.log(`[TopicService] 从messageIds加载 ${topic.messageIds.length} 条消息`);
+        logger.debug(`从messageIds加载 ${topic.messageIds.length} 条消息`);
 
         // 从messages表加载消息
         for (const messageId of topic.messageIds) {
@@ -552,28 +555,28 @@ export class TopicService {
           if (message) messages.push(message);
         }
       } else {
-        console.warn(`[TopicService] 话题 ${topicId} 没有消息`);
+        logger.warn(`话题 ${topicId} 没有消息`);
         return [];
       }
 
       // 检查消息是否有效
       if (messages.length === 0) {
-        console.warn(`[TopicService] 话题 ${topicId} 没有有效消息`);
+        logger.warn(`话题 ${topicId} 没有有效消息`);
         return [];
       }
 
-      console.log(`[TopicService] 从数据库加载了 ${messages.length} 条消息`);
+      logger.debug(`从数据库加载了 ${messages.length} 条消息`);
 
       // 检查每条消息的状态并修复
       for (const msg of messages) {
         // 确保消息状态正确
         if (msg.role === 'assistant' && msg.status !== 'success' && msg.status !== 'error') {
-          console.log(`[TopicService] 修正助手消息状态: ${msg.id}`);
+          logger.debug(`修正助手消息状态: ${msg.id}`);
           msg.status = 'success';
         }
 
         // 调试：打印每条消息的详细信息
-        console.log(`[TopicService] 消息详情:`, {
+        logger.debug(`消息详情:`, {
           id: msg.id,
           role: msg.role,
           hasBlocks: !!(msg.blocks && msg.blocks.length > 0),
@@ -590,7 +593,7 @@ export class TopicService {
         }
       }
 
-      console.log(`[TopicService] 需要加载 ${blocksToLoad.length} 个块:`, blocksToLoad);
+      logger.debug(`需要加载 ${blocksToLoad.length} 个块:`, blocksToLoad);
 
       // 批量加载所有消息块 - 性能优化：并行加载
       let blocks: MessageBlock[] = [];
@@ -636,7 +639,7 @@ export class TopicService {
           );
         }
 
-      console.log(`[TopicService] 从数据库加载了 ${blocks.length} 个块`);
+      logger.debug(`从数据库加载了 ${blocks.length} 个块`);
 
       // 更新Redux状态
       store.dispatch(newMessagesActions.messagesReceived({
@@ -650,11 +653,11 @@ export class TopicService {
         store.dispatch(upsertManyBlocks(blocks));
       }
 
-      console.log(`[TopicService] 已加载话题 ${topicId} 的 ${messages.length} 条消息和 ${blocks.length} 个块`);
+      logger.debug(`已加载话题 ${topicId} 的 ${messages.length} 条消息和 ${blocks.length} 个块`);
 
       return messages;
     } catch (error) {
-      console.error(`[TopicService] 加载主题消息失败:`, error);
+      logger.error(`加载主题消息失败:`, error);
       return [];
     }
   }
@@ -692,7 +695,7 @@ export class TopicService {
       // 使用 per-block 节流函数更新块内容
       await this.getBlockThrottler(id)(blockUpdate);
     } catch (error) {
-      console.error(`[TopicService] 更新消息块失败:`, error);
+      logger.error(`更新消息块失败:`, error);
       throw error;
     }
   }
@@ -758,9 +761,9 @@ export class TopicService {
         changes: updates
       }));
 
-      console.log(`[TopicService] 已更新消息块 ${blockId} 字段:`, updates);
+      logger.debug(`已更新消息块 ${blockId} 字段:`, updates);
     } catch (error) {
-      console.error(`[TopicService] 更新消息块字段失败:`, error);
+      logger.error(`更新消息块字段失败:`, error);
       throw error;
     }
   }
@@ -772,7 +775,7 @@ export class TopicService {
     try {
       return await dexieStorage.getMessageBlocksByMessageId(messageId);
     } catch (error) {
-      console.error(`[TopicService] 获取消息的块失败:`, error);
+      logger.error(`获取消息的块失败:`, error);
       return [];
     }
   }
@@ -807,7 +810,7 @@ export class TopicService {
         }));
       }
     } catch (error) {
-      console.error(`[TopicService] 删除消息及块失败:`, error);
+      logger.error(`删除消息及块失败:`, error);
       throw error;
     }
   }
@@ -826,7 +829,7 @@ export class TopicService {
       }
       return result;
     } catch (error) {
-      console.error('[TopicService] 获取所有消息失败:', error);
+      logger.error('获取所有消息失败:', error);
       return result;
     }
   }
@@ -856,11 +859,11 @@ export class TopicService {
     branchPointIndex: number
   ): Promise<ChatTopic | null> {
     if (!sourceTopic.assistantId) {
-      console.error(`[TopicService] 源主题 ${sourceTopic.id} 缺少助手ID，无法创建分支`);
+      logger.error(`源主题 ${sourceTopic.id} 缺少助手ID，无法创建分支`);
       return null;
     }
     if (branchPointIndex < 0 || branchPointIndex >= orderedMessages.length) {
-      console.error(`[TopicService] 无效的分支索引: ${branchPointIndex}, 消息总数: ${orderedMessages.length}`);
+      logger.error(`无效的分支索引: ${branchPointIndex}, 消息总数: ${orderedMessages.length}`);
       return null;
     }
 
@@ -945,16 +948,16 @@ export class TopicService {
       // 切换到新创建的分支主题
       store.dispatch(newMessagesActions.setCurrentTopicId(newTopic.id));
 
-      console.log(`[TopicService] 成功克隆 ${clonedMessages.length} 条消息和 ${allClonedBlocks.length} 个块到新主题 ${newTopic.id}`);
+      logger.debug(`成功克隆 ${clonedMessages.length} 条消息和 ${allClonedBlocks.length} 个块到新主题 ${newTopic.id}`);
       return newTopic;
     } catch (error) {
-      console.error('[TopicService] 创建主题分支失败:', error);
+      logger.error('创建主题分支失败:', error);
       // 写入失败时清理刚创建的空主题，避免留下脏数据
       if (newTopic) {
         try {
           await dexieStorage.deleteTopic(newTopic.id);
         } catch (cleanupError) {
-          console.error('[TopicService] 清理分支主题失败:', cleanupError);
+          logger.error('清理分支主题失败:', cleanupError);
         }
       }
       return null;

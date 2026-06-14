@@ -8,6 +8,9 @@ import { DEFAULT_SYSTEM_PROMPT, WEB_ANALYSIS_PROMPT } from '../../config/prompts
 // 移除旧的SystemPromptService引用
 // import { SystemPromptService } from '../SystemPromptService';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AssistantFactory');
 
 // 移除DataService引用
 // import { DataService } from '../DataService';
@@ -58,9 +61,9 @@ export class AssistantFactory {
       // 保存话题到数据库
       try {
         await dexieStorage.saveTopic(defaultTopic);
-        console.log(`默认助手的默认话题已保存到数据库: ${defaultTopic.id}`);
+        logger.debug(`默认助手的默认话题已保存到数据库: ${defaultTopic.id}`);
       } catch (saveTopicError) {
-        console.error(`保存默认助手 ${assistant.id} 的默认话题失败:`, saveTopicError);
+        logger.error(`保存默认助手 ${assistant.id} 的默认话题失败:`, saveTopicError);
       }
     }
 
@@ -70,10 +73,10 @@ export class AssistantFactory {
         // 使用AssistantManager.addAssistant方法，它有更好的错误处理和兼容性
         const success = await AssistantManager.addAssistant(assistant);
         if (!success) {
-          console.error(`通过AssistantManager保存默认助手 ${assistant.id} 失败`);
+          logger.error(`通过AssistantManager保存默认助手 ${assistant.id} 失败`);
         }
       } catch (saveAssistantError) {
-        console.error(`保存默认助手 ${assistant.id} 时发生异常:`, saveAssistantError);
+        logger.error(`保存默认助手 ${assistant.id} 时发生异常:`, saveAssistantError);
       }
     }
 
@@ -140,7 +143,7 @@ export class AssistantFactory {
         file_ids: []
       };
     } catch (error) {
-      console.error('创建助手对象失败:', error instanceof Error ? error.message : JSON.stringify(error));
+      logger.error('创建助手对象失败:', error instanceof Error ? error.message : JSON.stringify(error));
       // 提供一个最小的有效助手对象
       return {
         id: uuid(),

@@ -6,10 +6,13 @@
 
 import { memoryMaintenanceService } from './MemoryMaintenanceService';
 import { isMaintenanceDue } from './schedule';
+import { createLogger } from '../../infra/logger';
 import {
   DEFAULT_MAINTENANCE_INTERVAL_DAYS,
   type MemoryMaintenanceReport,
 } from './types';
+
+const logger = createLogger('MemoryMaintenance');
 
 /** 启动后延迟，避开应用初始化高峰 */
 const STARTUP_DELAY_MS = 60 * 1000;
@@ -44,7 +47,7 @@ async function checkAndRun(deps: SchedulerDeps): Promise<void> {
   if (!isMaintenanceDue(context.lastMaintenanceAt, intervalDays)) return;
 
   try {
-    console.log('[MemoryMaintenance] 自动维护到期，开始执行');
+    logger.debug('自动维护到期，开始执行');
     const report = await memoryMaintenanceService.run({
       assistantId: context.assistantId,
       retentionDays: context.retentionDays,
@@ -52,7 +55,7 @@ async function checkAndRun(deps: SchedulerDeps): Promise<void> {
     });
     deps.onCompleted(report);
   } catch (error) {
-    console.error('[MemoryMaintenance] 自动维护执行失败:', error);
+    logger.error('自动维护执行失败:', error);
   }
 }
 

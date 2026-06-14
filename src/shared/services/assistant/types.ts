@@ -3,6 +3,9 @@ import { Smile, Sparkles } from 'lucide-react';
 import React from 'react';
 import { uuid } from '../../utils';
 import { DEFAULT_TOPIC_PROMPT } from '../../config/prompts';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AssistantTypes');
 
 // 定义常量
 export const ASSISTANTS_STORAGE_KEY = 'userAssistants';
@@ -22,7 +25,7 @@ export function deserializeAssistant(serializableAsst: SerializableAssistant): A
       icon = React.createElement(Smile, { size: 20, color: '#4CAF50' });
     }
   } catch (error) {
-    console.error('创建助手图标失败，使用默认图标:', error);
+    logger.error('创建助手图标失败，使用默认图标:', error);
     icon = null;
   }
 

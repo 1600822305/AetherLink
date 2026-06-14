@@ -13,6 +13,9 @@ import {
   type PermissionConfig,
 } from '../../../config/harmonyOSConfig';
 import { isHarmonyOS } from '../../../utils/platformDetection';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('HarmonyOSPermissionService');
 
 /**
  * 权限请求结果
@@ -72,7 +75,7 @@ export class HarmonyOSPermissionService {
       this.savePermissionCache();
       return status;
     } catch (error) {
-      console.error(`[HarmonyOS] 检查权限失败: ${permission}`, error);
+      logger.error(`检查权限失败: ${permission}`, error);
       return PermissionStatus.DENIED;
     }
   }
@@ -135,7 +138,7 @@ export class HarmonyOSPermissionService {
         shouldShowRationale: status === PermissionStatus.DENIED && showRationale,
       };
     } catch (error) {
-      console.error(`[HarmonyOS] 请求权限失败: ${permission}`, error);
+      logger.error(`请求权限失败: ${permission}`, error);
       return {
         permission,
         status: PermissionStatus.DENIED,
@@ -180,7 +183,7 @@ export class HarmonyOSPermissionService {
    */
   public async openAppSettings(): Promise<void> {
     if (!this.isRunningOnHarmonyOS()) {
-      console.warn('[HarmonyOS] 非鸿蒙系统，无法打开设置');
+      logger.warn('非鸿蒙系统，无法打开设置');
       return;
     }
 
@@ -189,7 +192,7 @@ export class HarmonyOSPermissionService {
       // 注意：需要原生实现支持
       await this.openNativeSettings();
     } catch (error) {
-      console.error('[HarmonyOS] 打开设置失败:', error);
+      logger.error('打开设置失败:', error);
       throw error;
     }
   }
@@ -225,7 +228,7 @@ export class HarmonyOSPermissionService {
         this.deniedCount = new Map(Object.entries(data).map(([k, v]) => [k as HarmonyOSPermission, Number(v)] as const));
       }
     } catch (error) {
-      console.error('[HarmonyOS] 加载权限缓存失败:', error);
+      logger.error('加载权限缓存失败:', error);
     }
   }
 
@@ -242,7 +245,7 @@ export class HarmonyOSPermissionService {
       const deniedData = Object.fromEntries(this.deniedCount);
       localStorage.setItem('harmonyos_denied_count', JSON.stringify(deniedData));
     } catch (error) {
-      console.error('[HarmonyOS] 保存权限缓存失败:', error);
+      logger.error('保存权限缓存失败:', error);
     }
   }
 
@@ -264,7 +267,7 @@ export class HarmonyOSPermissionService {
       // 对于其他权限，返回 PROMPT（需要请求）
       return PermissionStatus.PROMPT;
     } catch (error) {
-      console.warn(`[HarmonyOS] Web API 检查权限失败，返回 PROMPT: ${permission}`);
+      logger.warn(`Web API 检查权限失败，返回 PROMPT: ${permission}`);
       return PermissionStatus.PROMPT;
     }
   }
@@ -291,10 +294,10 @@ export class HarmonyOSPermissionService {
       }
       
       // 对于其他权限，暂时返回 GRANTED（需要原生实现）
-      console.warn(`[HarmonyOS] 权限 ${permission} 需要原生实现，暂时返回 GRANTED`);
+      logger.warn(`权限 ${permission} 需要原生实现，暂时返回 GRANTED`);
       return PermissionStatus.GRANTED;
     } catch (error) {
-      console.error(`[HarmonyOS] 请求原生权限失败: ${permission}`, error);
+      logger.error(`请求原生权限失败: ${permission}`, error);
       return PermissionStatus.DENIED;
     }
   }
@@ -305,7 +308,7 @@ export class HarmonyOSPermissionService {
   private async openNativeSettings(): Promise<void> {
     // 这里应该调用原生方法打开设置
     // 暂时提供一个提示
-    console.log('[HarmonyOS] 请在设置 > 应用管理 > AetherLink > 权限 中手动开启权限');
+    logger.debug('请在设置 > 应用管理 > AetherLink > 权限 中手动开启权限');
     
     // 如果可以，尝试使用 Capacitor 打开设置
     if (Capacitor.isPluginAvailable('App')) {

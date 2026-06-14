@@ -2,6 +2,9 @@ import { StatusBar } from '@capacitor/status-bar';
 import { Capacitor } from '@capacitor/core';
 import { EdgeToEdge } from 'capacitor-edge-to-edge';
 import { themeConfigs, type ThemeStyle } from '../../config/themes';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('StatusBarService');
 
 /**
  * 状态栏管理服务 (Rikkahub 风格)
@@ -32,7 +35,7 @@ export class StatusBarService {
   public async initialize(theme: 'light' | 'dark', themeStyle: ThemeStyle = 'default'): Promise<void> {
     // 防重入保护：如果已初始化，只更新主题
     if (this.isInitialized) {
-      console.log('[StatusBarService] 已初始化，仅更新主题');
+      logger.debug('已初始化，仅更新主题');
       await this.updateTheme(theme, themeStyle);
       return;
     }
@@ -41,7 +44,7 @@ export class StatusBarService {
     this.currentThemeStyle = themeStyle;
 
     if (!Capacitor.isNativePlatform()) {
-      console.log('[StatusBarService] Web平台，执行Web状态栏初始化');
+      logger.debug('Web平台，执行Web状态栏初始化');
       this.updateWebStatusBar();
       this.isInitialized = true;
       return;
@@ -51,14 +54,14 @@ export class StatusBarService {
     try {
       // 1. 启用 Edge-to-Edge 模式（内容延伸到系统栏后面）
       await EdgeToEdge.enable();
-      console.log('[StatusBarService] ✅ Edge-to-Edge 模式已启用');
+      logger.debug('✅ Edge-to-Edge 模式已启用');
 
       // 2. 设置系统栏完全透明
       await EdgeToEdge.setTransparentSystemBars({
         statusBar: true,
         navigationBar: true
       });
-      console.log('[StatusBarService] ✅ 系统栏已设置为透明');
+      logger.debug('✅ 系统栏已设置为透明');
 
       // 3. 设置状态栏覆盖WebView（允许内容延伸到状态栏区域）
       await StatusBar.setOverlaysWebView({ overlay: true });
@@ -67,9 +70,9 @@ export class StatusBarService {
       await this.applyNativeThemeStyle();
 
       this.isInitialized = true;
-      console.log(`[StatusBarService] ✅ 状态栏初始化完成 (Rikkahub 风格) - 主题: ${theme}, 风格: ${themeStyle}`);
+      logger.debug(`✅ 状态栏初始化完成 (Rikkahub 风格) - 主题: ${theme}, 风格: ${themeStyle}`);
     } catch (error) {
-      console.error('[StatusBarService] ❌ 状态栏初始化失败:', error);
+      logger.error('❌ 状态栏初始化失败:', error);
       throw error;
     }
   }
@@ -94,7 +97,7 @@ export class StatusBarService {
 
     // 检查是否已初始化
     if (!this.isInitialized) {
-      console.warn("[StatusBarService] updateTheme called before initialize on native platform. Skipping.");
+      logger.warn("updateTheme called before initialize on native platform. Skipping.");
       return;
     }
 
@@ -102,9 +105,9 @@ export class StatusBarService {
     try {
       // 调用抽取出的应用样式方法
       await this.applyNativeThemeStyle();
-      console.log(`[StatusBarService] 主题已更新: ${this.currentTheme}, 风格: ${this.currentThemeStyle}`);
+      logger.debug(`主题已更新: ${this.currentTheme}, 风格: ${this.currentThemeStyle}`);
     } catch (error) {
-      console.error('[StatusBarService] 主题更新失败:', error);
+      logger.error('主题更新失败:', error);
       throw error;
     }
   }
@@ -119,9 +122,9 @@ export class StatusBarService {
 
     try {
       await StatusBar.show();
-      console.log('[StatusBarService] 状态栏已显示');
+      logger.debug('状态栏已显示');
     } catch (error) {
-      console.error('[StatusBarService] 显示状态栏失败:', error);
+      logger.error('显示状态栏失败:', error);
       throw error;
     }
   }
@@ -136,9 +139,9 @@ export class StatusBarService {
 
     try {
       await StatusBar.hide();
-      console.log('[StatusBarService] 状态栏已隐藏');
+      logger.debug('状态栏已隐藏');
     } catch (error) {
-      console.error('[StatusBarService] 隐藏状态栏失败:', error);
+      logger.error('隐藏状态栏失败:', error);
       throw error;
     }
   }
@@ -153,10 +156,10 @@ export class StatusBarService {
 
     try {
       const info = await StatusBar.getInfo();
-      console.log('[StatusBarService] 状态栏信息:', info);
+      logger.debug('状态栏信息:', info);
       return info;
     } catch (error) {
-      console.error('[StatusBarService] 获取状态栏信息失败:', error);
+      logger.error('获取状态栏信息失败:', error);
       throw error;
     }
   }
@@ -172,9 +175,9 @@ export class StatusBarService {
 
     try {
       await StatusBar.setOverlaysWebView({ overlay });
-      console.log(`[StatusBarService] 状态栏覆盖设置: ${overlay}`);
+      logger.debug(`状态栏覆盖设置: ${overlay}`);
     } catch (error) {
-      console.error('[StatusBarService] 设置状态栏覆盖失败:', error);
+      logger.error('设置状态栏覆盖失败:', error);
       throw error;
     }
   }
@@ -218,10 +221,10 @@ export class StatusBarService {
 
     try {
       const insets = await EdgeToEdge.getSystemBarInsets();
-      console.log('[StatusBarService] 系统栏安全区域:', insets);
+      logger.debug('系统栏安全区域:', insets);
       return insets;
     } catch (error) {
-      console.error('[StatusBarService] 获取系统栏安全区域失败:', error);
+      logger.error('获取系统栏安全区域失败:', error);
       return {
         statusBar: 0,
         navigationBar: 0,
@@ -239,7 +242,7 @@ export class StatusBarService {
   private getThemeColors(): { themeConfig: any; backgroundColor: string; isDark: boolean } | null {
     const themeConfig = themeConfigs[this.currentThemeStyle];
     if (!themeConfig) {
-      console.error(`[StatusBarService] Theme config not found for style: ${this.currentThemeStyle}`);
+      logger.error(`Theme config not found for style: ${this.currentThemeStyle}`);
       return null;
     }
 
@@ -273,9 +276,9 @@ export class StatusBarService {
         statusBarStyle: iconStyle,
         navigationBarStyle: iconStyle
       });
-      console.log(`[StatusBarService] ✅ 系统栏图标颜色已更新: ${iconStyle} (深色模式: ${isDark})`);
+      logger.debug(`✅ 系统栏图标颜色已更新: ${iconStyle} (深色模式: ${isDark})`);
     } catch (error) {
-      console.warn('[StatusBarService] ⚠️ 设置系统栏图标颜色失败:', error);
+      logger.warn('⚠️ 设置系统栏图标颜色失败:', error);
     }
   }
 
@@ -314,9 +317,9 @@ export class StatusBarService {
       document.documentElement.style.setProperty('--status-bar-height', 'env(safe-area-inset-top, 20px)');
       document.documentElement.style.setProperty('--status-bar-color', backgroundColor);
 
-      console.log(`[StatusBarService] Web 状态栏已更新: ${this.currentTheme}, 风格: ${this.currentThemeStyle}, 颜色: ${backgroundColor}`);
+      logger.debug(`Web 状态栏已更新: ${this.currentTheme}, 风格: ${this.currentThemeStyle}, 颜色: ${backgroundColor}`);
     } catch (error) {
-      console.error('[StatusBarService] Web 状态栏更新失败:', error);
+      logger.error('Web 状态栏更新失败:', error);
     }
   }
 }

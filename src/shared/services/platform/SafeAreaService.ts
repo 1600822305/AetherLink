@@ -14,6 +14,9 @@
  * - safeAreaChanged: 当原生层更新安全区域时触发
  */
 import { getPlatformInfo } from '../../utils/platformDetection';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('SafeAreaService');
 
 export interface SafeAreaInsets {
   /** 顶部安全区域（px） */
@@ -50,7 +53,7 @@ export class SafeAreaService {
    */
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log('[SafeAreaService] 已初始化，跳过');
+      logger.debug('已初始化，跳过');
       return;
     }
 
@@ -65,9 +68,9 @@ export class SafeAreaService {
       this.setupListeners();
 
       this.isInitialized = true;
-      console.log('[SafeAreaService] ✅ 安全区域初始化完成 (Rikkahub 风格)', this.currentInsets);
+      logger.debug('✅ 安全区域初始化完成 (Rikkahub 风格)', this.currentInsets);
     } catch (error) {
-      console.error('[SafeAreaService] ❌ 安全区域初始化失败:', error);
+      logger.error('❌ 安全区域初始化失败:', error);
       this.isInitialized = true;
     }
   }
@@ -101,7 +104,7 @@ export class SafeAreaService {
     
     document.body.removeChild(testElement);
     
-    console.log('[SafeAreaService] 📏 CSS 安全区域读取:', this.currentInsets);
+    logger.debug('📏 CSS 安全区域读取:', this.currentInsets);
   }
 
   /**
@@ -126,7 +129,7 @@ export class SafeAreaService {
       this.resizeObserver.observe(document.body);
     }
     
-    console.log('[SafeAreaService] 👂 监听器已设置（包含 Tauri 原生事件）');
+    logger.debug('👂 监听器已设置（包含 Tauri 原生事件）');
   }
   
   /**
@@ -135,7 +138,7 @@ export class SafeAreaService {
   private handleSafeAreaChanged = (event: CustomEvent): void => {
     const detail = event.detail;
     if (detail) {
-      console.log('[SafeAreaService] 📱 收到 Tauri 原生安全区域更新:', detail);
+      logger.debug('📱 收到 Tauri 原生安全区域更新:', detail);
       
       const keyboardVisible = detail.keyboardVisible === true || detail.keyboardVisible === 'true' || detail.keyboardVisible === 1;
       
@@ -177,7 +180,7 @@ export class SafeAreaService {
     root.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
     root.style.setProperty('--keyboard-visible', keyboardVisible ? '1' : '0');
     
-    console.log(`[SafeAreaService] 应用原生安全区域: bottom=${bottom}px, keyboard=${keyboardVisible}`);
+    logger.debug(`应用原生安全区域: bottom=${bottom}px, keyboard=${keyboardVisible}`);
   }
 
   /**
@@ -240,7 +243,7 @@ export class SafeAreaService {
     if (platformInfo.isAndroid) root.classList.add('platform-android');
     if (platformInfo.isIOS) root.classList.add('platform-ios');
     
-    console.log(`[SafeAreaService] 平台: ${platformName}, 原生: ${isNativeMobile}, 顶部: ${computedTop}px, 底部: ${computedBottom}px`);
+    logger.debug(`平台: ${platformName}, 原生: ${isNativeMobile}, 顶部: ${computedTop}px, 底部: ${computedBottom}px`);
   }
 
   /**
@@ -284,7 +287,7 @@ export class SafeAreaService {
       this.applySafeAreaToCSS();
       this.notifyListeners();
     } catch (error) {
-      console.error('[SafeAreaService] 刷新失败:', error);
+      logger.error('刷新失败:', error);
     }
   }
 
@@ -297,7 +300,7 @@ export class SafeAreaService {
       try {
         callback(insets);
       } catch (error) {
-        console.error('[SafeAreaService] 监听器回调失败:', error);
+        logger.error('监听器回调失败:', error);
       }
     });
   }

@@ -7,6 +7,9 @@ import { Capacitor } from '@capacitor/core';
 import { isHarmonyOS } from '../../../utils/platformDetection';
 import { harmonyOSPermissionService } from './HarmonyOSPermissionService';
 import { HarmonyOSPermission } from '../../../config/harmonyOSConfig';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('HarmonyOSCameraService');
 
 /**
  * 相机结果类型
@@ -103,7 +106,7 @@ export class HarmonyOSCameraService {
         format: result.format,
       };
     } catch (error) {
-      console.error('[HarmonyOS] 拍照失败:', error);
+      logger.error('拍照失败:', error);
       throw error;
     }
   }
@@ -126,7 +129,7 @@ export class HarmonyOSCameraService {
         format: result.format,
       };
     } catch (error) {
-      console.error('[HarmonyOS] 相册选择失败:', error);
+      logger.error('相册选择失败:', error);
       throw error;
     }
   }

@@ -12,6 +12,9 @@ import { dexieStorage } from '../storage/DexieStorageService';
 import { uuid } from '../../utils';
 import { getDefaultTopic } from './types';
 import { DEFAULT_SYSTEM_PROMPT } from '../../config/prompts';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AssistantService');
 
 // 移除DataService引用
 // import { DataService } from '../DataService';
@@ -54,7 +57,7 @@ export class AssistantService {
     assistantData: Partial<Assistant>
   ): Promise<Assistant | null> {
     try {
-      console.log('AssistantService: 开始创建新助手', assistantData.name);
+      logger.debug('AssistantService: 开始创建新助手', assistantData.name);
 
       // 创建助手ID
       const assistantId = uuid();
@@ -81,7 +84,7 @@ export class AssistantService {
       // 保存助手到数据库
       const success = await AssistantManager.addAssistant(newAssistant);
       if (!success) {
-        console.error('AssistantService: 保存助手失败');
+        logger.error('AssistantService: 保存助手失败');
         return null;
       }
 
@@ -99,7 +102,7 @@ export class AssistantService {
       const errorMessage = error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-      console.error(`AssistantService: 创建助手时出错: ${errorMessage}`);
+      logger.error(`AssistantService: 创建助手时出错: ${errorMessage}`);
       return null;
     }
   }

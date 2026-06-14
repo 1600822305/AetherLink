@@ -7,6 +7,9 @@ import { Capacitor } from '@capacitor/core';
 import { isHarmonyOS } from '../../../utils/platformDetection';
 import { harmonyOSPermissionService } from './HarmonyOSPermissionService';
 import { HarmonyOSPermission } from '../../../config/harmonyOSConfig';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('HarmonyOSFileService');
 
 /**
  * 鸿蒙文件服务类
@@ -149,7 +152,7 @@ export class HarmonyOSFileService {
 
       return null;
     } catch (error) {
-      console.error('[HarmonyOS] 文件选择失败:', error);
+      logger.error('文件选择失败:', error);
       return null;
     }
   }

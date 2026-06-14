@@ -7,6 +7,9 @@ import { Capacitor } from '@capacitor/core';
 import { isHarmonyOS } from '../../../utils/platformDetection';
 import { harmonyOSPermissionService } from './HarmonyOSPermissionService';
 import { HarmonyOSPermission } from '../../../config/harmonyOSConfig';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('HarmonyOSNotificationService');
 
 /**
  * 通知配置
@@ -55,7 +58,7 @@ export class HarmonyOSNotificationService {
       );
 
       if (result.status !== 'granted') {
-        console.warn('[HarmonyOS] 通知权限被拒绝');
+        logger.warn('通知权限被拒绝');
         return; // 通知权限被拒绝时静默失败
       }
     }
@@ -79,7 +82,7 @@ export class HarmonyOSNotificationService {
         }],
       });
     } catch (error) {
-      console.error('[HarmonyOS] 显示通知失败:', error);
+      logger.error('显示通知失败:', error);
       throw error;
     }
   }

@@ -20,6 +20,9 @@ import {
   type MemoryMaintenanceOptions,
   type MemoryMaintenanceReport,
 } from './types';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MemoryMaintenance');
 
 class MemoryMaintenanceService {
   private static instance: MemoryMaintenanceService;
@@ -100,7 +103,7 @@ class MemoryMaintenanceService {
           );
           onProgress?.({ stage: 'harvest', percent: 100 });
         } catch (error) {
-          console.error('[MemoryMaintenance] 回顾提取阶段失败:', error);
+          logger.error('回顾提取阶段失败:', error);
           report.errors.push(`harvest: ${error}`);
         }
       }
@@ -116,7 +119,7 @@ class MemoryMaintenanceService {
         report.purge = await runPurgeStage(assistantId, retentionDays, dryRun);
         onProgress?.({ stage: 'purge', percent: 100 });
       } catch (error) {
-        console.error('[MemoryMaintenance] 物理清除阶段失败:', error);
+        logger.error('物理清除阶段失败:', error);
         report.errors.push(`purge: ${error}`);
       }
 
@@ -135,7 +138,7 @@ class MemoryMaintenanceService {
           onProgress
         );
       } catch (error) {
-        console.error('[MemoryMaintenance] 向量修复阶段失败:', error);
+        logger.error('向量修复阶段失败:', error);
         report.errors.push(`reembed: ${error}`);
       }
 
@@ -148,7 +151,7 @@ class MemoryMaintenanceService {
       try {
         report.cluster = await runClusterStage(assistantId, clusterThreshold, signal, onProgress);
       } catch (error) {
-        console.error('[MemoryMaintenance] 聚类阶段失败:', error);
+        logger.error('聚类阶段失败:', error);
         report.errors.push(`cluster: ${error}`);
       }
 
@@ -168,7 +171,7 @@ class MemoryMaintenanceService {
             onProgress
           );
         } catch (error) {
-          console.error('[MemoryMaintenance] 整合阶段失败:', error);
+          logger.error('整合阶段失败:', error);
           report.errors.push(`consolidate: ${error}`);
         }
       }
