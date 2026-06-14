@@ -5,6 +5,8 @@
 
 import { isHarmonyOS, getPlatformInfo } from './platformDetection';
 import { detectHarmonyOSFeatures, HARMONYOS_VERSIONS } from '../config/harmonyOSConfig';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('HarmonyOS');
 
 /**
  * 鸿蒙兼容性检测结果
@@ -142,16 +144,16 @@ export function showHarmonyOSCompatibilityWarning(
   }
 
   if (compatibility.warnings.length > 0) {
-    console.warn('[HarmonyOS] 兼容性警告:');
+    logger.warn('兼容性警告:');
     compatibility.warnings.forEach(warning => {
-      console.warn(`  - ${warning}`);
+      logger.warn(`  - ${warning}`);
     });
   }
 
   if (compatibility.recommendations.length > 0) {
-    console.info('[HarmonyOS] 建议:');
+    logger.info('建议:');
     compatibility.recommendations.forEach(rec => {
-      console.info(`  - ${rec}`);
+      logger.info(`  - ${rec}`);
     });
   }
 }
@@ -212,8 +214,8 @@ export function initHarmonyOSCompatibilityCheck(): void {
 
   const compatibility = detectHarmonyOSCompatibility();
   
-  console.log('[HarmonyOS] 兼容性检测完成');
-  console.log(generateCompatibilityReport(compatibility));
+  logger.debug('兼容性检测完成');
+  logger.debug(generateCompatibilityReport(compatibility));
   
   showHarmonyOSCompatibilityWarning(compatibility);
 }

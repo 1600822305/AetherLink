@@ -2,8 +2,9 @@
  * 正则替换工具函数
  * 用于在消息发送/显示时应用正则规则
  */
-
 import type { AssistantRegex, AssistantRegexScope } from '../types/Assistant';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('RegexUtils');
 
 /**
  * 应用单个正则规则到文本
@@ -21,7 +22,7 @@ export function applyRegexRule(text: string, rule: AssistantRegex): string {
     const regex = new RegExp(rule.pattern, 'g');
     return text.replace(regex, rule.replacement);
   } catch (error) {
-    console.error(`[applyRegexRule] 正则执行失败: ${rule.name}`, error);
+    logger.error(`正则执行失败: ${rule.name}`, error);
     return text;
   }
 }

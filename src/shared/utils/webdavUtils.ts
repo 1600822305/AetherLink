@@ -1,5 +1,7 @@
 import type { WebDavConfig } from '../types';
 import { getStorageItem, setStorageItem } from './storage';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('WebDav');
 
 /**
  * WebDAV 配置存储键
@@ -13,7 +15,7 @@ export async function saveWebDavConfig(config: WebDavConfig): Promise<void> {
   try {
     await setStorageItem(WEBDAV_CONFIG_KEY, JSON.stringify(config));
   } catch (error) {
-    console.error('保存 WebDAV 配置失败:', error);
+    logger.error('保存 WebDAV 配置失败:', error);
     throw error;
   }
 }
@@ -26,7 +28,7 @@ export async function getWebDavConfig(): Promise<WebDavConfig | null> {
     const configStr = await getStorageItem(WEBDAV_CONFIG_KEY);
     return configStr ? JSON.parse(configStr as string) : null;
   } catch (error) {
-    console.error('获取 WebDAV 配置失败:', error);
+    logger.error('获取 WebDAV 配置失败:', error);
     return null;
   }
 }
@@ -38,7 +40,7 @@ export async function clearWebDavConfig(): Promise<void> {
   try {
     await setStorageItem(WEBDAV_CONFIG_KEY, '');
   } catch (error) {
-    console.error('清除 WebDAV 配置失败:', error);
+    logger.error('清除 WebDAV 配置失败:', error);
     throw error;
   }
 }

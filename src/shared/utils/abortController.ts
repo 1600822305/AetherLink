@@ -2,6 +2,8 @@
  * AbortController 工具类
  * 用于管理和中断异步操作，特别是流式响应
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('AbortController');
 
 // 存储所有活动的中断函数
 export const abortMap = new Map<string, (() => void)[]>();
@@ -46,7 +48,7 @@ export const abortCompletion = (id: string) => {
       } catch (error) {
         // 静默处理中断错误，避免控制台错误
         if (!isAbortError(error)) {
-          console.error('执行中断函数时出错:', error);
+          logger.error('执行中断函数时出错:', error);
         }
       }
     }
@@ -67,7 +69,7 @@ export function createAbortPromise(signal: AbortSignal, finallyPromise: Promise<
     }
 
     const abortHandler = (e: Event) => {
-      console.log('[createAbortPromise] abortHandler', e);
+      logger.debug('abortHandler', e);
       reject(new DOMException('Operation aborted', 'AbortError'));
     };
 
@@ -124,11 +126,11 @@ export function createAbortController(messageId?: string, isAddEventListener?: b
     signalPromise.promise.catch(error => {
       // 静默处理中断错误，避免控制台错误
       if (isAbortError(error)) {
-        console.log('[AbortController] 请求被用户中断');
+        logger.debug('请求被用户中断');
         return null;
       }
       // 对于非中断错误，记录但不重新抛出
-      console.error('[AbortController] 非中断错误:', error);
+      logger.error('非中断错误:', error);
       return null;
     });
 

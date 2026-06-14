@@ -2,6 +2,8 @@
  * 重试工具函数
  * 提供统一的重试机制，支持指数退避和错误类型检查
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('RetryUtils');
 
 // 重试配置
 export const RETRY_CONFIG = {
@@ -80,15 +82,15 @@ export async function withRetry<T>(
       // 如果是最后一次尝试，或者错误不可重试，直接抛出
       if (attempt === maxRetries || !isRetryableError(error)) {
         if (attempt === maxRetries) {
-          console.error(`[${context}] 重试次数已达上限 (${maxRetries + 1} 次)，操作失败:`, error);
+          logger.error(`[${context}] 重试次数已达上限 (${maxRetries + 1} 次)，操作失败:`, error);
         } else {
-          console.error(`[${context}] 错误不可重试，操作失败:`, error);
+          logger.error(`[${context}] 错误不可重试，操作失败:`, error);
         }
         throw error;
       }
 
       const delay = calculateRetryDelay(attempt);
-      console.warn(`[${context}] 操作失败 (尝试 ${attempt + 1}/${maxRetries + 1})，${delay}ms 后重试:`, error);
+      logger.warn(`[${context}] 操作失败 (尝试 ${attempt + 1}/${maxRetries + 1})，${delay}ms 后重试:`, error);
       
       await new Promise(resolve => setTimeout(resolve, delay));
     }

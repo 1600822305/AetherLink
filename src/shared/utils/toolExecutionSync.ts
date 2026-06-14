@@ -3,6 +3,8 @@
  * 
  * 这个模块提供了类似 Cline 的 pWaitFor 机制，确保工具连续调用的稳定性
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('ToolExecutionSync');
 
 /**
  * 等待条件满足的工具 - 参考 Cline 的 pWaitFor
@@ -25,7 +27,7 @@ export async function pWaitFor(
         return;
       }
     } catch (error) {
-      console.warn('[ToolExecutionSync] 条件检查失败:', error);
+      logger.warn('条件检查失败:', error);
     }
     
     // 检查超时
@@ -50,7 +52,7 @@ export class ToolExecutionTracker {
    * 标记工具开始执行
    */
   startTool(toolId: string): void {
-    console.log(`[ToolExecutionTracker] 工具开始执行: ${toolId}`);
+    logger.debug(`工具开始执行: ${toolId}`);
     this.executingTools.add(toolId);
     this.completedTools.delete(toolId);
     this.failedTools.delete(toolId);
@@ -60,7 +62,7 @@ export class ToolExecutionTracker {
    * 标记工具执行完成
    */
   completeTool(toolId: string, success: boolean = true): void {
-    console.log(`[ToolExecutionTracker] 工具执行完成: ${toolId}, 成功: ${success}`);
+    logger.debug(`工具执行完成: ${toolId}, 成功: ${success}`);
     this.executingTools.delete(toolId);
     
     if (success) {
@@ -97,21 +99,21 @@ export class ToolExecutionTracker {
    * 等待所有工具执行完成 - 参考 Cline 的等待机制
    */
   async waitForAllToolsComplete(timeout: number = 60000): Promise<void> {
-    console.log(`[ToolExecutionTracker] 等待所有工具执行完成，当前执行中: ${this.executingTools.size}`);
+    logger.debug(`等待所有工具执行完成，当前执行中: ${this.executingTools.size}`);
     
     await pWaitFor(
       () => !this.hasExecutingTools(),
       { interval: 100, timeout }
     );
     
-    console.log(`[ToolExecutionTracker] 所有工具执行完成`);
+    logger.debug(`所有工具执行完成`);
   }
   
   /**
    * 等待特定工具完成
    */
   async waitForToolComplete(toolId: string, timeout: number = 30000): Promise<boolean> {
-    console.log(`[ToolExecutionTracker] 等待工具完成: ${toolId}`);
+    logger.debug(`等待工具完成: ${toolId}`);
     
     await pWaitFor(
       () => this.isToolCompleted(toolId),
@@ -119,7 +121,7 @@ export class ToolExecutionTracker {
     );
     
     const success = this.completedTools.has(toolId);
-    console.log(`[ToolExecutionTracker] 工具完成: ${toolId}, 成功: ${success}`);
+    logger.debug(`工具完成: ${toolId}, 成功: ${success}`);
     return success;
   }
   
@@ -141,7 +143,7 @@ export class ToolExecutionTracker {
    * 清理已完成的工具记录
    */
   cleanup(): void {
-    console.log(`[ToolExecutionTracker] 清理工具记录 - 完成: ${this.completedTools.size}, 失败: ${this.failedTools.size}`);
+    logger.debug(`清理工具记录 - 完成: ${this.completedTools.size}, 失败: ${this.failedTools.size}`);
     this.completedTools.clear();
     this.failedTools.clear();
   }
@@ -150,7 +152,7 @@ export class ToolExecutionTracker {
    * 重置所有状态
    */
   reset(): void {
-    console.log(`[ToolExecutionTracker] 重置所有工具状态`);
+    logger.debug(`重置所有工具状态`);
     this.executingTools.clear();
     this.completedTools.clear();
     this.failedTools.clear();
@@ -221,7 +223,7 @@ export class ToolExecutionQueue {
         try {
           await task();
         } catch (error) {
-          console.error('[ToolExecutionQueue] 任务执行失败:', error);
+          logger.error('任务执行失败:', error);
         }
       }
     }

@@ -2,6 +2,8 @@
  * 性能设置工具函数
  * 用于管理流式输出等性能相关设置
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('PerformanceSettings');
 
 /**
  * 节流强度级别
@@ -19,7 +21,7 @@ export function getThrottleLevel(): ThrottleLevel {
     }
     return 'medium'; // 默认中等节流
   } catch (error) {
-    console.error('[performanceSettings] 获取节流强度失败:', error);
+    logger.error('获取节流强度失败:', error);
     return 'medium';
   }
 }
@@ -30,9 +32,9 @@ export function getThrottleLevel(): ThrottleLevel {
 export function setThrottleLevel(level: ThrottleLevel): void {
   try {
     localStorage.setItem('highPerformanceThrottleLevel', level);
-    console.log(`[performanceSettings] 节流强度已更新: ${level}`);
+    logger.debug(`节流强度已更新: ${level}`);
   } catch (error) {
-    console.error('[performanceSettings] 保存节流强度失败:', error);
+    logger.error('保存节流强度失败:', error);
   }
 }
 

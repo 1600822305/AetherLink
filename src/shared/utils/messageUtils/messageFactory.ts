@@ -14,6 +14,8 @@ import type { Model, FileType } from '../../types';
 import { FileTypes } from '../fileUtils';
 import { createImageBlock, createVideoBlock, createFileBlock } from './blockFactory';
 import { guessImageMimeType } from './utilityFunctions';
+import { createLogger } from '../../services/infra/logger';
+const logger = createLogger('MessageFactory');
 
 /**
  * 创建用户消息
@@ -247,8 +249,8 @@ export function resetAssistantMessage(
   updates?: Partial<Pick<Message, 'status' | 'updatedAt' | 'model' | 'modelId'>>
 ): Message {
   if (originalMessage.role !== 'assistant') {
-    console.warn(
-      `[resetAssistantMessage] 尝试重置非助手消息 (ID: ${originalMessage.id}, Role: ${originalMessage.role})。返回原始消息。`
+    logger.warn(
+      `尝试重置非助手消息 (ID: ${originalMessage.id}, Role: ${originalMessage.role})。返回原始消息。`
     );
     return originalMessage;
   }

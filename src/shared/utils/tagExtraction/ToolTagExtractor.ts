@@ -4,11 +4,12 @@
  * 
  * 基于 StreamTagExtractor 扩展，实现多格式支持
  */
-
 import { StreamTagExtractor } from './StreamTagExtractor';
 import { getPotentialStartIndex } from './getPotentialIndex';
 import type { TagConfig, TagExtractionResult } from './types';
 import { TOOL_USE_TAG_CONFIG } from './types';
+import { createLogger } from '../../services/infra/logger';
+const logger = createLogger('ToolTagExtractor');
 
 /**
  * 工具标签检测结果
@@ -138,7 +139,7 @@ export class ToolTagExtractor {
           : this.directExtractors.get(this.activeToolName!);
 
         if (!extractor) {
-          console.error(`[ToolTagExtractor] 提取器未找到: ${this.activeToolName}`);
+          logger.error(`提取器未找到: ${this.activeToolName}`);
           this.activeFormat = null;
           this.activeToolName = null;
           continue;

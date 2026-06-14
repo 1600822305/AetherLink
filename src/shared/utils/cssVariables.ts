@@ -5,6 +5,8 @@
  */
 
 import { designTokens, type ThemeStyle, type ColorMode } from '../design-tokens';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('CSSVariables');
 
 /**
  * CSS 变量名称前缀
@@ -54,7 +56,7 @@ export const applyCSSVariables = (
   const tokens = designTokens[themeStyle];
   
   if (!tokens) {
-    console.error(`Theme style not found: ${themeStyle}`);
+    logger.error(`Theme style not found: ${themeStyle}`);
     return;
   }
   

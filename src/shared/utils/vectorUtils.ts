@@ -2,6 +2,8 @@
  * 向量计算工具函数
  * 提供统一的向量操作方法，避免代码重复
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('VectorUtils');
 
 /**
  * 计算两个向量的余弦相似度
@@ -16,7 +18,7 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   }
 
   if (vecA.length !== vecB.length) {
-    console.warn(`[vectorUtils] 向量维度不匹配: ${vecA.length} vs ${vecB.length}`);
+    logger.warn(`向量维度不匹配: ${vecA.length} vs ${vecB.length}`);
     return 0;
   }
 

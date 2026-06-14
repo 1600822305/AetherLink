@@ -4,6 +4,8 @@
  * 添加完整的 AI SDK 错误序列化支持
  */
 import LoggerService from '../services/infra/LoggerService';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Error');
 import type {
   AiSdkErrorUnion,
   SerializedError,
@@ -53,7 +55,7 @@ export function getErrorDetails(err: any, seen = new WeakSet()): any {
  * @returns 格式化后的错误消息
  */
 export function formatErrorMessage(error: any): string {
-  console.error('原始错误:', error);
+  logger.error('原始错误:', error);
 
   try {
     const detailedError = getErrorDetails(error);
@@ -191,7 +193,7 @@ export function handleError(
   // 如果需要显示给用户（可以在这里集成Toast或其他用户通知）
   if (showUser) {
     // 这里可以集成用户通知系统
-    console.warn(`用户错误提示: ${errorMessage}`);
+    logger.warn(`用户错误提示: ${errorMessage}`);
   }
 
   // 如果需要重新抛出错误

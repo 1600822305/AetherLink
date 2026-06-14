@@ -11,6 +11,8 @@ import type {
   Message
 } from '../types/newMessage.ts';
 import { MessageBlockType } from '../types/newMessage.ts';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('BlockUtils');
 
 /**
  * 查找消息的所有主文本块
@@ -203,7 +205,7 @@ export function getMainTextContent(message: Message): string {
 
     return '';
   } catch (error) {
-    console.error('[blockUtils.getMainTextContent] 获取消息内容失败:', error);
+    logger.error('获取消息内容失败:', error);
     return '';
   }
 }

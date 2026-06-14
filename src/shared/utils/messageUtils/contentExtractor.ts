@@ -13,6 +13,8 @@ import {
 import store from '../../store';
 import { messageBlocksSelectors } from '../../store/slices/messageBlocksSlice';
 import { CACHE_TTL, DEFAULT_EMPTY_CONTENT } from './constants';
+import { createLogger } from '../../services/infra/logger';
+const logger = createLogger('ContentExtractor');
 
 // 用于去重日志的缓存
 const loggedWarnings = new Set<string>();
@@ -121,7 +123,7 @@ function extractContentFromComparisonBlock(message: Message): string {
     } catch (error) {
       const warningKey = `comparison-block-error-${blockId}`;
       if (!loggedWarnings.has(warningKey)) {
-        console.error(`[extractContentFromComparisonBlock] 检查对比块 ${blockId} 失败:`, error);
+        logger.error(`检查对比块 ${blockId} 失败:`, error);
         loggedWarnings.add(warningKey);
       }
     }
@@ -163,7 +165,7 @@ function extractContentFromBlocks(message: Message): string {
     } catch (error) {
       const warningKey = `block-error-${blockId}`;
       if (!loggedWarnings.has(warningKey)) {
-        console.error(`[extractContentFromBlocks] 获取块 ${blockId} 失败:`, error);
+        logger.error(`获取块 ${blockId} 失败:`, error);
         loggedWarnings.add(warningKey);
       }
     }
@@ -173,7 +175,7 @@ function extractContentFromBlocks(message: Message): string {
   if (missingBlocks.length > 0) {
     const warningKey = `missing-blocks-${message.id}`;
     if (!loggedWarnings.has(warningKey)) {
-      console.warn(`[extractContentFromBlocks] 消息 ${message.id} 缺失 ${missingBlocks.length} 个块:`, missingBlocks);
+      logger.warn(`消息 ${message.id} 缺失 ${missingBlocks.length} 个块:`, missingBlocks);
       loggedWarnings.add(warningKey);
     }
   }
@@ -201,7 +203,7 @@ export function getMainTextContent(message: Message): string {
   if (!message) {
     const warningKey = 'empty-message';
     if (!loggedWarnings.has(warningKey)) {
-      console.warn('[getMainTextContent] 消息对象为空');
+      logger.warn('消息对象为空');
       loggedWarnings.add(warningKey);
     }
     return '';
@@ -225,7 +227,7 @@ export function getMainTextContent(message: Message): string {
     if (!message.blocks || message.blocks.length === 0) {
       const warningKey = `no-blocks-${message.id}`;
       if (!loggedWarnings.has(warningKey)) {
-        console.warn(`[getMainTextContent] 消息 ${message.id} 没有blocks`);
+        logger.warn(`消息 ${message.id} 没有blocks`);
         loggedWarnings.add(warningKey);
       }
 
@@ -239,7 +241,7 @@ export function getMainTextContent(message: Message): string {
     if (!state) {
       const warningKey = 'redux-unavailable';
       if (!loggedWarnings.has(warningKey)) {
-        console.error('[getMainTextContent] Redux状态不可用');
+        logger.error('Redux状态不可用');
         loggedWarnings.add(warningKey);
       }
       return '';
@@ -279,7 +281,7 @@ export function getMainTextContent(message: Message): string {
     // 没有有效内容
     const warningKey = `no-content-${message.id}`;
     if (!loggedWarnings.has(warningKey)) {
-      console.warn(`[getMainTextContent] 消息 ${message.id} 没有有效的文本内容`);
+      logger.warn(`消息 ${message.id} 没有有效的文本内容`);
       loggedWarnings.add(warningKey);
     }
 
@@ -290,7 +292,7 @@ export function getMainTextContent(message: Message): string {
   } catch (error) {
     const warningKey = `general-error-${message.id}`;
     if (!loggedWarnings.has(warningKey)) {
-      console.error('[getMainTextContent] 获取消息内容失败:', error);
+      logger.error('获取消息内容失败:', error);
       loggedWarnings.add(warningKey);
     }
 
@@ -303,7 +305,7 @@ export function getMainTextContent(message: Message): string {
     } catch (fallbackError) {
       const fallbackWarningKey = `fallback-error-${message.id}`;
       if (!loggedWarnings.has(fallbackWarningKey)) {
-        console.error('[getMainTextContent] 兜底方案也失败:', fallbackError);
+        logger.error('兜底方案也失败:', fallbackError);
         loggedWarnings.add(fallbackWarningKey);
       }
     }

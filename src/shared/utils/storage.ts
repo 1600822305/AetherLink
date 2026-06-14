@@ -3,6 +3,8 @@
  * 提供对应用存储的统一封装，完全替代 localStorage 和直接的 IndexedDB 操作
  */
 import { dexieStorage } from '../services/storage/DexieStorageService';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Storage');
 
 // 🚀 性能优化：减少开发模式下的冗余日志
 const isDevelopment = import.meta.env.DEV;
@@ -16,29 +18,29 @@ const enableVerboseLogging = false; // 设置为 true 可启用详细日志
 export async function getStorageItem<T>(key: string): Promise<T | null> {
   try {
     if (enableVerboseLogging && isDevelopment) {
-      console.log(`[storage] 开始获取数据: ${key}`);
+      logger.debug(`开始获取数据: ${key}`);
     }
     const value = await dexieStorage.getSetting(key);
 
     if (value === null || value === undefined) {
       if (enableVerboseLogging && isDevelopment) {
-        console.log(`[storage] 数据不存在: ${key}`);
+        logger.debug(`数据不存在: ${key}`);
       }
       return null;
     }
 
     if (enableVerboseLogging && isDevelopment) {
-      console.log(`[storage] 数据获取成功: ${key}`);
+      logger.debug(`数据获取成功: ${key}`);
     }
     return value;
   } catch (error) {
-    console.error(`[storage] Error getting item "${key}" from database:`, error);
+    logger.error(`Error getting item "${key}" from database:`, error);
 
     // 记录更详细的错误信息
     if (error instanceof Error) {
-      console.error('[storage] 错误类型:', error.name);
-      console.error('[storage] 错误消息:', error.message);
-      console.error('[storage] 错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
 
     return null;
@@ -54,21 +56,21 @@ export async function getStorageItem<T>(key: string): Promise<T | null> {
 export async function setStorageItem<T>(key: string, value: T): Promise<boolean> {
   try {
     if (enableVerboseLogging && isDevelopment) {
-      console.log(`[storage] 开始保存数据: ${key}`);
+      logger.debug(`开始保存数据: ${key}`);
     }
     await dexieStorage.saveSetting(key, value);
     if (enableVerboseLogging && isDevelopment) {
-      console.log(`[storage] 数据保存成功: ${key}`);
+      logger.debug(`数据保存成功: ${key}`);
     }
     return true;
   } catch (error) {
-    console.error(`[storage] Error setting item "${key}" to database:`, error);
+    logger.error(`Error setting item "${key}" to database:`, error);
 
     // 记录更详细的错误信息
     if (error instanceof Error) {
-      console.error('[storage] 错误类型:', error.name);
-      console.error('[storage] 错误消息:', error.message);
-      console.error('[storage] 错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
 
     return false;
@@ -83,7 +85,7 @@ export async function removeStorageItem(key: string): Promise<void> {
   try {
     await dexieStorage.deleteSetting(key);
   } catch (error) {
-    console.error(`Error removing item "${key}" from database:`, error);
+    logger.error(`Error removing item "${key}" from database:`, error);
   }
 }
 
@@ -95,9 +97,9 @@ export async function clearStorage(): Promise<void> {
   try {
     // 使用Dexie提供的clear方法清空设置表
     await dexieStorage.settings.clear();
-    console.log('Settings store has been cleared.');
+    logger.debug('Settings store has been cleared.');
   } catch (error) {
-    console.error('Error clearing settings store:', error);
+    logger.error('Error clearing settings store:', error);
   }
 }
 
@@ -112,7 +114,7 @@ export async function getAllStorageKeys(): Promise<string[]> {
     // 返回所有id作为键名
     return settings.map(setting => String(setting.id));
   } catch (error) {
-    console.error('Error getting all keys from database:', error);
+    logger.error('Error getting all keys from database:', error);
     return [];
   }
 }
@@ -125,47 +127,47 @@ export async function getAllStorageKeys(): Promise<string[]> {
 export async function setStorageItems(items: Record<string, any>): Promise<boolean> {
   try {
     if (enableVerboseLogging && isDevelopment) {
-      console.log(`[storage] 开始批量保存数据，键数量: ${Object.keys(items).length}`);
+      logger.debug(`开始批量保存数据，键数量: ${Object.keys(items).length}`);
     }
 
     // 使用Dexie事务批量保存设置
     await dexieStorage.transaction('rw', dexieStorage.settings, async () => {
       for (const [key, value] of Object.entries(items)) {
         if (enableVerboseLogging && isDevelopment) {
-          console.log(`[storage] 批量保存 - 处理键: ${key}`);
+          logger.debug(`批量保存 - 处理键: ${key}`);
         }
         await dexieStorage.saveSetting(key, value);
       }
     });
 
     if (enableVerboseLogging && isDevelopment) {
-      console.log('[storage] 批量保存数据成功');
+      logger.debug('批量保存数据成功');
     }
     return true;
   } catch (error) {
-    console.error('[storage] Error setting multiple items to database:', error);
+    logger.error('Error setting multiple items to database:', error);
 
     // 记录更详细的错误信息
     if (error instanceof Error) {
-      console.error('[storage] 错误类型:', error.name);
-      console.error('[storage] 错误消息:', error.message);
-      console.error('[storage] 错误堆栈:', error.stack);
+      logger.error('错误类型:', error.name);
+      logger.error('错误消息:', error.message);
+      logger.error('错误堆栈:', error.stack);
     }
 
     // 尝试逐个保存，避免一个失败导致全部失败
     if (enableVerboseLogging && isDevelopment) {
-      console.log('[storage] 尝试逐个保存项目...');
+      logger.debug('尝试逐个保存项目...');
     }
     let allSuccess = true;
 
     for (const [key, value] of Object.entries(items)) {
       try {
         if (enableVerboseLogging && isDevelopment) {
-          console.log(`[storage] 单独保存键: ${key}`);
+          logger.debug(`单独保存键: ${key}`);
         }
         await dexieStorage.saveSetting(key, value);
       } catch (itemError) {
-        console.error(`[storage] 保存键 ${key} 失败:`, itemError);
+        logger.error(`保存键 ${key} 失败:`, itemError);
         allSuccess = false;
       }
     }
@@ -188,7 +190,7 @@ export function getAllKeys(): string[] {
   try {
     return Object.keys(localStorage);
   } catch (error) {
-    console.error('从localStorage获取所有键失败:', error);
+    logger.error('从localStorage获取所有键失败:', error);
     return [];
   }
 }

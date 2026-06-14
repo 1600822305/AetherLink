@@ -4,6 +4,8 @@
 
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('SSEClient');
 
 export interface SSEClientOptions {
   headers?: Record<string, string>;
@@ -38,7 +40,7 @@ export class SSEClient {
   public connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        console.log(`[SSE Client] 连接到: ${this.url}`);
+        logger.debug(`连接到: ${this.url}`);
 
         // 移动端使用特殊配置绕过CORS
         const eventSourceOptions: any = {
@@ -53,7 +55,7 @@ export class SSEClient {
 
         // 移动端添加额外的配置来绕过CORS
         if (Capacitor.isNativePlatform()) {
-          console.log(`[SSE Client] 移动端模式，配置CORS绕过`);
+          logger.debug(`移动端模式，配置CORS绕过`);
           eventSourceOptions.headers['User-Agent'] = 'AetherLink-Mobile/1.0';
           // 禁用CORS检查（仅在支持的polyfill中有效）
           eventSourceOptions.withCredentials = false;
@@ -62,21 +64,21 @@ export class SSEClient {
         this.eventSource = new EventSourcePolyfill(this.url, eventSourceOptions);
 
         this.eventSource.onopen = (_event: Event) => {
-          console.log(`[SSE Client] 连接已建立`);
+          logger.debug(`连接已建立`);
           this.reconnectAttempts = 0;
           resolve();
         };
 
         this.eventSource.onerror = (event: Event) => {
-          console.error(`[SSE Client] 连接错误:`, event);
+          logger.error(`连接错误:`, event);
 
           // 在移动端，如果是CORS错误，提供更友好的错误信息
           if (Capacitor.isNativePlatform()) {
-            console.log(`[SSE Client] 移动端SSE连接错误，可能是服务器不支持或网络问题`);
+            logger.debug(`移动端SSE连接错误，可能是服务器不支持或网络问题`);
           }
 
           if (this.eventSource?.readyState === EventSource.CLOSED) {
-            console.log(`[SSE Client] 连接已关闭，尝试重连...`);
+            logger.debug(`连接已关闭，尝试重连...`);
             this.handleReconnect();
           }
 
@@ -89,12 +91,12 @@ export class SSEClient {
         };
 
         this.eventSource.onmessage = (event: MessageEvent) => {
-          console.log(`[SSE Client] 收到消息:`, event.data);
+          logger.debug(`收到消息:`, event.data);
           this.notifyListeners('message', event);
         };
 
       } catch (error) {
-        console.error(`[SSE Client] 创建连接失败:`, error);
+        logger.error(`创建连接失败:`, error);
         reject(error);
       }
     });
@@ -136,7 +138,7 @@ export class SSEClient {
    * 关闭连接
    */
   public close(): void {
-    console.log(`[SSE Client] 关闭连接`);
+    logger.debug(`关闭连接`);
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
@@ -156,18 +158,18 @@ export class SSEClient {
    */
   private handleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(`[SSE Client] 重连次数已达上限 (${this.maxReconnectAttempts})`);
+      logger.error(`重连次数已达上限 (${this.maxReconnectAttempts})`);
       return;
     }
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1); // 指数退避
 
-    console.log(`[SSE Client] ${delay}ms 后进行第 ${this.reconnectAttempts} 次重连...`);
+    logger.debug(`${delay}ms 后进行第 ${this.reconnectAttempts} 次重连...`);
 
     setTimeout(() => {
       this.connect().catch(error => {
-        console.error(`[SSE Client] 重连失败:`, error);
+        logger.error(`重连失败:`, error);
       });
     }, delay);
   }
@@ -182,7 +184,7 @@ export class SSEClient {
         try {
           listener(event);
         } catch (error) {
-          console.error(`[SSE Client] 监听器执行错误:`, error);
+          logger.error(`监听器执行错误:`, error);
         }
       });
     }

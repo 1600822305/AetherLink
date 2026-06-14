@@ -3,6 +3,8 @@
  * 提供文件处理相关的工具函数
  */
 import { mobileFileStorage } from '../services/files/MobileFileStorageService';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('FileUtils');
 
 /**
  * 文件类型接口
@@ -289,7 +291,7 @@ export async function readFileContent(file: FileType): Promise<string> {
     // 使用文件存储服务读取文件内容
     return await mobileFileStorage.readFile(file.id);
   } catch (error) {
-    console.error('[fileUtils.readFileContent] 读取文件内容失败:', error);
+    logger.error('读取文件内容失败:', error);
 
     // 降级处理：返回文件基本信息
     return `文件: ${file.origin_name || file.name || '未知文件'}\n类型: ${file.type || '未知'}\n大小: ${file.size || 0} bytes`;
@@ -309,7 +311,7 @@ export async function fileToBase64(file: FileType): Promise<string> {
     const result = await mobileFileStorage.getFileBase64(file.id);
     return result.data;
   } catch (error) {
-    console.error('[fileUtils.fileToBase64] 转换文件为Base64失败:', error);
+    logger.error('转换文件为Base64失败:', error);
 
     // 降级处理：返回占位符
     return `data:${getFileMimeType(file)};base64,`;

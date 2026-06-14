@@ -1,4 +1,6 @@
 import type { ThemeStyle } from '../config/themes';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('AppearanceConfig');
 
 /**
  * 外观配置接口
@@ -177,7 +179,7 @@ export function encodeAppearanceConfig(config: AppearanceConfig): string {
     const json = JSON.stringify(config);
     return btoa(encodeURIComponent(json));
   } catch (error) {
-    console.error('编码外观配置失败:', error);
+    logger.error('编码外观配置失败:', error);
     throw new Error('编码外观配置失败');
   }
 }
@@ -190,7 +192,7 @@ export function decodeAppearanceConfig(encoded: string): AppearanceConfig {
     const json = decodeURIComponent(atob(encoded));
     return JSON.parse(json);
   } catch (error) {
-    console.error('解码外观配置失败:', error);
+    logger.error('解码外观配置失败:', error);
     throw new Error('解码外观配置失败，请检查分享码是否正确');
   }
 }
@@ -218,7 +220,7 @@ export function extractShareConfigFromUrl(): AppearanceConfig | null {
     }
     return null;
   } catch (error) {
-    console.error('从 URL 提取分享配置失败:', error);
+    logger.error('从 URL 提取分享配置失败:', error);
     return null;
   }
 }
@@ -265,7 +267,7 @@ export function exportAppearanceConfigToFile(config: AppearanceConfig, filename:
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('导出外观配置失败:', error);
+    logger.error('导出外观配置失败:', error);
     throw new Error('导出外观配置失败');
   }
 }
@@ -308,7 +310,7 @@ export async function exportAppearanceConfigToFolder(config: AppearanceConfig, f
     
     return fullPath;
   } catch (error) {
-    console.error('导出外观配置失败:', error);
+    logger.error('导出外观配置失败:', error);
     throw error;
   }
 }

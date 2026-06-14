@@ -10,6 +10,8 @@ import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { isTauri } from './platformDetection';
 import { getStorageItem } from './storage';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('UniversalFetch');
 
 // ==================== CORS 代理 URL 配置 ====================
 
@@ -29,7 +31,7 @@ export function getCorsProxyUrl(): string {
  */
 export function setCorsProxyUrl(url: string): void {
   _corsProxyBaseUrl = url.replace(/\/$/, ''); // 去除末尾斜杠
-  console.log(`[CorsProxy] 代理 URL 已更新: ${_corsProxyBaseUrl}`);
+  logger.debug(`代理 URL 已更新: ${_corsProxyBaseUrl}`);
 }
 
 /**
@@ -91,10 +93,10 @@ async function getTauriProxyConfig(): Promise<{ url: string; basicAuth?: { usern
       result.basicAuth = { username, password };
     }
 
-    console.log('[Universal Fetch] Tauri 代理配置:', { url: proxyUrl, hasAuth: !!(username && password) });
+    logger.debug('Tauri 代理配置:', { url: proxyUrl, hasAuth: !!(username && password) });
     return result;
   } catch (error) {
-    console.error('[Universal Fetch] 获取 Tauri 代理配置失败:', error);
+    logger.error('获取 Tauri 代理配置失败:', error);
     return undefined;
   }
 }
@@ -124,11 +126,11 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
 
   // Tauri 桌面端使用 Tauri HTTP 插件绕过CORS
   if (isTauri()) {
-    console.log('[Universal Fetch] Tauri 桌面端使用 HTTP 插件:', url);
+    logger.debug('Tauri 桌面端使用 HTTP 插件:', url);
     try {
       return await tauriFetch(url, { ...fetchOptions, timeout });
     } catch (error) {
-      console.error('[Universal Fetch] Tauri HTTP 请求失败:', error);
+      logger.error('Tauri HTTP 请求失败:', error);
       throw error;
     }
   }
@@ -143,7 +145,7 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
     
     // MCP 请求：直接连接（插件 v1.1.2+ 已彻底修复 OkHttp charset 问题）
     if (isMcpRequest) {
-      console.log(`[Universal Fetch] 移动端 MCP 请求直连: ${url}`);
+      logger.debug(`移动端 MCP 请求直连: ${url}`);
       
       // 提取并修复 headers
       const headers = extractHeaders(fetchOptions.headers);
@@ -159,7 +161,7 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
         responseType: 'text' as any
       };
       
-      console.log('[Universal Fetch] MCP 请求详情:', JSON.stringify(requestOptions, null, 2));
+      logger.debug('MCP 请求详情:', JSON.stringify(requestOptions, null, 2));
       
       const response = await CorsBypass.request(requestOptions);
       return createCompatibleResponse(response, url);
@@ -202,7 +204,7 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
               }
             }
             headers = filteredHeaders;
-            console.log('[Universal Fetch] MCP 请求已移除 origin/referer headers');
+            logger.debug('MCP 请求已移除 origin/referer headers');
           }
           
           const requestOptions = {
@@ -215,7 +217,7 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
           };
           
           if (isMcpRequest) {
-            console.log('[Universal Fetch] MCP 请求详情:', JSON.stringify(requestOptions, null, 2));
+            logger.debug('MCP 请求详情:', JSON.stringify(requestOptions, null, 2));
           }
           
           const response = await CorsBypass.request(requestOptions);
@@ -225,20 +227,20 @@ export async function universalFetch(url: string, options: UniversalFetchOptions
           return compatibleResponse;
         }
       } catch (error) {
-        console.error('[Universal Fetch] CorsBypass 请求失败，回退到标准 fetch:', error);
+        logger.error('CorsBypass 请求失败，回退到标准 fetch:', error);
         // 如果 CorsBypass 失败，回退到标准 fetch
         return standardFetch(url, { ...fetchOptions, timeout });
       }
     } else {
       // 默认使用标准 fetch，保持流式输出功能
-      console.log('[Universal Fetch] 移动端使用标准 fetch（保持流式输出）:', url);
+      logger.debug('移动端使用标准 fetch（保持流式输出）:', url);
       return standardFetch(url, { ...fetchOptions, timeout });
     }
   }
 
   // Web端使用标准fetch（可能通过代理）
   const finalUrl = getPlatformUrl(url);
-  console.log('[Universal Fetch] Web端请求:', url, '->', finalUrl);
+  logger.debug('Web端请求:', url, '->', finalUrl);
   return standardFetch(finalUrl, { ...fetchOptions, timeout });
 }
 
@@ -354,29 +356,29 @@ async function tauriFetch(url: string, options: RequestInit & { timeout?: number
     if (!shouldUseProxy) {
       // 本地地址：不设置 proxy 字段，直接连接
       // 注意：不能设置空 URL，会导致 builder error
-      console.log('[Universal Fetch] Tauri HTTP 直连（本地地址）:', url);
+      logger.debug('Tauri HTTP 直连（本地地址）:', url);
     } else if (proxyConfig) {
       // 非本地地址 + 有代理配置：使用配置的代理
       fetchOptions.proxy = {
         all: proxyConfig,
       };
-      console.log('[Universal Fetch] Tauri HTTP 使用代理:', {
+      logger.debug('Tauri HTTP 使用代理:', {
         url: proxyConfig.url,
         hasAuth: !!proxyConfig.basicAuth,
         targetUrl: url
       });
     } else {
       // 非本地地址 + 无代理配置：不设置 proxy，让 reqwest 使用系统代理
-      console.log('[Universal Fetch] Tauri HTTP 直连（无代理配置，可能使用系统代理）:', url);
+      logger.debug('Tauri HTTP 直连（无代理配置，可能使用系统代理）:', url);
     }
     
     // Tauri 的 fetch 函数与标准 fetch 兼容
     const response = await tauriHttpFetch(url, fetchOptions);
     
-    console.log('[Universal Fetch] Tauri HTTP 请求成功:', response.status, response.statusText);
+    logger.debug('Tauri HTTP 请求成功:', response.status, response.statusText);
     return response as UniversalResponse;
   } catch (error) {
-    console.error('[Universal Fetch] Tauri HTTP 请求失败:', error);
+    logger.error('Tauri HTTP 请求失败:', error);
     throw error;
   }
 }
@@ -413,28 +415,28 @@ export function needsCORSProxy(url: string): boolean {
     // 本地地址不需要代理
     const hostname = urlObj.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
-      console.log(`[Universal Fetch] 本地地址，不需要代理: ${url}`);
+      logger.debug(`本地地址，不需要代理: ${url}`);
       return false;
     }
 
     // Tauri 桌面端：使用 HTTP 插件，不需要代理
     if (isTauri()) {
-      console.log(`[Universal Fetch] Tauri 桌面端，不使用代理: ${url}`);
+      logger.debug(`Tauri 桌面端，不使用代理: ${url}`);
       return false;
     }
 
     // 移动端：直接请求，不使用代理（使用CorsBypass插件）
     if (Capacitor.isNativePlatform()) {
-      console.log(`[Universal Fetch] 移动端，不使用代理: ${url}`);
+      logger.debug(`移动端，不使用代理: ${url}`);
       return false;
     }
 
     // Web端：跨域请求需要代理
     const needsProxy = urlObj.origin !== currentOrigin;
-    console.log(`[Universal Fetch] Web端CORS检查: ${url} -> 当前域: ${currentOrigin} -> 需要代理: ${needsProxy}`);
+    logger.debug(`Web端CORS检查: ${url} -> 当前域: ${currentOrigin} -> 需要代理: ${needsProxy}`);
     return needsProxy;
   } catch {
-    console.log(`[Universal Fetch] URL解析失败，不使用代理: ${url}`);
+    logger.debug(`URL解析失败，不使用代理: ${url}`);
     return false;
   }
 }
@@ -470,7 +472,7 @@ export function getFullProxyUrl(originalUrl: string): string {
  * 日志记录函数
  */
 export function logFetchUsage(originalUrl: string, finalUrl: string, method: string = 'GET') {
-  console.log(`[Universal Fetch] ${method} ${originalUrl} -> ${finalUrl}`);
+  logger.debug(`${method} ${originalUrl} -> ${finalUrl}`);
 }
 
 // ==================== 统一 fetch 层（供各 Provider client.ts 使用） ====================
@@ -485,12 +487,12 @@ export function createProxyFetch(): typeof fetch {
 
     if (needsCORSProxy(urlStr)) {
       const proxyUrl = buildCorsProxyRequestUrl(urlStr);
-      console.log(`[ProxyFetch] 使用代理: ${urlStr.substring(0, 50)}...`);
+      logger.debug(`使用代理: ${urlStr.substring(0, 50)}...`);
 
       try {
         return await fetch(proxyUrl, init);
       } catch (error) {
-        console.error(`[ProxyFetch] 代理请求失败:`, error);
+        logger.error(`代理请求失败:`, error);
         throw error;
       }
     }
@@ -512,7 +514,7 @@ export function createPlatformFetch(model: { useCorsPlugin?: boolean }): typeof 
   const isWeb = !isTauriEnv && !isCapacitorNative;
 
   if (isTauriEnv) {
-    console.log(`[PlatformFetch] Tauri 平台：使用 universalFetch`);
+    logger.debug(`Tauri 平台：使用 universalFetch`);
     return async (url: RequestInfo | URL, init?: RequestInit) => {
       return universalFetch(url.toString(), init);
     };
@@ -520,7 +522,7 @@ export function createPlatformFetch(model: { useCorsPlugin?: boolean }): typeof 
 
   if (isCapacitorNative) {
     const fetchMode = model.useCorsPlugin ? 'CorsBypass Plugin' : 'Standard Fetch';
-    console.log(`[PlatformFetch] Capacitor Native 平台：使用 ${fetchMode}`);
+    logger.debug(`Capacitor Native 平台：使用 ${fetchMode}`);
     return async (url: RequestInfo | URL, init?: RequestInit) => {
       const fetchOptions = { ...init, useCorsPlugin: model.useCorsPlugin };
       return universalFetch(url.toString(), fetchOptions);
@@ -528,7 +530,7 @@ export function createPlatformFetch(model: { useCorsPlugin?: boolean }): typeof 
   }
 
   if (isWeb) {
-    console.log(`[PlatformFetch] Web 端：使用 CORS 代理服务器`);
+    logger.debug(`Web 端：使用 CORS 代理服务器`);
     return createProxyFetch();
   }
 
@@ -584,26 +586,26 @@ function serializeRequestBody(body?: BodyInit | null): string | undefined {
   // 处理 FormData
   if (body instanceof FormData) {
     // FormData 需要转换为 JSON 对象或者回退到标准 fetch
-    console.warn('[Universal Fetch] FormData detected, falling back to standard fetch for this request');
+    logger.warn('FormData detected, falling back to standard fetch for this request');
     throw new Error('FormData not supported by CorsBypass, will fallback to standard fetch');
   }
 
   // 处理 Blob
   if (body instanceof Blob) {
-    console.warn('[Universal Fetch] Blob detected, falling back to standard fetch for this request');
+    logger.warn('Blob detected, falling back to standard fetch for this request');
     throw new Error('Blob not supported by CorsBypass, will fallback to standard fetch');
   }
 
   // 处理 ArrayBuffer - 使用Base64编码防止数据损坏
   if (body instanceof ArrayBuffer) {
-    console.warn('[Universal Fetch] ArrayBuffer detected, using Base64 encoding');
+    logger.warn('ArrayBuffer detected, using Base64 encoding');
     const uint8Array = new Uint8Array(body);
     return btoa(String.fromCharCode(...uint8Array));
   }
 
   // 处理 Uint8Array - 使用Base64编码防止数据损坏
   if (body instanceof Uint8Array) {
-    console.warn('[Universal Fetch] Uint8Array detected, using Base64 encoding');
+    logger.warn('Uint8Array detected, using Base64 encoding');
     return btoa(String.fromCharCode(...body));
   }
 
@@ -616,7 +618,7 @@ function serializeRequestBody(body?: BodyInit | null): string | undefined {
   try {
     return String(body);
   } catch (error) {
-    console.warn('[Universal Fetch] Failed to serialize body:', error);
+    logger.warn('Failed to serialize body:', error);
     throw new Error('Unable to serialize request body for CorsBypass');
   }
 }
@@ -628,7 +630,7 @@ function validateResponseType(responseType: string): 'json' | 'text' | 'arraybuf
   // CorsBypass 插件 v2.1.2+ 支持 json, text, arraybuffer, blob
   const supportedTypes = ['json', 'text', 'arraybuffer', 'blob'];
   if (!supportedTypes.includes(responseType)) {
-    console.warn(`[Universal Fetch] 响应类型 '${responseType}' 暂不支持，回退到 'text'`);
+    logger.warn(`响应类型 '${responseType}' 暂不支持，回退到 'text'`);
     return 'text';
   }
   
@@ -678,7 +680,7 @@ export async function testTauriProxyConnection(
       proxyUrl = `http://${proxyConfig.host}:${proxyConfig.port}`;
     }
 
-    console.log(`[Tauri Proxy Test] 测试代理: ${proxyUrl} -> ${testUrl}`);
+    logger.debug(`测试代理: ${proxyUrl} -> ${testUrl}`);
 
     // 构建请求选项
     const fetchOptions: any = {
@@ -701,7 +703,7 @@ export async function testTauriProxyConnection(
     const response = await tauriHttpFetch(testUrl, fetchOptions);
     const responseTime = Date.now() - startTime;
 
-    console.log(`[Tauri Proxy Test] 响应状态: ${response.status}, 耗时: ${responseTime}ms`);
+    logger.debug(`响应状态: ${response.status}, 耗时: ${responseTime}ms`);
 
     if (response.ok || response.status === 200) {
       // 尝试获取外部 IP（如果测试 URL 返回 IP 信息）
@@ -735,7 +737,7 @@ export async function testTauriProxyConnection(
     }
   } catch (error: any) {
     const responseTime = Date.now() - startTime;
-    console.error('[Tauri Proxy Test] 测试失败:', error);
+    logger.error('测试失败:', error);
 
     // 解析错误信息
     let errorMessage = error?.message || '未知错误';
@@ -766,7 +768,7 @@ async function corsPluginStreamFetch(
   options: RequestInit,
   timeout: number
 ): Promise<UniversalResponse> {
-  console.log('[Universal Fetch] 使用 CorsBypass 流式 API:', url);
+  logger.debug('使用 CorsBypass 流式 API:', url);
 
   // 创建一个 ReadableStream 来模拟标准的流式响应
   let streamId: string;
@@ -789,7 +791,7 @@ async function corsPluginStreamFetch(
             }
 
             if (event.done) {
-              console.log('[Universal Fetch] 流式响应完成');
+              logger.debug('流式响应完成');
               controller.close();
               chunkListener.remove();
             }
@@ -798,7 +800,7 @@ async function corsPluginStreamFetch(
 
         const statusListener = await CorsBypass.addListener('streamStatus', (event: any) => {
           if (event.streamId === streamId) {
-            console.log('[Universal Fetch] 流状态变化:', event.status);
+            logger.debug('流状态变化:', event.status);
             
             if (event.status === 'error') {
               const error = new Error(event.error || 'Stream error');
@@ -819,10 +821,10 @@ async function corsPluginStreamFetch(
         });
 
         streamId = result.streamId;
-        console.log('[Universal Fetch] 流式请求已启动，streamId:', streamId);
+        logger.debug('流式请求已启动，streamId:', streamId);
 
       } catch (error) {
-        console.error('[Universal Fetch] 流式请求启动失败:', error);
+        logger.error('流式请求启动失败:', error);
         controller.error(error);
       }
     },
@@ -830,9 +832,9 @@ async function corsPluginStreamFetch(
     cancel() {
       // 取消流时，取消插件的流式请求
       if (streamId) {
-        console.log('[Universal Fetch] 取消流式请求:', streamId);
+        logger.debug('取消流式请求:', streamId);
         CorsBypass.cancelStream({ streamId }).catch((err: any) => {
-          console.error('[Universal Fetch] 取消流失败:', err);
+          logger.error('取消流失败:', err);
         });
       }
     }

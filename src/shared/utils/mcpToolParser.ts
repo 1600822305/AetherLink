@@ -2,6 +2,8 @@ import type { MCPTool, MCPToolResponse, MCPCallToolResponse } from '../types';
 import { ChunkType } from '../types/chunk';
 import { mcpService } from '../services/mcp';
 import { nanoid } from './index';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('McpToolParser');
 // 🚀 导入网络搜索工具
 import { executeWebSearch, formatSearchResultsForAI } from '../services/webSearch';
 // 🔌 导入 MCP 桥梁工具
@@ -73,7 +75,7 @@ export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolRespo
     // 查找对应的 MCP 工具（支持转换后的名称）
     const mcpTool = findMcpToolByName(mcpTools, toolName);
     if (!mcpTool) {
-      console.error(`[MCP] 工具 "${toolName}" 未在 MCP 工具列表中找到`);
+      logger.error(`工具 "${toolName}" 未在 MCP 工具列表中找到`);
       continue;
     }
 
@@ -130,24 +132,24 @@ export function parseToolUse(content: string, mcpTools: MCPTool[]): MCPToolRespo
  */
 export async function callMCPTool(toolResponse: MCPToolResponse): Promise<MCPCallToolResponse> {
   const toolName = toolResponse.tool.name || toolResponse.tool.id;
-  console.log(`[MCP] 调用工具: ${toolResponse.tool.serverName || 'builtin'}.${toolName}`, toolResponse.arguments);
+  logger.debug(`调用工具: ${toolResponse.tool.serverName || 'builtin'}.${toolName}`, toolResponse.arguments);
 
   try {
     // 🔌 检查是否为 MCP 桥梁工具
     if (toolName === MCP_BRIDGE_TOOL_NAME) {
-      console.log(`[McpBridge] 桥梁工具调用:`, toolResponse.arguments);
+      logger.debug(`桥梁工具调用:`, toolResponse.arguments);
       return await executeBridgeToolCall(toolResponse.arguments as Record<string, any>);
     }
 
     // 📖 检查是否为 read_skill 虚拟工具
     if (toolName === READ_SKILL_TOOL_NAME) {
-      console.log(`[ReadSkill] 读取技能:`, toolResponse.arguments);
+      logger.debug(`读取技能:`, toolResponse.arguments);
       return await executeReadSkill(toolResponse.arguments as Record<string, any>);
     }
 
     // 🚀 检查是否为内置网络搜索工具
     if (toolName === 'builtin_web_search') {
-      console.log(`[WebSearch] AI 自主调用网络搜索工具`);
+      logger.debug(`AI 自主调用网络搜索工具`);
       
       // 从工具元数据中获取搜索配置
       const webSearchConfig = (toolResponse.tool as any).webSearchConfig;
@@ -168,7 +170,7 @@ export async function callMCPTool(toolResponse: MCPToolResponse): Promise<MCPCal
       // 格式化结果返回给 AI
       const formattedResult = formatSearchResultsForAI(searchResult);
       
-      console.log(`[WebSearch] 搜索完成，找到 ${searchResult.results?.length || 0} 个结果`);
+      logger.debug(`搜索完成，找到 ${searchResult.results?.length || 0} 个结果`);
       
       // 🚀 返回结果时同时包含原始搜索结果和格式化文本
       return {
@@ -199,10 +201,10 @@ export async function callMCPTool(toolResponse: MCPToolResponse): Promise<MCPCal
       toolResponse.arguments
     );
 
-    console.log(`[MCP] 工具调用成功: ${toolResponse.tool.serverName}.${toolResponse.tool.name}`, response);
+    logger.debug(`工具调用成功: ${toolResponse.tool.serverName}.${toolResponse.tool.name}`, response);
     return response;
   } catch (error) {
-    console.error(`[MCP] 工具调用失败: ${toolResponse.tool.serverName || 'builtin'}.${toolName}`, error);
+    logger.error(`工具调用失败: ${toolResponse.tool.serverName || 'builtin'}.${toolName}`, error);
     return {
       isError: true,
       content: [
@@ -239,7 +241,7 @@ export async function parseAndCallTools(
     return toolResults;
   }
 
-  console.log(`[MCP] 开始调用 ${currentToolResponses.length} 个工具`);
+  logger.debug(`开始调用 ${currentToolResponses.length} 个工具`);
 
   // ⭐ 串行调用工具（参考 Cherry Studio）
   // 确保每个工具的 UI 块创建完成后再处理下一个，避免快速模型导致块顺序混乱
@@ -255,7 +257,7 @@ export async function parseAndCallTools(
         });
       }
 
-      console.log(`[MCP] 调用工具: ${toolResponse.tool.name}`);
+      logger.debug(`调用工具: ${toolResponse.tool.name}`);
 
       // 2. 调用工具
       const result = await callMCPTool(mutableToolResponse);
@@ -276,7 +278,7 @@ export async function parseAndCallTools(
 
       toolResults.push(result);
     } catch (error) {
-      console.error(`[MCP] 工具调用异常:`, error);
+      logger.error(`工具调用异常:`, error);
 
       const errorResult: MCPCallToolResponse = {
         isError: true,
@@ -305,7 +307,7 @@ export async function parseAndCallTools(
     }
   }
 
-  console.log(`[MCP] 所有工具调用完成，结果数量: ${toolResults.length}`);
+  logger.debug(`所有工具调用完成，结果数量: ${toolResults.length}`);
 
   // 注意：不再发送汇总的 MCP_TOOL_COMPLETE 事件
   // 参考项目设计：每个工具完成时已经发送了单独的完成事件（第 210-215 行）

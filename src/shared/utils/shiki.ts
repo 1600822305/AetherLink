@@ -5,6 +5,8 @@
 import type { SpecialLanguage, ThemedToken } from 'shiki/core';
 import { getTokenStyleObject, type HighlighterGeneric } from 'shiki/core';
 import { AsyncInitializer } from './asyncInitializer';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Shiki');
 
 export const DEFAULT_LANGUAGES = ['text', 'javascript', 'typescript', 'python', 'java', 'markdown', 'json', 'html', 'css', 'shell', 'sql'];
 export const DEFAULT_THEMES = ['one-light', 'material-theme-darker', 'github-dark', 'github-light', 'vitesse-dark', 'vitesse-light'];
@@ -70,7 +72,7 @@ export async function loadLanguageIfNeeded(
         }
       }
     } catch (error) {
-      console.warn(`Failed to load language '${language}', falling back to 'text':`, error);
+      logger.warn(`Failed to load language '${language}', falling back to 'text':`, error);
       await highlighter.loadLanguage('text');
       loadedLanguage = 'text';
     }
@@ -97,14 +99,14 @@ export async function loadThemeIfNeeded(highlighter: HighlighterGeneric<any, any
         await highlighter.loadTheme(themeData);
       } else {
         // 回退到 one-light
-        console.warn(`Theme '${theme}' not found, falling back to 'one-light'`);
+        logger.warn(`Theme '${theme}' not found, falling back to 'one-light'`);
         const oneLightTheme = await (shiki as any).bundledThemes['one-light']();
         await highlighter.loadTheme(oneLightTheme);
         loadedTheme = 'one-light';
       }
     } catch (error) {
       // 回退到 one-light
-      console.warn(`Failed to load theme '${theme}', falling back to 'one-light':`, error);
+      logger.warn(`Failed to load theme '${theme}', falling back to 'one-light':`, error);
       const oneLightTheme = await (shiki as any).bundledThemes['one-light']();
       await highlighter.loadTheme(oneLightTheme);
       loadedTheme = 'one-light';

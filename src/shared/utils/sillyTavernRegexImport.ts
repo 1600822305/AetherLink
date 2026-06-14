@@ -2,9 +2,10 @@
  * SillyTavern 正则脚本导入转换器
  * 将 SillyTavern 的正则脚本格式转换为本项目的 AssistantRegex 格式
  */
-
 import { v4 as uuidv4 } from 'uuid';
 import type { AssistantRegex, AssistantRegexScope } from '../types/Assistant';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('SillyTavernRegex');
 
 /**
  * SillyTavern 正则脚本格式
@@ -99,7 +100,7 @@ export function importSillyTavernRegexScripts(jsonContent: string | object): Ass
   for (const script of scripts) {
     // 基本验证
     if (!script.scriptName && !script.findRegex) {
-      console.warn('[importSillyTavernRegexScripts] 跳过无效脚本:', script);
+      logger.warn('跳过无效脚本:', script);
       continue;
     }
     
@@ -108,7 +109,7 @@ export function importSillyTavernRegexScripts(jsonContent: string | object): Ass
       try {
         new RegExp(script.findRegex);
       } catch (error) {
-        console.warn(`[importSillyTavernRegexScripts] 正则表达式无效: ${script.findRegex}`, error);
+        logger.warn(`正则表达式无效: ${script.findRegex}`, error);
         // 仍然导入，让用户手动修复
       }
     }

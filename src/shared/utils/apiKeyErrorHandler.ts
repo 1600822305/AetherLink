@@ -8,6 +8,8 @@ import { EVENT_NAMES } from '../services/infra/EventEmitter';
 import store from '../store';
 import { regenerateResponse } from '../store/thunks/messageThunk';
 import { findModelInProviders } from './modelUtils';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('ApiKeyErrorHandler');
 
 /**
  * 检测是否为 API Key 相关错误
@@ -90,7 +92,7 @@ export async function checkAndHandleApiKeyError(
     return false;
   }
 
-  console.log(`[ApiKeyErrorHandler] 检测到 API Key 错误:`, error);
+  logger.debug('检测到 API Key 错误:', error);
 
   // 获取用户友好的错误消息
   const userMessage = getApiKeyErrorMessage(error);
@@ -118,7 +120,7 @@ export async function checkAndHandleApiKeyError(
  */
 export async function retryApiKeyError(messageId: string, topicId: string): Promise<void> {
   try {
-    console.log(`[ApiKeyErrorHandler] 重试消息: ${messageId}`);
+    logger.debug(`重试消息: ${messageId}`);
 
     // 获取当前状态
     const state = store.getState();
@@ -151,14 +153,14 @@ export async function retryApiKeyError(messageId: string, topicId: string): Prom
 
     if (!currentModel) {
       // 如果找不到当前模型，回退到消息原始模型
-      console.warn(`[ApiKeyErrorHandler] 找不到当前选择的模型 ${currentModelId}，使用消息原始模型`);
+      logger.warn(`找不到当前选择的模型 ${currentModelId}，使用消息原始模型`);
       if (!message.model) {
         throw new Error('找不到消息模型信息');
       }
       currentModel = message.model;
     }
 
-    console.log(`[ApiKeyErrorHandler] 使用模型重试:`, {
+    logger.debug('使用模型重试:', {
       modelId: currentModel.id,
       modelName: currentModel.name,
       provider: currentModel.provider
@@ -173,9 +175,9 @@ export async function retryApiKeyError(messageId: string, topicId: string): Prom
       saveVersion: false  // 重试不需要保存版本
     }) as any);
 
-    console.log(`[ApiKeyErrorHandler] 消息重试成功: ${messageId}`);
+    logger.debug(`消息重试成功: ${messageId}`);
   } catch (error) {
-    console.error(`[ApiKeyErrorHandler] 消息重试失败:`, error);
+    logger.error('消息重试失败:', error);
     throw error;
   }
 }

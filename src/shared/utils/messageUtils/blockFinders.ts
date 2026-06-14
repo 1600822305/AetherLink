@@ -17,6 +17,8 @@ import { MessageBlockType, MessageBlockStatus } from '../../types/newMessage';
 import store from '../../store';
 import { messageBlocksSelectors } from '../../store/slices/messageBlocksSlice';
 import { DEFAULT_HELLO_CONTENT, BLOCK_ID_PREFIXES } from './constants';
+import { createLogger } from '../../services/infra/logger';
+const logger = createLogger('BlockFinders');
 
 /**
  * 通用块查找函数
@@ -39,7 +41,7 @@ function findBlocksByType<T extends MessageBlock>(
         blocks.push(block as T);
       }
     } catch (error) {
-      console.error(`[findBlocksByType] 获取块 ${blockId} 失败:`, error);
+      logger.error(`获取块 ${blockId} 失败:`, error);
     }
   }
 
@@ -65,7 +67,7 @@ export function findMainTextBlocks(message: Message): MainTextMessageBlock[] {
           textBlocks.push(block as MainTextMessageBlock);
         }
       } catch (error) {
-        console.error(`[findMainTextBlocks] 获取块 ${blockId} 失败:`, error);
+        logger.error(`获取块 ${blockId} 失败:`, error);
       }
     }
 
@@ -73,7 +75,7 @@ export function findMainTextBlocks(message: Message): MainTextMessageBlock[] {
     if (textBlocks.length === 0) {
       // 检查消息状态，如果是流式输出状态，不创建默认块
       if (message.status === 'streaming' || message.status === 'processing') {
-        console.log(`[findMainTextBlocks] 消息 ${message.id} 正在流式输出中，跳过创建默认块`);
+        logger.debug(`消息 ${message.id} 正在流式输出中，跳过创建默认块`);
         return [];
       }
 
@@ -81,12 +83,12 @@ export function findMainTextBlocks(message: Message): MainTextMessageBlock[] {
       if (message.role === 'assistant') {
         const messageAge = Date.now() - new Date(message.createdAt).getTime();
         if (messageAge < 5000) { // 5秒内的新消息
-          console.log(`[findMainTextBlocks] 消息 ${message.id} 是新创建的助手消息，跳过创建默认块`);
+          logger.debug(`消息 ${message.id} 是新创建的助手消息，跳过创建默认块`);
           return [];
         }
       }
 
-      console.warn(`[findMainTextBlocks] 消息 ${message.id} 没有主文本块，创建默认块`);
+      logger.warn(`消息 ${message.id} 没有主文本块，创建默认块`);
 
       // 尝试从旧版本的content属性获取内容
       let content = '';
@@ -99,7 +101,7 @@ export function findMainTextBlocks(message: Message): MainTextMessageBlock[] {
         const activeVersion = message.versions.find(v => v.isActive);
         if (activeVersion && activeVersion.metadata && activeVersion.metadata.content) {
           content = activeVersion.metadata.content;
-          console.log(`[findMainTextBlocks] 从版本metadata中获取内容`);
+          logger.debug(`从版本metadata中获取内容`);
         }
       }
 
@@ -118,7 +120,7 @@ export function findMainTextBlocks(message: Message): MainTextMessageBlock[] {
 
     return textBlocks;
   } catch (error) {
-    console.error('[findMainTextBlocks] 查找主文本块失败:', error);
+    logger.error('查找主文本块失败:', error);
 
     // 返回一个默认的主文本块
     return [{

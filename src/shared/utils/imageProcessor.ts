@@ -10,6 +10,8 @@
 
 import type { ImageContent, SiliconFlowImageFormat, FileContent } from '../types';
 import { dexieStorage } from '../services/storage/DexieStorageService';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('ImageProcessor');
 
 /** 图片引用格式的正则表达式 */
 const IMAGE_REF_PATTERN = /\[图片:([a-zA-Z0-9_-]+)\]/;
@@ -42,7 +44,7 @@ async function resolveImageUrl(img: ImageContent): Promise<string> {
           imageUrl = await blobToBase64(blob);
         }
       } catch (error) {
-        console.error('加载图片引用失败:', error);
+        logger.error('加载图片引用失败:', error);
       }
     }
   }

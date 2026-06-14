@@ -3,6 +3,8 @@
  * 提供读取和保存应用设置的工具函数
  */
 import { getStorageItem, setStorageItem } from './storage';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Settings');
 
 // 默认设置配置
 const DEFAULT_SETTINGS = {
@@ -30,7 +32,7 @@ export async function initSettingsCache(): Promise<void> {
     settingsCache = stored || { ...DEFAULT_SETTINGS };
     cacheLoaded = true;
   } catch (error) {
-    console.error('初始化设置缓存失败:', error);
+    logger.error('初始化设置缓存失败:', error);
     settingsCache = { ...DEFAULT_SETTINGS };
     cacheLoaded = true;
   }
@@ -63,9 +65,9 @@ export async function setStreamOutputSetting(enabled: boolean): Promise<void> {
     const appSettings = await getAppSettingsAsync();
     appSettings.streamOutput = enabled;
     await saveAppSettings(appSettings);
-    console.log(`[settingsUtils] 流式输出设置已保存: ${enabled}`);
+    logger.debug(`流式输出设置已保存: ${enabled}`);
   } catch (error) {
-    console.error('保存流式输出设置失败:', error);
+    logger.error('保存流式输出设置失败:', error);
   }
 }
 
@@ -86,9 +88,9 @@ export async function setMessageDividerSetting(enabled: boolean): Promise<void> 
     const appSettings = await getAppSettingsAsync();
     appSettings.showMessageDivider = enabled;
     await saveAppSettings(appSettings);
-    console.log(`[settingsUtils] 消息分割线设置已保存: ${enabled}`);
+    logger.debug(`消息分割线设置已保存: ${enabled}`);
   } catch (error) {
-    console.error('保存消息分割线设置失败:', error);
+    logger.error('保存消息分割线设置失败:', error);
   }
 }
 
@@ -115,7 +117,7 @@ export async function getAppSettingsAsync(): Promise<Record<string, any>> {
       return stored;
     }
   } catch (error) {
-    console.error('读取应用设置失败:', error);
+    logger.error('读取应用设置失败:', error);
   }
   return { ...DEFAULT_SETTINGS };
 }
@@ -128,9 +130,9 @@ export async function saveAppSettings(settings: Record<string, any>): Promise<vo
   try {
     await setStorageItem('appSettings', settings);
     settingsCache = settings; // 更新缓存
-    console.log('[settingsUtils] 应用设置已保存:', settings);
+    logger.debug('应用设置已保存:', settings);
   } catch (error) {
-    console.error('保存应用设置失败:', error);
+    logger.error('保存应用设置失败:', error);
   }
 }
 
@@ -143,7 +145,7 @@ export function getDefaultThinkingEffort(): string {
     const appSettings = getAppSettings();
     return appSettings.defaultThinkingEffort || 'medium';
   } catch (error) {
-    console.error('读取思维链长度设置失败:', error);
+    logger.error('读取思维链长度设置失败:', error);
     return 'medium';
   }
 }
@@ -157,7 +159,7 @@ export function getThinkingBudget(): number {
     const appSettings = getAppSettings();
     return appSettings.thinkingBudget || 1024;
   } catch (error) {
-    console.error('读取思考预算设置失败:', error);
+    logger.error('读取思考预算设置失败:', error);
     return 1024;
   }
 }

@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { approximateTokenSize } from 'tokenx';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('UtilsIndex');
 
 /**
  * 生成UUID - 用于重要实体（话题、助手、消息等）
@@ -131,7 +133,7 @@ export function estimateTokens(text: string): number {
   try {
     return approximateTokenSize(text);
   } catch (error) {
-    console.error('计算token失败:', error);
+    logger.error('计算token失败:', error);
     // 简单估算：英文大概每4个字符一个token，中文每个字符约是一个token
     const chineseCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
     const otherCount = text.length - chineseCount;

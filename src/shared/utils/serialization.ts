@@ -7,6 +7,8 @@
  * 2. 不可序列化的对象：函数、DOM节点、React组件等
  * 3. 特殊对象：如Map、Set、Symbol等
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Serialization');
 
 /**
  * 检查对象是否可以被序列化
@@ -89,7 +91,7 @@ export function safeParse<T>(str: string): T | null {
   try {
     return JSON.parse(str) as T;
   } catch (e) {
-    console.error('解析JSON字符串失败:', e);
+    logger.error('解析JSON字符串失败:', e);
     return null;
   }
 }

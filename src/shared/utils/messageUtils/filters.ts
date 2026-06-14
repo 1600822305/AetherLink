@@ -5,6 +5,8 @@
 import type { Message } from '../../types';
 import { TopicStatsService } from '../../services/topics/TopicStatsService';
 import { getMainTextContent } from '../messageUtils';
+import { createLogger } from '../../services/infra/logger';
+const logger = createLogger('MessageFilters');
 
 /**
  * 按照askId分组消息 - 参考最佳实例实现
@@ -195,7 +197,7 @@ export function filterContextMessages(messages: Message[]): Message[] {
 export function deduplicateTopics<T extends { id: string; title?: string; messages?: any[] }>(topics: T[]): T[] {
   if (!Array.isArray(topics)) return [];
 
-  console.log(`处理前话题数量: ${topics.length}`);
+  logger.debug(`处理前话题数量: ${topics.length}`);
 
   // 使用统一的话题验证服务过滤有效话题
   const validTopics = TopicStatsService.getValidTopics(topics as any[]) as unknown as T[];
@@ -220,7 +222,7 @@ export function deduplicateTopics<T extends { id: string; title?: string; messag
   });
 
   const result = Array.from(uniqueTopicsMap.values());
-  console.log(`处理后话题数量: ${result.length}`);
+  logger.debug(`处理后话题数量: ${result.length}`);
 
   return result;
 }

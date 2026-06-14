@@ -5,6 +5,8 @@
 
 import { Haptics as CapacitorHaptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('Haptic');
 
 /**
  * 触觉反馈类型
@@ -62,7 +64,7 @@ class HapticFeedback {
     try {
       // Capacitor 环境（优先） - 支持 iOS 和 Android
       if (Capacitor.isNativePlatform()) {
-        console.log('🎵 [Haptic] Capacitor 原生平台，使用 Haptics API');
+        logger.debug('🎵 Capacitor 原生平台，使用 Haptics API');
         
         // 将振动模式映射到 Capacitor 的触觉样式
         if (typeof pattern === 'number') {
@@ -82,13 +84,13 @@ class HapticFeedback {
 
       // Web 环境 - 降级到 Vibration API
       if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
-        console.log('🎵 [Haptic] Web 环境，使用 Vibration API');
+        logger.debug('🎵 Web 环境，使用 Vibration API');
         navigator.vibrate(pattern);
       } else {
-        console.log('🎵 [Haptic] 不支持触觉反馈');
+        logger.debug('🎵 不支持触觉反馈');
       }
     } catch (error) {
-      console.debug('🎵 [Haptic] 触觉反馈失败:', error);
+      logger.debug('🎵 触觉反馈失败:', error);
     }
   }
 
@@ -96,7 +98,7 @@ class HapticFeedback {
    * 轻触反馈 - 用于小型UI交互（如按钮点击）
    */
   public async light(): Promise<void> {
-    console.log('🎵 [Haptic] 触发 light 反馈');
+    logger.debug('🎵 触发 light 反馈');
     await this.vibrate(10);
   }
 
@@ -104,7 +106,7 @@ class HapticFeedback {
    * 中等反馈 - 用于抽屉打开/关闭、开关切换等
    */
   public async medium(): Promise<void> {
-    console.log('🎵 [Haptic] 触发 medium 反馈');
+    logger.debug('🎵 触发 medium 反馈');
     await this.vibrate(20);
   }
 
@@ -112,7 +114,7 @@ class HapticFeedback {
    * 柔和反馈 - 用于列表项点击
    */
   public async soft(): Promise<void> {
-    console.log('🎵 [Haptic] 触发 soft 反馈');
+    logger.debug('🎵 触发 soft 反馈');
     await this.vibrate(15);
   }
 
@@ -120,7 +122,7 @@ class HapticFeedback {
    * 抽屉专用脉冲 - 为侧边栏/抽屉操作定制，感觉明显但不刺耳
    */
   public async drawerPulse(): Promise<void> {
-    console.log('🎵 [Haptic] 触发 drawerPulse 反馈');
+    logger.debug('🎵 触发 drawerPulse 反馈');
     // 使用短促的振动模式，模仿 iOS 的触觉反馈
     await this.vibrate(15);
   }
@@ -159,7 +161,7 @@ class HapticFeedback {
         navigator.vibrate(0);
       }
     } catch (error) {
-      console.debug('Cannot cancel vibration:', error);
+      logger.debug('Cannot cancel vibration:', error);
     }
   }
 }

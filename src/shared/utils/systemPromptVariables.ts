@@ -2,6 +2,8 @@
  * 系统提示词变量处理工具
  * 用于在系统提示词中注入动态变量
  */
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('SystemPromptVariables');
 
 export interface SystemPromptVariableConfig {
   enableTimeVariable?: boolean;
@@ -117,7 +119,7 @@ export const getLocationString = (customLocation?: string): string => {
 
     return timeZoneToLocation[timeZone] || timeZone;
   } catch (error) {
-    console.warn('无法获取位置信息:', error);
+    logger.warn('无法获取位置信息:', error);
     return '未知位置';
   }
 };

@@ -10,6 +10,8 @@
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { isTauri } from './platformDetection';
+import { createLogger } from '../services/infra/logger';
+const logger = createLogger('GlobalFetchProxy');
 
 // 保存原始 fetch 引用
 const originalFetch = globalThis.fetch;
@@ -97,7 +99,7 @@ async function createProxiedMobileFetch(
   try {
     const urlObj = new URL(url);
     if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
-      console.log('[Global Fetch Proxy] 移动端本地请求，使用原始 fetch:', url);
+      logger.debug('移动端本地请求，使用原始 fetch:', url);
       return originalFetch(input, init);
     }
   } catch {
@@ -108,7 +110,7 @@ async function createProxiedMobileFetch(
   // 移动端原生应用不受 CORS 限制，可以直接请求 Gemini API
   // 这样可以保持 Gemini SDK 的流式响应正常工作
   if (isGeminiApiRequest(url)) {
-    console.log('[Global Fetch Proxy] 移动端 Gemini API 请求，使用原始 fetch:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
+    logger.debug('移动端 Gemini API 请求，使用原始 fetch:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
     return originalFetch(input, init);
   }
 
@@ -117,13 +119,13 @@ async function createProxiedMobileFetch(
   
   // 流式请求使用原生 fetch（移动端不受 CORS 限制）
   if (isStreaming) {
-    console.log('[Global Fetch Proxy] 移动端流式请求，使用原始 fetch:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
+    logger.debug('移动端流式请求，使用原始 fetch:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
     return originalFetch(input, init);
   }
 
   // 非流式请求使用 CorsBypass（提供更好的错误处理和超时控制）
   try {
-    console.log('[Global Fetch Proxy] 移动端非流式请求，使用 CorsBypass:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
+    logger.debug('移动端非流式请求，使用 CorsBypass:', url.substring(0, 80) + (url.length > 80 ? '...' : ''));
     
     const response = await CorsBypass.request({
       url,
@@ -145,7 +147,7 @@ async function createProxiedMobileFetch(
     );
     
   } catch (error) {
-    console.error('[Global Fetch Proxy] 移动端非流式请求失败，回退到原始 fetch:', error);
+    logger.error('移动端非流式请求失败，回退到原始 fetch:', error);
     return originalFetch(input, init);
   }
 }
@@ -159,20 +161,20 @@ async function createProxiedMobileFetch(
  */
 export function initGlobalFetchProxy(): void {
   if (isInitialized) {
-    console.log('[Global Fetch Proxy] 已初始化，跳过');
+    logger.debug('已初始化，跳过');
     return;
   }
 
   // Tauri 桌面端：不拦截，Tauri 本身没有 CORS 限制，直接使用原生 fetch
   if (isTauri()) {
-    console.log('[Global Fetch Proxy] Tauri 桌面端，无需拦截（无 CORS 限制）');
+    logger.debug('Tauri 桌面端，无需拦截（无 CORS 限制）');
     isInitialized = true;
     return;
   }
 
   // Capacitor 移动端
   if (Capacitor.isNativePlatform()) {
-    console.log('[Global Fetch Proxy] 初始化移动端全局 fetch 代理...');
+    logger.debug('初始化移动端全局 fetch 代理...');
 
     globalThis.fetch = async function proxiedFetch(
       input: RequestInfo | URL,
@@ -182,12 +184,12 @@ export function initGlobalFetchProxy(): void {
     };
 
     isInitialized = true;
-    console.log('[Global Fetch Proxy] 移动端全局 fetch 代理初始化完成');
+    logger.debug('移动端全局 fetch 代理初始化完成');
     return;
   }
 
   // 普通 Web 环境
-  console.log('[Global Fetch Proxy] Web 环境，跳过初始化');
+  logger.debug('Web 环境，跳过初始化');
   isInitialized = true;
 }
 
@@ -197,7 +199,7 @@ export function initGlobalFetchProxy(): void {
 export function restoreOriginalFetch(): void {
   globalThis.fetch = originalFetch;
   isInitialized = false;
-  console.log('[Global Fetch Proxy] 已恢复原始 fetch');
+  logger.debug('已恢复原始 fetch');
 }
 
 /**
