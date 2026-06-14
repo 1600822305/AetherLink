@@ -6,6 +6,8 @@ import { upsertOneBlock } from '../../store/slices/messageBlocksSlice';
 import { MessageBlockType, MessageBlockStatus } from '../../types/newMessage';
 import type { MessageBlock } from '../../types/newMessage';
 import type { AppDispatch } from '../../store';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('MessageBlockCreator');
 
 /**
  * MessageBlockCreator 依赖接口
@@ -73,7 +75,7 @@ export class MessageBlockCreator {
       status: MessageBlockStatus.PENDING
     } as MessageBlock;
 
-    console.log(`[MessageBlockCreator] 创建主文本块 - ID: ${blockId}, 消息ID: ${messageId}`);
+    logger.debug(`创建主文本块 - ID: ${blockId}, 消息ID: ${messageId}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -103,7 +105,7 @@ export class MessageBlockCreator {
       status: MessageBlockStatus.PENDING
     } as MessageBlock;
 
-    console.log(`[MessageBlockCreator] 创建思考过程块 - ID: ${blockId}, 消息ID: ${messageId}`);
+    logger.debug(`创建思考过程块 - ID: ${blockId}, 消息ID: ${messageId}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -134,7 +136,7 @@ export class MessageBlockCreator {
       status: MessageBlockStatus.ERROR
     } as MessageBlock;
 
-    console.log(`[MessageBlockCreator] 创建错误块 - ID: ${blockId}, 消息ID: ${messageId}, 错误: ${errorMessage}`);
+    logger.debug(`创建错误块 - ID: ${blockId}, 消息ID: ${messageId}, 错误: ${errorMessage}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -167,7 +169,7 @@ export class MessageBlockCreator {
       status: MessageBlockStatus.SUCCESS
     } as MessageBlock;
 
-    console.log(`[MessageBlockCreator] 创建代码块 - ID: ${blockId}, 消息ID: ${messageId}, 语言: ${language || 'text'}`);
+    logger.debug(`创建代码块 - ID: ${blockId}, 消息ID: ${messageId}, 语言: ${language || 'text'}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));
@@ -214,7 +216,7 @@ export class MessageBlockCreator {
       status: MessageBlockStatus.SUCCESS
     } as MessageBlock;
 
-    console.log(`[MessageBlockCreator] 创建视频块 - ID: ${blockId}, 消息ID: ${messageId}, 类型: ${videoData.mimeType}`);
+    logger.debug(`创建视频块 - ID: ${blockId}, 消息ID: ${messageId}, 类型: ${videoData.mimeType}`);
 
     // 添加到Redux
     this.deps.dispatch(upsertOneBlock(block));

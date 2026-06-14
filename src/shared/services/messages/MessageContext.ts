@@ -1,5 +1,7 @@
 import { applyContextLimits, getContextSettings } from './messageService';
 import { dexieStorage } from '../storage/DexieStorageService';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('MessageContext');
 
 /**
  * 消息上下文管理模块
@@ -27,7 +29,7 @@ export const MessageContext = {
       contextSettings.maxOutputTokens
     );
 
-    console.log(`[MessageContext] 准备消息上下文 - 主题ID: ${topicId}, 原始消息数: ${messages.length}, 限制后: ${limitedMessages.length}`);
+    logger.debug(`准备消息上下文 - 主题ID: ${topicId}, 原始消息数: ${messages.length}, 限制后: ${limitedMessages.length}`);
 
     return {
       messages: limitedMessages,

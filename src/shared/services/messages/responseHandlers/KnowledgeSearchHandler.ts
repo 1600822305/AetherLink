@@ -1,6 +1,8 @@
 import { createCitationBlock } from '../../../utils/messageUtils';
 import type { KnowledgeReferenceItem } from '../../../types/newMessage';
 import { messageBlockRepository } from '../MessageBlockRepository';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('KnowledgeSearchHandler');
 
 /**
  * 知识库搜索处理器 - 处理知识库搜索相关的逻辑
@@ -28,7 +30,7 @@ export class KnowledgeSearchHandler {
     references: any[];
   }) {
     try {
-      console.log(`[KnowledgeSearchHandler] 处理知识库搜索完成，创建统一引用块，包含 ${data.searchResults.length} 个结果`);
+      logger.debug(`处理知识库搜索完成，创建统一引用块，包含 ${data.searchResults.length} 个结果`);
 
       // 将搜索结果转换为统一的 KnowledgeReferenceItem 格式
       const knowledgeItems: KnowledgeReferenceItem[] = data.references.map((ref, index) => ({
@@ -49,17 +51,17 @@ export class KnowledgeSearchHandler {
         knowledgeBaseNames: data.knowledgeBaseNames || (data.knowledgeBaseName ? [data.knowledgeBaseName] : []),
       });
 
-      console.log(`[KnowledgeSearchHandler] 创建统一引用块: ${citationBlock.id}`);
+      logger.debug(`创建统一引用块: ${citationBlock.id}`);
 
       await messageBlockRepository.createBlockAndAttach(citationBlock, {
         position: { type: 'prepend' }
       });
-      console.log(`[KnowledgeSearchHandler] 统一引用块已添加到消息顶部: ${citationBlock.id}`);
+      logger.debug(`统一引用块已添加到消息顶部: ${citationBlock.id}`);
 
-      console.log(`[KnowledgeSearchHandler] 统一引用块创建完成，包含 ${knowledgeItems.length} 条知识库引用`);
+      logger.debug(`统一引用块创建完成，包含 ${knowledgeItems.length} 条知识库引用`);
 
     } catch (error) {
-      console.error(`[KnowledgeSearchHandler] 处理知识库搜索完成事件失败:`, error);
+      logger.error(`处理知识库搜索完成事件失败:`, error);
     }
   }
 }

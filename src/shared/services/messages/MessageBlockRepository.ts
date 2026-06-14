@@ -8,6 +8,8 @@ import {
   isTerminalBlockStatus
 } from '../../types/newMessage';
 import type { Message, MessageBlock, ThinkingMessageBlock } from '../../types/newMessage';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('MessageBlockRepository');
 
 export type BlockAttachPosition =
   | { type: 'append' }
@@ -157,7 +159,7 @@ export class MessageBlockRepository {
     }
 
     if (finalized > 0) {
-      console.log(`[MessageBlockRepository] 收尾非终态块 ${finalized} 个 - 消息ID: ${messageId}`);
+      logger.debug(`收尾非终态块 ${finalized} 个 - 消息ID: ${messageId}`);
     }
 
     return finalized;

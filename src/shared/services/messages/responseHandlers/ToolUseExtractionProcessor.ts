@@ -11,6 +11,8 @@ import { ToolTagExtractor } from '../../../utils/tagExtraction';
 import type { ToolTagExtractionResult } from '../../../utils/tagExtraction';
 import type { MCPToolResponse, TextDeltaChunk, Chunk } from '../../../types/chunk';
 import { ChunkType } from '../../../types/chunk';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ToolUseExtractionProcessor');
 
 /**
  * 处理结果类型
@@ -40,7 +42,7 @@ export class ToolUseExtractionProcessor {
    */
   constructor(toolNames: string[] = []) {
     this.tagExtractor = new ToolTagExtractor(toolNames);
-    console.log(`[ToolUseExtractionProcessor] 初始化，工具数量: ${toolNames.length}`);
+    logger.debug(`初始化，工具数量: ${toolNames.length}`);
   }
 
   /**
@@ -78,7 +80,7 @@ export class ToolUseExtractionProcessor {
       if (toolResponses.length > 0) {
         this.toolUseCount += toolResponses.length;
 
-        console.log(`[ToolUseExtractionProcessor] 检测到工具调用，格式: ${result.format}, 数量: ${toolResponses.length}`);
+        logger.debug(`检测到工具调用，格式: ${result.format}, 数量: ${toolResponses.length}`);
 
         return {
           type: 'tool_created',
@@ -127,7 +129,7 @@ export class ToolUseExtractionProcessor {
         }
       }
     } catch (error) {
-      console.error(`[ToolUseExtractionProcessor] 解析工具内容失败:`, error);
+      logger.error(`解析工具内容失败:`, error);
     }
 
     return responses;
@@ -141,7 +143,7 @@ export class ToolUseExtractionProcessor {
       // 提取 <name> 标签内容
       const nameMatch = content.match(/<name>\s*([\s\S]*?)\s*<\/name>/);
       if (!nameMatch) {
-        console.warn(`[ToolUseExtractionProcessor] tool_use 格式缺少 <name> 标签`);
+        logger.warn(`tool_use 格式缺少 <name> 标签`);
         return null;
       }
       const name = nameMatch[1].trim();
@@ -172,7 +174,7 @@ export class ToolUseExtractionProcessor {
         toolCallId: id
       };
     } catch (error) {
-      console.error(`[ToolUseExtractionProcessor] 解析 tool_use 格式失败:`, error);
+      logger.error(`解析 tool_use 格式失败:`, error);
       return null;
     }
   }
@@ -206,7 +208,7 @@ export class ToolUseExtractionProcessor {
         toolCallId: id
       };
     } catch (error) {
-      console.error(`[ToolUseExtractionProcessor] 解析直接格式失败:`, error);
+      logger.error(`解析直接格式失败:`, error);
       return null;
     }
   }

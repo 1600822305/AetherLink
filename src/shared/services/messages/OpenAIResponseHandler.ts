@@ -7,6 +7,8 @@ import type { Chunk } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
 import { MessageBlockType, MessageBlockStatus } from '../../types/newMessage';
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('OpenAIResponseHandler');
 
 /**
  * OpenAI Responses API 响应处理器配置类型
@@ -78,10 +80,10 @@ export class OpenAIResponseHandler {
           break;
 
         default:
-          console.log(`[OpenAIResponseHandler] 未处理的块类型: ${chunk.type}`);
+          logger.debug(`未处理的块类型: ${chunk.type}`);
       }
     } catch (error) {
-      console.error('[OpenAIResponseHandler] 处理响应块失败:', error);
+      logger.error('处理响应块失败:', error);
       this.handleError({
         type: ChunkType.ERROR,
         error: {

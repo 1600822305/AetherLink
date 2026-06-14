@@ -9,13 +9,15 @@ import { getMainTextContent, createMessage } from '../../utils/messageUtils';
 import { ApiProviderRegistry } from './ApiProvider';
 import store from '../../store';
 import { modelMatchesIdentity, parseModelIdentityKey } from '../../utils/modelUtils';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('ModelComboProvider');
 
 export class ModelComboProvider {
   private model: Model;
 
   constructor(model: Model) {
     this.model = model;
-    console.log(`[ModelComboProvider] 初始化模型组合提供商: ${model.id}`);
+    logger.debug(`初始化模型组合提供商: ${model.id}`);
   }
 
   /**
@@ -38,7 +40,7 @@ export class ModelComboProvider {
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
     try {
-      console.log(`[ModelComboProvider] 开始处理模型组合请求: ${this.model.id}`);
+      logger.debug(`开始处理模型组合请求: ${this.model.id}`);
 
       // 从模型配置中获取组合配置
       const comboConfig = (this.model as any).comboConfig;
@@ -46,8 +48,8 @@ export class ModelComboProvider {
         throw new Error(`模型组合 ${this.model.id} 的配置信息不存在`);
       }
 
-      console.log(`[ModelComboProvider] 传递完整消息历史，消息数量: ${messages.length}`);
-      console.log(`[ModelComboProvider] 组合策略: ${comboConfig.strategy}`);
+      logger.debug(`传递完整消息历史，消息数量: ${messages.length}`);
+      logger.debug(`组合策略: ${comboConfig.strategy}`);
 
       // 根据策略选择执行方法
       if (comboConfig.strategy === 'comparison') {
@@ -57,7 +59,7 @@ export class ModelComboProvider {
         return await this.executeComboWithStreaming(comboConfig, messages, options);
       }
     } catch (error) {
-      console.error('[ModelComboProvider] 模型组合请求失败:', error);
+      logger.error('模型组合请求失败:', error);
       throw new Error(`模型组合执行失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -74,12 +76,12 @@ export class ModelComboProvider {
     }
   ): Promise<{ content: string; reasoning?: string; reasoningTime?: number; comboResult?: any }> {
     const startTime = Date.now();
-    console.log(`[ModelComboProvider] 执行对比策略，模型数量: ${comboConfig.models.length}`);
+    logger.debug(`执行对比策略，模型数量: ${comboConfig.models.length}`);
 
     // 并行调用所有模型
     const promises = comboConfig.models.map(async (modelConfig: any) => {
       try {
-        console.log(`[ModelComboProvider] 调用模型: ${modelConfig.modelId}`);
+        logger.debug(`调用模型: ${modelConfig.modelId}`);
 
         const model = await this.getModelById(modelConfig.modelId);
         if (!model) {
@@ -113,7 +115,7 @@ export class ModelComboProvider {
           status: 'success' as const
         };
       } catch (error) {
-        console.error(`[ModelComboProvider] 模型 ${modelConfig.modelId} 调用失败:`, error);
+        logger.error(`模型 ${modelConfig.modelId} 调用失败:`, error);
         return {
           modelId: modelConfig.modelId,
           role: modelConfig.role || 'assistant',
@@ -155,7 +157,7 @@ export class ModelComboProvider {
       }
     };
 
-    console.log(`[ModelComboProvider] 对比策略完成，成功模型: ${successResults.length}/${results.length}`);
+    logger.debug(`对比策略完成，成功模型: ${successResults.length}/${results.length}`);
 
     // 通过 onChunk 发送对比结果
     if (options?.onChunk) {
@@ -204,7 +206,7 @@ export class ModelComboProvider {
 
     try {
       // 第一阶段：调用推理模型，实时显示推理过程
-      console.log(`[ModelComboProvider] 第一阶段：调用推理模型 ${thinkingModel.modelId}`);
+      logger.debug(`第一阶段：调用推理模型 ${thinkingModel.modelId}`);
 
       const thinkingMessages: Message[] = messages;
 
@@ -226,7 +228,7 @@ export class ModelComboProvider {
           if (hasResolved) return;
           hasResolved = true;
           const fullReasoning = reasoningContent.join('');
-          console.log(`[ModelComboProvider] 推理完成 (来源: ${source})，总长度: ${fullReasoning.length}`);
+          logger.debug(`推理完成 (来源: ${source})，总长度: ${fullReasoning.length}`);
           resolve(fullReasoning);
         };
 
@@ -246,7 +248,7 @@ export class ModelComboProvider {
             // 处理推理完成 - 立即 resolve
             if (chunk.type === ChunkType.THINKING_COMPLETE) {
               reasoningComplete = true;
-              console.log(`[ModelComboProvider] 收到 THINKING_COMPLETE`);
+              logger.debug(`收到 THINKING_COMPLETE`);
               // 转发推理完成事件
               if (options?.onChunk) {
                 options.onChunk(chunk);
@@ -271,10 +273,10 @@ export class ModelComboProvider {
       const thinkingResponse = await reasoningPromise;
       accumulatedReasoning = thinkingResponse;
 
-      console.log(`[ModelComboProvider] 推理阶段完成，推理内容长度: ${accumulatedReasoning.length}`);
+      logger.debug(`推理阶段完成，推理内容长度: ${accumulatedReasoning.length}`);
 
       // 第二阶段：调用生成模型，基于推理结果生成答案
-      console.log(`[ModelComboProvider] 第二阶段：调用生成模型 ${generatingModel.modelId}`);
+      logger.debug(`第二阶段：调用生成模型 ${generatingModel.modelId}`);
 
       // 按照参考项目逻辑：直接复制完整消息历史并修改最后一个用户消息
       const generatingMessages: Message[] = JSON.parse(JSON.stringify(messages)); // 深拷贝
@@ -293,15 +295,15 @@ ${accumulatedReasoning}
       for (let i = generatingMessages.length - 1; i >= 0; i--) {
         if (generatingMessages[i].role === 'user') {
           const originalContent = getMainTextContent(generatingMessages[i]);
-          console.log(`[ModelComboProvider] 找到最后一个用户消息，原始内容: ${originalContent.substring(0, 50)}...`);
+          logger.debug(`找到最后一个用户消息，原始内容: ${originalContent.substring(0, 50)}...`);
 
           const fixedContent = `这是我的原始输入：
 ${originalContent}
 
 ${combinedContent}`;
 
-          console.log(`[ModelComboProvider] 修改后的内容长度: ${fixedContent.length}`);
-          console.log(`[ModelComboProvider] 修改后的内容预览: ${fixedContent.substring(0, 200)}...`);
+          logger.debug(`修改后的内容长度: ${fixedContent.length}`);
+          logger.debug(`修改后的内容预览: ${fixedContent.substring(0, 200)}...`);
 
           // 创建新的消息来替换最后一个用户消息
           const { message: modifiedMessage } = createMessage({
@@ -317,18 +319,18 @@ ${combinedContent}`;
           // 替换最后一个用户消息
           generatingMessages[i] = modifiedMessage;
           lastUserMessageFound = true;
-          console.log(`[ModelComboProvider] 已替换索引 ${i} 的用户消息`);
+          logger.debug(`已替换索引 ${i} 的用户消息`);
           break;
         }
       }
 
       if (!lastUserMessageFound) {
-        console.error(`[ModelComboProvider] 警告：没有找到用户消息进行修改`);
+        logger.error(`警告：没有找到用户消息进行修改`);
       }
 
-      console.log(`[ModelComboProvider] 最终消息数组长度: ${generatingMessages.length}`);
-      console.log(`[ModelComboProvider] 最后一个消息角色: ${generatingMessages[generatingMessages.length - 1]?.role}`);
-      console.log(`[ModelComboProvider] 最后一个消息内容预览: ${getMainTextContent(generatingMessages[generatingMessages.length - 1] || {} as any).substring(0, 100)}...`);
+      logger.debug(`最终消息数组长度: ${generatingMessages.length}`);
+      logger.debug(`最后一个消息角色: ${generatingMessages[generatingMessages.length - 1]?.role}`);
+      logger.debug(`最后一个消息内容预览: ${getMainTextContent(generatingMessages[generatingMessages.length - 1] || {} as any).substring(0, 100)}...`);
 
       // 获取生成模型配置并调用
       const generatingModelConfig = await this.getModelById(generatingModel.modelId);
@@ -339,10 +341,10 @@ ${combinedContent}`;
       const generatingProvider = ApiProviderRegistry.get(generatingModelConfig);
 
       // 调试：打印即将传递给生成模型的消息
-      console.log(`[ModelComboProvider] 即将传递给生成模型的消息数量: ${generatingMessages.length}`);
+      logger.debug(`即将传递给生成模型的消息数量: ${generatingMessages.length}`);
       generatingMessages.forEach((msg, index) => {
         const content = getMainTextContent(msg);
-        console.log(`[ModelComboProvider] 消息 ${index}: 角色=${msg.role}, 内容长度=${content.length}, 内容预览=${content.substring(0, 100)}...`);
+        logger.debug(`消息 ${index}: 角色=${msg.role}, 内容长度=${content.length}, 内容预览=${content.substring(0, 100)}...`);
       });
 
       // 调用生成模型，通过 onChunk 实时显示生成内容
@@ -372,7 +374,7 @@ ${combinedContent}`;
       });
 
       // Provider API 直接返回内容，不需要检查 success 字段
-      console.log(`[ModelComboProvider] 生成模型调用完成，响应类型:`, typeof generatingResponse);
+      logger.debug(`生成模型调用完成，响应类型:`, typeof generatingResponse);
 
       // 如果没有通过流式获取到最终内容，使用响应内容
       if (!finalContent && typeof generatingResponse === 'object' && generatingResponse.content) {
@@ -384,7 +386,7 @@ ${combinedContent}`;
         finalContent = generatingResponse;
       }
 
-      console.log(`[ModelComboProvider] 生成阶段完成，最终内容长度: ${finalContent.length}`);
+      logger.debug(`生成阶段完成，最终内容长度: ${finalContent.length}`);
 
       // 返回完整结果
       return {
@@ -394,7 +396,7 @@ ${combinedContent}`;
       };
 
     } catch (error) {
-      console.error('[ModelComboProvider] 流式执行失败:', error);
+      logger.error('流式执行失败:', error);
       throw error;
     }
   }
@@ -405,25 +407,25 @@ ${combinedContent}`;
    */
   async testConnection(): Promise<boolean> {
     try {
-      console.log(`[ModelComboProvider] 测试模型组合连接: ${this.model.id}`);
+      logger.debug(`测试模型组合连接: ${this.model.id}`);
 
       // 对于模型组合，我们检查组合配置是否存在
       const comboConfig = (this.model as any).comboConfig;
       if (!comboConfig) {
-        console.error(`[ModelComboProvider] 模型组合配置不存在: ${this.model.id}`);
+        logger.error(`模型组合配置不存在: ${this.model.id}`);
         return false;
       }
 
       // 检查组合中是否有模型
       if (!comboConfig.models || comboConfig.models.length === 0) {
-        console.error(`[ModelComboProvider] 模型组合中没有配置任何模型: ${this.model.id}`);
+        logger.error(`模型组合中没有配置任何模型: ${this.model.id}`);
         return false;
       }
 
-      console.log(`[ModelComboProvider] 模型组合连接测试通过: ${this.model.id}`);
+      logger.debug(`模型组合连接测试通过: ${this.model.id}`);
       return true;
     } catch (error) {
-      console.error(`[ModelComboProvider] 模型组合连接测试失败:`, error);
+      logger.error(`模型组合连接测试失败:`, error);
       return false;
     }
   }
@@ -448,7 +450,7 @@ ${combinedContent}`;
       const identity = parseModelIdentityKey(modelId);
 
       if (!identity) {
-        console.warn(`[ModelComboProvider] 无法解析模型标识: ${modelId}`);
+        logger.warn(`无法解析模型标识: ${modelId}`);
         return null;
       }
 
@@ -469,10 +471,10 @@ ${combinedContent}`;
         }
       }
 
-      console.warn(`[ModelComboProvider] 未找到模型: ${modelId}`);
+      logger.warn(`未找到模型: ${modelId}`);
       return null;
     } catch (error) {
-      console.error('[ModelComboProvider] 获取模型失败:', error);
+      logger.error('获取模型失败:', error);
       return null;
     }
   }

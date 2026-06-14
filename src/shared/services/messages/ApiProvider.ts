@@ -10,6 +10,8 @@ import { ModelComboProvider } from './ModelComboProvider';
 import { EnhancedApiProvider } from '../network/EnhancedApiProvider';
 import { OpenAIResponseProvider } from '../../providers/OpenAIResponseProvider';
 import store from '../../store';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('ApiProvider');
 
 /**
  * 获取模型对应的供应商配置
@@ -27,7 +29,7 @@ function getProviderConfig(model: Model): ModelProvider | null {
     const provider = providers.find((p: ModelProvider) => p.id === model.provider);
     return provider || null;
   } catch (error) {
-    console.error('[ApiProvider] 获取供应商配置失败:', error);
+    logger.error('获取供应商配置失败:', error);
     return null;
   }
 }
@@ -62,11 +64,11 @@ function createProviderInstance(model: Model, providerType: string): any {
 function createEnhancedProvider(model: Model, providerConfig: ModelProvider | null, providerType: string) {
   // 如果没有多 Key 配置，创建单 Key 的 Provider
   if (!providerConfig?.apiKeys || providerConfig.apiKeys.length === 0) {
-    console.log(`[ApiProvider] 📝 单 Key 模式，直接创建 Provider`);
+    logger.debug(`📝 单 Key 模式，直接创建 Provider`);
     return createProviderInstance(model, providerType);
   }
 
-  console.log(`[ApiProvider] 🚀 多 Key 模式，支持 ${providerConfig.apiKeys.length} 个 Key，策略: ${providerConfig.keyManagement?.strategy || 'round_robin'}`);
+  logger.debug(`🚀 多 Key 模式，支持 ${providerConfig.apiKeys.length} 个 Key，策略: ${providerConfig.keyManagement?.strategy || 'round_robin'}`);
 
   const enhancedApiProvider = new EnhancedApiProvider();
 
@@ -83,11 +85,11 @@ function createEnhancedProvider(model: Model, providerConfig: ModelProvider | nu
         
         if (!selectedKey) {
           lastError = '没有可用的 API Key';
-          console.error(`[ApiProvider] ❌ ${lastError}`);
+          logger.error(`❌ ${lastError}`);
           break;
         }
 
-        console.log(`[ApiProvider] 🔑 [第${attempt + 1}次尝试] 使用 Key: ${selectedKey.name || selectedKey.id.substring(0, 8)}`);
+        logger.debug(`🔑 [第${attempt + 1}次尝试] 使用 Key: ${selectedKey.name || selectedKey.id.substring(0, 8)}`);
 
         try {
           // 🔧 每次请求时动态创建 Provider，使用当前选中的 Key
@@ -101,17 +103,17 @@ function createEnhancedProvider(model: Model, providerConfig: ModelProvider | nu
           // 🔧 直接调用并返回，让流式回调能实时工作
           const result = await provider.sendChatMessage(messages, options);
           
-          console.log(`[ApiProvider] ✅ Key ${selectedKey.name || selectedKey.id.substring(0, 8)} 调用成功`);
+          logger.debug(`✅ Key ${selectedKey.name || selectedKey.id.substring(0, 8)} 调用成功`);
           return result;
 
         } catch (error) {
           lastError = error instanceof Error ? error.message : String(error);
-          console.error(`[ApiProvider] ❌ Key ${selectedKey.name || selectedKey.id.substring(0, 8)} 调用失败:`, lastError);
+          logger.error(`❌ Key ${selectedKey.name || selectedKey.id.substring(0, 8)} 调用失败:`, lastError);
 
           // 如果不是最后一次尝试，等待后重试
           if (attempt < maxRetries - 1) {
             const delay = retryDelay * (attempt + 1);
-            console.log(`[ApiProvider] ⏳ 等待 ${delay}ms 后重试...`);
+            logger.debug(`⏳ 等待 ${delay}ms 后重试...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
@@ -152,13 +154,13 @@ function shouldUseResponsesAPI(model: Model): boolean {
   // 1. 检查供应商级别的 useResponsesAPI 设置
   const providerConfig = getProviderConfig(model);
   if (providerConfig?.useResponsesAPI === true) {
-    console.log(`[ApiProvider] 供应商 ${providerConfig.name} 启用了 Responses API`);
+    logger.debug(`供应商 ${providerConfig.name} 启用了 Responses API`);
     return true;
   }
 
   // 2. 检查模型级别是否明确启用了 Responses API
   if ((model as any).useResponsesAPI === true) {
-    console.log(`[ApiProvider] 模型 ${model.id} 启用了 Responses API`);
+    logger.debug(`模型 ${model.id} 启用了 Responses API`);
     return true;
   }
 
@@ -179,14 +181,14 @@ export const ApiProviderRegistry = {
   get(model: Model) {
     // 🎬 检查是否为视频生成模型
     if (isVideoGenerationModel(model)) {
-      console.log(`[ApiProviderRegistry] 检测到视频生成模型: ${model.id}`);
+      logger.withContext('ApiProviderRegistry').debug(`检测到视频生成模型: ${model.id}`);
       throw new Error(`模型 ${model.name || model.id} 是视频生成模型，不支持聊天对话。请使用专门的视频生成功能。`);
     }
 
     // 获取供应商配置
     const providerConfig = getProviderConfig(model);
     
-    console.log(`[ApiProvider] 📊 获取供应商配置:`, {
+    logger.debug(`📊 获取供应商配置:`, {
       modelId: model.id,
       modelProvider: model.provider,
       modelApiKey: model.apiKey ? `${model.apiKey.substring(0, 10)}...` : 'undefined',
@@ -209,7 +211,7 @@ export const ApiProviderRegistry = {
     // 🔧 检查是否需要使用 OpenAI Responses API
     let actualProviderType = providerType;
     if (providerType === 'openai' && shouldUseResponsesAPI(model)) {
-      console.log(`[ApiProvider] 🚀 自动使用 OpenAI Responses API for ${model.id}`);
+      logger.debug(`🚀 自动使用 OpenAI Responses API for ${model.id}`);
       actualProviderType = 'openai-response';
     }
 

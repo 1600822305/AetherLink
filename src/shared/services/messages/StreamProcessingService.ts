@@ -11,6 +11,8 @@ import type {
   BlockCompleteChunk
 } from '../../types/chunk';
 import { ChunkType } from '../../types/chunk';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('StreamProcessingService');
 
 // 流处理器回调接口 - 简化版本，参考最佳实例
 export interface StreamProcessorCallbacks {
@@ -61,7 +63,7 @@ export function createStreamProcessor(callbacks: StreamProcessorCallbacks = {}) 
       }
 
     } catch (error) {
-      console.error('处理流数据块时出错:', error);
+      logger.error('处理流数据块时出错:', error);
       callbacks.onError?.(error);
     }
   };

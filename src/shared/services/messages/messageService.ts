@@ -6,6 +6,8 @@ import { sendMessage as sendMessageThunk } from '../../store/thunks/messageThunk
 import { ApiProviderRegistry } from './ApiProvider';
 import { getMainTextContent } from '../../utils/blockUtils';
 import { estimateTokens } from '../../utils';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('messageService');
 
 // 类似 Roo Code 的 TOKEN_BUFFER_PERCENTAGE
 const TOKEN_BUFFER_PERCENTAGE = 0.1;
@@ -39,7 +41,7 @@ export function truncateConversation(messages: Message[], fracToRemove: number =
   const messagesToRemove = rawMessagesToRemove - (rawMessagesToRemove % 2);
   const remainingMessages = messages.slice(messagesToRemove + 1);
   
-  console.log(`[truncateConversation] 滑动窗口截断: 删除 ${messagesToRemove} 条消息，保留 ${remainingMessages.length + 1} 条`);
+  logger.debug(`滑动窗口截断: 删除 ${messagesToRemove} 条消息，保留 ${remainingMessages.length + 1} 条`);
   
   return [firstMessage, ...remainingMessages];
 }
@@ -81,7 +83,7 @@ export function applyContextLimits(
     // 只有当 allowedTokens 为正数时才进行限制
     if (allowedTokens > 0) {
       let currentTokens = estimateMessagesTokenCount(limitedMessages);
-      console.log(`[applyContextLimits] Token 检查: ${currentTokens}/${allowedTokens} (窗口: ${contextWindowSize})`);
+      logger.debug(`Token 检查: ${currentTokens}/${allowedTokens} (窗口: ${contextWindowSize})`);
       
       // 如果超出限制，进行滑动窗口截断（最多尝试 10 次，避免无限循环）
       let attempts = 0;
@@ -96,7 +98,7 @@ export function applyContextLimits(
         }
         
         currentTokens = estimateMessagesTokenCount(limitedMessages);
-        console.log(`[applyContextLimits] 截断后 Token: ${currentTokens}/${allowedTokens}, 消息数: ${limitedMessages.length}`);
+        logger.debug(`截断后 Token: ${currentTokens}/${allowedTokens}, 消息数: ${limitedMessages.length}`);
         attempts++;
       }
     }
@@ -127,7 +129,7 @@ export async function getContextSettings(): Promise<{
       if (appSettings.maxOutputTokens !== undefined) maxOutputTokens = appSettings.maxOutputTokens;
     }
   } catch (error) {
-    console.error('读取上下文设置失败:', error);
+    logger.error('读取上下文设置失败:', error);
   }
 
   // 最佳实例逻辑：如果contextCount为100，则视为无限制（100000）
@@ -147,7 +149,7 @@ export async function loadTopics(): Promise<ChatTopic[]> {
     const topics = await getAllTopicsFromDB();
     return topics;
   } catch (error) {
-    console.error('从数据库加载话题失败:', error);
+    logger.error('从数据库加载话题失败:', error);
     return [];
   }
 }
@@ -179,7 +181,7 @@ export async function saveTopics(topics: ChatTopic[]): Promise<ChatTopic[]> {
 
     return uniqueTopics;
   } catch (error) {
-    console.error('保存话题到数据库失败:', error);
+    logger.error('保存话题到数据库失败:', error);
     return topics;
   }
 }
@@ -201,7 +203,7 @@ export class MessageService {
       // 应用上下文限制（同时考虑消息轮数和 Token 限制）
       const limitedMessages = applyContextLimits(messages, contextCount, contextWindowSize, maxOutputTokens);
 
-      console.log(`[handleChatRequest] 消息数: ${limitedMessages.length}, 模型: ${model.id}, 窗口: ${contextWindowSize || '模型默认'}`);
+      logger.debug(`消息数: ${limitedMessages.length}, 模型: ${model.id}, 窗口: ${contextWindowSize || '模型默认'}`);
 
       // 获取API提供商
       const apiProvider = ApiProviderRegistry.get(model);
@@ -212,10 +214,10 @@ export class MessageService {
 
       // handleChatRequest 是向后兼容方法，不需要流式更新
       const response = await apiProvider.sendChatMessage(limitedMessages, {});
-      console.log(`[handleChatRequest] API请求成功返回`);
+      logger.debug(`API请求成功返回`);
       return response;
     } catch (error) {
-      console.error(`[handleChatRequest] API请求失败:`, error);
+      logger.error(`API请求失败:`, error);
       throw error;
     }
   }
@@ -236,7 +238,7 @@ export class MessageService {
     } catch (error) {
       // 处理错误
       const errorMessage = error instanceof Error ? error.message : '发送消息失败';
-      console.error('发送消息失败:', errorMessage);
+      logger.error('发送消息失败:', errorMessage);
 
       // 清除流式响应状态
       store.dispatch(newMessagesActions.setTopicStreaming({
