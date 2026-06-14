@@ -17,6 +17,9 @@ import { dexieStorage } from '../shared/services/storage/DexieStorageService';
 import { detectDetailedPlatform, RuntimeType } from '../shared/utils/platformDetection';
 import { flushThrottledUpdates } from '../shared/store/thunks/message/utils';
 import { DataRepairService } from '../shared/services/storage/DataRepairService';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('DataPersistence');
 
 // 标记是否正在保存数据
 let isSaving = false;
@@ -27,19 +30,19 @@ let isSaving = false;
  */
 export async function flushAllPendingWrites(): Promise<void> {
   if (isSaving) {
-    console.log('[DataPersistence] 已有保存任务进行中，跳过');
+    logger.debug('已有保存任务进行中，跳过');
     return;
   }
   
   isSaving = true;
-  console.log('[DataPersistence] 开始刷新所有待保存的数据...');
+  logger.debug('开始刷新所有待保存的数据...');
   
   // P0修复：先刷新节流器中的待处理更新
   try {
     flushThrottledUpdates();
-    console.log('[DataPersistence] 已刷新节流器中的待处理更新');
+    logger.debug('已刷新节流器中的待处理更新');
   } catch (err) {
-    console.warn('[DataPersistence] 刷新节流器失败:', err);
+    logger.warn('刷新节流器失败:', err);
   }
   
   try {
@@ -48,7 +51,7 @@ export async function flushAllPendingWrites(): Promise<void> {
     const currentTopicId = state.messages.currentTopicId;
     
     if (!currentTopicId) {
-      console.log('[DataPersistence] 没有当前话题，跳过保存');
+      logger.debug('没有当前话题，跳过保存');
       return;
     }
     
@@ -58,7 +61,7 @@ export async function flushAllPendingWrites(): Promise<void> {
       .map((id: string) => state.messages.entities[id])
       .filter(Boolean);
     
-    console.log(`[DataPersistence] 当前话题 ${currentTopicId} 有 ${messages.length} 条消息需要确认保存`);
+    logger.debug(`当前话题 ${currentTopicId} 有 ${messages.length} 条消息需要确认保存`);
     
     if (messages.length === 0) {
       return;
@@ -70,7 +73,7 @@ export async function flushAllPendingWrites(): Promise<void> {
       .map((id: string) => state.messageBlocks.entities[id])
       .filter(Boolean);
     
-    console.log(`[DataPersistence] 需要保存 ${blocks.length} 个消息块`);
+    logger.debug(`需要保存 ${blocks.length} 个消息块`);
     
     // 3. 使用事务批量保存，确保原子性
     await dexieStorage.transaction('rw', [
@@ -81,12 +84,12 @@ export async function flushAllPendingWrites(): Promise<void> {
       // 3.1 保存所有消息块
       if (blocks.length > 0) {
         await dexieStorage.message_blocks.bulkPut(blocks);
-        console.log(`[DataPersistence] 已保存 ${blocks.length} 个消息块`);
+        logger.debug(`已保存 ${blocks.length} 个消息块`);
       }
       
       // 3.2 保存所有消息
       await dexieStorage.messages.bulkPut(messages);
-      console.log(`[DataPersistence] 已保存 ${messages.length} 条消息`);
+      logger.debug(`已保存 ${messages.length} 条消息`);
       
       // 3.3 更新话题的 messageIds
       const topic = await dexieStorage.topics.get(currentTopicId);
@@ -112,15 +115,15 @@ export async function flushAllPendingWrites(): Promise<void> {
           topic.lastMessageTime = sortedMessages[sortedMessages.length - 1]?.createdAt || new Date().toISOString();
           
           await dexieStorage.topics.put(topic);
-          console.log(`[DataPersistence] 已更新话题 ${currentTopicId} 的 messageIds`);
+          logger.debug(`已更新话题 ${currentTopicId} 的 messageIds`);
         }
       }
     });
     
-    console.log('[DataPersistence] 数据刷新完成');
+    logger.debug('数据刷新完成');
     
   } catch (error) {
-    console.error('[DataPersistence] 数据刷新失败:', error);
+    logger.error('数据刷新失败:', error);
   } finally {
     isSaving = false;
   }
@@ -147,7 +150,7 @@ export function useDataPersistence() {
   const handleSaveData = useCallback(async () => {
     // 如果正在流式响应中，延迟保存
     if (isStreamingRef.current) {
-      console.log('[DataPersistence] 流式响应进行中，延迟保存');
+      logger.debug('流式响应进行中，延迟保存');
       await new Promise(resolve => setTimeout(resolve, 500));
     }
     await flushAllPendingWrites();
@@ -163,27 +166,27 @@ export function useDataPersistence() {
     if (isTauri) {
       import('@tauri-apps/api/event').then(({ listen }) => {
         listen('app-before-quit', async () => {
-          console.log('[DataPersistence] 收到 app-before-quit 事件，开始保存数据...');
+          logger.debug('收到 app-before-quit 事件，开始保存数据...');
           await handleSaveData();
-          console.log('[DataPersistence] 退出前数据保存完成');
+          logger.debug('退出前数据保存完成');
         }).then(unlisten => {
           unlistenTauri = unlisten;
         });
       }).catch(err => {
-        console.warn('[DataPersistence] Tauri event API 不可用:', err);
+        logger.warn('Tauri event API 不可用:', err);
       });
     }
     
     // 2. 浏览器环境：监听 beforeunload 事件
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      console.log('[DataPersistence] 收到 beforeunload 事件');
+      logger.debug('收到 beforeunload 事件');
       // 同步触发保存（beforeunload 中无法使用 async）
       // 使用 sendBeacon 或同步 localStorage 标记
       try {
         // 标记需要在下次启动时检查数据完整性
         localStorage.setItem('aether-link-dirty-exit', Date.now().toString());
       } catch (err) {
-        console.error('[DataPersistence] 标记脏退出失败:', err);
+        logger.error('标记脏退出失败:', err);
       }
       
       // 尝试触发异步保存（可能不会完成）
@@ -200,14 +203,14 @@ export function useDataPersistence() {
     // 3. 移动端：监听页面可见性变化（切换到后台时保存）
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        console.log('[DataPersistence] 页面切换到后台，保存数据...');
+        logger.debug('页面切换到后台，保存数据...');
         handleSaveData();
       }
     };
     
     // 4. 移动端：监听 pagehide 事件（iOS Safari）
     const handlePageHide = () => {
-      console.log('[DataPersistence] 收到 pagehide 事件，保存数据...');
+      logger.debug('收到 pagehide 事件，保存数据...');
       flushAllPendingWrites();
     };
     
@@ -219,12 +222,12 @@ export function useDataPersistence() {
     // 检查上次是否为脏退出
     const dirtyExit = localStorage.getItem('aether-link-dirty-exit');
     if (dirtyExit) {
-      console.log(`[DataPersistence] 检测到上次脏退出 (${new Date(parseInt(dirtyExit)).toISOString()})，执行数据完整性检查...`);
+      logger.debug(`检测到上次脏退出 (${new Date(parseInt(dirtyExit)).toISOString()})，执行数据完整性检查...`);
       localStorage.removeItem('aether-link-dirty-exit');
       // 执行数据完整性检查
       DataRepairService.checkAndRepairMessageIntegrity().then(result => {
         if (result.repaired > 0 || result.missingMessages > 0) {
-          console.log(`[DataPersistence] 数据修复完成: 修复了 ${result.repaired} 个话题，发现 ${result.missingMessages} 条缺失消息`);
+          logger.debug(`数据修复完成: 修复了 ${result.repaired} 个话题，发现 ${result.missingMessages} 条缺失消息`);
         }
       });
     }

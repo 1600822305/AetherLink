@@ -5,6 +5,9 @@ import { loadTopicMessagesThunk, newMessagesActions } from '../shared/store/slic
 import { dexieStorage } from '../shared/services/storage/DexieStorageService';
 import { topicCacheManager } from '../shared/services/topics/TopicCacheManager';
 import type { ChatTopic, Assistant } from '../shared/types/Assistant';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('useActiveTopic');
 
 // 模块级变量，支持外部访问（类似 Cherry Studio）
 let _activeTopic: ChatTopic | null = null;
@@ -75,7 +78,7 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
     }
 
     previousTopicIdRef.current = activeTopic.id;
-    console.log(`[useActiveTopic] 话题变更: ${activeTopic.name} (${activeTopic.id})`);
+    logger.debug(`话题变更: ${activeTopic.name} (${activeTopic.id})`);
 
     // 更新缓存
     topicCacheManager.updateTopic(activeTopic.id, activeTopic);
@@ -88,7 +91,7 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
   const switchToTopic = useCallback((topic: ChatTopic) => {
     if (!isMountedRef.current) return;
     
-    console.log(`[useActiveTopic] 即时切换到话题: ${topic.name} (${topic.id})`);
+    logger.debug(`即时切换到话题: ${topic.name} (${topic.id})`);
     // 通过 Redux 设置当前话题ID，useMemo 会自动重新计算 activeTopic
     dispatch(newMessagesActions.setCurrentTopicId(topic.id));
     // 更新缓存
@@ -104,6 +107,9 @@ export function useActiveTopic(assistant: Assistant, initialTopic?: ChatTopic) {
 // 导出获取当前话题的函数
 export const getActiveTopic = () => _activeTopic;
 
+// 话题管理器子 Logger 派生
+const topicManagerLogger = logger.withContext('TopicManager');
+
 /**
  * 话题管理器
  * 提供话题的基本操作方法
@@ -113,7 +119,7 @@ export const TopicManager = {
     try {
       return await dexieStorage.getTopic(id);
     } catch (error) {
-      console.error(`[TopicManager] 获取话题 ${id} 失败:`, error);
+      topicManagerLogger.error(`获取话题 ${id} 失败:`, error);
       return null;
     }
   },
@@ -122,7 +128,7 @@ export const TopicManager = {
     try {
       return await dexieStorage.getAllTopics();
     } catch (error) {
-      console.error('[TopicManager] 获取所有话题失败:', error);
+      topicManagerLogger.error('获取所有话题失败:', error);
       return [];
     }
   },
@@ -132,7 +138,7 @@ export const TopicManager = {
       const messages = await dexieStorage.getTopicMessages(id);
       return messages || [];
     } catch (error) {
-      console.error(`[TopicManager] 获取话题 ${id} 的消息失败:`, error);
+      topicManagerLogger.error(`获取话题 ${id} 的消息失败:`, error);
       return [];
     }
   },
@@ -140,9 +146,9 @@ export const TopicManager = {
   async removeTopic(id: string) {
     try {
       await dexieStorage.deleteTopic(id);
-      console.log(`[TopicManager] 话题 ${id} 删除成功`);
+      topicManagerLogger.debug(`话题 ${id} 删除成功`);
     } catch (error) {
-      console.error(`[TopicManager] 删除话题 ${id} 失败:`, error);
+      topicManagerLogger.error(`删除话题 ${id} 失败:`, error);
       throw error;
     }
   }
