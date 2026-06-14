@@ -98,3 +98,23 @@ export function extractStack(args: readonly unknown[]): string | undefined {
   }
   return undefined;
 }
+
+// 日志系统自身的调用帧，捕获堆栈时从顶部剥离，只保留业务调用栈
+const INTERNAL_STACK_FRAME =
+  /\b(captureStack|MemoryTransport|Logger\.(emit|error|warn|info|debug|trace|logAt|logApiRequest|logApiResponse))\b/;
+
+/**
+ * 捕获当前调用栈，剥掉日志系统自身的帧，供 error/warn 在未携带 Error 时自动附带堆栈
+ * （对齐旧 EnhancedConsoleService 行为，便于在查看器中定位来源）。
+ * 生产构建函数名被混淆、无法精确剥离时，原样保留（去掉首行 Error 头）。
+ */
+export function captureStack(): string | undefined {
+  const raw = new Error().stack;
+  if (!raw) return undefined;
+  // 首行通常是 "Error" 头，丢弃
+  const frames = raw.split('\n').slice(1);
+  let start = 0;
+  while (start < frames.length && INTERNAL_STACK_FRAME.test(frames[start])) start++;
+  const trimmed = frames.slice(start);
+  return (trimmed.length ? trimmed : frames).join('\n');
+}

@@ -249,7 +249,7 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
           </Box>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 500 }}>
-              模块
+              {t('devtools.console.module')}
             </Typography>
             <TextField
               select
@@ -263,7 +263,7 @@ const ConsolePanel = forwardRef<ConsolePanelRef, ConsolePanelProps>(({
               }
               sx={{ minWidth: 160 }}
             >
-              <MenuItem value="__all__">全部</MenuItem>
+              <MenuItem value="__all__">{t('devtools.console.allModules')}</MenuItem>
               {contexts.map(ctx => (
                 <MenuItem key={ctx} value={ctx}>{ctx}</MenuItem>
               ))}

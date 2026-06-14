@@ -38,6 +38,8 @@
   "console": {
     "searchPlaceholder": "搜索控制台输出...",
     "level": "级别:",
+    "module": "模块",
+    "allModules": "全部",
     "empty": "暂无控制台输出",
     "noResults": "没有找到匹配的日志",
     "commandPlaceholder": "输入 JavaScript 命令并按 Enter 执行...",

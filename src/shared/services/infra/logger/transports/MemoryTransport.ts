@@ -5,8 +5,9 @@
  * - 附带稳定 id，便于查看器列表渲染与多选
  * - 支持监听器订阅，查看器打开时实时刷新
  */
+import { LogLevel } from '../types';
 import type { LogEntry, StoredLogEntry, Transport } from '../types';
-import { serializeArgs } from '../logFormat';
+import { serializeArgs, extractStack, captureStack } from '../logFormat';
 
 type Listener = (entries: readonly StoredLogEntry[]) => void;
 
@@ -22,11 +23,20 @@ export class MemoryTransport implements Transport {
   }
 
   write(entry: LogEntry): void {
+    const args = serializeArgs(entry.args);
     const stored: StoredLogEntry = {
       ...entry,
       id: `${entry.timestamp.toString(36)}-${(this.seq++).toString(36)}`,
-      args: serializeArgs(entry.args),
+      args,
     };
+    // error/warn 未携带 Error 堆栈时自动补一份调用栈（对齐旧 EnhancedConsoleService），
+    // 参数里已有 Error 堆栈则不覆盖，保留更精确的错误来源。
+    if (
+      (entry.level === LogLevel.ERROR || entry.level === LogLevel.WARN) &&
+      !extractStack(args)
+    ) {
+      stored.stack = captureStack();
+    }
     this.buffer.push(stored);
     const overflow = this.buffer.length - this.capacity;
     if (overflow > 0) this.buffer.splice(0, overflow);
