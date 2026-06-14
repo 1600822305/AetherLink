@@ -18,6 +18,9 @@ import BasePreprocessProvider from './BasePreprocessProvider';
 import { universalFetch } from '../../../utils/universalFetch';
 import { PREPROCESS_PROVIDER_METAS } from './types';
 import type { PreprocessResult } from './types';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('Doc2x');
 
 type ApiResponse<T> = {
   code: string;
@@ -89,7 +92,7 @@ export default class Doc2xProvider extends BasePreprocessProvider {
         providerId: 'doc2x',
       };
     } catch (error) {
-      console.error('[Doc2x] PDF 预处理失败:', error);
+      logger.error('PDF 预处理失败:', error);
       throw error;
     }
   }

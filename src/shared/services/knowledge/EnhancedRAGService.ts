@@ -7,6 +7,9 @@ import { MobileEmbeddingService } from './MobileEmbeddingService';
 import { cosineSimilarity, textSimilarity } from '../../utils/vectorUtils';
 import { generateQuerySynonyms } from '../../config/synonyms';
 import type { KnowledgeBase, KnowledgeDocument, KnowledgeSearchResult } from '../../types/KnowledgeBase';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('EnhancedRAGService');
 
 // RAG搜索配置
 interface RAGSearchConfig {
@@ -88,7 +91,7 @@ export class EnhancedRAGService {
         ...params.config
       };
 
-      console.log(`[EnhancedRAGService] 开始增强RAG搜索: "${params.query}"`);
+      logger.debug(`开始增强RAG搜索: "${params.query}"`);
 
       // 第一阶段：查询理解和扩展
       const queryExpansion = await this.expandQuery(params.query, knowledgeBase, config);
@@ -122,23 +125,23 @@ export class EnhancedRAGService {
       );
 
       const duration = Date.now() - startTime;
-      console.log(`[EnhancedRAGService] RAG搜索完成，耗时: ${duration}ms，结果: ${processedResults.length}条`);
+      logger.debug(`RAG搜索完成，耗时: ${duration}ms，结果: ${processedResults.length}条`);
 
       // 调试信息：如果没有结果，输出详细信息
       if (processedResults.length === 0) {
-        console.log(`[EnhancedRAGService] 调试信息 - 无结果原因分析:`);
-        console.log(`- 查询扩展结果:`, queryExpansion);
-        console.log(`- 检索策略数量: ${retrievalResults.length}`);
-        console.log(`- 融合结果数量: ${fusedResults.length}`);
-        console.log(`- 重排序结果数量: ${finalResults.length}`);
-        console.log(`- 阈值: ${params.threshold || 0.7}`);
-        console.log(`- 限制数量: ${params.limit || knowledgeBase.documentCount || 5}`);
+        logger.debug(`调试信息 - 无结果原因分析:`);
+        logger.debug(`- 查询扩展结果:`, queryExpansion);
+        logger.debug(`- 检索策略数量: ${retrievalResults.length}`);
+        logger.debug(`- 融合结果数量: ${fusedResults.length}`);
+        logger.debug(`- 重排序结果数量: ${finalResults.length}`);
+        logger.debug(`- 阈值: ${params.threshold || 0.7}`);
+        logger.debug(`- 限制数量: ${params.limit || knowledgeBase.documentCount || 5}`);
       }
 
       return processedResults;
 
     } catch (error) {
-      console.error('[EnhancedRAGService] 增强RAG搜索失败:', error);
+      logger.error('增强RAG搜索失败:', error);
       // 回退到简单搜索
       return this.fallbackSimpleSearch(params);
     }
@@ -189,10 +192,10 @@ export class EnhancedRAGService {
       // 缓存结果
       this.queryCache.set(cacheKey, expansion);
       
-      console.log(`[EnhancedRAGService] 查询扩展完成: ${expansion.expandedQueries.length}个查询`);
+      logger.debug(`查询扩展完成: ${expansion.expandedQueries.length}个查询`);
 
     } catch (error) {
-      console.warn('[EnhancedRAGService] 查询扩展失败，使用原始查询:', error);
+      logger.warn('查询扩展失败，使用原始查询:', error);
     }
 
     return expansion;
@@ -249,7 +252,7 @@ export class EnhancedRAGService {
     );
     results.push(semanticResults);
 
-    console.log(`[EnhancedRAGService] 多策略检索完成: ${results.length}个策略`);
+    logger.debug(`多策略检索完成: ${results.length}个策略`);
 
     return results;
   }
@@ -265,7 +268,7 @@ export class EnhancedRAGService {
   ): Promise<RetrievalResult> {
     const allResults: Array<{ doc: KnowledgeDocument; score: number }> = [];
 
-    console.log(`[EnhancedRAGService] 向量检索 - 查询数量: ${queryExpansion.expandedQueries.length}, 文档数量: ${documents.length}`);
+    logger.debug(`向量检索 - 查询数量: ${queryExpansion.expandedQueries.length}, 文档数量: ${documents.length}`);
 
     // 对每个扩展查询进行向量搜索
     for (const query of queryExpansion.expandedQueries) {
@@ -281,11 +284,11 @@ export class EnhancedRAGService {
 
         // 输出最高分数
         const maxScore = Math.max(...queryResults.map(r => r.score));
-        console.log(`[EnhancedRAGService] 向量检索 - 查询: "${query}", 最高相似度: ${maxScore.toFixed(4)}`);
+        logger.debug(`向量检索 - 查询: "${query}", 最高相似度: ${maxScore.toFixed(4)}`);
 
         allResults.push(...queryResults);
       } catch (error) {
-        console.warn(`[EnhancedRAGService] 向量检索失败: ${query}`, error);
+        logger.warn(`向量检索失败: ${query}`, error);
       }
     }
 
@@ -297,9 +300,9 @@ export class EnhancedRAGService {
       .sort((a, b) => b.score - a.score)
       .slice(0, maxCandidates);
 
-    console.log(`[EnhancedRAGService] 向量检索完成 - 去重后结果: ${deduplicatedResults.length}, 前${maxCandidates}个结果`);
+    logger.debug(`向量检索完成 - 去重后结果: ${deduplicatedResults.length}, 前${maxCandidates}个结果`);
     if (topResults.length > 0) {
-      console.log(`[EnhancedRAGService] 向量检索 - 最高分: ${topResults[0].score.toFixed(4)}, 最低分: ${topResults[topResults.length-1].score.toFixed(4)}`);
+      logger.debug(`向量检索 - 最高分: ${topResults[0].score.toFixed(4)}, 最低分: ${topResults[topResults.length-1].score.toFixed(4)}`);
     }
 
     return {
@@ -323,8 +326,8 @@ export class EnhancedRAGService {
       ...queryExpansion.relatedTerms
     ].filter(term => term.length > 1);
 
-    console.log(`[EnhancedRAGService] 关键词检索 - 关键词:`, allKeywords);
-    console.log(`[EnhancedRAGService] 关键词检索 - 文档数量: ${documents.length}`);
+    logger.debug(`关键词检索 - 关键词:`, allKeywords);
+    logger.debug(`关键词检索 - 文档数量: ${documents.length}`);
 
     const results = documents.map(doc => {
       const content = doc.content.toLowerCase();
@@ -349,7 +352,7 @@ export class EnhancedRAGService {
 
       // 调试：输出匹配详情
       if (score > 0) {
-        console.log(`[EnhancedRAGService] 关键词匹配 - 文档ID: ${doc.id}, 分数: ${score.toFixed(4)}, 匹配: [${matchDetails.join(', ')}]`);
+        logger.debug(`关键词匹配 - 文档ID: ${doc.id}, 分数: ${score.toFixed(4)}, 匹配: [${matchDetails.join(', ')}]`);
       }
 
       return { doc, score };
@@ -360,7 +363,7 @@ export class EnhancedRAGService {
       .sort((a, b) => b.score - a.score)
       .slice(0, maxCandidates);
 
-    console.log(`[EnhancedRAGService] 关键词检索完成 - 有效结果: ${topResults.length}/${results.length}`);
+    logger.debug(`关键词检索完成 - 有效结果: ${topResults.length}/${results.length}`);
 
     return {
       documents: topResults.map(r => r.doc),
@@ -504,14 +507,14 @@ export class EnhancedRAGService {
     // 按融合分数排序
     fusedResults.sort((a, b) => b.similarity - a.similarity);
 
-    console.log(`[EnhancedRAGService] 结果融合完成: ${fusedResults.length}个候选结果`);
+    logger.debug(`结果融合完成: ${fusedResults.length}个候选结果`);
 
     // 调试：输出融合结果的分数分布
     if (fusedResults.length > 0) {
-      console.log(`[EnhancedRAGService] 融合分数分布 - 最高: ${fusedResults[0].similarity.toFixed(4)}, 最低: ${fusedResults[fusedResults.length-1].similarity.toFixed(4)}`);
+      logger.debug(`融合分数分布 - 最高: ${fusedResults[0].similarity.toFixed(4)}, 最低: ${fusedResults[fusedResults.length-1].similarity.toFixed(4)}`);
       // 输出前3个结果的详细信息
       fusedResults.slice(0, 3).forEach((result, index) => {
-        console.log(`[EnhancedRAGService] 融合结果${index+1} - 分数: ${result.similarity.toFixed(4)}, 内容预览: "${result.content.substring(0, 50)}..."`);
+        logger.debug(`融合结果${index+1} - 分数: ${result.similarity.toFixed(4)}, 内容预览: "${result.content.substring(0, 50)}..."`);
       });
     }
 
@@ -551,12 +554,12 @@ export class EnhancedRAGService {
       // 重新排序
       rerankedResults.sort((a, b) => b.similarity - a.similarity);
 
-      console.log(`[EnhancedRAGService] 重排序完成`);
+      logger.debug(`重排序完成`);
 
       return rerankedResults;
 
     } catch (error) {
-      console.warn('[EnhancedRAGService] 重排序失败，使用原始排序:', error);
+      logger.warn('重排序失败，使用原始排序:', error);
       return results;
     }
   }
@@ -569,7 +572,7 @@ export class EnhancedRAGService {
     threshold: number,
     limit: number
   ): KnowledgeSearchResult[] {
-    console.log(`[EnhancedRAGService] 后处理前: ${results.length}个结果, 阈值: ${threshold}`);
+    logger.debug(`后处理前: ${results.length}个结果, 阈值: ${threshold}`);
 
     // 如果阈值过高导致没有结果，动态降低阈值
     let adjustedThreshold = threshold;
@@ -580,7 +583,7 @@ export class EnhancedRAGService {
       const maxScore = Math.max(...results.map(r => r.similarity));
       adjustedThreshold = Math.max(0.1, maxScore * 0.5);
       filteredResults = results.filter(result => result.similarity >= adjustedThreshold);
-      console.log(`[EnhancedRAGService] 动态调整阈值: ${threshold} → ${adjustedThreshold}, 结果: ${filteredResults.length}个`);
+      logger.debug(`动态调整阈值: ${threshold} → ${adjustedThreshold}, 结果: ${filteredResults.length}个`);
     }
 
     const finalResults = filteredResults
@@ -591,7 +594,7 @@ export class EnhancedRAGService {
         similarity: Math.min(1, Math.max(0, result.similarity))
       }));
 
-    console.log(`[EnhancedRAGService] 后处理完成: ${finalResults.length}个结果`);
+    logger.debug(`后处理完成: ${finalResults.length}个结果`);
     return finalResults;
   }
 
@@ -604,12 +607,12 @@ export class EnhancedRAGService {
     threshold?: number;
     limit?: number;
   }): Promise<KnowledgeSearchResult[]> {
-    console.log('[EnhancedRAGService] 使用回退简单搜索');
+    logger.debug('使用回退简单搜索');
 
     try {
       const knowledgeBase = await dexieStorage.knowledge_bases.get(params.knowledgeBaseId);
       if (!knowledgeBase) {
-        console.log('[EnhancedRAGService] 回退搜索 - 知识库不存在');
+        logger.debug('回退搜索 - 知识库不存在');
         return [];
       }
 
@@ -618,7 +621,7 @@ export class EnhancedRAGService {
         .equals(params.knowledgeBaseId)
         .toArray();
 
-      console.log(`[EnhancedRAGService] 回退搜索 - 找到 ${documents.length} 个文档`);
+      logger.debug(`回退搜索 - 找到 ${documents.length} 个文档`);
 
       if (documents.length === 0) {
         return [];
@@ -629,7 +632,7 @@ export class EnhancedRAGService {
         doc.content.toLowerCase().includes(params.query.toLowerCase())
       );
 
-      console.log(`[EnhancedRAGService] 回退搜索 - 关键词匹配: ${keywordResults.length} 个结果`);
+      logger.debug(`回退搜索 - 关键词匹配: ${keywordResults.length} 个结果`);
 
       if (keywordResults.length > 0) {
         // 如果有关键词匹配，直接返回
@@ -657,12 +660,12 @@ export class EnhancedRAGService {
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, limit);
 
-      console.log(`[EnhancedRAGService] 回退搜索 - 向量搜索结果: ${vectorResults.length} 个`);
+      logger.debug(`回退搜索 - 向量搜索结果: ${vectorResults.length} 个`);
 
       return vectorResults;
 
     } catch (error) {
-      console.error('[EnhancedRAGService] 回退搜索也失败:', error);
+      logger.error('回退搜索也失败:', error);
       return [];
     }
   }
@@ -724,7 +727,7 @@ export class EnhancedRAGService {
         if (relatedTerms.length >= 5) break;
       }
     } catch (error) {
-      console.warn('[EnhancedRAGService] 提取相关术语失败:', error);
+      logger.warn('提取相关术语失败:', error);
     }
 
     return relatedTerms;
@@ -793,7 +796,7 @@ export class EnhancedRAGService {
       
       return matches / queryWords.length;
     } catch (error) {
-      console.warn('[EnhancedRAGService] 计算相关性分数失败:', error);
+      logger.warn('计算相关性分数失败:', error);
       return 0.5; // 默认中等相关性
     }
   }

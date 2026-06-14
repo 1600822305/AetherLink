@@ -16,6 +16,9 @@
 import BasePreprocessProvider from './BasePreprocessProvider';
 import { PREPROCESS_PROVIDER_METAS } from './types';
 import type { PreprocessResult } from './types';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MistralOCR');
 
 interface OCRPage {
   index: number;
@@ -76,7 +79,7 @@ export default class MistralOCRProvider extends BasePreprocessProvider {
         providerId: 'mistral',
       };
     } catch (error) {
-      console.error('[MistralOCR] PDF 预处理失败:', error);
+      logger.error('PDF 预处理失败:', error);
       throw error;
     }
   }

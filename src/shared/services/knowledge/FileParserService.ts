@@ -6,6 +6,9 @@
 
 import { getPlatformInfo } from '../../utils/platformDetection';
 import type { PreprocessProviderConfig, PreprocessProgressCallback } from './preprocess/types';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('FileParser');
 
 // 平台特定限制
 const PLATFORM_LIMITS = {
@@ -201,7 +204,7 @@ class FileParserService {
         content = await this.parseTextFile(file);
       }
     } catch (err) {
-      console.error(`解析文件失败: ${fileName}`, err);
+      logger.error(`解析文件失败: ${fileName}`, err);
       throw new Error(`解析文件失败: ${err instanceof Error ? err.message : '未知错误'}`);
     }
 
@@ -252,7 +255,7 @@ class FileParserService {
     // 强制云端模式：跳过本地解析
     if (mode === 'cloud' && this.cloudPreprocessConfig) {
       try {
-        console.log(`[FileParser] 强制云端模式，使用 ${this.cloudPreprocessConfig.id} 解析 PDF`);
+        logger.debug(`强制云端模式，使用 ${this.cloudPreprocessConfig.id} 解析 PDF`);
         const { preprocessPdfWithCloud } = await import('./preprocess');
         const result = await preprocessPdfWithCloud(
           arrayBuffer,
@@ -262,7 +265,7 @@ class FileParserService {
         );
         return result.content;
       } catch (err) {
-        console.error('[FileParser] 云端 PDF 解析失败，降级到本地:', err);
+        logger.error('云端 PDF 解析失败，降级到本地:', err);
         // 云端失败仍尝试本地
       }
     }
@@ -294,17 +297,17 @@ class FileParserService {
             return localResult;
           }
 
-          console.warn(`[FileParser] PDF 文本层过少 (${actualTextLength} 字符)，可能为扫描件`);
+          logger.warn(`PDF 文本层过少 (${actualTextLength} 字符)，可能为扫描件`);
         }
       } catch (err) {
-        console.warn('[FileParser] pdfjs 解析失败:', err);
+        logger.warn('pdfjs 解析失败:', err);
       }
     }
 
     // 2️⃣ 尝试云端 Provider 解析（仅 auto 模式）
     if (mode !== 'local' && this.cloudPreprocessConfig) {
       try {
-        console.log(`[FileParser] 使用云端 Provider (${this.cloudPreprocessConfig.id}) 解析 PDF`);
+        logger.debug(`使用云端 Provider (${this.cloudPreprocessConfig.id}) 解析 PDF`);
         const { preprocessPdfWithCloud } = await import('./preprocess');
         const result = await preprocessPdfWithCloud(
           arrayBuffer,
@@ -314,7 +317,7 @@ class FileParserService {
         );
         return result.content;
       } catch (err) {
-        console.error('[FileParser] 云端 PDF 解析失败:', err);
+        logger.error('云端 PDF 解析失败:', err);
       }
     }
 
@@ -377,7 +380,7 @@ class FileParserService {
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value || '';
     } catch (err) {
-      console.warn('DOCX mammoth 解析失败，尝试简单解析:', err);
+      logger.warn('DOCX mammoth 解析失败，尝试简单解析:', err);
       return this.getDocxFallbackParse(file);
     }
   }

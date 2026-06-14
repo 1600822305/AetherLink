@@ -5,6 +5,9 @@
 
 import { MobileKnowledgeService } from './MobileKnowledgeService';
 import { REFERENCE_PROMPT } from '../../config/prompts';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('KnowledgeContextService');
 
 
 export interface KnowledgeReference {
@@ -82,7 +85,7 @@ export class KnowledgeContextService {
 
           allReferences.push(...references);
         } catch (error) {
-          console.error(`[KnowledgeContextService] 搜索知识库 ${kbId} 失败:`, error);
+          logger.error(`搜索知识库 ${kbId} 失败:`, error);
         }
       }
 
@@ -94,11 +97,11 @@ export class KnowledgeContextService {
       // 缓存结果
       this.knowledgeCache.set(`knowledge-search-${messageId}`, sortedReferences);
 
-      console.log(`[KnowledgeContextService] 为消息 ${messageId} 搜索到 ${sortedReferences.length} 个知识库引用`);
+      logger.debug(`为消息 ${messageId} 搜索到 ${sortedReferences.length} 个知识库引用`);
 
       return sortedReferences;
     } catch (error) {
-      console.error('[KnowledgeContextService] 搜索知识库失败:', error);
+      logger.error('搜索知识库失败:', error);
       return [];
     }
   }
@@ -206,7 +209,7 @@ export class KnowledgeContextService {
     // 在实际应用中，可以根据时间戳进行更精确的清理
     if (this.knowledgeCache.size > 100) {
       this.knowledgeCache.clear();
-      console.log('[KnowledgeContextService] 清理知识库缓存');
+      logger.debug('清理知识库缓存');
     }
   }
 }

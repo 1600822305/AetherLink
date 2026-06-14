@@ -18,6 +18,9 @@ import BasePreprocessProvider from './BasePreprocessProvider';
 import { PREPROCESS_PROVIDER_METAS } from './types';
 import type { PreprocessResult } from './types';
 import { universalFetch } from '../../../utils/universalFetch';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('MinerU');
 
 // ==================== API 响应类型 ====================
 
@@ -109,7 +112,7 @@ export default class OpenMineruProvider extends BasePreprocessProvider {
         providerId: 'open-mineru',
       };
     } catch (error) {
-      console.error('[MinerU] 预处理失败:', error);
+      logger.error('预处理失败:', error);
       throw error;
     }
   }
@@ -124,17 +127,17 @@ export default class OpenMineruProvider extends BasePreprocessProvider {
     // Step 1: 申请预签名上传 URL
     this.sendProgress(5, '申请上传链接...');
     const { batch_id, upload_url } = await this.requestUploadUrl(fileName);
-    console.log(`[MinerU] 获取上传链接成功, batch_id: ${batch_id}`);
+    logger.debug(`获取上传链接成功, batch_id: ${batch_id}`);
 
     // Step 2: 上传文件
     this.sendProgress(10, '上传文件...');
     await this.uploadFile(upload_url, fileData);
-    console.log(`[MinerU] 文件上传成功: ${fileName}`);
+    logger.debug(`文件上传成功: ${fileName}`);
 
     // Step 3: 轮询解析结果
     this.sendProgress(20, '等待解析...');
     const zipUrl = await this.pollBatchResult(batch_id, fileName);
-    console.log(`[MinerU] 解析完成, zip URL: ${zipUrl}`);
+    logger.debug(`解析完成, zip URL: ${zipUrl}`);
 
     // Step 4: 下载并解压
     this.sendProgress(85, '下载结果...');
@@ -206,7 +209,7 @@ export default class OpenMineruProvider extends BasePreprocessProvider {
         const result: MineruApiResponse<BatchExtractData> = await response.json();
 
         if (result.code !== 0) {
-          console.warn(`[MinerU] 轮询返回错误: ${result.msg}`);
+          logger.warn(`轮询返回错误: ${result.msg}`);
           continue;
         }
 
@@ -250,7 +253,7 @@ export default class OpenMineruProvider extends BasePreprocessProvider {
         if (i === OpenMineruProvider.MAX_POLL_ATTEMPTS - 1) {
           throw error;
         }
-        console.warn(`[MinerU] 轮询第 ${i + 1} 次失败:`, error);
+        logger.warn(`轮询第 ${i + 1} 次失败:`, error);
       }
     }
 
@@ -360,7 +363,7 @@ export default class OpenMineruProvider extends BasePreprocessProvider {
         }
       } catch (error) {
         if (i === OpenMineruProvider.MAX_POLL_ATTEMPTS - 1) throw error;
-        console.warn(`[MinerU] 轮询第 ${i + 1} 次失败:`, error);
+        logger.warn(`轮询第 ${i + 1} 次失败:`, error);
       }
     }
 
