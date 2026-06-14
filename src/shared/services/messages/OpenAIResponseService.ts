@@ -7,6 +7,8 @@ import type { Model, MCPTool } from '../../types';
 import type { Message, AssistantMessageStatus } from '../../types/newMessage';
 import { EventEmitter } from '../infra/EventService';
 import { getMainTextContent } from '../../utils/messageUtils';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('OpenAIResponseService');
 
 /**
  * OpenAI Responses API 消息服务
@@ -105,12 +107,12 @@ export class OpenAIResponseService {
         mcpTools,
         onChunk: handleChunk,
         onFilterMessages: (filteredMessages) => {
-          console.log(`[OpenAIResponseService] 过滤后的消息数量: ${filteredMessages.length}`);
+          logger.debug(`过滤后的消息数量: ${filteredMessages.length}`);
         }
       });
 
     } catch (error) {
-      console.error('[OpenAIResponseService] 发送聊天消息失败:', error);
+      logger.error('发送聊天消息失败:', error);
       
       // 发送错误事件
       EventEmitter.emit('ASSISTANT_MESSAGE_ERROR', {
@@ -184,7 +186,7 @@ export class OpenAIResponseService {
 
       return true;
     } catch (error) {
-      console.error('[OpenAIResponseService] 连接测试失败:', error);
+      logger.error('连接测试失败:', error);
       return false;
     }
   }
@@ -254,7 +256,7 @@ export class OpenAIResponseService {
    */
   public dispose(): void {
     // 清理任何需要清理的资源
-    console.log('[OpenAIResponseService] 服务已清理');
+    logger.debug('服务已清理');
   }
 }
 

@@ -15,6 +15,8 @@ import { finalizeNonTerminalBlocks } from './blockFinalization';
 import { messageBlockRepository } from '../MessageBlockRepository';
 import { AISDKError } from 'ai';
 import type { AiSdkErrorUnion } from '../../../types/error';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ResponseErrorHandler');
 
 /**
  * 响应错误处理器 - 处理错误相关的逻辑
@@ -35,7 +37,7 @@ export class ResponseErrorHandler {
    * @param error 错误对象
    */
   async fail(error: Error) {
-    console.error(`[ResponseErrorHandler] 响应失败 - 消息ID: ${this.messageId}, 错误:`, error);
+    logger.error(`响应失败 - 消息ID: ${this.messageId}, 错误:`, error);
 
     // 新增：检测 API Key 问题并提供重试机制
     // 注意：现在 checkAndHandleApiKeyError 返回 false，让我们继续创建错误块
@@ -61,7 +63,7 @@ export class ResponseErrorHandler {
     
     // 检查是否为 AI SDK 错误并序列化
     if (AISDKError.isInstance(error)) {
-      console.log('[ResponseErrorHandler] 检测到 AI SDK 错误，进行序列化');
+      logger.debug('检测到 AI SDK 错误，进行序列化');
       errorRecord = serializeError(error as AiSdkErrorUnion);
     } else {
       // 普通错误，获取详细信息
@@ -186,9 +188,9 @@ export class ResponseErrorHandler {
     // 参考 Cline：清理工具跟踪器（错误情况）
     try {
       globalToolTracker.reset(); // 错误时重置所有状态
-      console.log(`[ResponseErrorHandler] 工具跟踪器重置完成（错误处理）`);
+      logger.debug(`工具跟踪器重置完成（错误处理）`);
     } catch (cleanupError) {
-      console.error(`[ResponseErrorHandler] 工具跟踪器重置失败:`, cleanupError);
+      logger.error(`工具跟踪器重置失败:`, cleanupError);
     }
 
     throw error;

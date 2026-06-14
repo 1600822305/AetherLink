@@ -18,6 +18,8 @@ import { dexieStorage } from '../storage/DexieStorageService';
 import { updateOneBlock, addOneBlock } from '../../store/slices/messageBlocksSlice';
 import { getHighPerformanceUpdateInterval } from '../../utils/performanceSettings';
 import { StreamIncrementTracker } from './responseHandlers/StreamIncrementTracker';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('ResponseHandler');
 
 /**
  * 响应处理器配置类型
@@ -101,12 +103,12 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
 
   // 设置事件监听器
   const setupEventListeners = () => {
-    console.log(`[ResponseHandler] 设置知识库搜索事件监听器`);
+    logger.debug(`设置知识库搜索事件监听器`);
 
     // 监听知识库搜索完成事件
     const knowledgeSearchCleanup = EventEmitter.on(EVENT_NAMES.KNOWLEDGE_SEARCH_COMPLETED, async (data: any) => {
       if (data.messageId === messageId) {
-        console.log(`[ResponseHandler] 处理知识库搜索完成事件，结果数量: ${data.searchResults?.length || 0}`);
+        logger.debug(`处理知识库搜索完成事件，结果数量: ${data.searchResults?.length || 0}`);
         await knowledgeHandler.handleKnowledgeSearchComplete(data);
       }
     });
@@ -152,11 +154,11 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
           }
 
           default:
-            console.log(`[ResponseHandler] 忽略未处理的 chunk 类型: ${chunk.type}`);
+            logger.debug(`忽略未处理的 chunk 类型: ${chunk.type}`);
             break;
         }
       } catch (error) {
-        console.error(`[ResponseHandler] 处理 chunk 事件失败:`, error);
+        logger.error(`处理 chunk 事件失败:`, error);
         throw error;
       }
     },
@@ -233,10 +235,10 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
 
       if (newRound) {
         // ⭐ 新一轮响应开始：先完成当前文本块（保存内容），再准备新块
-        console.log(`[ResponseHandler] 检测到新一轮响应，先保存当前内容再准备新文本块`);
+        logger.debug(`检测到新一轮响应，先保存当前内容再准备新文本块`);
         const savedBlockId = chunkProcessor.completeCurrentTextBlock();
         if (savedBlockId) {
-          console.log(`[ResponseHandler] 已保存上一轮文本块: ${savedBlockId}`);
+          logger.debug(`已保存上一轮文本块: ${savedBlockId}`);
         }
         // ⭐ 新一轮正式回答开始前，把上一段（思考阶段）的思考块也定稿并重置，
         // 避免下一段思考复用同一块、覆盖上一段内容。
@@ -278,7 +280,7 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
               hasAnyToolUse = true;
               // 只完成当前文本块，不重置状态
               const completedBlockId = chunkProcessor.completeCurrentTextBlock();
-              console.log(`[ResponseHandler] 工具检测：完成文本块 ${completedBlockId}，标记 hasAnyToolUse=true`);
+              logger.debug(`工具检测：完成文本块 ${completedBlockId}，标记 hasAnyToolUse=true`);
             }
             break;
         }
@@ -294,7 +296,7 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
       const currentState = store.getState();
       const message = currentState.messages.entities[messageId];
       if (message?.status === AssistantMessageStatus.SUCCESS) {
-        console.log(`[ResponseHandler] 消息已完成，停止处理`);
+        logger.debug(`消息已完成，停止处理`);
         return chunkProcessor.content;
       }
 
@@ -306,7 +308,7 @@ export function createResponseHandler({ messageId, blockId, topicId, toolNames =
         };
         await this.handleChunk(textChunk);
       } catch (error) {
-        console.error('[ResponseHandler] 处理字符串内容失败:', error);
+        logger.error('处理字符串内容失败:', error);
         throw error;
       }
 
@@ -373,5 +375,5 @@ export const setResponseState = ({ topicId, status, loading }: { topicId: string
   store.dispatch(newMessagesActions.setTopicStreaming({ topicId, streaming }));
   store.dispatch(newMessagesActions.setTopicLoading({ topicId, loading }));
 
-  console.log(`[ResponseHandler] 设置响应状态: topicId=${topicId}, status=${status}, loading=${loading}`);
+  logger.debug(`设置响应状态: topicId=${topicId}, status=${status}, loading=${loading}`);
 };

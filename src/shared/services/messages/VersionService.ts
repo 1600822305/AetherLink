@@ -12,6 +12,8 @@ import type {
   MessageVersion,
   MessageBlock
 } from '../../types/newMessage';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('VersionService');
 
 /**
  * 优化的版本管理服务
@@ -39,7 +41,7 @@ class VersionService {
     source: string = 'regenerate'
   ): Promise<string> {
     try {
-      console.log(`[VersionService] 保存当前内容为版本 - 消息ID: ${messageId}`);
+      logger.debug(`保存当前内容为版本 - 消息ID: ${messageId}`);
 
       // 获取消息
       const message = await dexieStorage.getMessage(messageId);
@@ -58,7 +60,7 @@ class VersionService {
       }
 
       if (!versionContent?.trim()) {
-        console.log(`[VersionService] 内容为空，跳过版本保存`);
+        logger.debug(`内容为空，跳过版本保存`);
         return '';
       }
 
@@ -124,7 +126,7 @@ class VersionService {
           await dexieStorage.deleteMessageBlocksByIds(blockIdsToDelete);
         }
         
-        console.log(`[VersionService] 清理旧版本，从 ${versions.length} 减少到 ${versionsToKeep.length}`);
+        logger.debug(`清理旧版本，从 ${versions.length} 减少到 ${versionsToKeep.length}`);
         versions.length = 0;
         versions.push(...versionsToKeep);
       }
@@ -142,10 +144,10 @@ class VersionService {
         }
       }));
 
-      console.log(`[VersionService] 版本保存成功 - 版本ID: ${versionId}, 总版本数: ${versions.length}`);
+      logger.debug(`版本保存成功 - 版本ID: ${versionId}, 总版本数: ${versions.length}`);
       return versionId;
     } catch (error) {
-      console.error(`[VersionService] 保存版本失败:`, error);
+      logger.error(`保存版本失败:`, error);
       throw error;
     }
   }
@@ -165,7 +167,7 @@ class VersionService {
       
       return this.saveCurrentAsVersion(messageId, content, message.model, 'manual');
     } catch (error) {
-      console.error(`[VersionService] 手动创建版本失败:`, error);
+      logger.error(`手动创建版本失败:`, error);
       throw error;
     }
   }
@@ -280,7 +282,7 @@ class VersionService {
             timestamp: Date.now()
           }
         });
-        console.log(`[VersionService] latest snapshot 已转正为版本 ${versionId}`);
+        logger.debug(`latest snapshot 已转正为版本 ${versionId}`);
       } else {
         // snapshot 没有有效内容，直接丢弃
         await dexieStorage.deleteMessageBlocksByIds(latestBlockIds);
@@ -306,7 +308,7 @@ class VersionService {
    */
   async switchToVersion(versionId: string): Promise<boolean> {
     try {
-      console.log(`[VersionService] 切换到版本 - 版本ID: ${versionId}`);
+      logger.debug(`切换到版本 - 版本ID: ${versionId}`);
 
       // 查找包含该版本的消息
       const allMessages = await dexieStorage.getAllMessages();
@@ -319,7 +321,7 @@ class VersionService {
         }
       }
       if (!targetMessage || !targetVersion) {
-        console.error(`[VersionService] 找不到版本 ${versionId}`);
+        logger.error(`找不到版本 ${versionId}`);
         return false;
       }
 
@@ -336,7 +338,7 @@ class VersionService {
           model: targetMessage.model || null,
           modelId: targetMessage.modelId || null
         }));
-        console.log(`[VersionService] 已保存 latest snapshot`);
+        logger.debug(`已保存 latest snapshot`);
       }
 
       // ── 2. 获取目标版本的块 ──
@@ -354,7 +356,7 @@ class VersionService {
         // 兜底：版本没有块副本（旧版本数据），用 contentSnapshot 恢复 main_text
         const contentSnapshot = targetVersion.metadata?.contentSnapshot;
         if (!contentSnapshot) {
-          console.error(`[VersionService] 版本 ${versionId} 没有内容快照`);
+          logger.error(`版本 ${versionId} 没有内容快照`);
           return false;
         }
         const currentBlocks = await dexieStorage.getMessageBlocksByIds(targetMessage.blocks || []);
@@ -363,7 +365,7 @@ class VersionService {
           await dexieStorage.updateMessageBlock(mainTextBlock.id, { content: contentSnapshot, updatedAt: new Date().toISOString() });
           store.dispatch(updateOneBlock({ id: mainTextBlock.id, changes: { content: contentSnapshot, updatedAt: new Date().toISOString() } }));
         } else {
-          console.error(`[VersionService] 找不到消息 ${messageId} 的主文本块`);
+          logger.error(`找不到消息 ${messageId} 的主文本块`);
           return false;
         }
       }
@@ -386,10 +388,10 @@ class VersionService {
         }
       }));
 
-      console.log(`[VersionService] 版本切换成功 - 版本ID: ${versionId}`);
+      logger.debug(`版本切换成功 - 版本ID: ${versionId}`);
       return true;
     } catch (error) {
-      console.error(`[VersionService] 切换版本失败:`, error);
+      logger.error(`切换版本失败:`, error);
       return false;
     }
   }
@@ -399,7 +401,7 @@ class VersionService {
    */
   async switchToLatest(messageId: string): Promise<boolean> {
     try {
-      console.log(`[VersionService] 切换到最新版本 - 消息ID: ${messageId}`);
+      logger.debug(`切换到最新版本 - 消息ID: ${messageId}`);
 
       const message = await dexieStorage.getMessage(messageId);
       if (!message) {
@@ -421,7 +423,7 @@ class VersionService {
         // ── 2. 用 latest snapshot 替换当前块 ──
         await this.replaceCurrentBlocks(messageId, message.blocks || [], latestBlocks);
       } else {
-        console.warn(`[VersionService] 没有 latest snapshot 块，保留当前块`);
+        logger.warn(`没有 latest snapshot 块，保留当前块`);
         // 没有 snapshot（可能旧数据），不改块，只清 currentVersionId
       }
 
@@ -459,10 +461,10 @@ class VersionService {
       await dexieStorage.deleteSetting(this.latestBlocksKey(messageId));
       await dexieStorage.deleteSetting(this.latestModelKey(messageId));
 
-      console.log(`[VersionService] 已切换到最新版本`);
+      logger.debug(`已切换到最新版本`);
       return true;
     } catch (error) {
-      console.error(`[VersionService] 切换到最新版本失败:`, error);
+      logger.error(`切换到最新版本失败:`, error);
       return false;
     }
   }
@@ -479,7 +481,7 @@ class VersionService {
       const mainTextBlock = blocks.find(block => block.type === 'main_text');
       return (mainTextBlock as any)?.content || '';
     } catch (error) {
-      console.error(`[VersionService] 获取消息内容失败:`, error);
+      logger.error(`获取消息内容失败:`, error);
       return '';
     }
   }
@@ -503,7 +505,7 @@ class VersionService {
         currentVersionId: message.currentVersionId
       };
     } catch (error) {
-      console.error(`[VersionService] 获取消息版本信息失败:`, error);
+      logger.error(`获取消息版本信息失败:`, error);
       return { versions: [] };
     }
   }
@@ -526,7 +528,7 @@ class VersionService {
       }
       
       if (!targetMessage) {
-        console.error(`[VersionService] 找不到包含版本 ${versionId} 的消息`);
+        logger.error(`找不到包含版本 ${versionId} 的消息`);
         return false;
       }
       
@@ -557,10 +559,10 @@ class VersionService {
         }
       }));
       
-      console.log(`[VersionService] 成功删除版本 ${versionId}`);
+      logger.debug(`成功删除版本 ${versionId}`);
       return true;
     } catch (error) {
-      console.error(`[VersionService] 删除版本失败:`, error);
+      logger.error(`删除版本失败:`, error);
       return false;
     }
   }

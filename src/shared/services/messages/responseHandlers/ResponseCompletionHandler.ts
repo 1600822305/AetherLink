@@ -12,6 +12,8 @@ import { refreshTopicPreview } from '../../topics/TopicPreviewService';
 import type { ChunkProcessorView } from './ResponseChunkProcessor';
 import { finalizeNonTerminalBlocks } from './blockFinalization';
 import { messageBlockRepository } from '../MessageBlockRepository';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ResponseCompletionHandler');
 
 /**
  * 响应完成处理器 - 处理响应完成和中断的逻辑
@@ -92,7 +94,7 @@ export class ResponseCompletionHandler {
    * 响应被中断时的完成处理
    */
   async completeWithInterruption(chunkProcessor: ChunkProcessorView) {
-    console.log(`[ResponseCompletionHandler] 响应被中断 - 消息ID: ${this.messageId}`);
+    logger.debug(`响应被中断 - 消息ID: ${this.messageId}`);
 
     // 关键修复：先取消所有待处理的节流/RAF 块更新，再收尾。
     // 否则中断时最后一帧 thinking 更新（status=streaming）会在 finalize 之后才触发，
@@ -109,7 +111,7 @@ export class ResponseCompletionHandler {
       return interruptedContent;
 
     } catch (error) {
-      console.error(`[ResponseCompletionHandler] 中断处理失败:`, error);
+      logger.error(`中断处理失败:`, error);
       return await this.complete(chunkProcessor.content, chunkProcessor);
     }
   }
@@ -128,7 +130,7 @@ export class ResponseCompletionHandler {
       const b = store.getState().messageBlocks.entities[id];
       return b ? `${id.slice(0, 6)}:${b.type}/${b.status}` : `${id.slice(0, 6)}:MISSING`;
     });
-    console.log(`[ResponseCompletionHandler] 中断收尾 blockId=${this.blockId.slice(0, 6)} blocks=[${dbgBlocks.join(', ')}]`);
+    logger.debug(`中断收尾 blockId=${this.blockId.slice(0, 6)} blocks=[${dbgBlocks.join(', ')}]`);
 
     // 1. 主块收尾。
     //    关键修复：初始块在「推理优先 / 纯思考」时可能本身就是思考块（initialBlockId 被
@@ -223,10 +225,10 @@ export class ResponseCompletionHandler {
       // 然后在事务中更新消息和话题引用
       await this.updateMessageAndTopicReferences(finalBlockIds, now);
 
-      console.log(`[ResponseCompletionHandler] 批量数据库操作完成`);
+      logger.debug(`批量数据库操作完成`);
 
     } catch (error) {
-      console.error(`[ResponseCompletionHandler] 批量数据库操作失败:`, error);
+      logger.error(`批量数据库操作失败:`, error);
       throw error;
     }
   }
@@ -374,7 +376,7 @@ export class ResponseCompletionHandler {
    */
   private isComparisonResult(finalContent: string | undefined, chunkProcessor: ChunkProcessorView): boolean {
     if (finalContent === '__COMPARISON_RESULT__' || chunkProcessor.content === '__COMPARISON_RESULT__') {
-      console.log(`[ResponseCompletionHandler] 检测到对比结果，跳过常规完成处理`);
+      logger.debug(`检测到对比结果，跳过常规完成处理`);
       return true;
     }
     return false;
@@ -385,11 +387,11 @@ export class ResponseCompletionHandler {
    */
   private async waitForToolsCompletion(): Promise<void> {
     try {
-      console.log(`[ResponseCompletionHandler] 等待所有工具执行完成...`);
+      logger.debug(`等待所有工具执行完成...`);
       await globalToolTracker.waitForAllToolsComplete(60000);
-      console.log(`[ResponseCompletionHandler] 所有工具执行完成`);
+      logger.debug(`所有工具执行完成`);
     } catch (error) {
-      console.warn(`[ResponseCompletionHandler] 等待工具完成超时:`, error);
+      logger.warn(`等待工具完成超时:`, error);
     }
   }
 
@@ -613,7 +615,7 @@ export class ResponseCompletionHandler {
       return block != null;
     });
 
-    console.log(`[ResponseCompletionHandler] 最终块ID（保持流式顺序）: [${finalBlockIds.join(', ')}]`);
+    logger.debug(`最终块ID（保持流式顺序）: [${finalBlockIds.join(', ')}]`);
     return finalBlockIds;
   }
 
@@ -646,9 +648,9 @@ export class ResponseCompletionHandler {
   private cleanupToolTracker(): void {
     try {
       globalToolTracker.cleanup();
-      console.log(`[ResponseCompletionHandler] 工具跟踪器清理完成`);
+      logger.debug(`工具跟踪器清理完成`);
     } catch (error) {
-      console.error(`[ResponseCompletionHandler] 工具跟踪器清理失败:`, error);
+      logger.error(`工具跟踪器清理失败:`, error);
     }
   }
 
@@ -662,15 +664,15 @@ export class ResponseCompletionHandler {
         // 获取最新的话题数据
         const topic = await dexieStorage.topics.get(this.topicId);
         if (topic && TopicNamingService.shouldNameTopic(topic)) {
-          console.log(`[ResponseCompletionHandler] 触发话题自动命名: ${this.topicId}`);
+          logger.debug(`触发话题自动命名: ${this.topicId}`);
           const newName = await TopicNamingService.generateTopicName(topic);
           if (newName) {
-            console.log(`[ResponseCompletionHandler] 话题自动命名成功: ${newName}`);
+            logger.debug(`话题自动命名成功: ${newName}`);
           }
         }
       }, 1000); // 延迟1秒执行，确保消息已完全保存
     } catch (error) {
-      console.error('[ResponseCompletionHandler] 话题自动命名失败:', error);
+      logger.error('话题自动命名失败:', error);
     }
   }
 }

@@ -6,6 +6,11 @@ import type { Chunk, TextDeltaChunk, TextCompleteChunk, ThinkingDeltaChunk, Thin
 import { ChunkType } from '../../../types/chunk';
 import { v4 as uuid } from 'uuid';
 import { EventEmitter, EVENT_NAMES } from '../../infra/EventService';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ResponseChunkProcessor');
+const textAccumulatorLogger = logger.withContext('TextAccumulator');
+const thinkingAccumulatorLogger = logger.withContext('ThinkingAccumulator');
+const smartThrottledBlockUpdaterLogger = logger.withContext('SmartThrottledBlockUpdater');
 
 // 1. 定义服务接口，便于测试和解耦
 interface StorageService {
@@ -69,7 +74,7 @@ class TextAccumulator extends ContentAccumulator {
   accumulate(newText: string): void {
     // 防御性检查：确保输入是字符串
     if (typeof newText !== 'string') {
-      console.warn('[TextAccumulator] 输入不是字符串，跳过:', typeof newText);
+      textAccumulatorLogger.warn('输入不是字符串，跳过:', typeof newText);
       return;
     }
     // 供应商已发送累积内容，直接替换即可
@@ -82,7 +87,7 @@ class ThinkingAccumulator extends ContentAccumulator {
   accumulate(newText: string): void {
     // 防御性检查：确保输入是字符串
     if (typeof newText !== 'string') {
-      console.warn('[ThinkingAccumulator] 输入不是字符串，跳过:', typeof newText);
+      thinkingAccumulatorLogger.warn('输入不是字符串，跳过:', typeof newText);
       return;
     }
     // 供应商已发送累积内容，直接替换即可
@@ -284,7 +289,7 @@ class SmartThrottledBlockUpdater implements BlockUpdater {
       this.stateService.updateBlock(blockId, changes);
       // ⭐ 数据库异步保存，不阻塞（参考 Cherry Studio）
       this.storageService.updateBlock(blockId, changes).catch(err => 
-        console.error('[SmartThrottledBlockUpdater] 数据库更新失败:', err)
+        smartThrottledBlockUpdaterLogger.error('数据库更新失败:', err)
       );
     } else {
       // 同类型连续更新：使用节流 + RAF
@@ -303,7 +308,7 @@ class SmartThrottledBlockUpdater implements BlockUpdater {
     this.stateService.addBlockReference(block.messageId, block.id, block.status);
     // ⭐ 数据库异步保存，不阻塞（参考 Cherry Studio）
     this.storageService.saveBlock(block).catch(err => 
-      console.error('[SmartThrottledBlockUpdater] 数据库保存失败:', err)
+      smartThrottledBlockUpdaterLogger.error('数据库保存失败:', err)
     );
     
     // ⭐ 设置新创建的块为活跃块
@@ -332,7 +337,7 @@ class SmartThrottledBlockUpdater implements BlockUpdater {
     this.stateService.updateBlock(blockId, changes);
     // ⭐ 数据库异步保存，不阻塞（参考 Cherry Studio）
     this.storageService.updateBlock(blockId, changes).catch(err => 
-      console.error('[SmartThrottledBlockUpdater] 强制更新数据库失败:', err)
+      smartThrottledBlockUpdaterLogger.error('强制更新数据库失败:', err)
     );
   }
 
@@ -504,11 +509,11 @@ export class ResponseChunkProcessor {
           this.handleThinkingComplete(chunk as ThinkingCompleteChunk);
           break;
         default:
-          console.warn(`[ResponseChunkProcessor] 未知的 chunk 类型: ${chunk.type}`);
+          logger.warn(`未知的 chunk 类型: ${chunk.type}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';
-      console.error(`[ResponseChunkProcessor] 处理 ${chunk.type} 失败: ${errorMessage}`, error);
+      logger.error(`处理 ${chunk.type} 失败: ${errorMessage}`, error);
       throw new Error(`处理 chunk 失败: ${errorMessage}`);
     }
   }

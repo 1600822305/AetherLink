@@ -7,6 +7,8 @@ import { createToolBlock, createCitationBlock } from '../../../utils/messageUtil
 // callMCPTool 不再需要 - 工具执行由 Provider 层统一处理
 import type { MCPTool } from '../../../types';
 import { messageBlockRepository } from '../MessageBlockRepository';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ToolResponseHandler');
 
 /**
  * 检查是否是 attempt_completion 工具（支持带前缀的名称）
@@ -81,9 +83,9 @@ export class ToolResponseHandler {
         await messageBlockRepository.createBlockAndAttach(toolBlock);
       }
 
-      console.log(`[ToolResponseHandler] 原子性工具块操作完成: ${operation} - toolId: ${toolId}, blockId: ${toolBlock.id}`);
+      logger.debug(`原子性工具块操作完成: ${operation} - toolId: ${toolId}, blockId: ${toolBlock.id}`);
     } catch (error) {
-      console.error(`[ToolResponseHandler] 原子性工具块操作失败: ${operation} - toolId: ${toolId}:`, error);
+      logger.error(`原子性工具块操作失败: ${operation} - toolId: ${toolId}:`, error);
       throw error;
     }
   }
@@ -108,7 +110,7 @@ export class ToolResponseHandler {
         await messageBlockRepository.updateBlock(existingBlockId, errorChanges);
       }
     } catch (updateError) {
-      console.error(`[ToolResponseHandler] 更新工具错误状态失败:`, updateError);
+      logger.error(`更新工具错误状态失败:`, updateError);
     }
   }
 
@@ -117,7 +119,7 @@ export class ToolResponseHandler {
    */
   async handleToolProgress(chunk: { type: 'mcp_tool_in_progress'; responses: any[] }) {
     try {
-      console.log(`[ToolResponseHandler] 处理工具进行中，工具数量: ${chunk.responses?.length || 0}`);
+      logger.debug(`处理工具进行中，工具数量: ${chunk.responses?.length || 0}`);
 
       if (!chunk.responses || chunk.responses.length === 0) {
         return;
@@ -126,14 +128,14 @@ export class ToolResponseHandler {
       // 参考 Cline 的顺序处理机制：逐个处理工具响应，确保稳定性
       for (const toolResponse of chunk.responses) {
         try {
-          console.log(`[ToolResponseHandler] 处理工具响应: toolResponse.id=${toolResponse.id}, tool.name=${toolResponse.tool.name}, tool.id=${toolResponse.tool.id}`);
+          logger.debug(`处理工具响应: toolResponse.id=${toolResponse.id}, tool.name=${toolResponse.tool.name}, tool.id=${toolResponse.tool.id}`);
 
           // 参考 Cline：如果是 invoking 状态，创建新的工具块
           if (toolResponse.status === 'invoking') {
             // 检查是否已存在该工具的块（防止重复创建）
             const existingBlockId = this.toolCallIdToBlockIdMap.get(toolResponse.id);
             if (existingBlockId) {
-              console.log(`[ToolResponseHandler] 工具块已存在: ${existingBlockId} (toolId: ${toolResponse.id})`);
+              logger.debug(`工具块已存在: ${existingBlockId} (toolId: ${toolResponse.id})`);
               continue;
             }
 
@@ -153,7 +155,7 @@ export class ToolResponseHandler {
               }
             });
 
-            console.log(`[ToolResponseHandler] 创建工具块: ${toolBlock.id} (${(toolBlock as ToolMessageBlock).toolName})`);
+            logger.debug(`创建工具块: ${toolBlock.id} (${(toolBlock as ToolMessageBlock).toolName})`);
 
             // 修复：简化操作，避免复杂事务
             // 1. 更新映射
@@ -163,16 +165,16 @@ export class ToolResponseHandler {
             await messageBlockRepository.createBlockAndAttach(toolBlock);
 
           } else {
-            console.warn(`[ToolResponseHandler] 收到未处理的工具状态: ${toolResponse.status} for ID: ${toolResponse.id}`);
+            logger.warn(`收到未处理的工具状态: ${toolResponse.status} for ID: ${toolResponse.id}`);
           }
         } catch (toolError) {
           // 参考 Cline 的错误处理：单个工具失败不影响其他工具
-          console.error(`[ToolResponseHandler] 处理单个工具失败 (toolId: ${toolResponse.id}):`, toolError);
+          logger.error(`处理单个工具失败 (toolId: ${toolResponse.id}):`, toolError);
           await this.handleSingleToolError(toolResponse.id, toolError);
         }
       }
     } catch (error) {
-      console.error(`[ToolResponseHandler] 处理工具进行中事件失败:`, error);
+      logger.error(`处理工具进行中事件失败:`, error);
     }
   }
 
@@ -183,9 +185,9 @@ export class ToolResponseHandler {
     try {
       await messageBlockRepository.updateBlock(blockId, changes);
 
-      console.log(`[ToolResponseHandler] 原子性工具块更新完成: blockId: ${blockId}`);
+      logger.debug(`原子性工具块更新完成: blockId: ${blockId}`);
     } catch (error) {
-      console.error(`[ToolResponseHandler] 原子性工具块更新失败: blockId: ${blockId}:`, error);
+      logger.error(`原子性工具块更新失败: blockId: ${blockId}:`, error);
       throw error;
     }
   }
@@ -209,7 +211,7 @@ export class ToolResponseHandler {
       const endTime = new Date().getTime();
       return endTime - startTime;
     } catch (error) {
-      console.error(`[ToolResponseHandler] 计算工具执行时长失败:`, error);
+      logger.error(`计算工具执行时长失败:`, error);
       return undefined;
     }
   }
@@ -238,7 +240,7 @@ export class ToolResponseHandler {
       }
 
       if (webSearchResults.length === 0) {
-        console.log(`[ToolResponseHandler] Web 搜索无结果，跳过引用块创建`);
+        logger.debug(`Web 搜索无结果，跳过引用块创建`);
         return;
       }
 
@@ -258,14 +260,14 @@ export class ToolResponseHandler {
         webSearchProvider: webSearchItems[0]?.provider,
       });
 
-      console.log(`[ToolResponseHandler] 创建 Web 搜索引用块: ${citationBlock.id}，包含 ${webSearchItems.length} 条结果`);
+      logger.debug(`创建 Web 搜索引用块: ${citationBlock.id}，包含 ${webSearchItems.length} 条结果`);
 
       await messageBlockRepository.createBlockAndAttach(citationBlock, {
         position: { type: 'after', anchorBlockId: _toolBlockId }
       });
-      console.log(`[ToolResponseHandler] Web 搜索引用块已添加到消息: ${citationBlock.id}`);
+      logger.debug(`Web 搜索引用块已添加到消息: ${citationBlock.id}`);
     } catch (error) {
-      console.error(`[ToolResponseHandler] 创建 Web 搜索引用块失败:`, error);
+      logger.error(`创建 Web 搜索引用块失败:`, error);
     }
   }
 
@@ -276,9 +278,9 @@ export class ToolResponseHandler {
     try {
       // 可以在这里添加工具执行完成后的清理逻辑
       // 例如：清理临时文件、释放资源等
-      console.log(`[ToolResponseHandler] 清理工具执行: toolId: ${toolId}`);
+      logger.debug(`清理工具执行: toolId: ${toolId}`);
     } catch (error) {
-      console.error(`[ToolResponseHandler] 清理工具执行失败:`, error);
+      logger.error(`清理工具执行失败:`, error);
     }
   }
 
@@ -287,7 +289,7 @@ export class ToolResponseHandler {
    */
   async handleToolComplete(chunk: { type: 'mcp_tool_complete'; responses: any[] }) {
     try {
-      console.log(`[ToolResponseHandler] 处理工具完成，工具数量: ${chunk.responses?.length || 0}`);
+      logger.debug(`处理工具完成，工具数量: ${chunk.responses?.length || 0}`);
 
       if (!chunk.responses || chunk.responses.length === 0) {
         return;
@@ -301,7 +303,7 @@ export class ToolResponseHandler {
 
           if (toolResponse.status === 'done' || toolResponse.status === 'error') {
             if (!existingBlockId) {
-              console.error(`[ToolResponseHandler] 未找到工具调用 ${toolResponse.id} 对应的工具块ID`);
+              logger.error(`未找到工具调用 ${toolResponse.id} 对应的工具块ID`);
               continue;
             }
 
@@ -323,7 +325,7 @@ export class ToolResponseHandler {
                 if (completionInfo.command) {
                   displayContent += `\n\n📋 **建议执行命令:**\n\`\`\`\n${completionInfo.command}\n\`\`\``;
                 }
-                console.log(`[ToolResponseHandler] attempt_completion 结果已格式化`);
+                logger.debug(`attempt_completion 结果已格式化`);
               }
             }
             
@@ -348,7 +350,7 @@ export class ToolResponseHandler {
               };
             }
 
-            console.log(`[ToolResponseHandler] 更新工具块 ${existingBlockId} (toolId: ${toolResponse.id}) 状态为 ${finalStatus}${isCompletion ? ' [attempt_completion]' : ''}`);
+            logger.debug(`更新工具块 ${existingBlockId} (toolId: ${toolResponse.id}) 状态为 ${finalStatus}${isCompletion ? ' [attempt_completion]' : ''}`);
 
             // 修复：简化更新操作，避免复杂事务
 
@@ -366,11 +368,11 @@ export class ToolResponseHandler {
             await this.cleanupToolExecution(toolResponse.id);
 
           } else {
-            console.warn(`[ToolResponseHandler] 收到未处理的工具状态: ${toolResponse.status} for ID: ${toolResponse.id}`);
+            logger.warn(`收到未处理的工具状态: ${toolResponse.status} for ID: ${toolResponse.id}`);
           }
         } catch (toolError) {
           // 参考 Cline 的错误处理：单个工具失败不影响其他工具
-          console.error(`[ToolResponseHandler] 处理单个工具完成失败 (toolId: ${toolResponse.id}):`, toolError);
+          logger.error(`处理单个工具完成失败 (toolId: ${toolResponse.id}):`, toolError);
 
           // 修复：即使处理失败也要标记工具完成，避免无限等待
           globalToolTracker.completeTool(toolResponse.id, false);
@@ -379,7 +381,7 @@ export class ToolResponseHandler {
         }
       }
     } catch (error) {
-      console.error(`[ToolResponseHandler] 处理工具完成事件失败:`, error);
+      logger.error(`处理工具完成事件失败:`, error);
     }
   }
 
@@ -406,7 +408,7 @@ export class ToolResponseHandler {
           break;
       }
     } catch (error) {
-      console.error(`[ToolResponseHandler] 处理 chunk 事件失败:`, error);
+      logger.error(`处理 chunk 事件失败:`, error);
       throw error;
     }
   }
