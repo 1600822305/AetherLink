@@ -310,8 +310,18 @@ flowchart TD
 | 1+2+3 | logger 核心 + 兼容垫片 + ESLint `no-console` | #240 | 已合并 |
 | 4 样板A | `src/shared/services/mcp`（222 处 / 15 文件） | #241 | 已合并 |
 | 4 样板B | `src/shared/store`（155 处 / 22 文件） | #242 | 已合并 |
+| 文档 | §13 迁移进度 + 规范固化 | #243 | 已合并 |
+| 4 第二批 | `src/shared/api`（264 处 / 30 文件） | #244 | 已合并 |
+| 4 第二批 | `src/shared/services/storage`（183 处 / 7 文件） | #245 | 已合并 |
+| 4 第二批 | `src/shared/services/messages`（169 处 / 17 文件） | #246 | 已合并 |
+| 4 第三批 | `src/shared/services/files`（106 处 / 7 文件） | #247 | 已合并 |
+| 4 第三批 | `src/shared/services/ai`（约 135 处 / 7 文件） | #248 | 已合并 |
+| 4 第三批 | `src/shared/services/webSearch`（120 处 / 11 文件） | #249 | 已合并 |
+| 4 第三批 | `src/shared/services/knowledge`（105 处 / 9 文件） | #250 | 已合并 |
 
 新 logger 位于 `src/shared/services/infra/logger/`，对外导出 `logger`、`createLogger(context)`、`Logger`、Transport 与类型。
+
+**累计**：已完成 9 个子系统（mcp / store / api / storage / messages / ai / webSearch / files / knowledge），约 1450 处 `console.*` 迁移并归零，CI（type-check + build）全绿。
 
 ### 13.2 迁移规范（统一规则，分模块迁移一律照此执行）
 
@@ -333,21 +343,29 @@ flowchart TD
 7. **验收**：目标目录内 `console.*` 归零（`warn`/`error` 虽被 ESLint 放行，但建议一并迁以保持一致）；`npm run type-check` 与 `npm run build`（`vite build`）**必须通过**（CI 门禁）。
 8. **方式**：手动分子系统、每子系统一个小 PR；**不做全仓盲目 codemod**。仅当某子系统「特别简单」（单行调用、统一带 `[前缀]`、无多行/多参歧义）时，允许用「按文件配置 + 全量 diff 复核 + 编译」的受控脚本辅助。
 
-### 13.3 剩余盘点（`console.*` 总量 / 必迁 `log·info·debug·group` / 文件数）
+### 13.3 剩余盘点（基于 `main`；`console.*` 总量 / 必迁 `log·info·debug·group` / 文件数）
 
-| 子系统 | 总数 | 必迁 | 文件 | 状态 |
+> 已迁子系统（mcp / store / api / storage / messages / ai / webSearch / files / knowledge）均已归零，不再列出。`src` 全量剩余约 **1568 处**（含下表 + 约 16 处豁免后端）。
+
+| 区域 | 总数 | 必迁 | 文件 | 备注 |
 |--------|------|------|------|------|
-| `shared/services/mcp` | 222 | — | 15 | ✅ #241 |
-| `shared/store` | 155 | — | 22 | ✅ #242 |
-| `shared/api` | 264 | 176 | 30 | 进行中 |
-| `shared/services`（非 mcp） | 1232 | 623 | 105 | 待迁（含 storage 183 / messages 169 / ai 138 / webSearch 120 / files 106 / knowledge 105 …） |
+| `shared/services/assistant` | 97 | 51 | 6 | 待迁 |
+| `shared/services/topics` | 60 | 26 | 4 | 待迁 |
+| `shared/services/memory` | 53 | 16 | 6 | 待迁 |
+| `shared/services/platform` | 52 | 21 | 7 | 待迁 |
+| `shared/services/tts-v2` | 41 | 25 | 8 | 待迁 |
+| `shared/services/skills` | 28 | 11 | 1 | 待迁 |
+| `shared/services/network` | 26 | 14 | 4 | 待迁 |
+| `shared/services/ui` | 17 | 7 | 2 | 待迁 |
+| `shared/services/notes` | 11 | 5 | 2 | 待迁 |
+| `shared/services/translate` | 3 | 0 | 1 | 全 error/warn，可暂留 |
 | `shared/utils` | 207 | 107 | 33 | 待迁 |
 | `shared/hooks` | 40 | 21 | 9 | 待迁 |
 | `shared/providers` | 23 | 11 | 2 | 待迁 |
-| `components` | 326 | 116 | 101 | 待迁（多为 error/warn） |
+| `components` | 325 | 116 | 101 | 待迁（多为 error/warn） |
 | `pages` | 418 | 162 | 67 | 待迁（多为 error/warn） |
 | `hooks`（顶层） | 49 | 27 | 8 | 待迁 |
-| `utils`（顶层） | 61 | 21 | 5 | 待迁 |
+| `utils`（顶层） | 61 | 20 | 5 | 待迁 |
 
 > 注：`ConsoleTransport` / `EnhancedConsoleService` / `LoggerService` 等日志后端自身的 `console` 使用（约 16 处）为有意保留，已在 ESLint 中豁免，不计入迁移目标。
 
@@ -355,3 +373,13 @@ flowchart TD
 
 - ESLint `no-console` 力度：**保留 `error`/`warn`**，其余告警（不一次性禁止，避免 CI 爆 3000+ 错）。
 - 命名空间风格：**两者都提供** —— 文件级默认 `createLogger('Mod')`，文件内细分用 `logger.withContext('Sub')`。
+
+### 13.5 执行节奏（多轨并行 + 子会话复用）
+
+阶段4 体量大，采用「主会话 + 多个子会话并行、每子系统一个小 PR」的节奏推进：
+
+- **互不重叠**：每轨认领一个独立子目录（文件集不相交），避免合并冲突；通常一轨为主会话亲自做，其余派子会话。
+- **子会话可复用**：子会话完成 PR 后停在空闲（`waiting_for_user`），可直接派发新子系统任务复用——其仓库克隆与上一轮迁移上下文都还在，省去重新拉起成本。复用前务必让其先 `git checkout main && git pull` 再基于最新 `origin/main` 开新分支（否则会基于过期 base）。
+- **自包含 prompt**：子会话各自独立机器、无共享状态，prompt 必须自带：仓库与环境、logger API、**仅限**该目录的范围、§13.2 规则、按文件层级的相对导入深度、每文件的 context 决策、自检步骤（`grep` 归零 + type-check + build）、独立分支与独立 PR；遇产品/设计抉择应回报而非擅自决定。
+- **特殊文件人工处理**：含 `%c` 控制台样式、`console.group` 分组、多行/多参的调用，脚本不安全，需人工迁移（如 `ai/ThinkingDebugService.ts`：样式/分组折叠为干净 `logger.debug`，信息无损）。
+- **无损校验**：迁移前后用 CJK 码点计数比对工作树与 `origin/main`，确认中文消息零丢失（终端里的中文乱码多为 PTY 显示伪影，非文件损坏）。
