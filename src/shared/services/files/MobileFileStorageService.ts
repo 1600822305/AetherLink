@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { dexieStorage } from '../storage/DexieStorageService';
 import type { FileType } from '../../types';
 import { getFileTypeByExtension, getFileMimeType } from '../../utils/fileUtils';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('MobileFileStorage');
 
 // 文件类型常量
 export const FileTypes = {
@@ -75,7 +77,7 @@ export class MobileFileStorageService {
         });
       }
     } catch (error) {
-      console.error('[MobileFileStorage] 初始化存储目录失败:', error);
+      logger.error('初始化存储目录失败:', error);
     }
   }
 
@@ -91,7 +93,7 @@ export class MobileFileStorageService {
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     } catch (error) {
-      console.error('[MobileFileStorage] 计算文件哈希失败:', error);
+      logger.error('计算文件哈希失败:', error);
       // 降级到简单哈希
       return data.length.toString() + Date.now().toString();
     }
@@ -105,7 +107,7 @@ export class MobileFileStorageService {
       const files = await dexieStorage.files.where('hash').equals(hash).toArray();
       return files.find(f => f.size === size) || null;
     } catch (error) {
-      console.error('[MobileFileStorage] 查找重复文件失败:', error);
+      logger.error('查找重复文件失败:', error);
       return null;
     }
   }
@@ -159,7 +161,7 @@ export class MobileFileStorageService {
         img.src = `data:${mimeType};base64,${base64Data}`;
       });
     } catch (error) {
-      console.error('[MobileFileStorage] 图片压缩失败:', error);
+      logger.error('图片压缩失败:', error);
       return base64Data;
     }
   }
@@ -223,7 +225,7 @@ export class MobileFileStorageService {
               encoding: Encoding.UTF8
             });
           } catch (error) {
-            console.error('[MobileFileStorage] 解码文本文件失败，使用base64保存:', error);
+            logger.error('解码文本文件失败，使用base64保存:', error);
             // 降级：以 base64 写入二进制
             await Filesystem.writeFile({
               path: filePath,
@@ -264,7 +266,7 @@ export class MobileFileStorageService {
 
       return fileRecord;
     } catch (error) {
-      console.error('[MobileFileStorage] 上传文件失败:', error);
+      logger.error('上传文件失败:', error);
       throw error;
     }
   }
@@ -293,7 +295,7 @@ export class MobileFileStorageService {
             const decodedContent = this.decodeBase64ToUTF8(base64Content);
             return decodedContent;
           } catch (error) {
-            console.error('[MobileFileStorage] 解码文件内容失败:', error);
+            logger.error('解码文件内容失败:', error);
             // 如果解码失败，可能文件内容本身就是文本
             return file.base64Data;
           }
@@ -310,7 +312,7 @@ export class MobileFileStorageService {
             // 文件系统中的文本文件已经是解码后的内容，直接返回
             return result.data as string;
           } catch (error) {
-            console.error('[MobileFileStorage] 从文件系统读取失败:', error);
+            logger.error('从文件系统读取失败:', error);
           }
         }
       }
@@ -339,7 +341,7 @@ export class MobileFileStorageService {
             }
           }
         } catch (error) {
-          console.error('[MobileFileStorage] 解析文档内容失败:', error);
+          logger.error('解析文档内容失败:', error);
         }
         // 解析失败时返回文件信息占位，避免把二进制当文本返回乱码
         return `文件: ${file.origin_name || file.name}\n类型: ${file.type}\n大小: ${file.size} bytes\n扩展名: ${file.ext}\n[无法提取该文档的文本内容]`;
@@ -348,7 +350,7 @@ export class MobileFileStorageService {
       // 默认返回文件信息
       return `文件: ${file.origin_name}\n类型: ${file.type}\n大小: ${file.size} bytes\n扩展名: ${file.ext}`;
     } catch (error) {
-      console.error('[MobileFileStorage] 读取文件失败:', error);
+      logger.error('读取文件失败:', error);
       throw error;
     }
   }
@@ -371,7 +373,7 @@ export class MobileFileStorageService {
         mimeType
       };
     } catch (error) {
-      console.error('[MobileFileStorage] 获取文件base64失败:', error);
+      logger.error('获取文件base64失败:', error);
       throw error;
     }
   }
@@ -398,7 +400,7 @@ export class MobileFileStorageService {
               directory: Directory.Data
             });
           } catch (error) {
-            console.error('[MobileFileStorage] 删除物理文件失败:', error);
+            logger.error('删除物理文件失败:', error);
           }
         }
 
@@ -409,7 +411,7 @@ export class MobileFileStorageService {
         await dexieStorage.files.put(file);
       }
     } catch (error) {
-      console.error('[MobileFileStorage] 删除文件失败:', error);
+      logger.error('删除文件失败:', error);
       throw error;
     }
   }
@@ -421,7 +423,7 @@ export class MobileFileStorageService {
     try {
       return await dexieStorage.files.get(fileId) || null;
     } catch (error) {
-      console.error('[MobileFileStorage] 获取文件信息失败:', error);
+      logger.error('获取文件信息失败:', error);
       return null;
     }
   }
@@ -458,7 +460,7 @@ export class MobileFileStorageService {
         return utf8String;
       }
     } catch (error) {
-      console.error('[MobileFileStorage] UTF-8解码失败:', error);
+      logger.error('UTF-8解码失败:', error);
       // 最后的降级处理：直接使用atob
       return atob(base64String);
     }
@@ -485,7 +487,7 @@ export class MobileFileStorageService {
         });
       }
     } catch (error) {
-      console.error('[MobileFileStorage] 清理临时文件失败:', error);
+      logger.error('清理临时文件失败:', error);
     }
   }
 }

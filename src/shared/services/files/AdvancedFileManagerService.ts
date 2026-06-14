@@ -36,6 +36,8 @@ import type {
   GetFileHashResult,
   GetLineCountResult
 } from '../../types/fileManager';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('AdvancedFileManager');
 
 const AdvancedFileManager = registerPlugin<AdvancedFileManagerPlugin>('AdvancedFileManager');
 
@@ -66,7 +68,7 @@ class AdvancedFileManagerService {
       this.permissionsGranted = result.granted;
       return result;
     } catch (error) {
-      console.error('请求权限失败:', error);
+      logger.error('请求权限失败:', error);
       return {
         granted: false,
         message: '请求权限失败: ' + (error instanceof Error ? error.message : String(error))
@@ -91,7 +93,7 @@ class AdvancedFileManagerService {
       this.permissionsGranted = result.granted;
       return result;
     } catch (error) {
-      console.error('检查权限失败:', error);
+      logger.error('检查权限失败:', error);
       return {
         granted: false,
         message: '检查权限失败: ' + (error instanceof Error ? error.message : String(error))
@@ -151,7 +153,7 @@ class AdvancedFileManagerService {
 
       return result;
     } catch (error) {
-      console.error('打开系统文件选择器失败:', error);
+      logger.error('打开系统文件选择器失败:', error);
       throw new Error('打开系统文件选择器失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -210,7 +212,7 @@ class AdvancedFileManagerService {
 
       return '选择的文件夹';
     } catch (error) {
-      console.error('提取友好名称失败:', error);
+      logger.error('提取友好名称失败:', error);
       return '新工作区';
     }
   }
@@ -238,7 +240,7 @@ class AdvancedFileManagerService {
       // 返回原始URI作为备用
       return contentUri;
     } catch (error) {
-      console.error('转换显示路径失败:', error);
+      logger.error('转换显示路径失败:', error);
       return contentUri;
     }
   }
@@ -254,7 +256,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.openSystemFileManager(path);
     } catch (error) {
-      console.error('打开系统文件管理器失败:', error);
+      logger.error('打开系统文件管理器失败:', error);
       throw new Error('打开系统文件管理器失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -270,7 +272,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.openFileWithSystemApp(filePath, mimeType);
     } catch (error) {
-      console.error('用系统应用打开文件失败:', error);
+      logger.error('用系统应用打开文件失败:', error);
       throw new Error('用系统应用打开文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -286,7 +288,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.listDirectory(options);
     } catch (error) {
-      console.error('列出目录失败:', error);
+      logger.error('列出目录失败:', error);
       throw new Error('列出目录失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -302,7 +304,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.createDirectory(options);
     } catch (error) {
-      console.error('创建目录失败:', error);
+      logger.error('创建目录失败:', error);
       throw new Error('创建目录失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -318,7 +320,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.deleteDirectory(options);
     } catch (error) {
-      console.error('删除目录失败:', error);
+      logger.error('删除目录失败:', error);
       throw new Error('删除目录失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -334,7 +336,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.createFile(options);
     } catch (error) {
-      console.error('创建文件失败:', error);
+      logger.error('创建文件失败:', error);
       throw new Error('创建文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -352,7 +354,7 @@ class AdvancedFileManagerService {
         encoding: 'utf8'
       });
     } catch (error) {
-      console.error('创建空文件失败:', error);
+      logger.error('创建空文件失败:', error);
       throw new Error('创建空文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -370,7 +372,7 @@ class AdvancedFileManagerService {
         encoding: 'utf8'
       });
     } catch (error) {
-      console.error('创建文本文件失败:', error);
+      logger.error('创建文本文件失败:', error);
       throw new Error('创建文本文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -386,7 +388,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.readFile(options);
     } catch (error) {
-      console.error('读取文件失败:', error);
+      logger.error('读取文件失败:', error);
       throw new Error('读取文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -402,7 +404,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.writeFile(options);
     } catch (error) {
-      console.error('写入文件失败:', error);
+      logger.error('写入文件失败:', error);
       throw new Error('写入文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -418,7 +420,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.deleteFile(options);
     } catch (error) {
-      console.error('删除文件失败:', error);
+      logger.error('删除文件失败:', error);
       throw new Error('删除文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -434,7 +436,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.moveFile(options);
     } catch (error) {
-      console.error('移动文件失败:', error);
+      logger.error('移动文件失败:', error);
       throw new Error('移动文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -450,7 +452,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.copyFile(options);
     } catch (error) {
-      console.error('复制文件失败:', error);
+      logger.error('复制文件失败:', error);
       throw new Error('复制文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -466,7 +468,7 @@ class AdvancedFileManagerService {
     try {
       await AdvancedFileManager.renameFile(options);
     } catch (error) {
-      console.error('重命名文件失败:', error);
+      logger.error('重命名文件失败:', error);
       throw new Error('重命名文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -482,7 +484,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.getFileInfo(options);
     } catch (error) {
-      console.error('获取文件信息失败:', error);
+      logger.error('获取文件信息失败:', error);
       throw new Error('获取文件信息失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -499,7 +501,7 @@ class AdvancedFileManagerService {
       const result = await AdvancedFileManager.exists(options);
       return result.exists;
     } catch (error) {
-      console.error('检查文件存在性失败:', error);
+      logger.error('检查文件存在性失败:', error);
       return false;
     }
   }
@@ -515,7 +517,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.searchFiles(options);
     } catch (error) {
-      console.error('搜索文件失败:', error);
+      logger.error('搜索文件失败:', error);
       throw new Error('搜索文件失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -535,7 +537,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.readFileRange(options);
     } catch (error) {
-      console.error('读取文件范围失败:', error);
+      logger.error('读取文件范围失败:', error);
       throw new Error('读取文件范围失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -553,7 +555,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.insertContent(options);
     } catch (error) {
-      console.error('插入内容失败:', error);
+      logger.error('插入内容失败:', error);
       throw new Error('插入内容失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -571,7 +573,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.replaceInFile(options);
     } catch (error) {
-      console.error('替换内容失败:', error);
+      logger.error('替换内容失败:', error);
       throw new Error('替换内容失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -589,7 +591,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.applyDiff(options);
     } catch (error) {
-      console.error('应用 diff 失败:', error);
+      logger.error('应用 diff 失败:', error);
       throw new Error('应用 diff 失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -607,7 +609,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.getFileHash(options);
     } catch (error) {
-      console.error('获取文件哈希失败:', error);
+      logger.error('获取文件哈希失败:', error);
       throw new Error('获取文件哈希失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -625,7 +627,7 @@ class AdvancedFileManagerService {
     try {
       return await AdvancedFileManager.getLineCount(options);
     } catch (error) {
-      console.error('获取文件行数失败:', error);
+      logger.error('获取文件行数失败:', error);
       throw new Error('获取文件行数失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
@@ -643,7 +645,7 @@ class AdvancedFileManagerService {
       const result = await AdvancedFileManager.echo({ value: 'test' });
       return result.value === 'test';
     } catch (error) {
-      console.error('测试插件连接失败:', error);
+      logger.error('测试插件连接失败:', error);
       return false;
     }
   }

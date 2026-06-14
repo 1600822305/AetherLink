@@ -37,6 +37,8 @@ import type {
   GetFileHashResult,
   GetLineCountResult
 } from '../../types/fileManager';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('UnifiedFileManager');
 
 // ============================================
 // Tauri 实现
@@ -139,7 +141,7 @@ class TauriFileManagerImpl {
 
       return { files, directories, cancelled: false };
     } catch (error) {
-      console.error('Tauri 文件选择器错误:', error);
+      logger.error('Tauri 文件选择器错误:', error);
       return { files: [], directories: [], cancelled: true };
     }
   }
@@ -153,7 +155,7 @@ class TauriFileManagerImpl {
         await shell.open(path);
       }
     } catch (error) {
-      console.error('打开文件管理器失败:', error);
+      logger.error('打开文件管理器失败:', error);
       throw new Error('打开文件管理器失败');
     }
   }
@@ -165,7 +167,7 @@ class TauriFileManagerImpl {
     try {
       await shell.open(filePath);
     } catch (error) {
-      console.error('打开文件失败:', error);
+      logger.error('打开文件失败:', error);
       throw new Error('打开文件失败');
     }
   }
@@ -231,7 +233,7 @@ class TauriFileManagerImpl {
 
       return { files: filteredFiles, totalCount: filteredFiles.length };
     } catch (error) {
-      console.error('列出目录失败:', error);
+      logger.error('列出目录失败:', error);
       throw new Error('列出目录失败');
     }
   }
@@ -243,7 +245,7 @@ class TauriFileManagerImpl {
     try {
       await fs.mkdir(options.path, { recursive: options.recursive });
     } catch (error) {
-      console.error('创建目录失败:', error);
+      logger.error('创建目录失败:', error);
       throw new Error('创建目录失败');
     }
   }
@@ -255,7 +257,7 @@ class TauriFileManagerImpl {
     try {
       await fs.remove(options.path, { recursive: true });
     } catch (error) {
-      console.error('删除目录失败:', error);
+      logger.error('删除目录失败:', error);
       throw new Error('删除目录失败');
     }
   }
@@ -272,7 +274,7 @@ class TauriFileManagerImpl {
         await fs.writeTextFile(options.path, options.content);
       }
     } catch (error) {
-      console.error('创建文件失败:', error);
+      logger.error('创建文件失败:', error);
       throw new Error('创建文件失败');
     }
   }
@@ -292,13 +294,13 @@ class TauriFileManagerImpl {
         const content = await fs.readTextFile(options.path);
         // 确保返回的是字符串
         if (typeof content !== 'string') {
-          console.warn('readTextFile 返回非字符串类型:', typeof content, content);
+          logger.warn('readTextFile 返回非字符串类型:', typeof content, content);
           return { content: String(content), encoding: 'utf8' };
         }
         return { content, encoding: 'utf8' };
       }
     } catch (error) {
-      console.error('读取文件失败:', error);
+      logger.error('读取文件失败:', error);
       throw new Error('读取文件失败');
     }
   }
@@ -315,7 +317,7 @@ class TauriFileManagerImpl {
         await fs.writeTextFile(options.path, options.content, { append: options.append });
       }
     } catch (error) {
-      console.error('写入文件失败:', error);
+      logger.error('写入文件失败:', error);
       throw new Error('写入文件失败');
     }
   }
@@ -327,7 +329,7 @@ class TauriFileManagerImpl {
     try {
       await fs.remove(options.path);
     } catch (error) {
-      console.error('删除文件失败:', error);
+      logger.error('删除文件失败:', error);
       throw new Error('删除文件失败');
     }
   }
@@ -339,7 +341,7 @@ class TauriFileManagerImpl {
     try {
       await fs.rename(options.sourcePath, options.destinationPath);
     } catch (error) {
-      console.error('移动文件失败:', error);
+      logger.error('移动文件失败:', error);
       throw new Error('移动文件失败');
     }
   }
@@ -351,7 +353,7 @@ class TauriFileManagerImpl {
     try {
       await fs.copyFile(options.sourcePath, options.destinationPath);
     } catch (error) {
-      console.error('复制文件失败:', error);
+      logger.error('复制文件失败:', error);
       throw new Error('复制文件失败');
     }
   }
@@ -365,7 +367,7 @@ class TauriFileManagerImpl {
       const newPath = `${dir}/${options.newName}`;
       await fs.rename(options.path, newPath);
     } catch (error) {
-      console.error('重命名文件失败:', error);
+      logger.error('重命名文件失败:', error);
       throw new Error('重命名文件失败');
     }
   }
@@ -388,7 +390,7 @@ class TauriFileManagerImpl {
         isHidden: name.startsWith('.')
       };
     } catch (error) {
-      console.error('获取文件信息失败:', error);
+      logger.error('获取文件信息失败:', error);
       throw new Error('获取文件信息失败');
     }
   }
@@ -824,17 +826,17 @@ class UnifiedFileManagerService {
     if (!this.impl) {
       // Tauri 桌面端
       if (isTauri()) {
-        console.log('[UnifiedFileManager] 使用 Tauri 桌面实现');
+        logger.debug('使用 Tauri 桌面实现');
         this.impl = new TauriFileManagerImpl();
       } 
       // Capacitor (包括 Android/iOS)
       else if (isCapacitor()) {
-        console.log('[UnifiedFileManager] 使用 Capacitor 实现');
+        logger.debug('使用 Capacitor 实现');
         this.impl = new CapacitorFileManagerImpl();
       } 
       // Web 降级
       else {
-        console.log('[UnifiedFileManager] 使用 Web 降级实现');
+        logger.debug('使用 Web 降级实现');
         this.impl = new WebFileManagerImpl();
       }
     }

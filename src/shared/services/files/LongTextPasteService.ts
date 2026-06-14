@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { detectRuntime, RuntimeType } from '../../utils/platformDetection';
 import { dexieStorage } from '../storage/DexieStorageService';
 import type { FileType, FileContent } from '../../types';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('LongTextPasteService');
 
 // 文件类型常量
 const FileTypes = {
@@ -50,7 +52,7 @@ export class LongTextPasteService {
 
   private constructor() {
     this.runtime = detectRuntime();
-    console.log('[LongTextPasteService] 初始化，运行时:', this.runtime);
+    logger.debug('初始化，运行时:', this.runtime);
   }
 
   public static getInstance(): LongTextPasteService {
@@ -88,7 +90,7 @@ export class LongTextPasteService {
         file
       };
     } catch (error) {
-      console.error('[LongTextPasteService] 转换文本为文件失败:', error);
+      logger.error('转换文本为文件失败:', error);
       return {
         success: false,
         convertedToFile: false,
@@ -207,10 +209,10 @@ export class LongTextPasteService {
               baseDir: BaseDirectory.AppData,
               recursive: true
             });
-            console.log('[LongTextPasteService] 目录创建成功:', dirPath);
+            logger.debug('目录创建成功:', dirPath);
           } catch (mkdirError) {
             // 目录可能已存在，忽略错误
-            console.log('[LongTextPasteService] 目录已存在或创建跳过');
+            logger.debug('目录已存在或创建跳过');
           }
           
           // 写入文件
@@ -218,9 +220,9 @@ export class LongTextPasteService {
             baseDir: BaseDirectory.AppData
           });
           fileRecord.path = filePath;
-          console.log('[LongTextPasteService] Tauri 文件保存成功:', filePath);
+          logger.debug('Tauri 文件保存成功:', filePath);
         } catch (tauriError) {
-          console.warn('[LongTextPasteService] Tauri v2 API 不可用，使用 Dexie 存储:', tauriError);
+          logger.warn('Tauri v2 API 不可用，使用 Dexie 存储:', tauriError);
           await this.saveFileForWeb(fileRecord);
         }
       } else {
@@ -228,7 +230,7 @@ export class LongTextPasteService {
         await this.saveFileForWeb(fileRecord);
       }
     } catch (error) {
-      console.error('[LongTextPasteService] Tauri 保存失败，降级到 Dexie:', error);
+      logger.error('Tauri 保存失败，降级到 Dexie:', error);
       await this.saveFileForWeb(fileRecord);
     }
   }
@@ -264,13 +266,13 @@ export class LongTextPasteService {
         });
         
         fileRecord.path = filePath;
-        console.log('[LongTextPasteService] Capacitor 文件保存成功:', filePath);
+        logger.debug('Capacitor 文件保存成功:', filePath);
       } else {
         // 非原生平台，使用 Dexie
         await this.saveFileForWeb(fileRecord);
       }
     } catch (error) {
-      console.error('[LongTextPasteService] Capacitor 保存失败，降级到 Dexie:', error);
+      logger.error('Capacitor 保存失败，降级到 Dexie:', error);
       await this.saveFileForWeb(fileRecord);
     }
 
@@ -278,7 +280,7 @@ export class LongTextPasteService {
     try {
       await dexieStorage.files.put(fileRecord);
     } catch (error) {
-      console.warn('[LongTextPasteService] Dexie 备份保存失败:', error);
+      logger.warn('Dexie 备份保存失败:', error);
     }
   }
 
@@ -288,9 +290,9 @@ export class LongTextPasteService {
   private async saveFileForWeb(fileRecord: FileType | (FileType & { textContent?: string })): Promise<void> {
     try {
       await dexieStorage.files.put(fileRecord);
-      console.log('[LongTextPasteService] Web/Dexie 文件保存成功:', fileRecord.id);
+      logger.debug('Web/Dexie 文件保存成功:', fileRecord.id);
     } catch (error) {
-      console.error('[LongTextPasteService] Dexie 保存失败:', error);
+      logger.error('Dexie 保存失败:', error);
       throw error;
     }
   }
