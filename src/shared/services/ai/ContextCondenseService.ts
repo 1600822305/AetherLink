@@ -15,6 +15,11 @@ import { ApiProviderRegistry } from '../messages/ApiProvider';
 import { newMessagesActions } from '../../store/slices/newMessagesSlice';
 import { upsertOneBlock } from '../../store/slices/messageBlocksSlice';
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('ContextCondenseService');
+
+
 // 常量配置
 export const N_MESSAGES_TO_KEEP = 3; // 保留最后3条消息
 export const MIN_CONDENSE_THRESHOLD = 5; // 最小触发阈值 5%
@@ -280,7 +285,7 @@ export class ContextCondenseService {
     // 估算当前消息的 Token 数
     const currentTokens = estimateMessagesTokens(messages);
     
-    console.log(`[ContextCondenseService] Token 检查: ${currentTokens}/${thresholdTokens} (${thresholdPercent}% of ${contextWindow})`);
+    logger.debug(`Token 检查: ${currentTokens}/${thresholdTokens} (${thresholdPercent}% of ${contextWindow})`);
     
     return currentTokens >= thresholdTokens;
   }
@@ -433,7 +438,7 @@ export class ContextCondenseService {
         newContextTokens: compressedTokens
       };
     } catch (error) {
-      console.error('[ContextCondenseService] 压缩失败:', error);
+      logger.error('压缩失败:', error);
       return {
         ...response,
         error: `压缩失败: ${error instanceof Error ? error.message : String(error)}`
@@ -449,10 +454,10 @@ export class ContextCondenseService {
     conversationText: string,
     model: Model
   ): Promise<string> {
-    console.log('[ContextCondenseService] 准备调用压缩API');
-    console.log('[ContextCondenseService] 使用模型:', model.id);
-    console.log('[ContextCondenseService] 提示词长度:', prompt.length);
-    console.log('[ContextCondenseService] 对话内容长度:', conversationText.length);
+    logger.debug('准备调用压缩API');
+    logger.debug('使用模型:', model.id);
+    logger.debug('提示词长度:', prompt.length);
+    logger.debug('对话内容长度:', conversationText.length);
 
     try {
       // 构建用于压缩的消息
@@ -504,11 +509,11 @@ export class ContextCondenseService {
         throw new Error('API返回空响应');
       }
 
-      console.log('[ContextCondenseService] 压缩完成，摘要长度:', responseContent.length);
+      logger.debug('压缩完成，摘要长度:', responseContent.length);
       return responseContent;
 
     } catch (error) {
-      console.error('[ContextCondenseService] API调用失败:', error);
+      logger.error('API调用失败:', error);
       throw error;
     }
   }
@@ -524,16 +529,16 @@ export class ContextCondenseService {
     keepMessages: Message[],
     messagesToRemove: Message[]
   ): Promise<void> {
-    console.log(`[ContextCondenseService] 开始保存压缩后的消息...`);
+    logger.debug(`开始保存压缩后的消息...`);
     
     try {
       // 1. 保存摘要块到数据库
       await dexieStorage.saveMessageBlock(summaryBlock);
-      console.log(`[ContextCondenseService] 已保存摘要块: ${summaryBlock.id}`);
+      logger.debug(`已保存摘要块: ${summaryBlock.id}`);
 
       // 2. 保存摘要消息到数据库
       await dexieStorage.saveMessage(summaryMessage);
-      console.log(`[ContextCondenseService] 已保存摘要消息: ${summaryMessage.id}`);
+      logger.debug(`已保存摘要消息: ${summaryMessage.id}`);
 
       // 3. 删除被压缩的消息（不包括第一条消息）
       for (const msg of messagesToRemove) {
@@ -548,7 +553,7 @@ export class ContextCondenseService {
           await dexieStorage.deleteMessage(msg.id);
         }
       }
-      console.log(`[ContextCondenseService] 已删除 ${messagesToRemove.length - 1} 条被压缩的消息`);
+      logger.debug(`已删除 ${messagesToRemove.length - 1} 条被压缩的消息`);
 
       // 4. 更新 topic 的 messageIds
       const topic = await dexieStorage.getTopic(topicId);
@@ -568,12 +573,12 @@ export class ContextCondenseService {
         topic.messages = allMessages;
         
         await dexieStorage.saveTopic(topic);
-        console.log(`[ContextCondenseService] 已更新话题 ${topicId} 的消息列表`);
+        logger.debug(`已更新话题 ${topicId} 的消息列表`);
       }
 
-      console.log(`[ContextCondenseService] 压缩后消息保存完成`);
+      logger.debug(`压缩后消息保存完成`);
     } catch (error) {
-      console.error('[ContextCondenseService] 保存压缩消息失败:', error);
+      logger.error('保存压缩消息失败:', error);
       throw error;
     }
   }
@@ -587,23 +592,23 @@ export class ContextCondenseService {
     summaryMessage: Message,
     summaryBlock: ContextSummaryMessageBlock
   ): void {
-    console.log(`[ContextCondenseService] 更新 Redux 状态...`);
+    logger.debug(`更新 Redux 状态...`);
     
     try {
       // 1. 添加摘要块到 Redux
       store.dispatch(upsertOneBlock(summaryBlock));
-      console.log(`[ContextCondenseService] 已添加摘要块: ${summaryBlock.id}`);
+      logger.debug(`已添加摘要块: ${summaryBlock.id}`);
 
       // 2. 添加摘要消息到消息列表底部
       store.dispatch(newMessagesActions.addMessage({
         topicId,
         message: summaryMessage
       }));
-      console.log(`[ContextCondenseService] 已添加摘要消息: ${summaryMessage.id}`);
+      logger.debug(`已添加摘要消息: ${summaryMessage.id}`);
 
-      console.log(`[ContextCondenseService] Redux 状态更新完成`);
+      logger.debug(`Redux 状态更新完成`);
     } catch (error) {
-      console.error('[ContextCondenseService] 更新 Redux 状态失败:', error);
+      logger.error('更新 Redux 状态失败:', error);
     }
   }
 

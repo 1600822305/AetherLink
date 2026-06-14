@@ -17,6 +17,11 @@ import { getDefaultGroupName } from '../../utils/modelUtils';
 import ApiKeyManager from './ApiKeyManager';
 import { universalFetch } from '../../utils/universalFetch';
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AIProviderFactory');
+
+
 /**
  * 获取实际的提供商类型 - 支持智能路由
  * @param model 模型配置
@@ -25,7 +30,7 @@ import { universalFetch } from '../../utils/universalFetch';
 export function getActualProviderType(model: Model): string {
   // 检查是否为模型组合
   if (model.provider === 'model-combo' || (model as any).isCombo) {
-    console.log(`[ProviderFactory] 检测到模型组合: ${model.id}`);
+    logger.debug(`检测到模型组合: ${model.id}`);
     return 'model-combo';
   }
 
@@ -38,7 +43,7 @@ export function getActualProviderType(model: Model): string {
     providerType = inferProviderFromModel(model);
   }
 
-  console.log(`[ProviderFactory] 获取提供商类型: ${providerType}, 模型ID: ${model.id}, 原始provider: ${model.provider}`);
+  logger.debug(`获取提供商类型: ${providerType}, 模型ID: ${model.id}, 原始provider: ${model.provider}`);
   return providerType;
 }
 
@@ -102,7 +107,7 @@ export function getProviderApi(model: Model): any {
   // 扩展的Provider选择逻辑，支持Azure OpenAI和模型组合
   switch (providerType) {
     case 'model-combo':
-      console.log(`[ProviderFactory] 使用模型组合API`);
+      logger.debug(`使用模型组合API`);
       return {
         sendChatRequest: async (messages: any[], model: Model) => {
           return await handleModelComboRequest(messages, model);
@@ -110,7 +115,7 @@ export function getProviderApi(model: Model): any {
       };
     case 'anthropic':
       // 使用 AI SDK Anthropic Provider
-      console.log(`[ProviderFactory] 使用AI SDK Anthropic API`);
+      logger.debug(`使用AI SDK Anthropic API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new AnthropicAISDKProvider(model);
@@ -123,7 +128,7 @@ export function getProviderApi(model: Model): any {
         fetchModels: anthropicApi.fetchModels
       };
     case 'anthropic-aisdk':
-      console.log(`[ProviderFactory] 使用AI SDK Anthropic API`);
+      logger.debug(`使用AI SDK Anthropic API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new AnthropicAISDKProvider(model);
@@ -137,7 +142,7 @@ export function getProviderApi(model: Model): any {
       };
     case 'gemini':
       // 统一使用 AI SDK Gemini Provider
-      console.log(`[ProviderFactory] 使用AI SDK Gemini API`);
+      logger.debug(`使用AI SDK Gemini API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new GeminiAISDKProvider(model);
@@ -150,10 +155,10 @@ export function getProviderApi(model: Model): any {
       };
     case 'azure-openai':
       // Azure OpenAI使用OpenAI兼容API，但有特殊配置
-      console.log(`[ProviderFactory] 使用Azure OpenAI API`);
+      logger.debug(`使用Azure OpenAI API`);
       return openaiApi;
     case 'openai-aisdk':
-      console.log(`[ProviderFactory] 使用AI SDK OpenAI API`);
+      logger.debug(`使用AI SDK OpenAI API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new OpenAIAISDKProvider(model);
@@ -165,7 +170,7 @@ export function getProviderApi(model: Model): any {
         }
       };
     case 'gemini-aisdk':
-      console.log(`[ProviderFactory] 使用AI SDK Gemini API`);
+      logger.debug(`使用AI SDK Gemini API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new GeminiAISDKProvider(model);
@@ -177,7 +182,7 @@ export function getProviderApi(model: Model): any {
         }
       };
     case 'dashscope':
-      console.log(`[ProviderFactory] 使用 DashScope (阿里云百炼) API`);
+      logger.debug(`使用 DashScope (阿里云百炼) API`);
       return {
         sendChatRequest: async (messages: any[], model: Model, options?: any) => {
           const provider = new DashScopeProvider(model);
@@ -211,7 +216,7 @@ export async function testConnection(model: Model): Promise<boolean> {
     const api = getProviderApi(model);
     return await api.testConnection(model);
   } catch (error) {
-    console.error('API连接测试失败:', error);
+    logger.error('API连接测试失败:', error);
     return false;
   }
 }
@@ -248,22 +253,22 @@ export async function sendChatRequest(
   model: Model
 ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
   try {
-    console.log(`[ProviderFactory.sendChatRequest] 开始处理请求 - 模型ID: ${model.id}, 提供商: ${model.provider}`);
+    logger.debug(`开始处理请求 - 模型ID: ${model.id}, 提供商: ${model.provider}`);
 
     // 检查是否为视频生成模型
     if (isVideoGenerationModel(model)) {
-      console.log(`[ProviderFactory.sendChatRequest] 检测到视频生成模型: ${model.id}`);
+      logger.debug(`检测到视频生成模型: ${model.id}`);
       throw new Error(`模型 ${model.name || model.id} 是视频生成模型，不支持聊天对话。请使用专门的视频生成功能。`);
     }
 
     // 检查模型是否有API密钥
     if (!model.apiKey && model.provider !== 'auto') {
-      console.warn(`[ProviderFactory.sendChatRequest] 警告: 模型 ${model.id} 没有API密钥`);
+      logger.warn(`警告: 模型 ${model.id} 没有API密钥`);
     }
 
     // 强制检查：确保消息数组不为空
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error('[ProviderFactory.sendChatRequest] 严重错误: 消息数组为空或无效，添加默认消息');
+      logger.error('严重错误: 消息数组为空或无效，添加默认消息');
 
       // 添加一个默认的用户消息
       messages = [{
@@ -275,11 +280,11 @@ export async function sendChatRequest(
         blocks: []
       }];
 
-      console.log('[ProviderFactory.sendChatRequest] 添加默认用户消息: 您好，请问有什么可以帮助您的？');
+      logger.debug('添加默认用户消息: 您好，请问有什么可以帮助您的？');
     }
 
     // 记录消息数组
-    console.log(`[ProviderFactory.sendChatRequest] 消息数组:`, JSON.stringify(messages.map(msg => ({
+    logger.debug(`消息数组:`, JSON.stringify(messages.map(msg => ({
       id: msg.id,
       role: msg.role,
       content: typeof msg.content === 'string' ?
@@ -289,18 +294,18 @@ export async function sendChatRequest(
 
     // 获取合适的API实现
     const api = getProviderApi(model);
-    console.log(`[ProviderFactory.sendChatRequest] 获取API实现 - 提供商: ${model.provider}`);
+    logger.debug(`获取API实现 - 提供商: ${model.provider}`);
 
     // 确保API有sendChatRequest方法
     if (!api.sendChatRequest) {
-      console.error(`[ProviderFactory.sendChatRequest] 错误: API没有sendChatRequest方法`);
+      logger.error(`错误: API没有sendChatRequest方法`);
       throw new Error(`提供商 ${model.provider} 的API没有sendChatRequest方法`);
     }
 
-    console.log(`[ProviderFactory.sendChatRequest] 调用API的sendChatRequest方法`);
+    logger.debug(`调用API的sendChatRequest方法`);
     return await api.sendChatRequest(messages, model);
   } catch (error) {
-    console.error('[ProviderFactory.sendChatRequest] 发送聊天请求失败:', error);
+    logger.error('发送聊天请求失败:', error);
     throw error;
   }
 }
@@ -371,7 +376,7 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
     
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[fetchModelsFromEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
+        logger.debug(`尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
       }
       
       // 创建一个带有apiKey的provider副本
@@ -391,7 +396,7 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
           try {
             const geminiBaseUrl = providerWithKey.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
             const geminiModelsUrl = `${geminiBaseUrl}/models?key=${apiKey}`;
-            console.log(`[fetchModelsFromEndpoint] Gemini获取模型列表: ${geminiBaseUrl}/models`);
+            logger.debug(`Gemini获取模型列表: ${geminiBaseUrl}/models`);
             
             const geminiResponse = await universalFetch(geminiModelsUrl);
             if (geminiResponse.ok) {
@@ -406,16 +411,16 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
                     description: m.description || '',
                     owned_by: 'google'
                   }));
-                console.log(`[fetchModelsFromEndpoint] Gemini API获取到 ${rawModels.length} 个模型`);
+                logger.debug(`Gemini API获取到 ${rawModels.length} 个模型`);
               }
             }
           } catch (geminiError) {
-            console.warn(`[fetchModelsFromEndpoint] Gemini API获取失败，使用预设列表:`, geminiError);
+            logger.warn(`Gemini API获取失败，使用预设列表:`, geminiError);
           }
           
           // 如果 API 获取失败或没有模型，使用预设列表
           if (!rawModels || rawModels.length === 0) {
-            console.log(`[fetchModelsFromEndpoint] Gemini使用预设模型列表`);
+            logger.debug(`Gemini使用预设模型列表`);
             rawModels = [
               { id: 'gemini-2.5-pro-preview-06-05', name: 'Gemini 2.5 Pro Preview', description: 'Gemini最新的推理模型，支持思考', owned_by: 'google' },
               { id: 'gemini-2.5-flash-preview-05-20', name: 'Gemini 2.5 Flash Preview', description: 'Gemini 2.5快速版，平衡性能与速度', owned_by: 'google' },
@@ -432,7 +437,7 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
           try {
             rawModels = await openaiApi.fetchModels(providerWithKey);
           } catch (error) {
-            console.warn(`[fetchModelsFromEndpoint] DeepSeek模型获取失败，返回预设列表:`, error);
+            logger.warn(`DeepSeek模型获取失败，返回预设列表:`, error);
             rawModels = [
               { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', description: 'DeepSeek-V4 旗舰模型（1.6T/49B），1M 上下文，混合思考模式。', owned_by: 'deepseek' },
               { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', description: 'DeepSeek-V4 高性价比模型（284B/13B），1M 上下文，混合思考模式。', owned_by: 'deepseek' },
@@ -443,12 +448,12 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
           break;
         case 'dashscope':
           // 阿里云百炼使用预设模型列表
-          console.log(`[fetchModelsFromEndpoint] DashScope使用预设模型列表`);
+          logger.debug(`DashScope使用预设模型列表`);
           rawModels = await dashscopeApi.fetchModels(providerWithKey);
           break;
         case 'zhipu':
           // 智谱AI不支持标准的 /v1/models 接口，返回预设列表
-          console.log(`[fetchModelsFromEndpoint] 智谱AI使用预设模型列表`);
+          logger.debug(`智谱AI使用预设模型列表`);
           rawModels = [
             { id: 'glm-5-plus', name: 'GLM-5-Plus', description: 'GLM-5增强版，最新一代大模型', owned_by: 'zhipu' },
             { id: 'glm-5-air', name: 'GLM-5-Air', description: 'GLM-5轻量版，平衡性能与速度', owned_by: 'zhipu' },
@@ -467,12 +472,12 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
           break;
         case 'openai-aisdk':
           // AI SDK版本使用相同的模型获取逻辑
-          console.log(`[fetchModelsFromEndpoint] AI SDK OpenAI使用标准模型获取`);
+          logger.debug(`AI SDK OpenAI使用标准模型获取`);
           rawModels = await openaiApi.fetchModels(providerWithKey);
           break;
         case 'openai-response':
           // OpenAI Responses API 使用专门的模型获取逻辑
-          console.log(`[fetchModelsFromEndpoint] OpenAI Responses API使用专门的模型获取`);
+          logger.debug(`OpenAI Responses API使用专门的模型获取`);
           try {
             // 创建 OpenAIResponseProvider 实例来获取模型
             // 使用静态导入的 OpenAIResponseProvider
@@ -486,7 +491,7 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
             });
             rawModels = await responseProvider.getModels();
           } catch (error) {
-            console.warn(`[fetchModelsFromEndpoint] OpenAI Responses API模型获取失败，使用标准API:`, error);
+            logger.warn(`OpenAI Responses API模型获取失败，使用标准API:`, error);
             rawModels = await openaiApi.fetchModels(providerWithKey);
           }
           break;
@@ -504,14 +509,14 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
         keyManager.updateKeyStatus(keyConfig, true);
       }
       
-      console.log(`[fetchModelsFromEndpoint] ✅ 使用key ${i + 1} 成功获取模型列表 (${rawModels.length}个模型)`);
+      logger.debug(`✅ 使用key ${i + 1} 成功获取模型列表 (${rawModels.length}个模型)`);
       return rawModels;
       
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      console.warn(`[fetchModelsFromEndpoint] ❌ key ${i + 1} 获取失败: ${errorMessage}`);
+      logger.warn(`❌ key ${i + 1} 获取失败: ${errorMessage}`);
       
       // 如果使用了多key模式，更新key状态
       if (keyConfig) {
@@ -521,7 +526,7 @@ async function fetchModelsFromEndpoint(provider: any, providerType: string): Pro
       
       // 如果还有更多key可以尝试，继续下一个
       if (i < availableKeys.length - 1) {
-        console.log(`[fetchModelsFromEndpoint] 🔄 切换到下一个key继续尝试...`);
+        logger.debug(`🔄 切换到下一个key继续尝试...`);
         continue;
       }
     }
@@ -552,7 +557,7 @@ async function fetchModelsFromCustomEndpoint(customEndpoint: string, provider: a
     
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[fetchModelsFromCustomEndpoint] 尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
+        logger.debug(`尝试使用key ${i + 1}/${availableKeys.length}: ${keyConfig?.name || `key#${i + 1}`}`);
       }
       
       // 构建请求头 - 参考 Cherry Studio 的请求头配置
@@ -592,7 +597,7 @@ async function fetchModelsFromCustomEndpoint(customEndpoint: string, provider: a
         .map(normalizeModel)
         .filter((m: any) => m && m.id);
       
-      console.log(`[fetchModelsFromCustomEndpoint] ✅ 使用key ${i + 1} 成功获取模型列表, 找到 ${normalizedModels.length} 个模型`);
+      logger.debug(`✅ 使用key ${i + 1} 成功获取模型列表, 找到 ${normalizedModels.length} 个模型`);
 
       // 如果成功，记录key使用
       if (keyConfig) {
@@ -606,7 +611,7 @@ async function fetchModelsFromCustomEndpoint(customEndpoint: string, provider: a
       lastError = error instanceof Error ? error : new Error(String(error));
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      console.warn(`[fetchModelsFromCustomEndpoint] ❌ key ${i + 1} 获取失败: ${errorMessage}`);
+      logger.warn(`❌ key ${i + 1} 获取失败: ${errorMessage}`);
       
       // 如果使用了多key模式，更新key状态
       if (keyConfig) {
@@ -616,7 +621,7 @@ async function fetchModelsFromCustomEndpoint(customEndpoint: string, provider: a
       
       // 如果还有更多key可以尝试，继续下一个
       if (i < availableKeys.length - 1) {
-        console.log(`[fetchModelsFromCustomEndpoint] 🔄 切换到下一个key继续尝试...`);
+        logger.debug(`🔄 切换到下一个key继续尝试...`);
         continue;
       }
     }
@@ -644,24 +649,24 @@ export async function fetchModels(provider: any): Promise<any[]> {
     let allModels: any[] = [];
 
     // 1. 从默认端点获取模型
-    console.log(`[fetchModels] 从默认端点获取模型: ${provider.id}`);
+    logger.debug(`从默认端点获取模型: ${provider.id}`);
     try {
       const defaultModels = await fetchModelsFromEndpoint(provider, providerType);
       allModels.push(...defaultModels);
-      console.log(`[fetchModels] 默认端点获取到 ${defaultModels.length} 个模型`);
+      logger.debug(`默认端点获取到 ${defaultModels.length} 个模型`);
     } catch (error) {
-      console.warn(`[fetchModels] 默认端点获取失败:`, error);
+      logger.warn(`默认端点获取失败:`, error);
     }
 
     // 2. 如果有自定义端点，也从自定义端点获取模型
     if (provider.customModelEndpoint) {
-      console.log(`[fetchModels] 从自定义端点获取模型: ${provider.customModelEndpoint}`);
+      logger.debug(`从自定义端点获取模型: ${provider.customModelEndpoint}`);
       try {
         const customModels = await fetchModelsFromCustomEndpoint(provider.customModelEndpoint, provider);
         allModels.push(...customModels);
-        console.log(`[fetchModels] 自定义端点获取到 ${customModels.length} 个模型`);
+        logger.debug(`自定义端点获取到 ${customModels.length} 个模型`);
       } catch (error) {
-        console.warn(`[fetchModels] 自定义端点获取失败:`, error);
+        logger.warn(`自定义端点获取失败:`, error);
       }
     }
 
@@ -674,7 +679,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     });
 
     const deduplicatedModels = Array.from(uniqueModels.values());
-    console.log(`[fetchModels] 去重后共 ${deduplicatedModels.length} 个模型`);
+    logger.debug(`去重后共 ${deduplicatedModels.length} 个模型`);
 
     // 4. 统一格式化模型数据
     const formattedModels = deduplicatedModels.map(model => ({
@@ -691,7 +696,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
 
     return formattedModels;
   } catch (error) {
-    console.error('获取模型列表失败:', error);
+    logger.error('获取模型列表失败:', error);
     throw error;
   }
 }
@@ -707,7 +712,7 @@ async function handleModelComboRequest(
   model: Model
 ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
   try {
-    console.log(`[handleModelComboRequest] 开始处理模型组合请求: ${model.id}`);
+    logger.debug(`开始处理模型组合请求: ${model.id}`);
 
     // 从模型配置中获取组合配置
     const comboConfig = (model as any).comboConfig;
@@ -721,12 +726,12 @@ async function handleModelComboRequest(
       .map(msg => msg.content)
       .join('\n');
 
-    console.log(`[handleModelComboRequest] 提取的提示词: ${prompt.substring(0, 100)}...`);
+    logger.debug(`提取的提示词: ${prompt.substring(0, 100)}...`);
 
     // 调用模型组合服务执行
     const result = await modelComboService.executeCombo(comboConfig.id, prompt);
 
-    console.log(`[handleModelComboRequest] 模型组合执行完成:`, result);
+    logger.debug(`模型组合执行完成:`, result);
 
     // 返回最终结果
     return {
@@ -735,7 +740,7 @@ async function handleModelComboRequest(
       reasoningTime: result.stats?.totalLatency
     };
   } catch (error) {
-    console.error('[handleModelComboRequest] 模型组合请求失败:', error);
+    logger.error('模型组合请求失败:', error);
     throw new Error(`模型组合执行失败: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
