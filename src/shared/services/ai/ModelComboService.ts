@@ -12,6 +12,11 @@ import { sendChatRequest } from '../../api';
 import store from '../../store';
 import { modelMatchesIdentity, parseModelIdentityKey } from '../../utils/modelUtils';
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('ModelComboService');
+
+
 /**
  * 模型组合服务
  * 负责管理和执行模型组合策略
@@ -34,7 +39,7 @@ export class ModelComboService {
       const combos = await dexieStorage.getAllModelCombos();
       return combos || [];
     } catch (error) {
-      console.error('[ModelComboService] 获取模型组合失败:', error);
+      logger.error('获取模型组合失败:', error);
       return [];
     }
   }
@@ -59,7 +64,7 @@ export class ModelComboService {
 
       return newCombo;
     } catch (error) {
-      console.error('[ModelComboService] 创建模型组合失败:', error);
+      logger.error('创建模型组合失败:', error);
       throw error;
     }
   }
@@ -88,7 +93,7 @@ export class ModelComboService {
 
       return updated;
     } catch (error) {
-      console.error('[ModelComboService] 更新模型组合失败:', error);
+      logger.error('更新模型组合失败:', error);
       throw error;
     }
   }
@@ -103,7 +108,7 @@ export class ModelComboService {
       // 发送事件
       EventEmitter.emit(EVENT_NAMES.MODEL_COMBO_DELETED, { id });
     } catch (error) {
-      console.error('[ModelComboService] 删除模型组合失败:', error);
+      logger.error('删除模型组合失败:', error);
       throw error;
     }
   }
@@ -121,7 +126,7 @@ export class ModelComboService {
         throw new Error(`模型组合 ${comboId} 不存在`);
       }
 
-      console.log(`[ModelComboService] 执行模型组合: ${combo.name} (${combo.strategy})`);
+      logger.debug(`执行模型组合: ${combo.name} (${combo.strategy})`);
 
       switch (combo.strategy) {
         case 'routing':
@@ -138,7 +143,7 @@ export class ModelComboService {
           throw new Error(`不支持的策略: ${combo.strategy}`);
       }
     } catch (error) {
-      console.error('[ModelComboService] 执行模型组合失败:', error);
+      logger.error('执行模型组合失败:', error);
       throw error;
     }
   }
@@ -169,7 +174,7 @@ export class ModelComboService {
         content: prompt
       }];
 
-      console.log(`[ModelComboService] 调用模型 ${selectedModelId} 处理请求`);
+      logger.debug(`调用模型 ${selectedModelId} 处理请求`);
 
       // 发送请求到选中的模型
       const response = await sendChatRequest({
@@ -269,7 +274,7 @@ export class ModelComboService {
         }
         return null;
       } catch (error) {
-        console.error(`[ModelComboService] Ensemble 模型 ${modelConfig.modelId} 调用失败:`, error);
+        logger.error(`Ensemble 模型 ${modelConfig.modelId} 调用失败:`, error);
         return {
           modelId: modelConfig.modelId,
           role: modelConfig.role,
@@ -313,7 +318,7 @@ export class ModelComboService {
     const modelResults: ModelComboResult['modelResults'] = [];
     let totalCost = 0;
 
-    console.log(`[ModelComboService] 执行对比分析策略，模型数量: ${combo.models.length}`);
+    logger.debug(`执行对比分析策略，模型数量: ${combo.models.length}`);
 
     // 并行调用所有模型
     const promises = combo.models.map(async (modelConfig) => {
@@ -333,7 +338,7 @@ export class ModelComboService {
         }
         return null;
       } catch (error) {
-        console.error(`[ModelComboService] 模型 ${modelConfig.modelId} 调用失败:`, error);
+        logger.error(`模型 ${modelConfig.modelId} 调用失败:`, error);
         return {
           modelId: modelConfig.modelId,
           role: modelConfig.role,
@@ -385,7 +390,7 @@ export class ModelComboService {
     let finalContent = '';
 
     try {
-      console.log(`[ModelComboService] 开始执行顺序策略，模型数量: ${combo.models.length}`);
+      logger.debug(`开始执行顺序策略，模型数量: ${combo.models.length}`);
 
       // 按优先级排序模型
       const sortedModels = [...combo.models].sort((a, b) => (a.priority || 0) - (b.priority || 0));
@@ -395,11 +400,11 @@ export class ModelComboService {
         const model = await this.getModelById(modelConfig.modelId);
 
         if (!model) {
-          console.warn(`[ModelComboService] 模型 ${modelConfig.modelId} 不存在，跳过`);
+          logger.warn(`模型 ${modelConfig.modelId} 不存在，跳过`);
           continue;
         }
 
-        console.log(`[ModelComboService] 执行第 ${i + 1} 步: ${modelConfig.modelId} (${modelConfig.role})`);
+        logger.debug(`执行第 ${i + 1} 步: ${modelConfig.modelId} (${modelConfig.role})`);
 
         try {
           let messages;
@@ -450,11 +455,11 @@ ${reasoningContent}
             if (modelConfig.role === 'thinking') {
               // 推理模型的输出作为推理内容
               reasoningContent = response.reasoning || response.content;
-              console.log(`[ModelComboService] 收集推理内容，长度: ${reasoningContent.length}`);
+              logger.debug(`收集推理内容，长度: ${reasoningContent.length}`);
             } else if (modelConfig.role === 'generating') {
               // 生成模型的输出作为最终内容
               finalContent = response.content;
-              console.log(`[ModelComboService] 收集最终内容，长度: ${finalContent.length}`);
+              logger.debug(`收集最终内容，长度: ${finalContent.length}`);
             } else {
               // 默认处理：最后一个模型的输出作为最终内容
               if (i === sortedModels.length - 1) {
@@ -467,7 +472,7 @@ ${reasoningContent}
             throw new Error(response.error || '模型调用失败');
           }
         } catch (error) {
-          console.error(`[ModelComboService] 模型 ${modelConfig.modelId} 执行失败:`, error);
+          logger.error(`模型 ${modelConfig.modelId} 执行失败:`, error);
 
           modelResults.push({
             modelId: modelConfig.modelId,
@@ -513,7 +518,7 @@ ${reasoningContent}
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.error('[ModelComboService] 顺序策略执行失败:', error);
+      logger.error('顺序策略执行失败:', error);
       throw error;
     }
   }
@@ -594,7 +599,7 @@ ${reasoningContent}
         content: prompt
       }];
 
-      console.log(`[ModelComboService] 调用模型 ${modelId} 处理请求`);
+      logger.debug(`调用模型 ${modelId} 处理请求`);
 
       // 发送请求到模型
       const response = await sendChatRequest({
@@ -616,7 +621,7 @@ ${reasoningContent}
         throw new Error(response.error || '模型调用失败');
       }
     } catch (error) {
-      console.error(`[ModelComboService] 模型 ${modelId} 调用失败:`, error);
+      logger.error(`模型 ${modelId} 调用失败:`, error);
       throw error;
     }
   }
@@ -629,7 +634,7 @@ ${reasoningContent}
       const identity = parseModelIdentityKey(modelId);
 
       if (!identity) {
-        console.warn(`[ModelComboService] 无法解析模型标识: ${modelId}`);
+        logger.warn(`无法解析模型标识: ${modelId}`);
         return null;
       }
 
@@ -650,10 +655,10 @@ ${reasoningContent}
         }
       }
 
-      console.warn(`[ModelComboService] 未找到模型: ${modelId}`);
+      logger.warn(`未找到模型: ${modelId}`);
       return null;
     } catch (error) {
-      console.error('[ModelComboService] 获取模型失败:', error);
+      logger.error('获取模型失败:', error);
       return null;
     }
   }

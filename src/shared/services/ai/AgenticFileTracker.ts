@@ -7,6 +7,10 @@
  */
 
 import type { FileOperationType } from '../../store/slices/agenticFilesSlice';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AgenticFileTracker');
+
 
 /** 文件修改事件数据 */
 export interface FileChangeEvent {
@@ -81,11 +85,11 @@ class AgenticFileTracker {
       try {
         listener(true, topicId);
       } catch (e) {
-        console.error('[AgenticFileTracker] 监听器错误:', e);
+        logger.error('监听器错误:', e);
       }
     });
     
-    console.log('[AgenticFileTracker] 已启用，topicId:', topicId);
+    logger.debug('已启用，topicId:', topicId);
   }
 
   /**
@@ -99,11 +103,11 @@ class AgenticFileTracker {
       try {
         listener(false, null);
       } catch (e) {
-        console.error('[AgenticFileTracker] 监听器错误:', e);
+        logger.error('监听器错误:', e);
       }
     });
     
-    console.log('[AgenticFileTracker] 已禁用');
+    logger.debug('已禁用');
   }
 
   /**
@@ -120,7 +124,7 @@ class AgenticFileTracker {
   public trackFileChange(event: FileChangeEvent): void {
     // 即使未启用也记录，让用户可以看到所有文件修改
     // if (!this.isEnabled) {
-    //   console.log('[AgenticFileTracker] 未启用，跳过记录');
+    //   logger.debug('未启用，跳过记录');
     //   return;
     // }
 
@@ -142,11 +146,11 @@ class AgenticFileTracker {
       try {
         listener(change);
       } catch (e) {
-        console.error('[AgenticFileTracker] 监听器错误:', e);
+        logger.error('监听器错误:', e);
       }
     });
     
-    console.log('[AgenticFileTracker] 记录文件修改:', event.path, event.operation);
+    logger.debug('记录文件修改:', event.path, event.operation);
   }
 
   /**

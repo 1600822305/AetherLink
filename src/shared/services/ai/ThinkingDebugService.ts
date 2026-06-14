@@ -3,6 +3,9 @@
  * 专门用于追踪和调试思考内容的处理过程，帮助发现内容丢失问题
  */
 import { getStorageItem, setStorageItem, removeStorageItem } from '../../utils/storage';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('ThinkingDebug');
 
 export interface ThinkingDebugEntry {
   id: string;
@@ -61,16 +64,13 @@ class ThinkingDebugService {
       this.entries = this.entries.slice(-this.maxEntries);
     }
 
-    // 输出到控制台（带颜色区分）
-    const color = this.getColorForSource(entry.source);
-    console.log(
-      `%c[ThinkingDebug] ${entry.source} - ${entry.action}`,
-      `color: ${color}; font-weight: bold;`,
+    logger.debug(
+      `${entry.source} - ${entry.action}`,
       `"${entry.content}" (长度: ${entry.contentLength}${entry.accumulatedLength ? `, 累积: ${entry.accumulatedLength}` : ''})`
     );
 
     if (entry.metadata) {
-      console.log(`%c[ThinkingDebug] 元数据:`, `color: ${color};`, entry.metadata);
+      logger.debug(`元数据:`, entry.metadata);
     }
   }
 
@@ -90,7 +90,7 @@ class ThinkingDebugService {
 
   public clear(): void {
     this.entries = [];
-    console.log('%c[ThinkingDebug] 调试日志已清空', 'color: orange; font-weight: bold;');
+    logger.debug('调试日志已清空');
   }
 
   public exportToJson(): string {
@@ -100,7 +100,7 @@ class ThinkingDebugService {
   public analyzeContentFlow(): void {
     if (!this.isEnabled) return;
 
-    console.group('%c[ThinkingDebug] 内容流分析', 'color: purple; font-weight: bold;');
+    logger.debug('内容流分析');
     
     // 按来源分组
     const bySource = this.entries.reduce((acc, entry) => {
@@ -110,24 +110,21 @@ class ThinkingDebugService {
     }, {} as Record<string, ThinkingDebugEntry[]>);
 
     Object.entries(bySource).forEach(([source, entries]) => {
-      console.group(`%c${source}`, `color: ${this.getColorForSource(source)}; font-weight: bold;`);
+      logger.debug(`${source}`);
       
       let totalLength = 0;
       entries.forEach((entry, index) => {
         totalLength += entry.contentLength;
-        console.log(
+        logger.debug(
           `${index + 1}. ${entry.action}: "${entry.content}" (${entry.contentLength} 字符)`
         );
       });
       
-      console.log(`%c总计: ${entries.length} 条记录, ${totalLength} 字符`, 'font-weight: bold;');
-      console.groupEnd();
+      logger.debug(`总计: ${entries.length} 条记录, ${totalLength} 字符`);
     });
 
     // 检查可能的内容丢失
     this.detectPotentialLoss();
-    
-    console.groupEnd();
   }
 
   private detectPotentialLoss(): void {
@@ -139,32 +136,20 @@ class ThinkingDebugService {
     const handlerTotal = handlerEntries.reduce((sum, entry) => sum + (entry.accumulatedLength || entry.contentLength), 0);
     const blockTotal = blockEntries.reduce((sum, entry) => sum + entry.contentLength, 0);
 
-    console.group('%c内容丢失检测', 'color: red; font-weight: bold;');
-    console.log(`AI SDK 总字符数: ${aiSdkTotal}`);
-    console.log(`ResponseHandler 总字符数: ${handlerTotal}`);
-    console.log(`ThinkingBlock 总字符数: ${blockTotal}`);
+    logger.debug('内容丢失检测');
+    logger.debug(`AI SDK 总字符数: ${aiSdkTotal}`);
+    logger.debug(`ResponseHandler 总字符数: ${handlerTotal}`);
+    logger.debug(`ThinkingBlock 总字符数: ${blockTotal}`);
 
     if (aiSdkTotal > handlerTotal) {
-      console.warn(`⚠️ 可能在 ResponseHandler 中丢失了 ${aiSdkTotal - handlerTotal} 个字符`);
+      logger.warn(`⚠️ 可能在 ResponseHandler 中丢失了 ${aiSdkTotal - handlerTotal} 个字符`);
     }
     if (handlerTotal > blockTotal) {
-      console.warn(`⚠️ 可能在 ThinkingBlock 中丢失了 ${handlerTotal - blockTotal} 个字符`);
+      logger.warn(`⚠️ 可能在 ThinkingBlock 中丢失了 ${handlerTotal - blockTotal} 个字符`);
     }
     if (aiSdkTotal === handlerTotal && handlerTotal === blockTotal) {
-      console.log('✅ 未检测到内容丢失');
+      logger.debug('✅ 未检测到内容丢失');
     }
-    console.groupEnd();
-  }
-
-  private getColorForSource(source: string): string {
-    const colors: Record<string, string> = {
-      'ai-sdk': '#2196F3',
-      'response-handler': '#4CAF50',
-      'thinking-block': '#FF9800',
-      'stream-processor': '#9C27B0',
-      'event-emitter': '#F44336'
-    };
-    return colors[source] || '#666666';
   }
 
   private generateId(): string {
@@ -174,13 +159,13 @@ class ThinkingDebugService {
   public enable(): void {
     this.isEnabled = true;
     setStorageItem('thinking-debug', true);
-    console.log('%c[ThinkingDebug] 调试已启用', 'color: green; font-weight: bold;');
+    logger.debug('调试已启用');
   }
 
   public disable(): void {
     this.isEnabled = false;
     removeStorageItem('thinking-debug');
-    console.log('%c[ThinkingDebug] 调试已禁用', 'color: gray; font-weight: bold;');
+    logger.debug('调试已禁用');
   }
 
   public isDebugEnabled(): boolean {

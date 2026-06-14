@@ -5,6 +5,11 @@
 
 import type { ApiKeyConfig } from '../../config/defaultModels';
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('ApiKeyManager');
+
+
 export type LoadBalanceStrategy = 'round_robin' | 'priority' | 'least_used' | 'random';
 
 export interface KeySelectionResult {
@@ -115,7 +120,7 @@ export class ApiKeyManager {
     const nextIndex = (currentIndex + 1) % sortedKeys.length;
     this.roundRobinIndexMap.set(keyGroupId, nextIndex);
 
-    console.log(`[ApiKeyManager] 🔄 轮询选择: ${selectedKey.name || selectedKey.id.substring(0, 8)}... (索引: ${currentIndex}/${sortedKeys.length - 1}, 下次索引: ${nextIndex})`);
+    logger.debug(`🔄 轮询选择: ${selectedKey.name || selectedKey.id.substring(0, 8)}... (索引: ${currentIndex}/${sortedKeys.length - 1}, 下次索引: ${nextIndex})`);
 
     return selectedKey;
   }
@@ -130,7 +135,7 @@ export class ApiKeyManager {
     // 记录使用统计
     const statusText = success ? '✅ 成功' : '❌ 失败';
     const errorText = error ? ` - ${error}` : '';
-    console.log(`[ApiKeyManager] Key 使用记录: ${keyId.substring(0, 8)}... ${statusText}${errorText}`);
+    logger.debug(`Key 使用记录: ${keyId.substring(0, 8)}... ${statusText}${errorText}`);
   }
 
   /**
@@ -218,11 +223,11 @@ export class ApiKeyManager {
         key.includes(providerId)
       );
       keysToRemove.forEach(key => this.roundRobinIndexMap.delete(key));
-      console.log(`[ApiKeyManager] 重置供应商 ${providerId} 的轮询状态`);
+      logger.debug(`重置供应商 ${providerId} 的轮询状态`);
     } else {
       // 重置所有轮询状态
       this.roundRobinIndexMap.clear();
-      console.log(`[ApiKeyManager] 重置所有轮询状态`);
+      logger.debug(`重置所有轮询状态`);
     }
   }
 

@@ -8,6 +8,12 @@
  * - 提供循环状态
  */
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('AgenticLoop');
+const eventLogger = createLogger('EventEmitter');
+
+
 // ==================== 浏览器兼容的事件系统 ====================
 
 type EventHandler = (...args: any[]) => void;
@@ -42,7 +48,7 @@ class SimpleEventEmitter {
         try {
           handler(...args);
         } catch (error) {
-          console.error(`[EventEmitter] Error in handler for event "${event}":`, error);
+          eventLogger.error(`Error in handler for event "${event}":`, error);
         }
       });
     }
@@ -195,7 +201,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
   startLoop(topicId: string): void {
     // 如果已有活跃循环，先结束它
     if (this.state.isAgenticMode && !this.state.isComplete) {
-      console.warn(`[AgenticLoop] 覆盖已有的活跃循环 - 旧 topicId: ${this.activeTopicId}, 新 topicId: ${topicId}`);
+      logger.warn(`覆盖已有的活跃循环 - 旧 topicId: ${this.activeTopicId}, 新 topicId: ${topicId}`);
       this.state.isComplete = true;
       this.state.completionReason = 'user_cancelled';
       this.state.endTime = Date.now();
@@ -207,7 +213,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
     this.state.isAgenticMode = true;
     this.state.startTime = Date.now();
     
-    console.log(`[AgenticLoop] 开始 Agentic 循环 - topicId: ${topicId}`);
+    logger.debug(`开始 Agentic 循环 - topicId: ${topicId}`);
   }
 
   /**
@@ -217,7 +223,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
     this.state.currentIteration++;
     this.emit('iteration:start', this.state.currentIteration);
     
-    console.log(`[AgenticLoop] 迭代 ${this.state.currentIteration}/${this.config.maxIterations}`);
+    logger.debug(`迭代 ${this.state.currentIteration}/${this.config.maxIterations}`);
     
     return this.state.currentIteration;
   }
@@ -226,7 +232,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
    * 处理工具调用结果
    */
   processToolResult(result: ToolCallResult): void {
-    console.log(`[AgenticLoop] 处理工具结果: ${result.toolName}, 成功: ${result.success}, 完成: ${result.isCompletion}`);
+    logger.debug(`处理工具结果: ${result.toolName}, 成功: ${result.success}, 完成: ${result.isCompletion}`);
 
     // 检查是否是完成信号
     if (result.isCompletion) {
@@ -278,7 +284,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
       }
     }
 
-    console.log(`[AgenticLoop] 任务完成 - 迭代次数: ${this.state.currentIteration}`);
+    logger.debug(`任务完成 - 迭代次数: ${this.state.currentIteration}`);
     this.emit('complete', this.state);
   }
 
@@ -288,7 +294,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
   private handleMistake(error?: string): void {
     this.state.consecutiveMistakeCount++;
     
-    console.warn(`[AgenticLoop] 连续错误: ${this.state.consecutiveMistakeCount}/${this.config.consecutiveMistakeLimit}`, error);
+    logger.warn(`连续错误: ${this.state.consecutiveMistakeCount}/${this.config.consecutiveMistakeLimit}`, error);
     
     this.emit('mistake', this.state.consecutiveMistakeCount, this.config.consecutiveMistakeLimit);
 
@@ -306,7 +312,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
     this.state.completionReason = 'max_iterations_reached';
     this.state.endTime = Date.now();
 
-    console.warn(`[AgenticLoop] 达到最大迭代次数: ${this.config.maxIterations}`);
+    logger.warn(`达到最大迭代次数: ${this.config.maxIterations}`);
     this.emit('complete', this.state);
   }
 
@@ -318,7 +324,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
     this.state.completionReason = 'consecutive_mistakes';
     this.state.endTime = Date.now();
 
-    console.error(`[AgenticLoop] 连续错误过多，停止循环`);
+    logger.error(`连续错误过多，停止循环`);
     this.emit('complete', this.state);
   }
 
@@ -331,7 +337,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
       this.state.completionReason = 'user_cancelled';
       this.state.endTime = Date.now();
 
-      console.log(`[AgenticLoop] 用户取消`);
+      logger.debug(`用户取消`);
       this.emit('complete', this.state);
     }
   }
@@ -368,7 +374,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
     // 检查工具名称是否是 attempt_completion（支持带前缀的名称）
     const toolName = toolResult.toolName || '';
     if (toolName === 'attempt_completion' || toolName.endsWith('-attempt_completion')) {
-      console.log(`[AgenticLoop] 检测到 attempt_completion 工具调用: ${toolName}`);
+      logger.debug(`检测到 attempt_completion 工具调用: ${toolName}`);
       return true;
     }
 
@@ -400,19 +406,19 @@ export class AgenticLoopService extends SimpleEventEmitter {
         try {
           const parsed = JSON.parse(contentStr);
           if (parsed.__agentic_completion__) {
-            console.log('[AgenticLoop] 检测到 __agentic_completion__ 标记');
+            logger.debug('检测到 __agentic_completion__ 标记');
             return true;
           }
         } catch {
           // 不是 JSON，检查是否包含标记字符串
           if (contentStr.includes('__agentic_completion__')) {
-            console.log('[AgenticLoop] 在内容中检测到 __agentic_completion__ 字符串');
+            logger.debug('在内容中检测到 __agentic_completion__ 字符串');
             return true;
           }
         }
       }
     } catch (error) {
-      console.warn('[AgenticLoop] 检测完成信号时出错:', error);
+      logger.warn('检测完成信号时出错:', error);
     }
 
     return false;
@@ -471,7 +477,7 @@ export class AgenticLoopService extends SimpleEventEmitter {
       this.state.endTime = Date.now();
     }
 
-    console.log(`[AgenticLoop] 循环结束 - 总迭代: ${this.state.currentIteration}, 原因: ${this.state.completionReason}`);
+    logger.debug(`循环结束 - 总迭代: ${this.state.currentIteration}, 原因: ${this.state.completionReason}`);
     
     // 重置状态
     this.activeTopicId = null;
