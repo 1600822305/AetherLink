@@ -318,10 +318,16 @@ flowchart TD
 | 4 第三批 | `src/shared/services/ai`（约 135 处 / 7 文件） | #248 | 已合并 |
 | 4 第三批 | `src/shared/services/webSearch`（120 处 / 11 文件） | #249 | 已合并 |
 | 4 第三批 | `src/shared/services/knowledge`（105 处 / 9 文件） | #250 | 已合并 |
+| 4 收尾(小批) | `services/{assistant,topics,memory,platform}`（约 262 处 / 23 文件） | `59edd645` | 已合并 |
+| 4 收尾(小批) | `services/{network,tts-v2,skills,ui,notes,translate}`（约 119 处 / 19 文件） | `5a7c8f4a` | 已合并 |
+| 4 | `src/shared/utils`（207 处 / 33 文件） | `ee2c9fa6` | 已合并 |
+| 修复 | `MemoryService.replaceInCache` 缓存键（TS2345 + 命中一致性） | #252 | 已合并 |
+
+> `59edd645`/`5a7c8f4a`/`ee2c9fa6` 三批为节省额度改由用户 IDE 模型按本节规范执行、直接提交 `main`（无独立 PR 号，故以 commit SHA 记录）；主会话已逐批复查：目标目录 `console.*` 归零、相对导入无 `@/`、级别映射克制（0 误升 info）、`[前缀]` 已剥离、strict `tsc -p tsconfig.app.json` 与 `build` 通过。
 
 新 logger 位于 `src/shared/services/infra/logger/`，对外导出 `logger`、`createLogger(context)`、`Logger`、Transport 与类型。
 
-**累计**：已完成 9 个子系统（mcp / store / api / storage / messages / ai / webSearch / files / knowledge），约 1450 处 `console.*` 迁移并归零，CI（type-check + build）全绿。
+**累计**：`shared/services` 全部业务子系统（mcp / store* / api* / storage / messages / ai / webSearch / files / knowledge / assistant / topics / memory / platform / network / tts-v2 / skills / ui / notes / translate，*store/api 在 `shared/` 下）+ `shared/utils` 均已迁移并归零，约 **2045 处** `console.*` 清零；`src` 全量剩余约 **971 处**（集中在 `components` / `pages` / 顶层 `hooks·utils` / `shared/hooks·providers`）。CI（type-check + build）全绿。
 
 ### 13.2 迁移规范（统一规则，分模块迁移一律照此执行）
 
@@ -345,29 +351,19 @@ flowchart TD
 
 ### 13.3 剩余盘点（基于 `main`；`console.*` 总量 / 必迁 `log·info·debug·group` / 文件数）
 
-> 已迁子系统（mcp / store / api / storage / messages / ai / webSearch / files / knowledge）均已归零，不再列出。`src` 全量剩余约 **1568 处**（含下表 + 约 16 处豁免后端）。
+> `shared/services`（全部业务子系统）、`shared/store`、`shared/api`、`shared/utils` 均已归零，不再列出。`src` 全量剩余约 **971 处**（下表主力区域 + 约 55 处零散/后端豁免）。
 
 | 区域 | 总数 | 必迁 | 文件 | 备注 |
 |--------|------|------|------|------|
-| `shared/services/assistant` | 97 | 51 | 6 | 待迁 |
-| `shared/services/topics` | 60 | 26 | 4 | 待迁 |
-| `shared/services/memory` | 53 | 16 | 6 | 待迁 |
-| `shared/services/platform` | 52 | 21 | 7 | 待迁 |
-| `shared/services/tts-v2` | 41 | 25 | 8 | 待迁 |
-| `shared/services/skills` | 28 | 11 | 1 | 待迁 |
-| `shared/services/network` | 26 | 14 | 4 | 待迁 |
-| `shared/services/ui` | 17 | 7 | 2 | 待迁 |
-| `shared/services/notes` | 11 | 5 | 2 | 待迁 |
-| `shared/services/translate` | 3 | 0 | 1 | 全 error/warn，可暂留 |
-| `shared/utils` | 207 | 107 | 33 | 待迁 |
+| `pages` | 418 | 162 | 67 | 待迁（多为 error/warn） |
+| `components` | 325 | 116 | 101 | 待迁（多为 error/warn） |
+| `utils`（顶层） | 61 | 20 | 5 | 待迁 |
+| `hooks`（顶层） | 49 | 27 | 8 | 待迁 |
 | `shared/hooks` | 40 | 21 | 9 | 待迁 |
 | `shared/providers` | 23 | 11 | 2 | 待迁 |
-| `components` | 325 | 116 | 101 | 待迁（多为 error/warn） |
-| `pages` | 418 | 162 | 67 | 待迁（多为 error/warn） |
-| `hooks`（顶层） | 49 | 27 | 8 | 待迁 |
-| `utils`（顶层） | 61 | 20 | 5 | 待迁 |
+| 其余零散 | ~55 | — | — | `routes` / `solid` / `shared/{adapters,bridges,config,database,plugins}` 等零散，逐步收尾 |
 
-> 注：`ConsoleTransport` / `EnhancedConsoleService` / `LoggerService` 等日志后端自身的 `console` 使用（约 16 处）为有意保留，已在 ESLint 中豁免，不计入迁移目标。
+> 注：`ConsoleTransport` / `EnhancedConsoleService` / `LoggerService`（旧服务，阶段5 移除）等日志后端自身的 `console` 使用为有意保留，已在 ESLint 中豁免，不计入迁移目标。
 
 ### 13.4 已确定的决策（对应 §10）
 
@@ -383,3 +379,4 @@ flowchart TD
 - **自包含 prompt**：子会话各自独立机器、无共享状态，prompt 必须自带：仓库与环境、logger API、**仅限**该目录的范围、§13.2 规则、按文件层级的相对导入深度、每文件的 context 决策、自检步骤（`grep` 归零 + type-check + build）、独立分支与独立 PR；遇产品/设计抉择应回报而非擅自决定。
 - **特殊文件人工处理**：含 `%c` 控制台样式、`console.group` 分组、多行/多参的调用，脚本不安全，需人工迁移（如 `ai/ThinkingDebugService.ts`：样式/分组折叠为干净 `logger.debug`，信息无损）。
 - **无损校验**：迁移前后用 CJK 码点计数比对工作树与 `origin/main`，确认中文消息零丢失（终端里的中文乱码多为 PTY 显示伪影，非文件损坏）。
+- **IDE 模型轨（省额度）**：体量小、特殊点已盘清的批次，可由主会话产出「自包含迁移 prompt」交用户本地 IDE 模型执行（不消耗子会话额度），完成后主会话仅做复查（归零 / 无 `@/` / 级别 / 剥前缀 / strict `tsc -p tsconfig.app.json` + `build`）。此类批次可能直接提交 `main`、无独立 PR 号，以 commit SHA 记录（见 §13.1）。
