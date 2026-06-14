@@ -1,5 +1,7 @@
 import { getStorageItem } from '../../utils/storage';
 import { TTSManager } from './TTSManager';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('TTS');
 
 /**
  * 初始化 TTS 服务配置
@@ -88,5 +90,5 @@ export async function initTTS(): Promise<void> {
     }
   }
 
-  console.log('🎵 TTS V2 初始化完成, 使用引擎:', selectedService);
+  logger.debug('🎵 TTS V2 初始化完成, 使用引擎:', selectedService);
 }

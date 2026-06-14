@@ -5,6 +5,10 @@
 
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('NativeHttp');
+const esLogger = logger.withContext('NativeEventSource');
 
 export interface NativeHttpResponse {
   status: number;
@@ -54,7 +58,7 @@ export class NativeHttpService {
       // 所有非本地的外部URL都使用原生HTTP
       const isExternal = urlObj.origin !== currentOrigin;
       if (isExternal) {
-        console.log(`[Native HTTP] 检测到外部URL，使用原生HTTP: ${url}`);
+        logger.debug(`检测到外部URL，使用原生HTTP: ${url}`);
       }
 
       return isExternal;
@@ -67,7 +71,7 @@ export class NativeHttpService {
    * 执行原生HTTP请求 - 使用 CorsBypass 插件
    */
   async request(url: string, options: RequestInit = {}): Promise<NativeHttpResponse> {
-    console.log('[Native HTTP] 执行 CorsBypass 请求:', url);
+    logger.debug('执行 CorsBypass 请求:', url);
 
     try {
       // 使用 CorsBypass 插件进行请求
@@ -80,7 +84,7 @@ export class NativeHttpService {
         responseType: 'text'
       });
 
-      console.log('[Native HTTP] CorsBypass 请求成功:', result.status, result.statusText);
+      logger.debug('CorsBypass 请求成功:', result.status, result.statusText);
 
       // 包装成类似fetch Response的对象
       const response: NativeHttpResponse = {
@@ -102,7 +106,7 @@ export class NativeHttpService {
 
       return response;
     } catch (error) {
-      console.error('[Native HTTP] CorsBypass 请求失败:', error);
+      logger.error('CorsBypass 请求失败:', error);
       throw error;
     }
   }
@@ -202,7 +206,7 @@ export class NativeEventSource {
       try {
         listener(data);
       } catch (e) {
-        console.error(`[Native EventSource] 事件监听器错误:`, e);
+        esLogger.error(`事件监听器错误:`, e);
       }
     });
   }
@@ -229,7 +233,7 @@ export class NativeEventSource {
       return;
     }
 
-    console.log(`[Native EventSource] 使用 CorsBypass 连接到: ${this.url}`);
+    esLogger.debug(`使用 CorsBypass 连接到: ${this.url}`);
 
     try {
       const result = await CorsBypass.startSSE({
@@ -240,9 +244,9 @@ export class NativeEventSource {
 
       // 使用插件返回的连接ID
       this.connectionId = result.connectionId;
-      console.log(`[Native EventSource] CorsBypass SSE 连接成功，连接ID: ${this.connectionId}`);
+      esLogger.debug(`CorsBypass SSE 连接成功，连接ID: ${this.connectionId}`);
     } catch (error) {
-      console.error(`[Native EventSource] CorsBypass 连接失败:`, error);
+      esLogger.error(`CorsBypass 连接失败:`, error);
       throw error;
     }
   }
@@ -252,15 +256,15 @@ export class NativeEventSource {
       return;
     }
 
-    console.log(`[Native EventSource] 使用 CorsBypass 断开连接: ${this.url}`);
+    esLogger.debug(`使用 CorsBypass 断开连接: ${this.url}`);
 
     try {
       await CorsBypass.stopSSE({
         connectionId: this.connectionId
       });
-      console.log(`[Native EventSource] CorsBypass SSE 连接已断开`);
+      esLogger.debug(`CorsBypass SSE 连接已断开`);
     } catch (error) {
-      console.error(`[Native EventSource] CorsBypass 断开连接失败:`, error);
+      esLogger.error(`CorsBypass 断开连接失败:`, error);
     }
 
     this.isConnected = false;

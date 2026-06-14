@@ -23,6 +23,8 @@ import { ElevenLabsEngine } from './engines/ElevenLabsEngine';
 import { MiniMaxEngine } from './engines/MiniMaxEngine';
 import { VolcanoEngine } from './engines/VolcanoEngine';
 import { WebSpeechEngine } from './engines/WebSpeechEngine';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('TTSManager');
 
 /**
  * 播放队列管理
@@ -176,14 +178,14 @@ export class TTSManager {
     const initPromises = Array.from(this.engines.values()).map(async (engine) => {
       try {
         await engine.initialize();
-        console.log(`✅ ${engine.name} 引擎初始化完成`);
+        logger.debug(`✅ ${engine.name} 引擎初始化完成`);
       } catch (error) {
-        console.warn(`⚠️ ${engine.name} 引擎初始化失败:`, error);
+        logger.warn(`⚠️ ${engine.name} 引擎初始化失败:`, error);
       }
     });
     
     await Promise.allSettled(initPromises);
-    console.log('🎵 TTS Manager 初始化完成');
+    logger.debug('🎵 TTS Manager 初始化完成');
   }
   
   /**
@@ -224,7 +226,7 @@ export class TTSManager {
     // 预处理文本
     const processedText = preprocessText(text);
     if (!processedText) {
-      console.warn('文本为空，无法播放');
+      logger.warn('文本为空，无法播放');
       return false;
     }
     
@@ -251,30 +253,30 @@ export class TTSManager {
    * 播放下一个分块
    */
   private async playNextChunk(): Promise<boolean> {
-    console.log(`🎵 [DEBUG] playNextChunk called, currentIndex: ${this.playbackQueue.index}, isFinished: ${this.playbackQueue.isFinished()}`);
+    logger.debug(`🎵 [DEBUG] playNextChunk called, currentIndex: ${this.playbackQueue.index}, isFinished: ${this.playbackQueue.isFinished()}`);
     
     // 检查是否已完成
     if (this.playbackQueue.isFinished()) {
-      console.log(`🎵 [DEBUG] Playback finished, calling finishPlayback()`);
+      logger.debug(`🎵 [DEBUG] Playback finished, calling finishPlayback()`);
       this.finishPlayback();
       return true;
     }
     
     const chunk = this.playbackQueue.getCurrentChunk();
     if (!chunk) {
-      console.log(`🎵 [DEBUG] No current chunk, calling finishPlayback()`);
+      logger.debug(`🎵 [DEBUG] No current chunk, calling finishPlayback()`);
       this.finishPlayback();
       return true;
     }
     
-    console.log(`🎵 [DEBUG] Playing chunk: "${chunk.substring(0, 50)}..."`);
+    logger.debug(`🎵 [DEBUG] Playing chunk: "${chunk.substring(0, 50)}..."`);
     
     // 如果有指定活动引擎，只使用该引擎
     if (this.activeEngine) {
       const active = this.engines.get(this.activeEngine);
       if (active?.isAvailable()) {
         try {
-          console.log(`🎵 使用 ${active.name} 引擎播放`);
+          logger.debug(`🎵 使用 ${active.name} 引擎播放`);
           const result = await active.synthesize(chunk);
           
           if (result.success) {
@@ -282,15 +284,15 @@ export class TTSManager {
             
             // directPlay 表示 synthesize 已经播放完毕，需要手动前进
             if (result.directPlay) {
-              console.log(`🎵 [DEBUG] DirectPlay engine completed, advancing to next chunk...`);
+              logger.debug(`🎵 [DEBUG] DirectPlay engine completed, advancing to next chunk...`);
               
               // 直接前进到下一块，不需要额外调用speak
               if (this.playbackQueue.advance()) {
-                console.log(`🎵 [DEBUG] Advanced to next chunk, continuing playback`);
+                logger.debug(`🎵 [DEBUG] Advanced to next chunk, continuing playback`);
                 // 递归播放下一块
                 return this.playNextChunk();
               } else {
-                console.log(`🎵 [DEBUG] No more chunks, finishing playback`);
+                logger.debug(`🎵 [DEBUG] No more chunks, finishing playback`);
                 // 已完成所有块
                 this.finishPlayback();
                 return true;
@@ -301,7 +303,7 @@ export class TTSManager {
             }
           }
         } catch (error) {
-          console.warn(`${active.name} 引擎播放失败:`, error);
+          logger.warn(`${active.name} 引擎播放失败:`, error);
         }
       }
     }
@@ -313,22 +315,22 @@ export class TTSManager {
     
     for (const engine of sortedEngines) {
       try {
-        console.log(`🎵 降级到 ${engine.name} 引擎`);
+        logger.debug(`🎵 降级到 ${engine.name} 引擎`);
         const result = await engine.synthesize(chunk);
         
         if (result.success) {
           this._state.currentEngine = engine.name;
           
           if (result.directPlay) {
-            console.log(`🎵 [DEBUG] DirectPlay engine completed, advancing to next chunk...`);
+            logger.debug(`🎵 [DEBUG] DirectPlay engine completed, advancing to next chunk...`);
             
             // 直接前进到下一块，不需要额外调用speak
             if (this.playbackQueue.advance()) {
-              console.log(`🎵 [DEBUG] Advanced to next chunk, continuing playback`);
+              logger.debug(`🎵 [DEBUG] Advanced to next chunk, continuing playback`);
               // 递归播放下一块
               return this.playNextChunk();
             } else {
-              console.log(`🎵 [DEBUG] No more chunks, finishing playback`);
+              logger.debug(`🎵 [DEBUG] No more chunks, finishing playback`);
               // 已完成所有块
               this.finishPlayback();
               return true;
@@ -339,7 +341,7 @@ export class TTSManager {
           }
         }
       } catch (error) {
-        console.warn(`${engine.name} 引擎播放失败:`, error);
+        logger.warn(`${engine.name} 引擎播放失败:`, error);
       }
     }
     
@@ -354,21 +356,21 @@ export class TTSManager {
    * 前进到下一块或完成
    */
   private advanceOrFinish(): void {
-    console.log(`🎵 [DEBUG] advanceOrFinish called, paused: ${this.playbackQueue.paused}, index: ${this.playbackQueue.index}`);
+    logger.debug(`🎵 [DEBUG] advanceOrFinish called, paused: ${this.playbackQueue.paused}, index: ${this.playbackQueue.index}`);
     
     // 如果处于暂停状态，不前进
     if (this.playbackQueue.paused) {
-      console.log(`🎵 [DEBUG] Queue is paused, not advancing`);
+      logger.debug(`🎵 [DEBUG] Queue is paused, not advancing`);
       return;
     }
     
     // 前进到下一块
     if (this.playbackQueue.advance()) {
-      console.log(`🎵 [DEBUG] Advanced to next chunk, new index: ${this.playbackQueue.index}`);
+      logger.debug(`🎵 [DEBUG] Advanced to next chunk, new index: ${this.playbackQueue.index}`);
       // 还有下一块，继续播放
       this.playNextChunk();
     } else {
-      console.log(`🎵 [DEBUG] Cannot advance, calling finishPlayback()`);
+      logger.debug(`🎵 [DEBUG] Cannot advance, calling finishPlayback()`);
       // 已完成所有块
       this.finishPlayback();
     }
@@ -413,7 +415,7 @@ export class TTSManager {
         try {
           (engine as any).pause();
         } catch (error) {
-          console.warn('引擎暂停失败:', error);
+          logger.warn('引擎暂停失败:', error);
         }
       }
     });
@@ -454,7 +456,7 @@ export class TTSManager {
           try {
             (engine as any).resume();
           } catch (error) {
-            console.warn('引擎恢复失败:', error);
+            logger.warn('引擎恢复失败:', error);
           }
         }
       });
@@ -465,7 +467,7 @@ export class TTSManager {
       
       return true;
     } catch (error) {
-      console.error('恢复播放失败:', error);
+      logger.error('恢复播放失败:', error);
       this._state.error = '恢复播放失败';
       this.emit({ type: 'error', error: this._state.error });
       return false;

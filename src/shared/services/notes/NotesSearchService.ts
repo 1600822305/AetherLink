@@ -3,6 +3,8 @@ import { isCapacitor } from '../../utils/platformDetection';
 import type { NoteFile } from '../../types/note';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { AdvancedFileManager } from 'capacitor-advanced-file-manager';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('NotesSearch');
 
 /**
  * 搜索匹配结果
@@ -102,7 +104,7 @@ async function searchFileContent(
 
   // 检查文件大小，跳过大文件
   if (node.size && node.size > maxFileSize) {
-    console.log(`跳过大文件: ${node.path} (${(node.size / 1024).toFixed(1)} KB)`);
+    logger.debug(`跳过大文件: ${node.path} (${(node.size / 1024).toFixed(1)} KB)`);
     return [];
   }
 
@@ -115,7 +117,7 @@ async function searchFileContent(
     
     // 再次检查内容大小（以防 size 字段不准确）
     if (content.length > maxFileSize) {
-      console.log(`跳过大文件内容: ${node.path} (${(content.length / 1024).toFixed(1)} KB)`);
+      logger.debug(`跳过大文件内容: ${node.path} (${(content.length / 1024).toFixed(1)} KB)`);
       return [];
     }
 
@@ -162,7 +164,7 @@ async function searchFileContent(
 
     return matches;
   } catch (error) {
-    console.error(`搜索文件内容失败: ${node.path}`, error);
+    logger.error(`搜索文件内容失败: ${node.path}`, error);
     return [];
   }
 }
@@ -209,7 +211,7 @@ async function getAllFilesRecursive(
       }
     }
   } catch (error) {
-    console.error(`获取文件列表失败: ${subPath}`, error);
+    logger.error(`获取文件列表失败: ${subPath}`, error);
   }
   
   return result;
@@ -242,11 +244,11 @@ async function searchNotesNative(
   try {
     const rootPath = await getNotesRootPath();
     if (!rootPath) {
-      console.warn('笔记存储路径未配置');
+      logger.warn('笔记存储路径未配置');
       return [];
     }
 
-    console.log(`[原生搜索] 目录: ${rootPath}, 关键词: ${keyword}`);
+    logger.debug(`原生搜索 目录: ${rootPath}, 关键词: ${keyword}`);
 
     const result = await AdvancedFileManager.searchContent({
       directory: rootPath,
@@ -261,7 +263,7 @@ async function searchNotesNative(
       recursive: true
     });
 
-    console.log(`[原生搜索] 完成: ${result.totalFiles} 文件, ${result.totalMatches} 匹配, ${result.duration}ms`);
+    logger.debug(`原生搜索 完成: ${result.totalFiles} 文件, ${result.totalMatches} 匹配, ${result.duration}ms`);
 
     // 转换原生结果为 SearchResult
     return result.results.map((r: {
@@ -294,7 +296,7 @@ async function searchNotesNative(
       score: r.score
     }));
   } catch (error) {
-    console.error('[原生搜索] 失败:', error);
+    logger.error('原生搜索 失败:', error);
     // 回退到 JS 搜索
     return searchNotesJS(keyword, options);
   }
@@ -318,7 +320,7 @@ async function searchNotesJS(
 
   try {
     const allFiles = await getAllFilesRecursive('', maxFiles, maxDepth);
-    console.log(`[JS搜索] 范围: ${allFiles.length} 个文件/文件夹`);
+    logger.debug(`JS搜索 范围: ${allFiles.length} 个文件/文件夹`);
 
     for (const file of allFiles) {
       if (signal?.aborted) {
@@ -358,7 +360,7 @@ async function searchNotesJS(
 
     return results.sort((a, b) => b.score - a.score);
   } catch (error) {
-    console.error('[JS搜索] 失败:', error);
+    logger.error('JS搜索 失败:', error);
     return [];
   }
 }

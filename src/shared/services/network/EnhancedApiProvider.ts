@@ -6,6 +6,9 @@
 import type { Model } from '../../types';
 import type { ApiKeyConfig, ModelProvider } from '../../config/defaultModels';
 import ApiKeyManager from '../ai/ApiKeyManager';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('EnhancedApiProvider');
 // import { ApiProviderRegistry } from './messages/ApiProvider'; // 暂时注释掉未使用的导入
 
 export interface EnhancedApiCallOptions {
@@ -70,7 +73,7 @@ export class EnhancedApiProvider {
       const selectedKey = keySelection.key;
 
       try {
-        console.log(`[EnhancedApiProvider] 尝试使用 Key: ${selectedKey.name || selectedKey.id} (${keySelection.reason})`);
+        logger.debug(`尝试使用 Key: ${selectedKey.name || selectedKey.id} (${keySelection.reason})`);
         
         // 执行 API 调用
         const result = await apiCall(selectedKey.key);
@@ -83,7 +86,7 @@ export class EnhancedApiProvider {
         this.keyManager.recordKeyUsage(selectedKey.id, true);
         onKeyUsed?.(selectedKey.id, true);
 
-        console.log(`[EnhancedApiProvider] API 调用成功，使用 Key: ${selectedKey.name || selectedKey.id}`);
+        logger.debug(`API 调用成功，使用 Key: ${selectedKey.name || selectedKey.id}`);
         
         return {
           success: true,
@@ -96,7 +99,7 @@ export class EnhancedApiProvider {
         retryCount = attempt + 1;
         lastError = error instanceof Error ? error.message : String(error);
         
-        console.error(`[EnhancedApiProvider] API 调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
+        logger.error(`API 调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
         
         // 更新 Key 失败统计
         const updatedKey = this.keyManager.updateKeyStatus(selectedKey, false, lastError);
@@ -115,7 +118,7 @@ export class EnhancedApiProvider {
 
     // 如果启用了回退机制且有单个 Key 配置，尝试使用单个 Key
     if (enableFallback && provider.apiKey) {
-      console.log('[EnhancedApiProvider] 多 Key 调用失败，尝试回退到单 Key 模式');
+      logger.debug('多 Key 调用失败，尝试回退到单 Key 模式');
       return this.callWithSingleKey(model, apiCall, options);
     }
 
@@ -147,7 +150,7 @@ export class EnhancedApiProvider {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        console.log(`[EnhancedApiProvider] 单 Key 模式调用 (尝试 ${attempt + 1}/${maxRetries})`);
+        logger.debug(`单 Key 模式调用 (尝试 ${attempt + 1}/${maxRetries})`);
         
         const result = await apiCall(model.apiKey);
         
@@ -163,7 +166,7 @@ export class EnhancedApiProvider {
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
         
-        console.error(`[EnhancedApiProvider] 单 Key 调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
+        logger.error(`单 Key 调用失败 (尝试 ${attempt + 1}/${maxRetries}):`, lastError);
         
         onKeyUsed?.('single-key', false, lastError);
 
@@ -226,9 +229,9 @@ export class EnhancedApiProvider {
         window.dispatchEvent(updateEvent);
       }
 
-      console.log('[EnhancedApiProvider] 已发出供应商配置更新事件:', provider.id);
+      logger.debug('已发出供应商配置更新事件:', provider.id);
     } catch (error) {
-      console.error('[EnhancedApiProvider] 更新供应商配置失败:', error);
+      logger.error('更新供应商配置失败:', error);
     }
   }
 

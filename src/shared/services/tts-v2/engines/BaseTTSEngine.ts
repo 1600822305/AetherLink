@@ -3,6 +3,8 @@
  */
 
 import type { ITTSEngine, TTSEngineType, TTSBaseConfig, TTSSynthesisResult } from '../types';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('BaseTTSEngine');
 
 export abstract class BaseTTSEngine implements ITTSEngine {
   abstract readonly name: TTSEngineType;
@@ -23,7 +25,7 @@ export abstract class BaseTTSEngine implements ITTSEngine {
       this._initialized = true;
       this._available = true;
     } catch (error) {
-      console.warn(`${this.name} 引擎初始化失败:`, error);
+      logger.warn(`${this.name} 引擎初始化失败:`, error);
       this._available = false;
     }
   }

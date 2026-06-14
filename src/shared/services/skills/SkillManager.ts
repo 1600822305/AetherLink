@@ -8,6 +8,8 @@ import type { Skill } from '../../types/Skill';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { builtinSkills } from '../../config/builtinSkills/index';
 import { parseSkillMarkdown, parseMultipleSkillMarkdowns, skillToMarkdown } from './SkillMarkdownParser';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('SkillManager');
 
 /** 技能导出格式 */
 export interface SkillExportData {
@@ -34,11 +36,11 @@ export class SkillManager {
       for (const skill of builtinSkills) {
         if (!existingBuiltinIds.has(skill.id)) {
           await dexieStorage.skills.put(skill);
-          console.log(`[SkillManager] 初始化内置技能: ${skill.name}`);
+          logger.debug(`初始化内置技能: ${skill.name}`);
         }
       }
     } catch (error) {
-      console.error('[SkillManager] 初始化内置技能失败:', error);
+      logger.error('初始化内置技能失败:', error);
     }
   }
 
@@ -66,7 +68,7 @@ export class SkillManager {
       await dexieStorage.skills.put(skill);
       return true;
     } catch (error) {
-      console.error('[SkillManager] 保存技能失败:', error);
+      logger.error('保存技能失败:', error);
       return false;
     }
   }
@@ -94,10 +96,10 @@ export class SkillManager {
       };
 
       await dexieStorage.skills.put(skill);
-      console.log(`[SkillManager] 创建技能: ${skill.name} (${skill.id})`);
+      logger.debug(`创建技能: ${skill.name} (${skill.id})`);
       return skill;
     } catch (error) {
-      console.error('[SkillManager] 创建技能失败:', error);
+      logger.error('创建技能失败:', error);
       return null;
     }
   }
@@ -106,14 +108,14 @@ export class SkillManager {
     try {
       const skill = await dexieStorage.skills.get(id);
       if (skill?.source === 'builtin') {
-        console.warn('[SkillManager] 不能删除内置技能，已改为禁用');
+        logger.warn('不能删除内置技能，已改为禁用');
         return this.toggleSkill(id, false);
       }
       await dexieStorage.skills.delete(id);
-      console.log(`[SkillManager] 已删除技能: ${id}`);
+      logger.debug(`已删除技能: ${id}`);
       return true;
     } catch (error) {
-      console.error('[SkillManager] 删除技能失败:', error);
+      logger.error('删除技能失败:', error);
       return false;
     }
   }
@@ -124,7 +126,7 @@ export class SkillManager {
       if (enabled) {
         const enabledCount = (await dexieStorage.skills.toArray()).filter(s => s.enabled).length;
         if (enabledCount >= MAX_ENABLED_SKILLS) {
-          console.warn(`[SkillManager] 已启用技能数量已达上限 (${MAX_ENABLED_SKILLS})`);
+          logger.warn(`已启用技能数量已达上限 (${MAX_ENABLED_SKILLS})`);
           return false;
         }
       }
@@ -134,7 +136,7 @@ export class SkillManager {
       });
       return true;
     } catch (error) {
-      console.error('[SkillManager] 切换技能状态失败:', error);
+      logger.error('切换技能状态失败:', error);
       return false;
     }
   }
@@ -155,7 +157,7 @@ export class SkillManager {
       }
       return skills;
     } catch (error) {
-      console.error('[SkillManager] 获取助手技能失败:', error);
+      logger.error('获取助手技能失败:', error);
       return [];
     }
   }
@@ -169,10 +171,10 @@ export class SkillManager {
       if (!skillIds.includes(skillId)) {
         skillIds.push(skillId);
         await dexieStorage.updateAssistant(assistantId, { skillIds });
-        console.log(`[SkillManager] 绑定技能 ${skillId} 到助手 ${assistantId}`);
+        logger.debug(`绑定技能 ${skillId} 到助手 ${assistantId}`);
       }
     } catch (error) {
-      console.error('[SkillManager] 绑定技能失败:', error);
+      logger.error('绑定技能失败:', error);
     }
   }
 
@@ -188,9 +190,9 @@ export class SkillManager {
         updates.activeSkillId = null;
       }
       await dexieStorage.updateAssistant(assistantId, updates);
-      console.log(`[SkillManager] 解绑技能 ${skillId} 从助手 ${assistantId}`);
+      logger.debug(`解绑技能 ${skillId} 从助手 ${assistantId}`);
     } catch (error) {
-      console.error('[SkillManager] 解绑技能失败:', error);
+      logger.error('解绑技能失败:', error);
     }
   }
 
@@ -202,10 +204,10 @@ export class SkillManager {
       if (!skill || !skill.enabled) return false;
 
       await dexieStorage.updateAssistant(assistantId, { activeSkillId: skillId });
-      console.log(`[SkillManager] 激活技能: ${skill.name} (助手: ${assistantId})`);
+      logger.debug(`激活技能: ${skill.name} (助手: ${assistantId})`);
       return true;
     } catch (error) {
-      console.error('[SkillManager] 激活技能失败:', error);
+      logger.error('激活技能失败:', error);
       return false;
     }
   }
@@ -213,9 +215,9 @@ export class SkillManager {
   static async deactivateSkill(assistantId: string): Promise<void> {
     try {
       await dexieStorage.updateAssistant(assistantId, { activeSkillId: null });
-      console.log(`[SkillManager] 停用当前技能 (助手: ${assistantId})`);
+      logger.debug(`停用当前技能 (助手: ${assistantId})`);
     } catch (error) {
-      console.error('[SkillManager] 停用技能失败:', error);
+      logger.error('停用技能失败:', error);
     }
   }
 
@@ -267,9 +269,9 @@ export class SkillManager {
         };
         await dexieStorage.skills.put(skill);
         imported++;
-        console.log(`[SkillManager] 导入技能: ${skill.name}`);
+        logger.debug(`导入技能: ${skill.name}`);
       } catch (error) {
-        console.warn(`[SkillManager] 导入技能失败: ${raw.name}`, error);
+        logger.warn(`导入技能失败: ${raw.name}`, error);
         skipped++;
       }
     }
@@ -294,7 +296,7 @@ export class SkillManager {
         updatedAt: new Date().toISOString(),
       } as any);
     } catch (error) {
-      console.warn('[SkillManager] 记录使用统计失败:', error);
+      logger.warn('记录使用统计失败:', error);
     }
   }
 
@@ -316,11 +318,11 @@ export class SkillManager {
             updatedAt: new Date().toISOString(),
           });
           upgraded++;
-          console.log(`[SkillManager] 升级内置技能: ${latest.name} (${existing.version} → ${latest.version})`);
+          logger.debug(`升级内置技能: ${latest.name} (${existing.version} → ${latest.version})`);
         }
       }
     } catch (error) {
-      console.error('[SkillManager] 升级内置技能失败:', error);
+      logger.error('升级内置技能失败:', error);
     }
     return upgraded;
   }
@@ -334,10 +336,10 @@ export class SkillManager {
     try {
       const skill = parseSkillMarkdown(markdown);
       await dexieStorage.skills.put(skill);
-      console.log(`[SkillManager] 从 SKILL.md 导入技能: ${skill.name}`);
+      logger.debug(`从 SKILL.md 导入技能: ${skill.name}`);
       return skill;
     } catch (error) {
-      console.error('[SkillManager] 从 SKILL.md 导入失败:', error);
+      logger.error('从 SKILL.md 导入失败:', error);
       return null;
     }
   }
@@ -356,9 +358,9 @@ export class SkillManager {
       try {
         await dexieStorage.skills.put(skill);
         imported++;
-        console.log(`[SkillManager] 从 SKILL.md 导入技能: ${skill.name}`);
+        logger.debug(`从 SKILL.md 导入技能: ${skill.name}`);
       } catch (error) {
-        console.warn(`[SkillManager] 导入技能失败: ${skill.name}`, error);
+        logger.warn(`导入技能失败: ${skill.name}`, error);
         skipped++;
       }
     }

@@ -5,6 +5,8 @@
 
 import { BaseTTSEngine } from './BaseTTSEngine';
 import type { TTSEngineType, TTSSynthesisResult, WebSpeechTTSConfig } from '../types';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('WebSpeechEngine');
 
 export class WebSpeechEngine extends BaseTTSEngine {
   readonly name: TTSEngineType = 'webspeech';
@@ -41,7 +43,7 @@ export class WebSpeechEngine extends BaseTTSEngine {
       });
     }
     
-    console.log('Web Speech API 初始化完成，语音数:', this.voices.length);
+      logger.debug('Web Speech API 初始化完成，语音数:', this.voices.length);
   }
   
   isAvailable(): boolean {
@@ -95,7 +97,7 @@ export class WebSpeechEngine extends BaseTTSEngine {
         window.speechSynthesis.speak(this.utterance);
       });
     } catch (error) {
-      console.error('Web Speech API 播放失败:', error);
+      logger.error('Web Speech API 播放失败:', error);
       return false;
     }
   }

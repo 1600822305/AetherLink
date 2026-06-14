@@ -1,6 +1,8 @@
 import type {
   WhisperTranscriptionResponse
 } from '../../types/voice';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('OpenAIWhisperService');
 
 /**
  * OpenAI Whisper语音识别服务类
@@ -99,7 +101,7 @@ class OpenAIWhisperService {
 
       // 开始录制
       mediaRecorder.start();
-      console.log('开始录制音频...');
+      logger.debug('开始录制音频...');
 
       // 设置录制时长
       await new Promise(resolve => setTimeout(resolve, durationMs));
@@ -125,7 +127,7 @@ class OpenAIWhisperService {
         mediaRecorder.stop();
       });
     } catch (error) {
-      console.error('录制或转录失败:', error);
+      logger.error('录制或转录失败:', error);
       throw error;
     }
   }

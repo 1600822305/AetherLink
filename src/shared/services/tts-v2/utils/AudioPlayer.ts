@@ -2,6 +2,8 @@
  * 统一音频播放器
  * 处理音频数据的播放、暂停、停止
  */
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('AudioPlayer');
 
 export class AudioPlayer {
   private audio: HTMLAudioElement | null = null;
@@ -51,7 +53,7 @@ export class AudioPlayer {
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (e) {
-      console.warn('AudioContext 初始化失败:', e);
+      logger.warn('AudioContext 初始化失败:', e);
     }
   }
   
@@ -75,7 +77,7 @@ export class AudioPlayer {
       
       return true;
     } catch (error) {
-      console.error('播放失败:', error);
+      logger.error('播放失败:', error);
       this.releaseBlobUrl();
       return false;
     }

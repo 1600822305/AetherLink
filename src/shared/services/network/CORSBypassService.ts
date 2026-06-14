@@ -6,6 +6,9 @@
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import LoggerService from '../infra/LoggerService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('CORSBypass');
 
 // 请求配置接口
 export interface CORSBypassRequestOptions {
@@ -180,14 +183,14 @@ export class CORSBypassService {
 
     // 处理二进制数据 - 使用Base64编码防止数据损坏
     if (data instanceof ArrayBuffer) {
-      console.warn('[CORS Bypass] ArrayBuffer detected, using Base64 encoding');
+      logger.warn('ArrayBuffer detected, using Base64 encoding');
       const uint8Array = new Uint8Array(data);
       const base64 = btoa(String.fromCharCode(...uint8Array));
       return { serializedData: base64, isBase64: true };
     }
 
     if (data instanceof Uint8Array) {
-      console.warn('[CORS Bypass] Uint8Array detected, using Base64 encoding');
+      logger.warn('Uint8Array detected, using Base64 encoding');
       const base64 = btoa(String.fromCharCode(...data));
       return { serializedData: base64, isBase64: true };
     }

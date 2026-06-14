@@ -1,4 +1,4 @@
-import type { Assistant, ChatTopic } from '../../types/Assistant';
+import type { Assistant } from '../../types/Assistant';
 import { dexieStorage } from '../storage/DexieStorageService';
 import { createLogger } from '../infra/logger';
 

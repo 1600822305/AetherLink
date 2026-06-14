@@ -6,6 +6,8 @@
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { BaseTTSEngine } from './BaseTTSEngine';
 import type { TTSEngineType, TTSSynthesisResult, CapacitorTTSConfig } from '../types';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('CapacitorEngine');
 
 export class CapacitorEngine extends BaseTTSEngine {
   readonly name: TTSEngineType = 'capacitor';
@@ -32,13 +34,13 @@ export class CapacitorEngine extends BaseTTSEngine {
     try {
       // 仅做简单的可用性检查，不触发可能导致空指针的操作
       // 实际的 TTS 服务绑定会在首次 speak() 调用时自动完成
-      console.log('Capacitor TTS 引擎已注册，将在首次使用时完成初始化');
+      logger.debug('Capacitor TTS 引擎已注册，将在首次使用时完成初始化');
       
       // 可选：尝试预热，但失败不影响功能
       this.warmupAsync();
     } catch (error) {
       // 即使检查失败也不抛出错误，让引擎保持可用状态
-      console.warn('Capacitor TTS 预检查失败，将在使用时重试:', error);
+      logger.warn('Capacitor TTS 预检查失败，将在使用时重试:', error);
     }
   }
 
@@ -55,20 +57,20 @@ export class CapacitorEngine extends BaseTTSEngine {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const languages = await TextToSpeech.getSupportedLanguages();
-        console.log('✅ Capacitor TTS 预热完成，支持语言数:', languages.languages?.length || 0);
+        logger.debug('✅ Capacitor TTS 预热完成，支持语言数:', languages.languages?.length || 0);
         return;
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         
         // Android 空指针异常 - 继续重试
         if (errorMsg.includes('null object reference') && attempt < maxRetries) {
-          console.log(`Capacitor TTS 预热重试 (${attempt}/${maxRetries})...`);
+          logger.debug(`Capacitor TTS 预热重试 (${attempt}/${maxRetries})...`);
           await this.delay(retryDelay * attempt);
           continue;
         }
         
         // 预热失败不影响功能，TTS 会在首次 speak() 时初始化
-        console.log('Capacitor TTS 预热跳过，将在首次使用时初始化');
+        logger.debug('Capacitor TTS 预热跳过，将在首次使用时初始化');
         return;
       }
     }
@@ -123,7 +125,7 @@ export class CapacitorEngine extends BaseTTSEngine {
     try {
       TextToSpeech.stop();
     } catch (error) {
-      console.warn('停止 Capacitor TTS 失败:', error);
+      logger.warn('停止 Capacitor TTS 失败:', error);
     }
   }
   

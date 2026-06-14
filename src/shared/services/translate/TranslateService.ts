@@ -8,6 +8,8 @@ import type { Model } from '../../types';
 import { ChunkType, type Chunk } from '../../types/chunk';
 import store from '../../store';
 import { getStorageItem, setStorageItem, removeStorageItem } from '../../utils/storage';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('TranslateService');
 
 export interface TranslateHistory {
   id: string;
@@ -50,7 +52,7 @@ export function getTranslateModel(): Model | null {
     
     return null;
   } catch (error) {
-    console.error('[TranslateService] Failed to get translate model:', error);
+    logger.error('Failed to get translate model:', error);
     return null;
   }
 }
@@ -124,7 +126,7 @@ export async function translateText(
     if ((error as Error).name === 'AbortError') {
       throw error;
     }
-    console.error('[TranslateService] Translation failed:', error);
+    logger.error('Translation failed:', error);
     throw error;
   }
 }
@@ -256,7 +258,7 @@ export async function recognizeImageText(
     if ((error as Error).name === 'AbortError') {
       throw error;
     }
-    console.error('[TranslateService] OCR failed:', error);
+    logger.error('OCR failed:', error);
     throw error;
   }
 }

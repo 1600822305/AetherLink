@@ -16,6 +16,8 @@ import {
 } from '../../utils/shiki';
 import type { ShikiStreamTokenizerOptions } from './ShikiStreamTokenizer';
 import { ShikiStreamTokenizer } from './ShikiStreamTokenizer';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('ShikiStream');
 
 const SERVICE_CONFIG = {
   // LRU 缓存配置
@@ -181,7 +183,7 @@ class ShikiStreamService {
       return result;
     } catch (error) {
       // 处理失败时不更新缓存，保持之前的状态
-      console.error('Failed to highlight streaming code:', error);
+      logger.error('Failed to highlight streaming code:', error);
       throw error;
     }
   }
@@ -212,7 +214,7 @@ class ShikiStreamService {
         recall: result.recall
       };
     } catch (error) {
-      console.error('Failed to highlight code chunk:', error);
+      logger.error('Failed to highlight code chunk:', error);
 
       // 提供简单的 fallback
       const fallbackToken: ThemedToken = { content: chunk || '', color: '#000000', offset: 0 };

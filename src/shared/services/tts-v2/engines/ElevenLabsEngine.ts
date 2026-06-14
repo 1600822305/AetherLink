@@ -5,6 +5,8 @@
 
 import { BaseTTSEngine } from './BaseTTSEngine';
 import type { TTSEngineType, TTSSynthesisResult, ElevenLabsTTSConfig } from '../types';
+import { createLogger } from '../../infra/logger';
+const logger = createLogger('ElevenLabsEngine');
 
 // ElevenLabs 预设语音列表
 export const ELEVENLABS_VOICES = [
@@ -172,7 +174,7 @@ export class ElevenLabsEngine extends BaseTTSEngine {
       });
 
       if (!response.ok) {
-        console.warn('获取 ElevenLabs 语音列表失败');
+        logger.warn('获取 ElevenLabs 语音列表失败');
         return [];
       }
 
@@ -183,7 +185,7 @@ export class ElevenLabsEngine extends BaseTTSEngine {
         category: v.category || 'premade',
       }));
     } catch (error) {
-      console.warn('获取 ElevenLabs 语音列表错误:', error);
+      logger.warn('获取 ElevenLabs 语音列表错误:', error);
       return [];
     }
   }

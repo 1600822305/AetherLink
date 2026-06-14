@@ -6,6 +6,8 @@
 
 // 从 google-fonts-complete 包导入完整字体列表
 import googleFontsData from 'google-fonts-complete/api-response.json';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('GoogleFonts');
 
 // 国内可用的 Google Fonts CDN 镜像（按稳定性排序）
 const FONT_CDN_MIRRORS = [
@@ -134,7 +136,7 @@ export async function fetchGoogleFonts(): Promise<GoogleFont[]> {
     cdnUrl,
   };
 
-  console.log(`[GoogleFonts] 已加载 ${fonts.length} 个字体（来自 google-fonts-complete 包）`);
+  logger.debug(`已加载 ${fonts.length} 个字体（来自 google-fonts-complete 包）`);
   return fonts;
 }
 
@@ -167,7 +169,7 @@ async function tryLoadFontFromCDN(cdnUrl: string, fontFamily: string, variants: 
     
     link.onload = () => {
       clearTimeout(timeout);
-      console.log(`[GoogleFonts] 字体加载成功: ${fontFamily} (${cdnUrl})`);
+      logger.debug(`字体加载成功: ${fontFamily} (${cdnUrl})`);
       resolve(true);
     };
     
@@ -204,14 +206,14 @@ async function loadChineseMonoFont(fontFamily: string): Promise<boolean> {
     
     link.onload = () => {
       clearTimeout(timeout);
-      console.log(`[GoogleFonts] 中文等宽字体加载成功: ${fontFamily}`);
+      logger.debug(`中文等宽字体加载成功: ${fontFamily}`);
       resolve(true);
     };
     
     link.onerror = () => {
       clearTimeout(timeout);
       link.remove();
-      console.warn(`[GoogleFonts] 中文等宽字体加载失败: ${fontFamily}`);
+      logger.warn(`中文等宽字体加载失败: ${fontFamily}`);
       resolve(false);
     };
     
@@ -259,11 +261,11 @@ export async function loadFont(fontFamily: string, variants: string[] = ['400', 
           return true;
         }
       } catch (e) {
-        console.warn(`[GoogleFonts] CDN ${cdnUrl} 加载失败，尝试下一个...`);
+        logger.warn(`CDN ${cdnUrl} 加载失败，尝试下一个...`);
       }
     }
     
-    console.warn(`[GoogleFonts] 所有 CDN 均无法加载字体: ${fontFamily}`);
+    logger.warn(`所有 CDN 均无法加载字体: ${fontFamily}`);
     return false;
   })();
 
@@ -392,7 +394,7 @@ export async function addCustomFontFromFile(file: File, fontName?: string): Prom
   const validExtensions = ['.ttf', '.otf', '.woff', '.woff2'];
   const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
   if (!validExtensions.includes(ext)) {
-    console.error('[CustomFonts] 不支持的字体格式:', ext);
+    logger.error('不支持的字体格式:', ext);
     throw new Error(`不支持的字体格式: ${ext}，请使用 TTF, OTF, WOFF 或 WOFF2 格式`);
   }
 
@@ -440,10 +442,10 @@ export async function addCustomFontFromFile(file: File, fontName?: string): Prom
     };
     customFontsCache = [...(customFontsCache || []), customFont];
 
-    console.log(`[CustomFonts] 添加自定义字体成功: ${baseName}`);
+    logger.debug(`添加自定义字体成功: ${baseName}`);
     return customFont;
   } catch (error) {
-    console.error('[CustomFonts] 添加自定义字体失败:', error);
+    logger.error('添加自定义字体失败:', error);
     throw error;
   }
 }
@@ -481,10 +483,10 @@ export async function removeCustomFont(fontId: string): Promise<boolean> {
       }
     });
 
-    console.log(`[CustomFonts] 删除自定义字体: ${fontId}`);
+    logger.debug(`删除自定义字体: ${fontId}`);
     return true;
   } catch (e) {
-    console.error('[CustomFonts] 删除自定义字体失败:', e);
+    logger.error('删除自定义字体失败:', e);
     return false;
   }
 }
@@ -531,17 +533,17 @@ export async function loadSavedCustomFonts(): Promise<void> {
             document.fonts.add(fontFace);
             registeredCustomFonts.set(font.id, fontFace);
             loadedFonts.add(`${font.fontFamily}:400`);
-            console.log(`[CustomFonts] 恢复自定义字体: ${font.name}`);
+            logger.debug(`恢复自定义字体: ${font.name}`);
           }
         } catch (e) {
-          console.warn(`[CustomFonts] 恢复自定义字体失败: ${font.name}`, e);
+          logger.warn(`恢复自定义字体失败: ${font.name}`, e);
         }
       }
       
       fontsInitialized = true;
-      console.log(`[CustomFonts] 初始化完成，共 ${fonts.length} 个自定义字体`);
+      logger.debug(`初始化完成，共 ${fonts.length} 个自定义字体`);
     } catch (e) {
-      console.error('[CustomFonts] 加载自定义字体失败:', e);
+      logger.error('加载自定义字体失败:', e);
     } finally {
       fontsInitPromise = null;
     }

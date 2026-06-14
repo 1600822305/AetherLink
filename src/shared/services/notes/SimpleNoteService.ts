@@ -1,6 +1,8 @@
 import { unifiedFileManager } from '../files/UnifiedFileManagerService';
 import { dexieStorage } from '../../services/storage/DexieStorageService';
 import type { NoteFile } from '../../types/note';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('SimpleNote');
 
 export const NOTE_STORAGE_PATH_KEY = 'NOTE_STORAGE_PATH';
 export const ENABLE_NOTE_SIDEBAR_KEY = 'ENABLE_NOTE_SIDEBAR';
@@ -89,7 +91,7 @@ class SimpleNoteService {
         return a.name.localeCompare(b.name);
       });
     } catch (error) {
-      console.error('获取笔记列表失败:', error);
+      logger.error('获取笔记列表失败:', error);
       throw error;
     }
   }

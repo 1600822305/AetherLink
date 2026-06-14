@@ -5,6 +5,9 @@
  */
 
 import { isAbortError } from '../../utils/abortController';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('EnhancedNetworkService');
 
 export type NetworkMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 export type NetworkStatus = 'pending' | 'success' | 'error' | 'cancelled';
@@ -452,7 +455,7 @@ class EnhancedNetworkService {
         }
       }
     } catch (error) {
-      console.error('[EnhancedNetworkService] 解析调用栈失败:', error);
+      logger.error('解析调用栈失败:', error);
     }
 
     return undefined;
@@ -504,10 +507,10 @@ class EnhancedNetworkService {
         responseSize: totalSize
       });
 
-      console.log(`[EnhancedNetworkService] 流式响应捕获完成: ${chunks.length} chunks, ${this.formatSize(totalSize)}`);
+      logger.debug(`流式响应捕获完成: ${chunks.length} chunks, ${this.formatSize(totalSize)}`);
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('[EnhancedNetworkService] 流式响应捕获已取消:', (error as Error).message);
+        logger.debug('流式响应捕获已取消:', (error as Error).message);
         this.updateEntry(id, {
           status: 'cancelled',
           responseData: '[Streaming Response - Cancelled]'
@@ -515,7 +518,7 @@ class EnhancedNetworkService {
         return;
       }
 
-      console.error('[EnhancedNetworkService] 捕获流式数据失败:', error);
+      logger.error('捕获流式数据失败:', error);
       this.updateEntry(id, {
         responseData: '[Streaming Response - Capture Failed: ' + (error as Error).message + ']'
       });
@@ -546,7 +549,7 @@ class EnhancedNetworkService {
       try {
         listener([...this.entries]);
       } catch (error) {
-        console.error('Error in network listener:', error);
+        logger.error('Error in network listener:', error);
       }
     });
   }
