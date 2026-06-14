@@ -8,6 +8,9 @@ import type {
 } from '../../types';
 import { searchHttpRequest, type SearchHttpRequest } from './httpClient';
 import { fetchPageContent } from './BingSearchModules/contentFetcher';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('customProtocols');
 
 const SNIPPET_LIMIT = 1000;
 const FETCHED_CONTENT_LIMIT = 1500;
@@ -68,7 +71,7 @@ async function discoverSearxngEngines(baseUrl: string, headers: Record<string, s
     searxngEngineCache.set(baseUrl, { engines, timestamp: Date.now() });
     return engines;
   } catch (error) {
-    console.warn('[customProtocols] SearXNG 引擎自动发现失败，使用实例默认引擎:', error);
+    logger.warn('SearXNG 引擎自动发现失败，使用实例默认引擎:', error);
     return [];
   }
 }
@@ -87,7 +90,7 @@ async function enrichResultsWithPageContent(results: WebSearchResult[]): Promise
         };
       }
     } catch (error) {
-      console.warn(`[customProtocols] 页面内容抓取失败，回退使用搜索摘要: ${result.url}`, error);
+      logger.warn(`页面内容抓取失败，回退使用搜索摘要: ${result.url}`, error);
     }
   });
   for (let i = 0; i < tasks.length; i += CONTENT_FETCH_BATCH_SIZE) {

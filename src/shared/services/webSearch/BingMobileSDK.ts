@@ -4,6 +4,10 @@
  * 无需API密钥，完全免费使用
  */
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('BingMobileSDK');
+
 export interface BingSearchOptions {
   maxResults?: number;
   language?: string;
@@ -66,14 +70,14 @@ export class BingMobileClient {
     const startTime = Date.now();
     
     try {
-      console.log(`[BingMobileSDK] 开始搜索: ${query}`);
+      logger.debug(`开始搜索: ${query}`);
 
       // 检查缓存
       if (this.enableCache) {
         const cacheKey = this.getCacheKey(query, options);
         const cached = this.cache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-          console.log(`[BingMobileSDK] 使用缓存结果`);
+          logger.debug(`使用缓存结果`);
           return cached.data;
         }
       }
@@ -123,12 +127,12 @@ export class BingMobileClient {
         this.cleanExpiredCache();
       }
 
-      console.log(`[BingMobileSDK] 搜索完成，找到 ${result.results.length} 个结果，耗时 ${responseTime}ms`);
+      logger.debug(`搜索完成，找到 ${result.results.length} 个结果，耗时 ${responseTime}ms`);
       
       return result;
 
     } catch (error: any) {
-      console.error('[BingMobileSDK] 搜索失败:', error);
+      logger.error('搜索失败:', error);
 
       if (error.name === 'AbortError') {
         throw new Error('Bing搜索请求超时');
@@ -234,7 +238,7 @@ export class BingMobileClient {
       }
       
     } catch (error) {
-      console.error('[BingMobileSDK] 解析搜索结果失败:', error);
+      logger.error('解析搜索结果失败:', error);
     }
     
     return results;
@@ -265,7 +269,7 @@ export class BingMobileClient {
         }
       }
     } catch (error) {
-      console.error('[BingMobileSDK] 提取搜索建议失败:', error);
+      logger.error('提取搜索建议失败:', error);
     }
     
     return suggestions.slice(0, 5);
@@ -295,7 +299,7 @@ export class BingMobileClient {
         }
       }
     } catch (error) {
-      console.error('[BingMobileSDK] 提取相关搜索失败:', error);
+      logger.error('提取相关搜索失败:', error);
     }
     
     return relatedSearches.slice(0, 8);
@@ -380,7 +384,7 @@ export class BingMobileClient {
       await this.search('test', { maxResults: 1 });
       return true;
     } catch (error) {
-      console.error('[BingMobileSDK] 连接测试失败:', error);
+      logger.error('连接测试失败:', error);
       return false;
     }
   }

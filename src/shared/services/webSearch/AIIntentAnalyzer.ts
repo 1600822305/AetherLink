@@ -11,6 +11,9 @@
 import { sendChatRequest } from '../../api';
 import store from '../../store';
 import type { ExtractedSearchKeywords } from './WebSearchTool';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('IntentAnalyzer');
 
 // ==================== 类型定义 ====================
 
@@ -381,7 +384,7 @@ function parseUnifiedResponse(response: string, options: IntentAnalysisOptions):
       }
     }
   } catch (error) {
-    console.error('[IntentAnalyzer] 解析 AI 响应失败:', error);
+    logger.error('解析 AI 响应失败:', error);
   }
 
   return result;
@@ -477,7 +480,7 @@ export async function analyzeUnifiedSearchIntent(
       .replace('{chat_history}', () => chatHistory)
       .replace('{question}', () => userMessage);
 
-    console.log('[IntentAnalyzer] 开始统一意图分析', {
+    logger.debug('开始统一意图分析', {
       modelId,
       web: options.shouldWebSearch,
       knowledge: options.shouldKnowledgeSearch,
@@ -490,16 +493,16 @@ export async function analyzeUnifiedSearchIntent(
     });
 
     if (!response.success || !response.content) {
-      console.warn('[IntentAnalyzer] AI 请求失败，使用 fallback');
+      logger.warn('AI 请求失败，使用 fallback');
       return buildFallbackResult(userMessage, options);
     }
 
     const result = parseUnifiedResponse(response.content, options);
-    console.log('[IntentAnalyzer] 意图分析完成:', result);
+    logger.debug('意图分析完成:', result);
 
     return result;
   } catch (error) {
-    console.error('[IntentAnalyzer] 意图分析失败:', error);
+    logger.error('意图分析失败:', error);
     return buildFallbackResult(userMessage, options);
   }
 }

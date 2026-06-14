@@ -17,6 +17,9 @@ import {
   searchYandex,
   fetchResultsContent
 } from './BingSearchModules';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('BingFreeSearchService');
 
 // 重新导出类型，保持向后兼容
 export type { BingSearchOptions, BingSearchResult, BingSearchResponse };
@@ -56,7 +59,7 @@ export class BingFreeSearchService {
       throw new Error('搜索查询不能为空');
     }
 
-    console.log(`[BingFreeSearchService] 开始搜索: ${query}，使用搜索引擎: ${searchEngine}`);
+    logger.debug(`开始搜索: ${query}，使用搜索引擎: ${searchEngine}`);
 
     try {
       // 根据搜索引擎使用不同的搜索策略
@@ -83,11 +86,11 @@ export class BingFreeSearchService {
           results = await searchBing(query, searchOptions, timeout);
       }
 
-      console.log(`[BingFreeSearchService] 搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`搜索完成，找到 ${results.length} 个结果`);
 
       // 如果需要抓取内容，则抓取每个链接的内容
       if (options.fetchContent && results.length > 0) {
-        console.log('[BingFreeSearchService] 开始抓取链接内容...');
+        logger.debug('开始抓取链接内容...');
         await fetchResultsContent(results, options.maxContentLength || 2000, timeout);
       }
 
@@ -98,7 +101,7 @@ export class BingFreeSearchService {
       };
 
     } catch (error: any) {
-      console.error('[BingFreeSearchService] 搜索失败:', error);
+      logger.error('搜索失败:', error);
       throw new Error(`Bing搜索失败: ${error.message}`);
     }
   }
@@ -109,7 +112,7 @@ export class BingFreeSearchService {
   public async batchSearch(queries: string[], options: Omit<BingSearchOptions, 'query'> = {}): Promise<BingSearchResponse[]> {
     const promises = queries.map(query =>
       this.search({ ...options, query }).catch(error => {
-        console.error(`[BingFreeSearchService] 批量搜索失败 - ${query}:`, error);
+        logger.error(`批量搜索失败 - ${query}:`, error);
         return { results: [], query, totalResults: 0 };
       })
     );

@@ -6,6 +6,9 @@ import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { Capacitor } from '@capacitor/core';
 import type { BingSearchResult } from './types';
 import { shouldSkipUrl, extractTextContent } from './utils';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('ContentFetcher');
 
 /**
  * 抓取搜索结果的页面内容
@@ -17,15 +20,15 @@ export async function fetchResultsContent(
 ): Promise<void> {
   const fetchPromises = results.map(async (result, index) => {
     try {
-      console.log(`[ContentFetcher] 抓取内容 ${index + 1}/${results.length}: ${result.url}`);
+      logger.debug(`抓取内容 ${index + 1}/${results.length}: ${result.url}`);
 
       const content = await fetchPageContent(result.url, maxContentLength, timeout);
       result.content = content;
       result.contentLength = content.length;
 
-      console.log(`[ContentFetcher] 内容抓取成功 ${index + 1}: ${content.length} 字符`);
+      logger.debug(`内容抓取成功 ${index + 1}: ${content.length} 字符`);
     } catch (error) {
-      console.warn(`[ContentFetcher] 内容抓取失败 ${index + 1}:`, error);
+      logger.warn(`内容抓取失败 ${index + 1}:`, error);
       result.content = `内容抓取失败: ${error}`;
       result.contentLength = 0;
     }

@@ -4,6 +4,9 @@
 
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('SearchUtils');
 
 /**
  * 清理文本内容
@@ -45,7 +48,7 @@ export function normalizeUrl(url: string, baseUrl: string = 'https://cn.bing.com
 
     return url;
   } catch (error) {
-    console.warn('[SearchUtils] URL标准化失败:', error);
+    logger.warn('URL标准化失败:', error);
     return url;
   }
 }
@@ -65,7 +68,7 @@ export async function fetchSearchPage(url: string, timeout: number): Promise<any
 
   if (Capacitor.isNativePlatform()) {
     // 移动端使用 CorsBypass 插件
-    console.log('[SearchUtils] 使用 CorsBypass 插件请求');
+    logger.debug('使用 CorsBypass 插件请求');
 
     const response = await CorsBypass.request({
       url,
@@ -75,7 +78,7 @@ export async function fetchSearchPage(url: string, timeout: number): Promise<any
       responseType: 'text'
     });
 
-    console.log('[SearchUtils] 插件响应:', {
+    logger.debug('插件响应:', {
       status: response.status,
       dataLength: response.data?.length || 0,
       headers: Object.keys(response.headers || {})
@@ -84,7 +87,7 @@ export async function fetchSearchPage(url: string, timeout: number): Promise<any
     return response;
   } else {
     // Web端使用标准fetch（可能需要代理）
-    console.log('[SearchUtils] 使用标准 fetch 请求');
+    logger.debug('使用标准 fetch 请求');
 
     const response = await fetch(url, {
       method: 'GET',
@@ -174,7 +177,7 @@ export function extractTextContent(html: string, maxLength: number): string {
 
     return textContent || '无法提取内容';
   } catch (error) {
-    console.warn('[SearchUtils] 文本提取失败:', error);
+    logger.warn('文本提取失败:', error);
     return '内容解析失败';
   }
 }

@@ -7,6 +7,9 @@ import { AssistantMessageStatus } from '../../types/newMessage';
 import { bingFreeSearchService } from './BingFreeSearchService';
 import { searchHttpRequest } from './httpClient';
 import { customProviderToConfig, isCustomProviderConfigured, executeProtocolSearch } from './customProtocols';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('EnhancedWebSearchService');
 
 /**
  * 增强版网络搜索服务
@@ -143,7 +146,7 @@ class EnhancedWebSearchService {
     try {
       // 🚀 获取选择的搜索引擎
       const selectedSearchEngine = websearch.selectedSearchEngine || 'bing';
-      console.log(`[EnhancedWebSearchService] 开始免费搜索: ${query}，使用搜索引擎: ${selectedSearchEngine}`);
+      logger.debug(`开始免费搜索: ${query}，使用搜索引擎: ${selectedSearchEngine}`);
 
       // 使用免费搜索服务（支持多种搜索引擎）
       const response = await bingFreeSearchService.search({
@@ -178,10 +181,10 @@ class EnhancedWebSearchService {
         };
       });
 
-      console.log(`[EnhancedWebSearchService] 免费${selectedSearchEngine}搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`免费${selectedSearchEngine}搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] 免费Bing搜索失败:', error);
+      logger.error('免费Bing搜索失败:', error);
       throw new Error(`免费搜索失败: ${error.message}`);
     }
   }
@@ -199,7 +202,7 @@ class EnhancedWebSearchService {
         throw new Error('Tavily API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Tavily移动端SDK搜索: ${query}`);
+      logger.debug(`开始Tavily移动端SDK搜索: ${query}`);
 
       // 创建移动端兼容的Tavily客户端
       const tvly = tavily({ apiKey: provider.apiKey });
@@ -258,10 +261,10 @@ class EnhancedWebSearchService {
         };
       }) || [];
 
-      console.log(`[EnhancedWebSearchService] Tavily移动端SDK搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Tavily移动端SDK搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Tavily移动端SDK搜索失败:', error);
+      logger.error('Tavily移动端SDK搜索失败:', error);
       throw new Error(`Tavily搜索失败: ${error.message}`);
     }
   }
@@ -281,7 +284,7 @@ class EnhancedWebSearchService {
         throw new Error('Exa API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Exa搜索: ${query}`);
+      logger.debug(`开始Exa搜索: ${query}`);
 
       const requestBody = {
         query,
@@ -312,10 +315,10 @@ class EnhancedWebSearchService {
         provider: 'exa'
       })) || [];
 
-      console.log(`[EnhancedWebSearchService] Exa搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Exa搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Exa搜索失败:', error);
+      logger.error('Exa搜索失败:', error);
       throw new Error(`Exa搜索失败: ${error.message}`);
     }
   }
@@ -333,7 +336,7 @@ class EnhancedWebSearchService {
         throw new Error('Bocha API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Bocha搜索: ${query}`);
+      logger.debug(`开始Bocha搜索: ${query}`);
 
       const requestBody = {
         query,
@@ -364,10 +367,10 @@ class EnhancedWebSearchService {
         provider: 'bocha'
       }));
 
-      console.log(`[EnhancedWebSearchService] Bocha搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Bocha搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Bocha搜索失败:', error);
+      logger.error('Bocha搜索失败:', error);
       throw new Error(`Bocha搜索失败: ${error.message}`);
     }
   }
@@ -385,7 +388,7 @@ class EnhancedWebSearchService {
         throw new Error('Firecrawl API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Firecrawl搜索: ${query}`);
+      logger.debug(`开始Firecrawl搜索: ${query}`);
 
       const requestBody = {
         query,
@@ -412,10 +415,10 @@ class EnhancedWebSearchService {
         content: result.markdown
       })) || [];
 
-      console.log(`[EnhancedWebSearchService] Firecrawl搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Firecrawl搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Firecrawl搜索失败:', error);
+      logger.error('Firecrawl搜索失败:', error);
       throw new Error(`Firecrawl搜索失败: ${error.message}`);
     }
   }
@@ -441,7 +444,7 @@ class EnhancedWebSearchService {
         throw new Error('Cloudflare AutoRAG 名称未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Cloudflare AI Search搜索: ${query}`);
+      logger.debug(`开始Cloudflare AI Search搜索: ${query}`);
 
       const requestBody = {
         query,
@@ -503,10 +506,10 @@ class EnhancedWebSearchService {
         };
       });
 
-      console.log(`[EnhancedWebSearchService] Cloudflare AI Search搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Cloudflare AI Search搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Cloudflare AI Search搜索失败:', error);
+      logger.error('Cloudflare AI Search搜索失败:', error);
       throw new Error(`Cloudflare AI Search搜索失败: ${error.message}`);
     }
   }
@@ -524,7 +527,7 @@ class EnhancedWebSearchService {
         throw new Error('Zhipu API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Zhipu搜索: ${query}`);
+      logger.debug(`开始Zhipu搜索: ${query}`);
 
       const { data } = await searchHttpRequest({
         url: provider.apiHost || 'https://open.bigmodel.cn/api/paas/v4/web_search',
@@ -550,10 +553,10 @@ class EnhancedWebSearchService {
         provider: 'zhipu'
       }));
 
-      console.log(`[EnhancedWebSearchService] Zhipu搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Zhipu搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Zhipu搜索失败:', error);
+      logger.error('Zhipu搜索失败:', error);
       throw new Error(`Zhipu搜索失败: ${error.message}`, { cause: error });
     }
   }
@@ -571,7 +574,7 @@ class EnhancedWebSearchService {
         throw new Error('Jina API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Jina搜索: ${query}`);
+      logger.debug(`开始Jina搜索: ${query}`);
 
       const baseUrl = (provider.apiHost || 'https://s.jina.ai').replace(/\/+$/, '');
       const { data } = await searchHttpRequest({
@@ -594,10 +597,10 @@ class EnhancedWebSearchService {
         provider: 'jina'
       }));
 
-      console.log(`[EnhancedWebSearchService] Jina搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Jina搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Jina搜索失败:', error);
+      logger.error('Jina搜索失败:', error);
       throw new Error(`Jina搜索失败: ${error.message}`, { cause: error });
     }
   }
@@ -615,7 +618,7 @@ class EnhancedWebSearchService {
         throw new Error('Querit API密钥未配置');
       }
 
-      console.log(`[EnhancedWebSearchService] 开始Querit搜索: ${query}`);
+      logger.debug(`开始Querit搜索: ${query}`);
 
       const requestBody: any = {
         query,
@@ -650,10 +653,10 @@ class EnhancedWebSearchService {
         provider: 'querit'
       }));
 
-      console.log(`[EnhancedWebSearchService] Querit搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Querit搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Querit搜索失败:', error);
+      logger.error('Querit搜索失败:', error);
       throw new Error(`Querit搜索失败: ${error.message}`, { cause: error });
     }
   }
@@ -667,7 +670,7 @@ class EnhancedWebSearchService {
     websearch: any
   ): Promise<WebSearchProviderResponse> {
     try {
-      console.log(`[EnhancedWebSearchService] 开始Exa MCP搜索: ${query}`);
+      logger.debug(`开始Exa MCP搜索: ${query}`);
 
       const maxResults = websearch.maxResults || 10;
       const { data } = await searchHttpRequest({
@@ -706,10 +709,10 @@ class EnhancedWebSearchService {
         provider: 'exa-mcp'
       }));
 
-      console.log(`[EnhancedWebSearchService] Exa MCP搜索完成，找到 ${results.length} 个结果`);
+      logger.debug(`Exa MCP搜索完成，找到 ${results.length} 个结果`);
       return { results };
     } catch (error: any) {
-      console.error('[EnhancedWebSearchService] Exa MCP搜索失败:', error);
+      logger.error('Exa MCP搜索失败:', error);
       throw new Error(`Exa MCP搜索失败: ${error.message}`, { cause: error });
     }
   }
