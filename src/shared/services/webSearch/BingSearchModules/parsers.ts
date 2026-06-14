@@ -6,6 +6,9 @@ import { parse } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 import type { BingSearchResult } from './types';
 import { cleanText, normalizeUrl } from './utils';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('Parsers');
 
 /**
  * 解析Bing搜索结果
@@ -14,7 +17,7 @@ export function parseBingResults(html: string, maxResults: number): BingSearchRe
   const results: BingSearchResult[] = [];
 
   try {
-    console.log('[Parsers] 解析Bing搜索结果，HTML长度:', html.length);
+    logger.debug('解析Bing搜索结果，HTML长度:', html.length);
 
     const root = parse(html, {
       lowerCaseTagName: false,
@@ -35,7 +38,7 @@ export function parseBingResults(html: string, maxResults: number): BingSearchRe
     for (const selector of selectors) {
       resultElements = root.querySelectorAll(selector);
       if (resultElements.length > 0) {
-        console.log(`[Parsers] 使用选择器 "${selector}" 找到 ${resultElements.length} 个结果`);
+        logger.debug(`使用选择器 "${selector}" 找到 ${resultElements.length} 个结果`);
         break;
       }
     }
@@ -81,12 +84,12 @@ export function parseBingResults(html: string, maxResults: number): BingSearchRe
           });
         }
       } catch (error) {
-        console.warn(`[Parsers] 解析Bing结果失败:`, error);
+        logger.warn(`解析Bing结果失败:`, error);
       }
     });
 
   } catch (error) {
-    console.error('[Parsers] Bing结果解析失败:', error);
+    logger.error('Bing结果解析失败:', error);
   }
 
   return results;
@@ -99,7 +102,7 @@ export function parseGoogleResults(html: string, maxResults: number): BingSearch
   const results: BingSearchResult[] = [];
 
   try {
-    console.log('[Parsers] 解析Google搜索结果，HTML长度:', html.length);
+    logger.debug('解析Google搜索结果，HTML长度:', html.length);
 
     const root = parse(html, {
       lowerCaseTagName: false,
@@ -110,12 +113,12 @@ export function parseGoogleResults(html: string, maxResults: number): BingSearch
 
     // 基于SearXNG的Google选择器
     const resultElements = root.querySelectorAll('div[jscontroller*="SC7lYd"]');
-    console.log(`[Parsers] Google找到 ${resultElements.length} 个结果容器`);
+    logger.debug(`Google找到 ${resultElements.length} 个结果容器`);
 
     if (resultElements.length === 0) {
       // 备用选择器
       const fallbackElements = root.querySelectorAll('.g, .rc, .yuRUbf');
-      console.log(`[Parsers] Google备用选择器找到 ${fallbackElements.length} 个结果`);
+      logger.debug(`Google备用选择器找到 ${fallbackElements.length} 个结果`);
 
       fallbackElements.forEach((element: any, index: number) => {
         if (results.length >= maxResults) return;
@@ -129,7 +132,7 @@ export function parseGoogleResults(html: string, maxResults: number): BingSearch
     }
 
   } catch (error) {
-    console.error('[Parsers] Google结果解析失败:', error);
+    logger.error('Google结果解析失败:', error);
   }
 
   return results;
@@ -142,7 +145,7 @@ function parseGoogleResultElement(element: any, results: BingSearchResult[], ind
   try {
     const titleElement = element.querySelector('a h3');
     if (!titleElement) {
-      console.debug('[Parsers] Google结果缺少标题，跳过');
+      logger.debug('Google结果缺少标题，跳过');
       return;
     }
 
@@ -150,13 +153,13 @@ function parseGoogleResultElement(element: any, results: BingSearchResult[], ind
 
     const linkElement = element.querySelector('a[href]');
     if (!linkElement) {
-      console.debug('[Parsers] Google结果缺少链接，跳过');
+      logger.debug('Google结果缺少链接，跳过');
       return;
     }
 
     const url = linkElement.getAttribute('href') || '';
     if (!url || !url.startsWith('http')) {
-      console.debug('[Parsers] Google结果链接无效，跳过');
+      logger.debug('Google结果链接无效，跳过');
       return;
     }
 
@@ -183,10 +186,10 @@ function parseGoogleResultElement(element: any, results: BingSearchResult[], ind
         provider: 'bing-free',
         score: 1.0 - (index * 0.1)
       });
-      console.log(`[Parsers] Google解析成功 ${results.length}: ${title.substring(0, 50)}`);
+      logger.debug(`Google解析成功 ${results.length}: ${title.substring(0, 50)}`);
     }
   } catch (error) {
-    console.warn(`[Parsers] 解析Google单个结果失败:`, error);
+    logger.warn(`解析Google单个结果失败:`, error);
   }
 }
 
@@ -197,7 +200,7 @@ export function parseBaiduResults(html: string, maxResults: number): BingSearchR
   const results: BingSearchResult[] = [];
 
   try {
-    console.log('[Parsers] 解析百度搜索结果，HTML长度:', html.length);
+    logger.debug('解析百度搜索结果，HTML长度:', html.length);
 
     const root = parse(html, {
       lowerCaseTagName: false,
@@ -207,11 +210,11 @@ export function parseBaiduResults(html: string, maxResults: number): BingSearchR
     });
 
     const resultElements = root.querySelectorAll('.result, .c-container, .result-op');
-    console.log(`[Parsers] 百度找到 ${resultElements.length} 个结果容器`);
+    logger.debug(`百度找到 ${resultElements.length} 个结果容器`);
 
     if (resultElements.length === 0) {
       const fallbackElements = root.querySelectorAll('h3');
-      console.log(`[Parsers] 百度备用选择器找到 ${fallbackElements.length} 个h3标签`);
+      logger.debug(`百度备用选择器找到 ${fallbackElements.length} 个h3标签`);
 
       fallbackElements.forEach((element: any, index: number) => {
         if (results.length >= maxResults) return;
@@ -225,7 +228,7 @@ export function parseBaiduResults(html: string, maxResults: number): BingSearchR
     }
 
   } catch (error) {
-    console.error('[Parsers] 百度结果解析失败:', error);
+    logger.error('百度结果解析失败:', error);
   }
 
   return results;
@@ -238,7 +241,7 @@ function parseBaiduResultElement(element: any, results: BingSearchResult[], inde
   try {
     const titleElement = element.querySelector('h3 a, .t a, .c-title a, a[href]');
     if (!titleElement) {
-      console.debug('[Parsers] 百度结果缺少标题，跳过');
+      logger.debug('百度结果缺少标题，跳过');
       return;
     }
 
@@ -246,7 +249,7 @@ function parseBaiduResultElement(element: any, results: BingSearchResult[], inde
     const url = titleElement.getAttribute('href') || '';
 
     if (!title || !url) {
-      console.debug('[Parsers] 百度结果标题或链接无效，跳过');
+      logger.debug('百度结果标题或链接无效，跳过');
       return;
     }
 
@@ -274,10 +277,10 @@ function parseBaiduResultElement(element: any, results: BingSearchResult[], inde
         provider: 'bing-free',
         score: 1.0 - (index * 0.1)
       });
-      console.log(`[Parsers] 百度解析成功 ${results.length}: ${title.substring(0, 50)}`);
+      logger.debug(`百度解析成功 ${results.length}: ${title.substring(0, 50)}`);
     }
   } catch (error) {
-    console.warn(`[Parsers] 解析百度单个结果失败:`, error);
+    logger.warn(`解析百度单个结果失败:`, error);
   }
 }
 
@@ -288,7 +291,7 @@ export function parseSogouResults(html: string, maxResults: number): BingSearchR
   const results: BingSearchResult[] = [];
 
   try {
-    console.log('[Parsers] 解析搜狗搜索结果，HTML长度:', html.length);
+    logger.debug('解析搜狗搜索结果，HTML长度:', html.length);
 
     const root = parse(html, {
       lowerCaseTagName: false,
@@ -298,11 +301,11 @@ export function parseSogouResults(html: string, maxResults: number): BingSearchR
     });
 
     const resultElements = root.querySelectorAll('div.vrwrap');
-    console.log(`[Parsers] 搜狗找到 ${resultElements.length} 个结果容器`);
+    logger.debug(`搜狗找到 ${resultElements.length} 个结果容器`);
 
     if (resultElements.length === 0) {
       const fallbackElements = root.querySelectorAll('.results, .result, .rb');
-      console.log(`[Parsers] 搜狗备用选择器找到 ${fallbackElements.length} 个结果`);
+      logger.debug(`搜狗备用选择器找到 ${fallbackElements.length} 个结果`);
 
       fallbackElements.forEach((element: any, index: number) => {
         if (results.length >= maxResults) return;
@@ -316,7 +319,7 @@ export function parseSogouResults(html: string, maxResults: number): BingSearchR
     }
 
   } catch (error) {
-    console.error('[Parsers] 搜狗结果解析失败:', error);
+    logger.error('搜狗结果解析失败:', error);
   }
 
   return results;
@@ -329,7 +332,7 @@ function parseSogouResultElement(element: any, results: BingSearchResult[], inde
   try {
     const titleElement = element.querySelector('h3.vr-title a, h3 a');
     if (!titleElement) {
-      console.debug('[Parsers] 搜狗结果缺少标题，跳过');
+      logger.debug('搜狗结果缺少标题，跳过');
       return;
     }
 
@@ -342,7 +345,7 @@ function parseSogouResultElement(element: any, results: BingSearchResult[], inde
     }
 
     if (!title || !url) {
-      console.debug('[Parsers] 搜狗结果标题或链接无效，跳过');
+      logger.debug('搜狗结果标题或链接无效，跳过');
       return;
     }
 
@@ -377,10 +380,10 @@ function parseSogouResultElement(element: any, results: BingSearchResult[], inde
         provider: 'bing-free',
         score: 1.0 - (index * 0.1)
       });
-      console.log(`[Parsers] 搜狗解析成功 ${results.length}: ${title.substring(0, 50)}`);
+      logger.debug(`搜狗解析成功 ${results.length}: ${title.substring(0, 50)}`);
     }
   } catch (error) {
-    console.warn(`[Parsers] 解析搜狗单个结果失败:`, error);
+    logger.warn(`解析搜狗单个结果失败:`, error);
   }
 }
 
@@ -391,7 +394,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
   const results: BingSearchResult[] = [];
 
   try {
-    console.log('[Parsers] 解析Yandex搜索结果，HTML长度:', html.length);
+    logger.debug('解析Yandex搜索结果，HTML长度:', html.length);
 
     const root = parse(html, {
       lowerCaseTagName: false,
@@ -402,7 +405,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
 
     // 基于SearXNG的Yandex选择器
     const resultElements = root.querySelectorAll('li.serp-item');
-    console.log(`[Parsers] Yandex找到 ${resultElements.length} 个结果容器`);
+    logger.debug(`Yandex找到 ${resultElements.length} 个结果容器`);
 
     if (resultElements.length === 0) {
       // 更广泛的备用选择器
@@ -420,7 +423,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
       for (const selector of fallbackSelectors) {
         fallbackElements = root.querySelectorAll(selector);
         if (fallbackElements.length > 0) {
-          console.log(`[Parsers] Yandex备用选择器 "${selector}" 找到 ${fallbackElements.length} 个结果`);
+          logger.debug(`Yandex备用选择器 "${selector}" 找到 ${fallbackElements.length} 个结果`);
           break;
         }
       }
@@ -428,7 +431,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
       if (fallbackElements.length === 0) {
         // 最后尝试：查找所有包含链接的元素
         const allLinks = root.querySelectorAll('a[href]');
-        console.log(`[Parsers] Yandex找到 ${allLinks.length} 个链接`);
+        logger.debug(`Yandex找到 ${allLinks.length} 个链接`);
 
         // 过滤出可能是搜索结果的链接
         const possibleResults = allLinks.filter((link: any) => {
@@ -441,7 +444,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
                  text.length > 10;
         });
 
-        console.log(`[Parsers] Yandex过滤后的可能结果: ${possibleResults.length} 个`);
+        logger.debug(`Yandex过滤后的可能结果: ${possibleResults.length} 个`);
 
         possibleResults.slice(0, maxResults).forEach((element: any, index: number) => {
           parseYandexResultElement(element, results, index);
@@ -460,7 +463,7 @@ export function parseYandexResults(html: string, maxResults: number): BingSearch
     }
 
   } catch (error) {
-    console.error('[Parsers] Yandex结果解析失败:', error);
+    logger.error('Yandex结果解析失败:', error);
   }
 
   return results;
@@ -536,13 +539,13 @@ function parseYandexResultElement(element: any, results: BingSearchResult[], ind
 
     // 验证URL有效性
     if (!title || !url || url.startsWith('#') || url.startsWith('javascript:')) {
-      console.debug('[Parsers] Yandex结果标题或链接无效，跳过');
+      logger.debug('Yandex结果标题或链接无效，跳过');
       return;
     }
 
     // 过滤掉Yandex内部链接
     if (url.includes('yandex.') && !url.startsWith('http')) {
-      console.debug('[Parsers] Yandex内部链接，跳过');
+      logger.debug('Yandex内部链接，跳过');
       return;
     }
 
@@ -555,8 +558,8 @@ function parseYandexResultElement(element: any, results: BingSearchResult[], ind
       provider: 'bing-free',
       score: 1.0 - (index * 0.1)
     });
-    console.log(`[Parsers] Yandex解析成功 ${results.length}: ${title.substring(0, 50)}`);
+    logger.debug(`Yandex解析成功 ${results.length}: ${title.substring(0, 50)}`);
   } catch (error) {
-    console.warn(`[Parsers] 解析Yandex单个结果失败:`, error);
+    logger.warn(`解析Yandex单个结果失败:`, error);
   }
 }

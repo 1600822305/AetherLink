@@ -11,6 +11,9 @@ import {
   parseSogouResults,
   parseYandexResults
 } from './parsers';
+import { createLogger } from '../../infra/logger';
+
+const logger = createLogger('SearchEngines');
 
 /**
  * 构建Bing搜索URL
@@ -121,7 +124,7 @@ export function buildYandexSearchUrl(query: string, _options: SearchEngineOption
  */
 export async function searchBing(query: string, options: SearchEngineOptions, timeout: number): Promise<BingSearchResult[]> {
   const searchUrl = buildBingSearchUrl(query, options);
-  console.log(`[SearchEngines] Bing搜索URL: ${searchUrl}`);
+  logger.debug(`Bing搜索URL: ${searchUrl}`);
 
   const response = await fetchSearchPage(searchUrl, timeout);
   return parseBingResults(response.data, options.count);
@@ -132,7 +135,7 @@ export async function searchBing(query: string, options: SearchEngineOptions, ti
  */
 export async function searchGoogle(query: string, options: SearchEngineOptions, timeout: number): Promise<BingSearchResult[]> {
   const searchUrl = buildGoogleSearchUrl(query, options);
-  console.log(`[SearchEngines] Google搜索URL: ${searchUrl}`);
+  logger.debug(`Google搜索URL: ${searchUrl}`);
 
   const response = await fetchSearchPage(searchUrl, timeout);
   return parseGoogleResults(response.data, options.count);
@@ -143,7 +146,7 @@ export async function searchGoogle(query: string, options: SearchEngineOptions, 
  */
 export async function searchBaidu(query: string, options: SearchEngineOptions, timeout: number): Promise<BingSearchResult[]> {
   const searchUrl = buildBaiduSearchUrl(query, options);
-  console.log(`[SearchEngines] 百度搜索URL: ${searchUrl}`);
+  logger.debug(`百度搜索URL: ${searchUrl}`);
 
   const response = await fetchSearchPage(searchUrl, timeout);
   return parseBaiduResults(response.data, options.count);
@@ -154,7 +157,7 @@ export async function searchBaidu(query: string, options: SearchEngineOptions, t
  */
 export async function searchSogou(query: string, options: SearchEngineOptions, timeout: number): Promise<BingSearchResult[]> {
   const searchUrl = buildSogouSearchUrl(query, options);
-  console.log(`[SearchEngines] 搜狗搜索URL: ${searchUrl}`);
+  logger.debug(`搜狗搜索URL: ${searchUrl}`);
 
   const response = await fetchSearchPage(searchUrl, timeout);
   return parseSogouResults(response.data, options.count);
@@ -165,7 +168,7 @@ export async function searchSogou(query: string, options: SearchEngineOptions, t
  */
 export async function searchYandex(query: string, options: SearchEngineOptions, timeout: number): Promise<BingSearchResult[]> {
   const searchUrl = buildYandexSearchUrl(query, options);
-  console.log(`[SearchEngines] Yandex搜索URL: ${searchUrl}`);
+  logger.debug(`Yandex搜索URL: ${searchUrl}`);
 
   // 注意：Yandex搜索可能需要特殊的headers和cookies才能正常工作
   // 目前使用通用的fetchSearchPage，如果需要可以后续优化

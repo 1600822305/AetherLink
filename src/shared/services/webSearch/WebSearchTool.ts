@@ -7,6 +7,9 @@
 
 import type { WebSearchResult } from '../../types';
 import EnhancedWebSearchService from './EnhancedWebSearchService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('WebSearchTool');
 
 /**
  * 网络搜索工具输入参数
@@ -132,7 +135,7 @@ export async function executeWebSearch(
   _requestId?: string
 ): Promise<WebSearchToolOutput> {
   try {
-    console.log('[WebSearchTool] 开始执行搜索:', {
+    logger.debug('开始执行搜索:', {
       input,
       providerId: webSearchProviderId,
       extractedKeywords
@@ -162,7 +165,7 @@ export async function executeWebSearch(
 
     // 如果没有查询，返回空结果
     if (searchQueries.length === 0) {
-      console.log('[WebSearchTool] 无需搜索');
+      logger.debug('无需搜索');
       return {
         query: '',
         results: [],
@@ -171,13 +174,13 @@ export async function executeWebSearch(
     }
 
     // 🚀 并行执行多个搜索查询（复刻 Cherry Studio 的 processWebsearch）
-    console.log('[WebSearchTool] 并行执行搜索，查询数量:', searchQueries.length);
+    logger.debug('并行执行搜索，查询数量:', searchQueries.length);
     
     const searchPromises = searchQueries.map(query => 
       EnhancedWebSearchService.search(provider, query)
         .then(response => ({ query, results: response.results, success: true }))
         .catch(error => {
-          console.warn(`[WebSearchTool] 搜索失败 "${query}":`, error);
+          logger.warn(`搜索失败 "${query}":`, error);
           return { query, results: [], success: false };
         })
     );
@@ -199,7 +202,7 @@ export async function executeWebSearch(
 
     const combinedQuery = searchQueries.join(' | ');
     
-    console.log('[WebSearchTool] 搜索完成:', {
+    logger.debug('搜索完成:', {
       queries: searchQueries,
       totalResults: allResults.length,
       successfulSearches: searchResults.filter(r => r.success).length
@@ -211,7 +214,7 @@ export async function executeWebSearch(
       success: true
     };
   } catch (error: any) {
-    console.error('[WebSearchTool] 搜索失败:', error);
+    logger.error('搜索失败:', error);
     return {
       query: input.query || '',
       results: [],

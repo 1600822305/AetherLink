@@ -3,6 +3,10 @@
  * 基于官方 API 文档实现，避免 Node.js 依赖
  */
 
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('TavilyMobileSDK');
+
 export interface TavilySearchOptions {
   searchDepth?: 'basic' | 'advanced';
   topic?: 'general' | 'news';
@@ -87,7 +91,7 @@ export class TavilyMobileClient {
       processedResults = processedResults.filter(result =>
         result.score !== undefined && result.score >= options.minScore!
       );
-      console.log(`[TavilyMobileSDK] 基于分数过滤：${results.length} -> ${processedResults.length} 个结果`);
+      logger.debug(`基于分数过滤：${results.length} -> ${processedResults.length} 个结果`);
     }
 
     // 按分数排序（如果有分数）
@@ -163,7 +167,7 @@ export class TavilyMobileClient {
     );
 
     try {
-      console.log(`[TavilyMobileSDK] 开始搜索: ${query}`);
+      logger.debug(`开始搜索: ${query}`);
 
       const response = await fetch(`${this.baseUrl}/search`, {
         method: 'POST',
@@ -185,27 +189,27 @@ export class TavilyMobileClient {
       const responseText = await response.text();
       const data = JSON.parse(responseText);
 
-      console.log(`[TavilyMobileSDK] 搜索完成，找到 ${data.results?.length || 0} 个结果`);
+      logger.debug(`搜索完成，找到 ${data.results?.length || 0} 个结果`);
 
       // 🚀 结果后处理
       if (options.enablePostProcessing !== false && data.results) {
         data.results = this.postProcessResults(data.results, options);
-        console.log(`[TavilyMobileSDK] 后处理完成，最终结果数量: ${data.results.length}`);
+        logger.debug(`后处理完成，最终结果数量: ${data.results.length}`);
       }
 
       // 🚀 调试：检查第一个结果的内容编码
       if (data.results && data.results.length > 0) {
         const firstResult = data.results[0];
-        console.log(`[TavilyMobileSDK] 第一个结果标题: "${firstResult.title}"`);
-        console.log(`[TavilyMobileSDK] 第一个结果内容预览: "${(firstResult.content || '').substring(0, 100)}..."`);
+        logger.debug(`第一个结果标题: "${firstResult.title}"`);
+        logger.debug(`第一个结果内容预览: "${(firstResult.content || '').substring(0, 100)}..."`);
         if (firstResult.score !== undefined) {
-          console.log(`[TavilyMobileSDK] 第一个结果相关性分数: ${firstResult.score}`);
+          logger.debug(`第一个结果相关性分数: ${firstResult.score}`);
         }
       }
 
       return data as TavilySearchResponse;
     } catch (error: any) {
-      console.error('[TavilyMobileSDK] 搜索失败:', error);
+      logger.error('搜索失败:', error);
 
       if (error.name === 'AbortError') {
         throw new Error('搜索请求超时');
@@ -223,7 +227,7 @@ export class TavilyMobileClient {
     options: TavilySearchOptions = {},
     concurrencyLimit: number = 3
   ): Promise<Array<TavilySearchResponse | Error>> {
-    console.log(`[TavilyMobileSDK] 开始批量搜索，查询数量: ${queries.length}，并发限制: ${concurrencyLimit}`);
+    logger.debug(`开始批量搜索，查询数量: ${queries.length}，并发限制: ${concurrencyLimit}`);
 
     // 分批处理以避免超过速率限制
     const results: Array<TavilySearchResponse | Error> = [];
@@ -236,7 +240,7 @@ export class TavilyMobileClient {
         try {
           return await this.search(query, options);
         } catch (error) {
-          console.error(`[TavilyMobileSDK] 查询失败: "${query}"`, error);
+          logger.error(`查询失败: "${query}"`, error);
           return error instanceof Error ? error : new Error(String(error));
         }
       });
@@ -250,7 +254,7 @@ export class TavilyMobileClient {
       }
     }
 
-    console.log(`[TavilyMobileSDK] 批量搜索完成，成功: ${results.filter(r => !(r instanceof Error)).length}，失败: ${results.filter(r => r instanceof Error).length}`);
+    logger.debug(`批量搜索完成，成功: ${results.filter(r => !(r instanceof Error)).length}，失败: ${results.filter(r => r instanceof Error).length}`);
     return results;
   }
 
@@ -281,7 +285,7 @@ export class TavilyMobileClient {
       await this.search('test', { maxResults: 1 });
       return true;
     } catch (error) {
-      console.error('[TavilyMobileSDK] 连接测试失败:', error);
+      logger.error('连接测试失败:', error);
       return false;
     }
   }
