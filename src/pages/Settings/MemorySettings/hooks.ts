@@ -15,6 +15,9 @@ import {
 import type { Model } from '../../../shared/types';
 import type { MemoryItem } from '../../../shared/types/memory';
 import { toastManager } from '../../../components/EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MemorySettingsHooks');
 
 export interface AssistantOption {
   id: string;
@@ -36,7 +39,7 @@ export function useMemoryLibrary(assistantId: string) {
       setMemories(result.memories);
       setTotal(result.count);
     } catch (error) {
-      console.error('[MemorySettings] 加载记忆失败:', error);
+      logger.error('加载记忆失败:', error);
       toastManager.error('加载记忆失败');
     } finally {
       setLoading(false);
@@ -57,7 +60,7 @@ export function useMemoryLibrary(assistantId: string) {
       const result = await memoryService.textSearch(searchQuery, { assistantId });
       setMemories(result.memories);
     } catch (error) {
-      console.error('[MemorySettings] 搜索失败:', error);
+      logger.error('搜索失败:', error);
     } finally {
       setLoading(false);
     }
@@ -76,7 +79,7 @@ export function useMemoryLibrary(assistantId: string) {
         return true;
       }
     } catch (error) {
-      console.error('[MemorySettings] 添加记忆失败:', error);
+      logger.error('添加记忆失败:', error);
       toastManager.error('添加记忆失败');
     }
     return false;
@@ -92,7 +95,7 @@ export function useMemoryLibrary(assistantId: string) {
         return true;
       }
     } catch (error) {
-      console.error('[MemorySettings] 更新记忆失败:', error);
+      logger.error('更新记忆失败:', error);
       toastManager.error('更新记忆失败');
     }
     return false;
@@ -106,7 +109,7 @@ export function useMemoryLibrary(assistantId: string) {
         load();
       }
     } catch (error) {
-      console.error('[MemorySettings] 删除记忆失败:', error);
+      logger.error('删除记忆失败:', error);
       toastManager.error('删除记忆失败');
     }
   }, [load]);
@@ -117,7 +120,7 @@ export function useMemoryLibrary(assistantId: string) {
       toastManager.success('已清空所有记忆');
       load();
     } catch (error) {
-      console.error('[MemorySettings] 清空记忆失败:', error);
+      logger.error('清空记忆失败:', error);
       toastManager.error('清空记忆失败');
     }
   }, [assistantId, load]);
@@ -138,7 +141,7 @@ async function fetchAssistantsWithMigration(): Promise<AssistantOption[]> {
     const allMemories = await dexieStorage.memories.toArray();
     const oldMemories = allMemories.filter(m => m.userId === 'default-user' && !m.isDeleted);
     if (oldMemories.length > 0) {
-      console.log(`[MemorySettings] 迁移 ${oldMemories.length} 条旧记忆到助手 ${finalList[0].id}`);
+      logger.debug(`迁移 ${oldMemories.length} 条旧记忆到助手 ${finalList[0].id}`);
       for (const memory of oldMemories) {
         await dexieStorage.memories.update(memory.id, { userId: finalList[0].id });
       }
@@ -170,7 +173,7 @@ export function useAssistants(currentAssistantId: string) {
         }
       })
       .catch(error => {
-        console.error('[MemorySettings] 加载助手列表失败:', error);
+        logger.error('加载助手列表失败:', error);
       });
     return () => {
       active = false;
@@ -196,7 +199,7 @@ export function useAssistants(currentAssistantId: string) {
         toastManager.success(enabled ? '已开启助手记忆功能' : '已关闭助手记忆功能');
       }
     } catch (error) {
-      console.error('[MemorySettings] 切换助手记忆失败:', error);
+      logger.error('切换助手记忆失败:', error);
       toastManager.error('切换助手记忆失败');
     }
   }, [currentAssistantId]);
@@ -233,7 +236,7 @@ export function useMaintenance(
         onCompleted();
       }
     } catch (error) {
-      console.error('[MemorySettings] 记忆整理失败:', error);
+      logger.error('记忆整理失败:', error);
       toastManager.error('记忆整理失败');
     } finally {
       setRunning(false);

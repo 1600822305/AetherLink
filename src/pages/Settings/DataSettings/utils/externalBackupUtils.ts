@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('externalBackupUtils');
 // 处理外部AI软件备份的工具函数
 import { v4 as uuidv4 } from 'uuid';
 import type { ChatTopic } from '../../../../shared/types';
@@ -40,15 +42,15 @@ export async function convertChatboxaiBackup(
   messageBlocks: MessageBlock[];
 }> {
   try {
-    console.log('开始转换 ChatboxAI 备份数据...');
+    logger.debug('开始转换 ChatboxAI 备份数据...');
 
     // 使用新的JSON解析器解析数据
     const { sessionsList, sessionsData, globalSettings } = parseChatboxaiJson(backupData);
-    console.log(`找到 ${sessionsList.length} 个ChatboxAI会话`);
+    logger.debug(`找到 ${sessionsList.length} 个ChatboxAI会话`);
 
     if (sessionsList.length === 0) {
-      console.warn('ChatboxAI备份中没有找到会话列表');
-      console.log('完整备份数据:', backupData);
+      logger.warn('ChatboxAI备份中没有找到会话列表');
+      logger.debug('完整备份数据:', backupData);
       return { topics: [], assistants: [], messageBlocks: [] };
     }
 
@@ -68,15 +70,15 @@ export async function convertChatboxaiBackup(
       if ((session as any).messages && Array.isArray((session as any).messages)) {
         // TXT 格式：会话数据直接在 session 对象中
         sessionData = session as any as ChatboxaiSession;
-        console.log(`处理 TXT 格式会话: ${session.name} (${sessionId})`);
+        logger.debug(`处理 TXT 格式会话: ${session.name} (${sessionId})`);
       } else {
         // JSON 格式：从解析结果中获取会话数据
         sessionData = sessionsData[sessionId];
         if (!sessionData) {
-          console.warn(`未找到会话 ${sessionId} 的详情数据`);
+          logger.warn(`未找到会话 ${sessionId} 的详情数据`);
           continue;
         }
-        console.log(`处理 JSON 格式会话: ${session.name} (${sessionId})`);
+        logger.debug(`处理 JSON 格式会话: ${session.name} (${sessionId})`);
       }
 
       // 根据导入模式决定助手ID
@@ -100,7 +102,7 @@ export async function convertChatboxaiBackup(
       // 使用新的函数获取所有消息（包括主线程和历史线程）
       const allMessages = getAllMessagesFromSession(sessionData);
 
-      console.log(`会话 ${session.name} 包含 ${allMessages.length} 条消息`);
+      logger.debug(`会话 ${session.name} 包含 ${allMessages.length} 条消息`);
 
       // 转换消息
       for (const chatboxMsg of allMessages) {
@@ -117,7 +119,7 @@ export async function convertChatboxaiBackup(
           // 跳过空消息
           const messageText = extractMessageText(chatboxMsg);
           if (!messageText.trim()) {
-            console.warn(`跳过空消息: ${chatboxMsg.id}`);
+            logger.warn(`跳过空消息: ${chatboxMsg.id}`);
             continue;
           }
 
@@ -236,7 +238,7 @@ export async function convertChatboxaiBackup(
           newTopic.messages!.push(newMsg);
           newTopic.messageIds.push(newMsg.id);
         } catch (msgError) {
-          console.error(`处理消息 ${chatboxMsg.id} 时出错:`, msgError);
+          logger.error(`处理消息 ${chatboxMsg.id} 时出错:`, msgError);
           // 继续处理其他消息
         }
       }
@@ -296,9 +298,9 @@ export async function convertChatboxaiBackup(
           convertedAssistants.push(assistant);
         }
 
-        console.log(`成功转换会话: ${newTopic.name}, 包含 ${newTopic.messageIds.length} 条消息`);
+        logger.debug(`成功转换会话: ${newTopic.name}, 包含 ${newTopic.messageIds.length} 条消息`);
       } else {
-        console.warn(`会话 ${session.name} 没有有效消息，跳过`);
+        logger.warn(`会话 ${session.name} 没有有效消息，跳过`);
       }
     }
 
@@ -346,7 +348,7 @@ export async function convertChatboxaiBackup(
       convertedAssistants.push(unifiedAssistant);
     }
 
-    console.log(`ChatboxAI导入完成: ${convertedTopics.length} 个对话, ${convertedAssistants.length} 个助手, ${allMessageBlocks.length} 个消息块`);
+    logger.debug(`ChatboxAI导入完成: ${convertedTopics.length} 个对话, ${convertedAssistants.length} 个助手, ${allMessageBlocks.length} 个消息块`);
 
     return {
       topics: convertedTopics,
@@ -354,7 +356,7 @@ export async function convertChatboxaiBackup(
       messageBlocks: allMessageBlocks
     };
   } catch (error) {
-    console.error('转换ChatboxAI备份失败:', error);
+    logger.error('转换ChatboxAI备份失败:', error);
     throw new Error(`转换ChatboxAI备份失败: ${error instanceof Error ? error.message : '未知错误'}`);
   }
 }
@@ -371,12 +373,12 @@ export async function importExternalBackup(data: any, importMode: ImportMode = '
   messageBlocks?: MessageBlock[];
 }> {
   try {
-    console.log('开始检测外部备份格式...');
+    logger.debug('开始检测外部备份格式...');
 
     // 检测是否为字符串（TXT格式）
     if (typeof data === 'string') {
       if (isChatboxaiTxtFormat(data)) {
-        console.log('检测到ChatboxAI TXT格式');
+        logger.debug('检测到ChatboxAI TXT格式');
 
         // 解析 TXT 格式为 JSON 结构
         const parsedData = parseChatboxaiTxt(data);
@@ -415,7 +417,7 @@ export async function importExternalBackup(data: any, importMode: ImportMode = '
 
     // 检测备份格式 (Cherry Studio)
     if (isDesktopBackupFormat(data)) {
-      console.log('检测到Cherry Studio备份格式');
+      logger.debug('检测到Cherry Studio备份格式');
 
       // 验证数据完整性
       const validation = validateDesktopBackupData(data);
@@ -425,16 +427,16 @@ export async function importExternalBackup(data: any, importMode: ImportMode = '
 
       // 记录备份信息
       if (validation.detectedVersion) {
-        console.log(`Cherry Studio备份版本: ${validation.detectedVersion}`);
+        logger.debug(`Cherry Studio备份版本: ${validation.detectedVersion}`);
       }
 
       if (validation.backupInfo) {
         const { topicsCount, assistantsCount, messageBlocksCount, hasSettings } = validation.backupInfo;
-        console.log(`备份内容: ${topicsCount}个话题, ${assistantsCount}个助手, ${messageBlocksCount}个消息块, ${hasSettings ? '包含' : '不包含'}设置`);
+        logger.debug(`备份内容: ${topicsCount}个话题, ${assistantsCount}个助手, ${messageBlocksCount}个消息块, ${hasSettings ? '包含' : '不包含'}设置`);
       }
 
       if (validation.warnings.length > 0) {
-        console.warn('Cherry Studio备份数据警告:', validation.warnings);
+        logger.warn('Cherry Studio备份数据警告:', validation.warnings);
       }
 
       // 转换备份数据
@@ -449,7 +451,7 @@ export async function importExternalBackup(data: any, importMode: ImportMode = '
 
     // 检测 ChatboxAI JSON 格式
     if (isChatboxaiBackupFormat(data)) {
-      console.log('检测到ChatboxAI JSON备份格式');
+      logger.debug('检测到ChatboxAI JSON备份格式');
 
       // 转换 ChatboxAI 备份数据
       const converted = await convertChatboxaiBackup(data, importMode);
@@ -465,10 +467,10 @@ export async function importExternalBackup(data: any, importMode: ImportMode = '
     // 例如：OpenAI ChatGPT 导出格式、Claude 导出格式等
 
     // 未识别的格式
-    console.error('无法识别的备份格式，数据结构:', typeof data === 'object' ? Object.keys(data) : typeof data);
+    logger.error('无法识别的备份格式，数据结构:', typeof data === 'object' ? Object.keys(data) : typeof data);
     throw new Error('无法识别的外部备份格式。支持的格式：Cherry Studio JSON、ChatboxAI JSON、ChatboxAI TXT');
   } catch (error) {
-    console.error('导入外部备份失败:', error);
+    logger.error('导入外部备份失败:', error);
 
     // 提供更详细的错误信息
     if (error instanceof Error) {

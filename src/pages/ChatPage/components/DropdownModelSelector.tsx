@@ -17,6 +17,9 @@ import { selectProviders } from '../../../shared/store/selectors/settingsSelecto
 import { UnifiedModelDisplay } from './UnifiedModelDisplay';
 import { getModelIdentityKey, modelMatchesIdentity, parseModelIdentityKey } from '../../../shared/utils/modelUtils';
 import { getProviderIcon, getModelOrProviderIcon } from '../../../shared/utils/providerIcons';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('DropdownModelSelector');
 
 interface DropdownModelSelectorProps {
   selectedModel: Model | null;
@@ -94,7 +97,7 @@ export const DropdownModelSelector: React.FC<DropdownModelSelectorProps> = ({
     try {
       const identity = parseModelIdentityKey(identityValue);
       if (!identity) {
-        console.error('无法解析模型标识:', identityValue);
+        logger.error('无法解析模型标识:', identityValue);
         return;
       }
 
@@ -108,10 +111,10 @@ export const DropdownModelSelector: React.FC<DropdownModelSelectorProps> = ({
           handleModelSelect(model);
         }, 0);
       } else {
-        console.error('未找到匹配的模型:', identityValue);
+        logger.error('未找到匹配的模型:', identityValue);
       }
     } catch (error) {
-      console.error('处理模型选择时出错:', error);
+      logger.error('处理模型选择时出错:', error);
     }
   };
 

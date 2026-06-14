@@ -45,6 +45,9 @@ import { workspaceService, ENABLE_WORKSPACE_SIDEBAR_KEY } from '../../shared/ser
 import { WorkspaceCreateDialog } from '../../components/dialogs/WorkspaceCreateDialog';
 import { toastManager } from '../../components/EnhancedToast';
 import type { Workspace } from '../../shared/types/workspace';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('WorkspaceSettings');
 import useScrollPosition from '../../hooks/useScrollPosition';
 import Scrollbar from '../../components/Scrollbar';
 import dayjs from 'dayjs';
@@ -86,7 +89,7 @@ const WorkspaceSettings: React.FC = () => {
       setSidebarEnabled(enabled);
     } catch (err) {
       setError('加载工作区列表失败');
-      console.error('加载工作区失败:', err);
+      logger.error('加载工作区失败:', err);
     } finally {
       setLoading(false);
     }
@@ -131,7 +134,7 @@ const WorkspaceSettings: React.FC = () => {
       }
     } catch (err) {
       setError('删除工作区失败');
-      console.error('删除工作区失败:', err);
+      logger.error('删除工作区失败:', err);
     }
   };
 

@@ -48,6 +48,9 @@ import { isTauri, isDesktop } from '../../shared/utils/platformDetection';
 import type { MCPServer, MCPServerType, MCPTool, MCPPrompt, MCPResource } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MCPServerDetail');
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 
 const MCPServerDetail: React.FC = () => {
@@ -131,7 +134,7 @@ const MCPServerDetail: React.FC = () => {
       setPrompts(promptsList);
       setResources(resourcesList);
     } catch (error) {
-      console.error(t('settings.mcpServer.messages.loadDataFailed'), error);
+      logger.error(t('settings.mcpServer.messages.loadDataFailed'), error);
     } finally {
       setLoading(false);
     }

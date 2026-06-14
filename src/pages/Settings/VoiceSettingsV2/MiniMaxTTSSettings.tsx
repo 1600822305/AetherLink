@@ -33,6 +33,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import FullScreenSelector, { type SelectorGroup } from '../../../components/TTS/FullScreenSelectorSolid';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MiniMaxTTSSettings');
 
 interface MiniMaxSettings {
   apiKey: string;
@@ -157,7 +160,7 @@ const MiniMaxTTSSettings: React.FC = () => {
         
         setTestText(t('settings.voice.minimax.testText') || '你好，这是 MiniMax 语音合成的测试。');
       } catch (error) {
-        console.error('加载 MiniMax TTS 设置失败:', error);
+        logger.error('加载 MiniMax TTS 设置失败:', error);
       }
     };
 
@@ -202,7 +205,7 @@ const MiniMaxTTSSettings: React.FC = () => {
       }, 0);
 
     } catch (error) {
-      console.error('保存 MiniMax TTS 设置失败:', error);
+      logger.error('保存 MiniMax TTS 设置失败:', error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

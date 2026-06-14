@@ -20,6 +20,9 @@ import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
 import { useActiveTopic } from '../../hooks/useActiveTopic';
 import ChatSearchInterface from '../../components/search/ChatSearchInterface';
 import { scrollToMessage } from '../../shared/utils/scrollToMessage';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ChatPage');
 
 const EMPTY_MESSAGES_ARRAY: any[] = [];
 
@@ -45,10 +48,10 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const resumeVideoTasks = async () => {
       try {
-        console.log('[ChatPage] 检查并恢复未完成的视频生成任务');
+        logger.debug('检查并恢复未完成的视频生成任务');
         await VideoTaskManager.resumeTasks();
       } catch (error) {
-        console.error('[ChatPage] 恢复视频任务失败:', error);
+        logger.error('恢复视频任务失败:', error);
       }
     };
 
@@ -179,13 +182,13 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const handleNewBranch = async (index: number) => {
       if (!currentTopic || !currentAssistant) {
-        console.error('[ChatPage] 无法创建分支: 缺少当前话题或助手');
+        logger.error('无法创建分支: 缺少当前话题或助手');
         return;
       }
 
       const newTopic = await TopicService.createTopicBranch(currentTopic, messagesRef.current, index);
       if (!newTopic) {
-        console.error('[ChatPage] 创建分支失败');
+        logger.error('创建分支失败');
       }
     };
 

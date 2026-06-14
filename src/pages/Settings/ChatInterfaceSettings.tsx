@@ -31,6 +31,9 @@ import {
 } from '../../shared/utils/backgroundUtils';
 import useScrollPosition from '../../hooks/useScrollPosition';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ChatInterfaceSettings');
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
 
@@ -190,7 +193,7 @@ const ChatInterfaceSettings: React.FC = () => {
 
     } catch (error) {
       setUploadError(t('settings.appearance.chatInterface.background.errors.uploadFailed'));
-      console.error('Background upload error:', error);
+      logger.error('Background upload error:', error);
     } finally {
       setIsUploading(false);
       // 清空文件输入

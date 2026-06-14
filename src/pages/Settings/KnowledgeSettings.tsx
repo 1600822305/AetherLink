@@ -57,6 +57,9 @@ import type { RootState } from '../../shared/store';
 import { PREPROCESS_PROVIDER_METAS } from '../../shared/services/knowledge/preprocess/types';
 import type { PreprocessProviderId } from '../../shared/services/knowledge/preprocess/types';
 import { setPdfParseMode, setActiveProvider, updateProviderConfig, clearProviderConfig } from '../../shared/store/slices/pdfPreprocessSlice';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeSettings');
 
 // ==================== Styled Components ====================
 
@@ -205,7 +208,7 @@ const KnowledgeSettings: React.FC = () => {
         storageSizeBytes,
       });
     } catch (error) {
-      console.error('加载统计信息失败:', error);
+      logger.error('加载统计信息失败:', error);
     }
   };
 
@@ -227,7 +230,7 @@ const KnowledgeSettings: React.FC = () => {
       refreshKnowledgeBases();
       toastManager.success('知识库删除成功', '删除成功');
     } catch (error) {
-      console.error('删除知识库失败:', error);
+      logger.error('删除知识库失败:', error);
       toastManager.error('删除失败，请重试', '删除失败');
     }
   };
@@ -250,7 +253,7 @@ const KnowledgeSettings: React.FC = () => {
       setExportDialogOpen(false);
       toastManager.success('知识库数据导出成功', '导出成功');
     } catch (error) {
-      console.error('导出知识库数据失败:', error);
+      logger.error('导出知识库数据失败:', error);
       toastManager.error('导出失败，请重试', '导出失败');
     } finally {
       setLoading(false);
@@ -273,7 +276,7 @@ const KnowledgeSettings: React.FC = () => {
       setImportDialogOpen(false);
       toastManager.success(`成功导入 ${importData.knowledgeBases.length} 个知识库和 ${importData.documents.length} 个文档`, '导入成功');
     } catch (error) {
-      console.error('导入知识库数据失败:', error);
+      logger.error('导入知识库数据失败:', error);
       toastManager.error('导入失败，请检查文件格式', '导入失败');
     } finally {
       setLoading(false);
@@ -290,7 +293,7 @@ const KnowledgeSettings: React.FC = () => {
       setClearDialogOpen(false);
       toastManager.success('知识库数据已清理完成', '清理成功');
     } catch (error) {
-      console.error('清理知识库数据失败:', error);
+      logger.error('清理知识库数据失败:', error);
       toastManager.error('清理失败，请重试', '清理失败');
     } finally {
       setLoading(false);

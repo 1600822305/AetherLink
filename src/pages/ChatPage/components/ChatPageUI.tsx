@@ -23,6 +23,9 @@ import type { DebateConfig } from '../../../shared/services/ai/AIDebateService';
 import { createSelector } from 'reselect';
 import { contextCondenseService } from '../../../shared/services/ai/ContextCondenseService';
 import { Z_INDEX } from '../../../shared/constants/zIndex';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ChatPageUI');
 
 
 
@@ -62,7 +65,7 @@ const getStoredSidebarWidth = (): number => {
       return clampSidebarWidth(settings.sidebarWidth || DEFAULT_DRAWER_WIDTH);
     }
   } catch (e) {
-    console.error('读取侧边栏宽度失败:', e);
+    logger.error('读取侧边栏宽度失败:', e);
   }
   return DEFAULT_DRAWER_WIDTH;
 };
@@ -218,7 +221,7 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
 
   // 稳定化的回调函数，避免重复渲染 - 使用函数式更新
   const handleToggleDrawer = useCallback(() => {
-    console.log('侧边栏切换开始', { current: drawerOpen });
+    logger.debug('侧边栏切换开始', { current: drawerOpen });
     // 使用startTransition + 函数式更新，完全避免依赖项
     startTransition(() => {
       setDrawerOpen(prev => !prev);
@@ -410,7 +413,7 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
         });
       }
     } catch (error: any) {
-      console.error('[ChatPageUI] 压缩失败:', error);
+      logger.error('压缩失败:', error);
       setCondenseSnackbar({
         open: true,
         message: `压缩失败: ${error.message || '未知错误'}`,
@@ -662,7 +665,7 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
     if (currentTopic) {
       handleMessageSend(content, images, toolsEnabled, files);
     } else {
-      console.log('没有当前话题，无法发送消息');
+      logger.debug('没有当前话题，无法发送消息');
     }
   }, [currentTopic, handleMessageSend]);
 
@@ -670,7 +673,7 @@ const ChatPageUIComponent: React.FC<ChatPageUIProps> = ({
     if (currentTopic && handleMultiModelSend) {
       handleMultiModelSend(content, models, images, toolsEnabled, files);
     } else {
-      console.log('没有当前话题，无法发送多模型消息');
+      logger.debug('没有当前话题，无法发送多模型消息');
     }
   }, [currentTopic, handleMultiModelSend]);
 

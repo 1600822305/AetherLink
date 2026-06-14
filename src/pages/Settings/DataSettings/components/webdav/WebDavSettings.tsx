@@ -35,6 +35,9 @@ import {
   getMaxBackupsOptions,
   formatDateTime
 } from '../../../../../shared/utils/webdavUtils';
+import { createLogger } from '../../../../../shared/services/infra/logger';
+
+const logger = createLogger('WebDavSettings');
 
 interface WebDavSettingsProps {
   onConfigChange?: (config: WebDavConfig | null) => void;
@@ -78,7 +81,7 @@ const WebDavSettings: React.FC<WebDavSettingsProps> = ({ onConfigChange }) => {
         onConfigChange?.(savedConfig);
       }
     } catch (error) {
-      console.error('加载 WebDAV 配置失败:', error);
+      logger.error('加载 WebDAV 配置失败:', error);
     }
   };
 
@@ -87,7 +90,7 @@ const WebDavSettings: React.FC<WebDavSettingsProps> = ({ onConfigChange }) => {
       const state = await webdavService.getSyncState();
       setSyncState(state);
     } catch (error) {
-      console.error('加载同步状态失败:', error);
+      logger.error('加载同步状态失败:', error);
     }
   };
 
@@ -116,7 +119,7 @@ const WebDavSettings: React.FC<WebDavSettingsProps> = ({ onConfigChange }) => {
         }
       }
     } catch (error) {
-      console.error('更新同步设置失败:', error);
+      logger.error('更新同步设置失败:', error);
     }
   };
 

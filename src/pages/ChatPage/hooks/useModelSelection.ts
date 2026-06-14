@@ -4,6 +4,9 @@ import type { RootState } from '../../../shared/store';
 import { setCurrentModel } from '../../../shared/store/settingsSlice';
 import { getModelIdentityKey, modelMatchesIdentity, parseModelIdentityKey } from '../../../shared/utils/modelUtils';
 import type { Model } from '../../../shared/types';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('useModelSelection');
 
 export function useModelSelection() {
   const dispatch = useDispatch();
@@ -34,7 +37,7 @@ export function useModelSelection() {
   // 优化选择模型函数 - 添加防抖和错误处理
   const handleModelSelect = useCallback((model: Model) => {
     if (!model || !model.id) {
-      console.error('尝试选择无效的模型:', model);
+      logger.error('尝试选择无效的模型:', model);
       return;
     }
 
@@ -81,7 +84,7 @@ export function useModelSelection() {
 
         // 如果没有找到模型，使用一些默认模型（仅用于测试/演示）
         if (availableModels.length === 0) {
-          console.warn('未找到用户配置的模型，使用默认测试模型');
+          logger.warn('未找到用户配置的模型，使用默认测试模型');
           const defaultModels: Model[] = [
             { id: 'gpt-4', name: 'GPT-4', description: '最强大的大语言模型', provider: 'OpenAI', enabled: true },
             { id: 'gpt-3.5-turbo', name: 'GPT-3.5', description: '平衡性能和速度', provider: 'OpenAI', enabled: true },
@@ -129,7 +132,7 @@ export function useModelSelection() {
           }
         }
       } catch (error) {
-        console.error('加载模型数据失败', error);
+        logger.error('加载模型数据失败', error);
         // 出错时使用一个安全的默认值
         setAvailableModels([]);
         setSelectedModel(null);

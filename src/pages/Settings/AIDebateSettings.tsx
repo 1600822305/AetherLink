@@ -33,6 +33,9 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('AIDebateSettings');
 import type { RootState } from '../../shared/store';
 import { selectProviders } from '../../shared/store/selectors/settingsSelectors';
 import { DropdownModelSelector } from '../ChatPage/components/DropdownModelSelector';
@@ -480,7 +483,7 @@ const AIDebateSettings: React.FC = () => {
           setConfigGroups(savedGroups);
         }
       } catch (error) {
-        console.error(t('errors.aiDebate.loadConfigFailed'), error);
+        logger.error(t('errors.aiDebate.loadConfigFailed'), error);
       }
     };
     loadConfig();
@@ -492,7 +495,7 @@ const AIDebateSettings: React.FC = () => {
       await setStorageItem('aiDebateConfig', newConfig);
       setConfig(newConfig);
     } catch (error) {
-      console.error(t('errors.aiDebate.saveConfigFailed'), error);
+      logger.error(t('errors.aiDebate.saveConfigFailed'), error);
     }
   };
 
@@ -502,7 +505,7 @@ const AIDebateSettings: React.FC = () => {
       await setStorageItem('aiDebateConfigGroups', groups);
       setConfigGroups(groups);
     } catch (error) {
-      console.error(t('errors.aiDebate.saveGroupsFailed'), error);
+      logger.error(t('errors.aiDebate.saveGroupsFailed'), error);
     }
   };
 

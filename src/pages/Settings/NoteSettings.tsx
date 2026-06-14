@@ -55,6 +55,9 @@ import { updateSettings } from '../../shared/store/settingsSlice';
 import { ENABLE_NOTE_SIDEBAR_KEY } from '../../shared/services/notes/SimpleNoteService';
 import type { NoteFile } from '../../shared/types/note';
 import type { SearchResult } from '../../shared/services/notes/NotesSearchService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('NoteSettings');
 
 interface FolderCache {
   [path: string]: NoteFile[];
@@ -145,7 +148,7 @@ const NoteSettings: React.FC = () => {
         toastManager.success('存储路径已更新', '设置成功');
       }
     } catch (error) {
-      console.error('选择目录失败:', error);
+      logger.error('选择目录失败:', error);
       toastManager.error('选择目录失败', '错误');
     }
   };
@@ -168,7 +171,7 @@ const NoteSettings: React.FC = () => {
       const items = await simpleNoteService.listNotes(path);
       setFolderCache((prev) => ({ ...prev, [path]: items }));
     } catch (error) {
-      console.error(`加载目录 ${path} 失败:`, error);
+      logger.error(`加载目录 ${path} 失败:`, error);
       toastManager.error('加载目录失败', '错误');
     } finally {
       setLoadingFlag(path, false);
@@ -236,7 +239,7 @@ const NoteSettings: React.FC = () => {
       await refreshFolder(currentPath);
       toastManager.success('创建成功', '成功');
     } catch (error) {
-      console.error('创建失败:', error);
+      logger.error('创建失败:', error);
       toastManager.error('创建失败', '错误');
     }
   };
@@ -255,11 +258,11 @@ const NoteSettings: React.FC = () => {
 
   const handleRename = async () => {
     if (!menuTargetItem || !newItemName) {
-      console.log('重命名条件不满足:', { menuTargetItem, newItemName });
+      logger.debug('重命名条件不满足:', { menuTargetItem, newItemName });
       return;
     }
     
-    console.log('开始重命名:', { path: menuTargetItem.path, newName: newItemName });
+    logger.debug('开始重命名:', { path: menuTargetItem.path, newName: newItemName });
     
     try {
       await simpleNoteService.renameItem(menuTargetItem.path, newItemName);
@@ -268,7 +271,7 @@ const NoteSettings: React.FC = () => {
       await refreshFolder(getParentPath(menuTargetItem.path));
       toastManager.success('重命名成功', '成功');
     } catch (error) {
-      console.error('重命名失败:', error);
+      logger.error('重命名失败:', error);
       toastManager.error(`重命名失败: ${error instanceof Error ? error.message : String(error)}`, '错误');
     }
   };

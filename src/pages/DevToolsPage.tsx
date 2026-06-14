@@ -45,6 +45,9 @@ import { SafeAreaContainer } from '../components/settings/SettingComponents';
 import { toastManager } from '../components/EnhancedToast';
 import { shareTextAsFile } from '../utils/exportUtils';
 import dayjs from 'dayjs';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('DevToolsPage');
 
 const DevToolsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -92,7 +95,7 @@ const DevToolsPage: React.FC = () => {
     try {
       localStorage.setItem('devtools-auto-scroll', JSON.stringify(autoScroll));
     } catch (error) {
-      console.warn('保存自动滚动设置失败:', error);
+      logger.warn('保存自动滚动设置失败:', error);
     }
   }, [autoScroll]);
 
@@ -101,7 +104,7 @@ const DevToolsPage: React.FC = () => {
     try {
       localStorage.setItem('devtools-preserve-log', JSON.stringify(preserveLog));
     } catch (error) {
-      console.warn('保存保持日志设置失败:', error);
+      logger.warn('保存保持日志设置失败:', error);
     }
   }, [preserveLog]);
 
@@ -182,7 +185,7 @@ const DevToolsPage: React.FC = () => {
         await navigator.clipboard.writeText(textToCopy);
         // 可选：显示复制成功提示
       } catch (err) {
-        console.error('Failed to copy:', err);
+        logger.error('Failed to copy:', err);
       }
     }
   }, [tabValue, selectedConsoleIds, selectedNetworkIds]);
@@ -267,7 +270,7 @@ const DevToolsPage: React.FC = () => {
       await shareTextAsFile(logContent, fileName);
 
     } catch (error) {
-      console.error('分享日志失败:', error);
+      logger.error('分享日志失败:', error);
       toastManager.error('分享日志失败: ' + (error as Error).message, '分享错误');
     }
   }, [tabValue, consoleService, networkService]);

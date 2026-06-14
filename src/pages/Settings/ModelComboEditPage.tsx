@@ -31,6 +31,9 @@ import {
 } from '../../components/settings/SettingComponents';
 
 import type { ModelComboStrategy, ModelComboFormData } from '../../shared/types/ModelCombo';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ModelComboEditPage');
 
 const ModelComboEditPage: React.FC = () => {
   const { t } = useTranslation();
@@ -115,7 +118,7 @@ const ModelComboEditPage: React.FC = () => {
             });
           }
         } catch (error) {
-          console.error('加载模型组合失败:', error);
+          logger.error('加载模型组合失败:', error);
         }
       }
     };
@@ -147,7 +150,7 @@ const ModelComboEditPage: React.FC = () => {
       await syncModelCombos();
       navigate('/settings/model-combo');
     } catch (error) {
-      console.error('保存模型组合失败:', error);
+      logger.error('保存模型组合失败:', error);
     } finally {
       setLoading(false);
     }

@@ -33,6 +33,9 @@ import { FileOpener } from '@capacitor-community/file-opener';
 import { performFullRestore } from '../../utils/restoreUtils';
 import { unifiedFileManager } from '../../../../../shared/services/files/UnifiedFileManagerService';
 import { isCapacitor } from '../../../../../shared/utils/platformDetection';
+import { createLogger } from '../../../../../shared/services/infra/logger';
+
+const logger = createLogger('BackupFilesList');
 
 // 备份文件接口
 interface BackupFile {
@@ -81,10 +84,10 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
       // 首先检查权限（Tauri 桌面端会自动返回 granted）
       const permissionResult = await unifiedFileManager.checkPermissions();
       if (!permissionResult.granted) {
-        console.log('权限未授予，尝试请求权限...');
+        logger.debug('权限未授予，尝试请求权限...');
         const requestResult = await unifiedFileManager.requestPermissions();
         if (!requestResult.granted) {
-          console.error('需要文件访问权限:', requestResult.message);
+          logger.error('需要文件访问权限:', requestResult.message);
           setSelecting(false);
           return;
         }
@@ -96,7 +99,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         title: '选择备份文件夹'
       });
 
-      console.log('文件选择器返回结果:', JSON.stringify(result, null, 2));
+      logger.debug('文件选择器返回结果:', JSON.stringify(result, null, 2));
 
       if (!result.cancelled) {
         // 注意：由于插件的 bug，选择目录时可能被放入 files 数组而不是 directories 数组
@@ -111,7 +114,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         }
 
         if (selectedDir) {
-          console.log('选择的目录信息:', selectedDir);
+          logger.debug('选择的目录信息:', selectedDir);
 
           // 优先使用转换后的友好路径，如果没有则使用原始路径
           const pathToUse = (selectedDir as any).displayPath || selectedDir.path || selectedDir.uri || (typeof selectedDir === 'string' ? selectedDir : '');
@@ -119,14 +122,14 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
           if (pathToUse) {
             setSelectedPath(pathToUse);
             localStorage.setItem(BACKUP_DIR_KEY, pathToUse);
-            console.log('已保存备份目录:', pathToUse);
+            logger.debug('已保存备份目录:', pathToUse);
           }
         } else {
-          console.log('未选择任何目录');
+          logger.debug('未选择任何目录');
         }
       }
     } catch (err) {
-      console.error('选择文件夹失败:', err);
+      logger.error('选择文件夹失败:', err);
     } finally {
       setSelecting(false);
     }
@@ -147,7 +150,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
     try {
       // 如果有选择的路径，使用 unifiedFileManager（与工作区一致）
       if (selectedPath) {
-        console.log('开始搜索目录:', selectedPath);
+        logger.debug('开始搜索目录:', selectedPath);
         
         const result = await unifiedFileManager.listDirectory({
           path: selectedPath,
@@ -156,7 +159,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
           sortOrder: 'desc'
         });
 
-        console.log('目录列表结果:', result);
+        logger.debug('目录列表结果:', result);
 
         const backups = result.files
           .filter(file => file.name.includes('AetherLink') && file.name.endsWith('.json'))
@@ -169,7 +172,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
           }));
 
         allFiles = [...allFiles, ...backups];
-        console.log(`在自定义目录中找到 ${backups.length} 个备份文件`);
+        logger.debug(`在自定义目录中找到 ${backups.length} 个备份文件`);
       }
 
       // Capacitor: 额外搜索应用内部目录
@@ -198,7 +201,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
                 }));
 
               allFiles = [...allFiles, ...backups];
-              console.log(`在${dir.label}中找到 ${backups.length} 个备份文件`);
+              logger.debug(`在${dir.label}中找到 ${backups.length} 个备份文件`);
             }
           } catch (e) {
             // 忽略不存在的目录
@@ -206,7 +209,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         }
       }
     } catch (err) {
-      console.error('加载备份文件失败:', err);
+      logger.error('加载备份文件失败:', err);
     }
 
     // 去重
@@ -216,7 +219,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
 
     // 排序
     unique.sort((a, b) => b.ctime - a.ctime);
-    console.log(`总共找到 ${unique.length} 个备份文件`);
+    logger.debug(`总共找到 ${unique.length} 个备份文件`);
 
     setBackupFiles(unique);
     setLoading(false);
@@ -226,7 +229,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
   useEffect(() => {
     const saved = localStorage.getItem(BACKUP_DIR_KEY);
     if (saved) {
-      console.log('从 localStorage 读取备份目录:', saved);
+      logger.debug('从 localStorage 读取备份目录:', saved);
       setSelectedPath(saved);
     }
   }, []);
@@ -266,7 +269,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         contentType: 'application/json'
       });
     } catch (error) {
-      console.error('打开文件失败:', error);
+      logger.error('打开文件失败:', error);
       onRestoreError(t('dataSettings.messages.fileNotFound'));
     }
   };
@@ -306,7 +309,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
         onRestoreError(`${t('dataSettings.messages.restoreFailed')}: ${result.error || t('dataSettings.errors.unknown')}`);
       }
     } catch (error) {
-      console.error('恢复失败:', error);
+      logger.error('恢复失败:', error);
       onRestoreError(`${t('dataSettings.messages.restoreFailed')}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setProcessingFile(null);
@@ -321,7 +324,7 @@ const BackupFilesList: React.FC<BackupFilesListProps> = ({
       setBackupFiles(prev => prev.filter(f => f.name !== file.name));
       onFileDeleted();
     } catch (error) {
-      console.error('删除失败:', error);
+      logger.error('删除失败:', error);
       onRestoreError(`${t('dataSettings.webdav.backupManager.errors.deleteFailed')}: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setProcessingFile(null);

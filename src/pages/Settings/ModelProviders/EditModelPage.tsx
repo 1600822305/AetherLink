@@ -25,6 +25,9 @@ import { matchModelTypes, defaultModelTypeRules } from '../../../shared/data/mod
 import { getDefaultModelProviders } from '../../../shared/config/defaultModels';
 import { modelMatchesIdentity } from '../../../shared/utils/modelUtils';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('EditModelPage');
 
 const EditModelPage: React.FC = () => {
   const theme = useTheme();
@@ -108,7 +111,7 @@ const EditModelPage: React.FC = () => {
           setModelAvatar(modelConfig.avatar);
         }
       } catch (error) {
-        console.error('[EditModelPage] 加载模型头像失败:', error);
+        logger.error('加载模型头像失败:', error);
       }
     })();
 
@@ -122,7 +125,7 @@ const EditModelPage: React.FC = () => {
         const rules = await dexieStorage.getSetting('modelTypeRules');
         setModelTypeRules(rules || defaultModelTypeRules);
       } catch (error) {
-        console.error('[EditModelPage] 加载模型类型规则失败:', error);
+        logger.error('加载模型类型规则失败:', error);
         setModelTypeRules(defaultModelTypeRules);
       }
     })();
@@ -176,7 +179,7 @@ const EditModelPage: React.FC = () => {
         const { saveModelAvatar } = await import('../../../shared/utils/avatarUtils');
         await saveModelAvatar(modelData.id, avatarDataUrl);
       } catch (error) {
-        console.error('[EditModelPage] 保存模型头像失败:', error);
+        logger.error('保存模型头像失败:', error);
       }
     }
   };
@@ -187,7 +190,7 @@ const EditModelPage: React.FC = () => {
     try {
       await dexieStorage.saveSetting('modelTypeRules', rules);
     } catch (error) {
-      console.error('[EditModelPage] 保存模型类型规则失败:', error);
+      logger.error('保存模型类型规则失败:', error);
     }
   };
 
@@ -218,7 +221,7 @@ const EditModelPage: React.FC = () => {
           updatedAt: new Date().toISOString(),
         });
       } catch (error) {
-        console.error('[EditModelPage] 迁移模型头像失败:', error);
+        logger.error('迁移模型头像失败:', error);
       }
     }
 
@@ -229,7 +232,7 @@ const EditModelPage: React.FC = () => {
         updatedAt: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('[EditModelPage] 保存模型配置到数据库失败:', error);
+      logger.error('保存模型配置到数据库失败:', error);
     }
 
     const updatedModels = provider.models.map(m =>
@@ -317,7 +320,7 @@ const EditModelPage: React.FC = () => {
           }}
           debugName="EditModelForm"
           debug={process.env.NODE_ENV === 'development'}
-          onError={(error) => console.error('[EditModelPage] SolidJS 组件错误:', error)}
+          onError={(error) => logger.error('SolidJS 组件错误:', error)}
         />
       </Scrollbar>
 

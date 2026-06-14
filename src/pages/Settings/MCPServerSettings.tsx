@@ -36,6 +36,9 @@ import {
 import type { MCPServer } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MCPServerSettings');
 import { SafeAreaContainer, CARD_STYLES } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
 import { isTauri, isDesktop } from '../../shared/utils/platformDetection';
@@ -124,7 +127,7 @@ const MCPServerSettings: React.FC = () => {
       const builtinList = mcpService.getBuiltinServers();
       setBuiltinServers(builtinList);
     } catch (error) {
-      console.error(t('settings.mcpServer.messages.loadBuiltinFailed'), error);
+      logger.error(t('settings.mcpServer.messages.loadBuiltinFailed'), error);
     }
   };
 

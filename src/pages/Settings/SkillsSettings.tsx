@@ -48,6 +48,9 @@ import CustomSwitch from '../../components/CustomSwitch';
 import { useSkillBinding } from '../../hooks/useSkillBinding';
 import { useTranslation } from '../../i18n';
 import { useSmartBack } from '../../shared/hooks/useSmartBack';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SkillsSettings');
 
 // ========================================================================
 // 主组件
@@ -142,7 +145,7 @@ const SkillsSettings: React.FC = () => {
       URL.revokeObjectURL(url);
       toastManager.success(t('settings.skillsSettings.messages.exported', { count: data.skills.length }));
     } catch (error) {
-      console.error('[SkillsSettings] 导出失败:', error);
+      logger.error('导出失败:', error);
       toastManager.error(t('settings.skillsSettings.messages.exportFailed'));
     }
   };
@@ -174,7 +177,7 @@ const SkillsSettings: React.FC = () => {
           totalImported += result.imported;
           totalSkipped += result.skipped;
         } catch (error) {
-          console.error('[SkillsSettings] SKILL.md 导入失败:', error);
+          logger.error('SKILL.md 导入失败:', error);
         }
       }
 
@@ -191,7 +194,7 @@ const SkillsSettings: React.FC = () => {
           totalImported += result.imported;
           totalSkipped += result.skipped;
         } catch (error) {
-          console.error('[SkillsSettings] JSON 导入失败:', error);
+          logger.error('JSON 导入失败:', error);
           totalSkipped++;
         }
       }
@@ -224,7 +227,7 @@ const SkillsSettings: React.FC = () => {
       URL.revokeObjectURL(url);
       toastManager.success(t('settings.skillsSettings.messages.exportedMd', { name: skill.name }));
     } catch (error) {
-      console.error('[SkillsSettings] 导出 SKILL.md 失败:', error);
+      logger.error('导出 SKILL.md 失败:', error);
       toastManager.error(t('settings.skillsSettings.messages.exportFailed'));
     }
   };

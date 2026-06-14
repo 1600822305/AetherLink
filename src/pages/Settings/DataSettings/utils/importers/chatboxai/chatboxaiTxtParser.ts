@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../../../shared/services/infra/logger';
+const logger = createLogger('chatboxaiTxtParser');
 // chatboxaiTxtParser.ts
 import { v4 as uuidv4 } from 'uuid';
 
@@ -38,7 +40,7 @@ export interface ChatboxaiTxtParseResult {
  * 检测是否为 ChatboxAI TXT 格式
  */
 export function isChatboxaiTxtFormat(content: string): boolean {
-  console.log('检测 TXT 格式...');
+  logger.debug('检测 TXT 格式...');
 
   // 检查是否包含 ChatboxAI TXT 格式的特征标记
   const hasHeader = content.includes('====================================');
@@ -46,7 +48,7 @@ export function isChatboxaiTxtFormat(content: string): boolean {
   const hasUserMessage = content.includes('▶ USER:');
   const hasAssistantMessage = content.includes('▶ ASSISTANT:');
 
-  console.log('TXT 格式检测结果:', {
+  logger.debug('TXT 格式检测结果:', {
     hasHeader,
     hasFooter,
     hasUserMessage,
@@ -60,15 +62,15 @@ export function isChatboxaiTxtFormat(content: string): boolean {
  * 解析 ChatboxAI TXT 格式
  */
 export function parseChatboxaiTxt(content: string): ChatboxaiTxtParseResult {
-  console.log('开始解析 ChatboxAI TXT 格式...');
-  console.log('TXT 内容长度:', content.length);
+  logger.debug('开始解析 ChatboxAI TXT 格式...');
+  logger.debug('TXT 内容长度:', content.length);
 
   const sessions: ChatboxaiTxtSession[] = [];
 
   // 提取会话名称
   const sessionNameMatch = content.match(/==================================== \[\[(.*?)\]\] ====================================/);
   const sessionName = sessionNameMatch ? sessionNameMatch[1] : '导入的对话';
-  console.log('提取的会话名称:', sessionName);
+  logger.debug('提取的会话名称:', sessionName);
 
   // 解析消息 - 使用更宽松的正则表达式
   const messages: ChatboxaiTxtMessage[] = [];
@@ -81,7 +83,7 @@ export function parseChatboxaiTxt(content: string): ChatboxaiTxtParseResult {
     const role = match[1].toLowerCase() as 'system' | 'user' | 'assistant';
     const messageContent = match[2].trim();
 
-    console.log(`找到消息 - 角色: ${role}, 内容长度: ${messageContent.length}`);
+    logger.debug(`找到消息 - 角色: ${role}, 内容长度: ${messageContent.length}`);
 
     if (messageContent) {
       messages.push({
@@ -98,7 +100,7 @@ export function parseChatboxaiTxt(content: string): ChatboxaiTxtParseResult {
     }
   }
 
-  console.log(`解析完成，共找到 ${messages.length} 条消息`);
+  logger.debug(`解析完成，共找到 ${messages.length} 条消息`);
 
   // 创建会话
   const session: ChatboxaiTxtSession = {
@@ -115,7 +117,7 @@ export function parseChatboxaiTxt(content: string): ChatboxaiTxtParseResult {
     settings: {}
   };
 
-  console.log('TXT 解析结果:', {
+  logger.debug('TXT 解析结果:', {
     sessionCount: sessions.length,
     messageCount: messages.length,
     sessionName: sessionName

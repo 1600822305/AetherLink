@@ -33,6 +33,9 @@ import { useTranslation } from '../../../i18n';
 import { prepareFullBackupData, createAndShareBackupFile } from './utils/backupUtils';
 import { alpha } from '@mui/material/styles';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AdvancedBackupPage');
 import Scrollbar from '../../../components/Scrollbar';
 
 const AdvancedBackupPage: React.FC = () => {
@@ -211,7 +214,7 @@ const AdvancedBackupPage: React.FC = () => {
         (error) => showMessage(t('dataSettings.messages.backupFailed') + ': ' + error.message, 'error')
       );
     } catch (error) {
-      console.error('创建完整备份失败:', error);
+      logger.error('创建完整备份失败:', error);
       showMessage(t('dataSettings.messages.backupFailed') + ': ' + (error as Error).message, 'error');
     } finally {
       setIsLoading(false);

@@ -10,6 +10,9 @@ import ApiKeyManager from '../../../../shared/services/ai/ApiKeyManager';
 import { modelMatchesIdentity } from '../../../../shared/utils/modelUtils';
 import { toastManager } from '../../../../components/EnhancedToast';
 import { CONSTANTS, STYLES, useDebounce } from './constants';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('ModelProvidersHooks');
 import { 
   testingModelId, 
   showApiKey, 
@@ -26,7 +29,7 @@ import { useModelTest } from './useModelTest';
  */
 const logModelOperation = (operation: string, details: any) => {
   if (process.env.NODE_ENV === 'development') {
-    console.log(`[ModelProvider] ${operation}:`, details);
+    logger.debug(`${operation}:`, details);
   }
 };
 
@@ -305,7 +308,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       }));
       return true;
     } catch (error) {
-      console.error('保存配置失败:', error);
+      logger.error('保存配置失败:', error);
       setBaseUrlError(t('modelSettings.provider.saveConfigFailed'));
       return false;
     }
@@ -318,7 +321,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
       dispatch(updateProvider({ id: provider.id, updates: { models: updatedModels } }));
       return true;
     } catch (error) {
-      console.error('保存模型失败:', error);
+      logger.error('保存模型失败:', error);
       return false;
     }
   }, [provider, dispatch]);
@@ -429,7 +432,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         setNewBodyKey('');
         setNewBodyValue('');
       } catch (error) {
-        console.error('解析body值失败:', error);
+        logger.error('解析body值失败:', error);
       }
     }
   };
@@ -467,7 +470,7 @@ export const useProviderSettings = (provider: Provider | undefined) => {
         return newBody;
       });
     } catch (error) {
-      console.error('更新body值失败:', error);
+      logger.error('更新body值失败:', error);
     }
   };
 

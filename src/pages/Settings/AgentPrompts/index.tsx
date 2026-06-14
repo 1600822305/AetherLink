@@ -23,6 +23,9 @@ import SystemPromptVariablesPanel from '../../../components/prompts/SystemPrompt
 import VirtualScroller from '../../../components/common/VirtualScroller';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AgentPromptsPage');
 
 /**
  * 智能体提示词集合 - 主页面组件
@@ -67,7 +70,7 @@ const AgentPromptsSettings: React.FC = () => {
       setCopiedPromptId(prompt.id);
       setTimeout(() => setCopiedPromptId(null), 2000);
     } catch (error) {
-      console.error(t('settings.agentPromptsPage.promptCard.copyFailed') + ':', error);
+      logger.error(t('settings.agentPromptsPage.promptCard.copyFailed') + ':', error);
     }
   }, [t]);
 

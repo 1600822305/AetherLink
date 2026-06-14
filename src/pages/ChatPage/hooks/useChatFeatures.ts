@@ -9,6 +9,9 @@ import { useExclusiveMode } from './useExclusiveMode';
 import { useVideoGeneration } from './useVideoGeneration';
 import { useMultiModelSend } from './useMultiModelSend';
 import { useMCPTools } from './useMCPTools';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('useChatFeatures');
 
 /**
  * 处理聊天特殊功能相关的钩子（组合层）
@@ -47,8 +50,8 @@ export const useChatFeatures = (
   const handleImagePrompt = (prompt: string, images?: SiliconFlowImageFormat[], files?: any[]) => {
     if (!currentTopic || !prompt.trim() || !selectedModel) return;
 
-    console.log(`[useChatFeatures] 处理图像生成提示词: ${prompt}`);
-    console.log(`[useChatFeatures] 使用模型: ${selectedModel.id}`);
+    logger.debug(`处理图像生成提示词: ${prompt}`);
+    logger.debug(`使用模型: ${selectedModel.id}`);
 
     // 直接使用正常的消息发送流程，让messageThunk处理图像生成
     // 不再调用handleSendMessage，避免重复发送
@@ -111,7 +114,7 @@ export const useChatFeatures = (
     if (webSearchActive) {
       // 🚀 自动模式：将搜索提供商设置到助手配置，让 AI 自主决定是否搜索
       // 通过正常的消息发送流程，assistantResponse.ts 会检测 webSearchProviderId 并添加搜索工具
-      console.log('[WebSearch] 自动模式：AI 将自主决定是否需要搜索');
+      logger.debug('自动模式：AI 将自主决定是否需要搜索');
       handleSendMessage(content, images, toolsEnabledParam, files);
       return;
     }

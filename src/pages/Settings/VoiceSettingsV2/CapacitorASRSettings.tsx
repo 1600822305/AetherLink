@@ -27,6 +27,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import type { VoiceRecognitionSettings } from '../../../shared/types/voice';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('CapacitorASRSettings');
 import Scrollbar from '../../../components/Scrollbar';
 
 const CapacitorASRSettings: React.FC = () => {
@@ -82,7 +85,7 @@ const CapacitorASRSettings: React.FC = () => {
           provider: 'capacitor',
         });
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'Capacitor ASR' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'Capacitor ASR' }), error);
       }
     };
 
@@ -106,7 +109,7 @@ const CapacitorASRSettings: React.FC = () => {
       }, 0);
 
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'Capacitor ASR' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'Capacitor ASR' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

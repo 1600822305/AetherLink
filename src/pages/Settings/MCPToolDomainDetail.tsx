@@ -33,6 +33,9 @@ import {
 import type { MCPServer, MCPTool } from '../../shared/types';
 import { mcpService } from '../../shared/services/mcp';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MCPToolDomainDetail');
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
 
@@ -100,7 +103,7 @@ const MCPToolDomainDetail: React.FC = () => {
             const filtered = allTools.filter(tool => inferDomain(tool.name) === domain);
             setDomainTools(filtered);
           } catch (error) {
-            console.error('加载工具列表失败', error);
+            logger.error('加载工具列表失败', error);
           }
         }
       }

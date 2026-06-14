@@ -57,6 +57,9 @@ import { MobileFileViewer } from '../../components/MobileFileViewer';
 import { unifiedFileManager } from '../../shared/services/files/UnifiedFileManagerService';
 import ApkInfoDialog from '../../components/ApkInfoDialog';
 import type { Workspace, WorkspaceFile } from '../../shared/types/workspace';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('WorkspaceDetail');
 import dayjs from 'dayjs';
 
 const WorkspaceDetail: React.FC = () => {
@@ -161,7 +164,7 @@ const WorkspaceDetail: React.FC = () => {
       setWorkspace(ws);
     } catch (err) {
       setError('加载工作区信息失败');
-      console.error('加载工作区失败:', err);
+      logger.error('加载工作区失败:', err);
     }
   };
 
@@ -180,7 +183,7 @@ const WorkspaceDetail: React.FC = () => {
       setParentPath(result.parentPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载文件列表失败');
-      console.error('加载文件失败:', err);
+      logger.error('加载文件失败:', err);
     } finally {
       setLoading(false);
     }
@@ -271,7 +274,7 @@ const WorkspaceDetail: React.FC = () => {
       }
     } catch (err) {
       setError('创建文件夹失败');
-      console.error('创建文件夹失败:', err);
+      logger.error('创建文件夹失败:', err);
     }
   };
 
@@ -295,7 +298,7 @@ const WorkspaceDetail: React.FC = () => {
       }
     } catch (err) {
       setError('创建文件失败');
-      console.error('创建文件失败:', err);
+      logger.error('创建文件失败:', err);
     }
   };
 
@@ -322,7 +325,7 @@ const WorkspaceDetail: React.FC = () => {
       }
     } catch (err) {
       setError('删除失败');
-      console.error('删除失败:', err);
+      logger.error('删除失败:', err);
     }
   };
 
@@ -340,7 +343,7 @@ const WorkspaceDetail: React.FC = () => {
       }
     } catch (err) {
       setError('重命名失败');
-      console.error('重命名失败:', err);
+      logger.error('重命名失败:', err);
     }
   };
 
@@ -360,7 +363,7 @@ const WorkspaceDetail: React.FC = () => {
       }
     } catch (err) {
       setError('搜索失败');
-      console.error('搜索失败:', err);
+      logger.error('搜索失败:', err);
     } finally {
       setIsSearching(false);
     }

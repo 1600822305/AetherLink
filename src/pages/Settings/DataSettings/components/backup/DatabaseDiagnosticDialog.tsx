@@ -33,6 +33,9 @@ import {
 import { cleanupOldDatabases, getDatabaseStatus, type DatabaseStatus } from '../../../../../shared/services/storage/storageService';
 import { TopicStatsService } from '../../../../../shared/services/topics/TopicStatsService';
 import { AssistantService } from '../../../../../shared/services';
+import { createLogger } from '../../../../../shared/services/infra/logger';
+
+const logger = createLogger('DatabaseDiagnosticDialog');
 import Dexie from 'dexie';
 import { toastManager } from '../../../../../components/EnhancedToast';
 
@@ -79,7 +82,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       const status = await getDatabaseStatus();
       setDiagnosticResult(status);
     } catch (err) {
-      console.error('数据库诊断失败:', err);
+      logger.error('数据库诊断失败:', err);
       setError('数据库诊断失败: ' + (err instanceof Error ? err.message : '未知错误'));
     } finally {
       setIsLoading(false);
@@ -104,7 +107,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       const status = await getDatabaseStatus();
       setDiagnosticResult(status);
     } catch (err) {
-      console.error('数据库修复失败:', err);
+      logger.error('数据库修复失败:', err);
       setError('数据库修复失败: ' + (err instanceof Error ? err.message : '未知错误'));
     } finally {
       setIsRepairing(false);
@@ -120,13 +123,13 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       // 清理无效话题
       const result = await TopicStatsService.cleanupInvalidTopics();
       setTopicCleanResult(result);
-      console.log(`清理完成: 已删除 ${result.removed} 个无效话题，剩余 ${result.total} 个话题`);
+      logger.debug(`清理完成: 已删除 ${result.removed} 个无效话题，剩余 ${result.total} 个话题`);
 
       // 重新获取数据库状态
       const status = await getDatabaseStatus();
       setDiagnosticResult(status);
     } catch (err) {
-      console.error('清理无效话题失败:', err);
+      logger.error('清理无效话题失败:', err);
       setError('清理无效话题失败: ' + (err instanceof Error ? err.message : '未知错误'));
     } finally {
       setIsCleaningTopics(false);
@@ -142,13 +145,13 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       // 修复所有助手的话题引用
       const result = await AssistantService.validateAndFixAllAssistantsTopicReferences();
       setReferenceFixResult(result);
-      console.log(`修复完成: 已修复 ${result.assistantsFixed} 个助手的话题引用，共移除 ${result.totalRemoved} 个无效引用`);
+      logger.debug(`修复完成: 已修复 ${result.assistantsFixed} 个助手的话题引用，共移除 ${result.totalRemoved} 个无效引用`);
 
       // 重新获取数据库状态
       const status = await getDatabaseStatus();
       setDiagnosticResult(status);
     } catch (err) {
-      console.error('修复助手话题引用失败:', err);
+      logger.error('修复助手话题引用失败:', err);
       setError('修复助手话题引用失败: ' + (err instanceof Error ? err.message : '未知错误'));
     } finally {
       setIsFixingReferences(false);
@@ -171,7 +174,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       // console.log('尝试删除 aetherlink-db-new 数据库');
       // 改用 Dexie.delete()
       await Dexie.delete('aetherlink-db-new');
-      console.log('已调用 Dexie.delete(\'aetherlink-db-new\')');
+      logger.debug('已调用 Dexie.delete(\'aetherlink-db-new\')');
 
       // 重新获取数据库状态，这将触发数据库重建
       const status = await getDatabaseStatus();
@@ -185,7 +188,7 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
 
       toastManager.success('数据库已重建。请重启应用以确保更改生效。', '重建成功');
     } catch (err) {
-      console.error('数据库重建失败:', err);
+      logger.error('数据库重建失败:', err);
       setError('数据库重建失败: ' + (err instanceof Error ? err.message : '未知错误'));
     } finally {
       setIsRepairing(false);

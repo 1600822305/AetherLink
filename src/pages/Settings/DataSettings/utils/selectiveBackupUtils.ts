@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('selectiveBackupUtils');
 import store from '../../../../shared/store';
 import { createAndShareBackupFile, prepareBasicBackupData } from './backupUtils';
 import type { ChatTopic } from '../../../../shared/types';
@@ -34,7 +36,7 @@ async function prepareModelConfigData(): Promise<ModelConfigData> {
     const settings = store.getState().settings as any;
     
     if (!settings) {
-      console.warn('未找到设置数据');
+      logger.warn('未找到设置数据');
       return {};
     }
 
@@ -52,7 +54,7 @@ async function prepareModelConfigData(): Promise<ModelConfigData> {
       modelConfigData.modelTypeRules = settings.modelTypeRules;
     }
 
-    console.log('模型配置数据准备完成:', {
+    logger.debug('模型配置数据准备完成:', {
       providersCount: modelConfigData.providers?.length || 0,
       modelsCount: modelConfigData.models?.length || 0,
       hasDefaultModel: !!modelConfigData.defaultModelId,
@@ -61,7 +63,7 @@ async function prepareModelConfigData(): Promise<ModelConfigData> {
 
     return modelConfigData;
   } catch (error) {
-    console.error('准备模型配置数据失败:', error);
+    logger.error('准备模型配置数据失败:', error);
     throw new Error('获取模型配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
@@ -72,12 +74,12 @@ async function prepareModelConfigData(): Promise<ModelConfigData> {
 async function prepareChatHistoryData(): Promise<ChatTopic[]> {
   try {
     const basicData = await prepareBasicBackupData();
-    console.log('聊天记录数据准备完成:', {
+    logger.debug('聊天记录数据准备完成:', {
       topicsCount: basicData.topics?.length || 0
     });
     return basicData.topics || [];
   } catch (error) {
-    console.error('准备聊天记录数据失败:', error);
+    logger.error('准备聊天记录数据失败:', error);
     throw new Error('获取聊天记录失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
@@ -88,12 +90,12 @@ async function prepareChatHistoryData(): Promise<ChatTopic[]> {
 async function prepareAssistantsData(): Promise<Assistant[]> {
   try {
     const basicData = await prepareBasicBackupData();
-    console.log('助手配置数据准备完成:', {
+    logger.debug('助手配置数据准备完成:', {
       assistantsCount: basicData.assistants?.length || 0
     });
     return basicData.assistants || [];
   } catch (error) {
-    console.error('准备助手配置数据失败:', error);
+    logger.error('准备助手配置数据失败:', error);
     throw new Error('获取助手配置失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
@@ -106,7 +108,7 @@ async function prepareUserSettingsData(): Promise<any> {
     const settings = store.getState().settings as any;
     
     if (!settings) {
-      console.warn('未找到用户设置数据');
+      logger.warn('未找到用户设置数据');
       return {};
     }
 
@@ -147,13 +149,13 @@ async function prepareUserSettingsData(): Promise<any> {
       }
     });
 
-    console.log('用户设置数据准备完成:', {
+    logger.debug('用户设置数据准备完成:', {
       settingsCount: Object.keys(userSettingsData).length
     });
 
     return userSettingsData;
   } catch (error) {
-    console.error('准备用户设置数据失败:', error);
+    logger.error('准备用户设置数据失败:', error);
     throw new Error('获取用户设置失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
@@ -178,25 +180,25 @@ export async function prepareSelectiveBackupData(options: SelectiveBackupOptions
   if (options.modelConfig) {
     const modelConfigData = await prepareModelConfigData();
     backupData.modelConfig = modelConfigData;
-    console.log('已添加模型配置数据');
+    logger.debug('已添加模型配置数据');
   }
 
   if (options.chatHistory) {
     const chatHistoryData = await prepareChatHistoryData();
     backupData.topics = chatHistoryData;
-    console.log('已添加聊天记录数据');
+    logger.debug('已添加聊天记录数据');
   }
 
   if (options.assistants) {
     const assistantsData = await prepareAssistantsData();
     backupData.assistants = assistantsData;
-    console.log('已添加助手配置数据');
+    logger.debug('已添加助手配置数据');
   }
 
   if (options.userSettings) {
     const userSettingsData = await prepareUserSettingsData();
     backupData.userSettings = userSettingsData;
-    console.log('已添加用户设置数据');
+    logger.debug('已添加用户设置数据');
   }
 
   return backupData;
@@ -250,7 +252,7 @@ export async function performSelectiveBackup(
       onBackupComplete
     );
   } catch (error) {
-    console.error('执行选择性备份失败:', error);
+    logger.error('执行选择性备份失败:', error);
     onError(error instanceof Error ? error : new Error('备份失败: 未知错误'));
   }
 }

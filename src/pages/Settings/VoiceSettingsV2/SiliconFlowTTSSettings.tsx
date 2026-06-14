@@ -27,6 +27,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('SiliconFlowTTSSettings');
 
 const SiliconFlowTTSSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -112,7 +115,7 @@ const SiliconFlowTTSSettings: React.FC = () => {
         const defaultTestText = t('settings.voice.siliconflow.testText');
         setTestText(defaultTestText);
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'SiliconFlow TTS' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'SiliconFlow TTS' }), error);
       }
     };
 
@@ -165,7 +168,7 @@ const SiliconFlowTTSSettings: React.FC = () => {
 
       return true;
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'SiliconFlow TTS' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'SiliconFlow TTS' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

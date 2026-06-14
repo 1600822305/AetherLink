@@ -1,3 +1,5 @@
+import { createLogger } from '../../../shared/services/infra/logger';
+const logger = createLogger('useVideoGeneration');
 import { useCallback } from 'react';
 import { newMessagesActions } from '../../../shared/store/slices/newMessagesSlice';
 import {
@@ -29,8 +31,8 @@ export const useVideoGeneration = (
   const handleVideoPrompt = useCallback(async (prompt: string, images?: SiliconFlowImageFormat[], files?: any[]) => {
     if (!currentTopic || !prompt.trim() || !selectedModel) return;
 
-    console.log(`[useVideoGeneration] 处理视频生成提示词: ${prompt}`);
-    console.log(`[useVideoGeneration] 使用模型: ${selectedModel.id}`);
+    logger.debug(`处理视频生成提示词: ${prompt}`);
+    logger.debug(`使用模型: ${selectedModel.id}`);
 
     // 检查模型是否支持视频生成
     const isVideoModel = selectedModel.modelTypes?.includes('video_gen') ||
@@ -55,7 +57,7 @@ export const useVideoGeneration = (
     await TopicService.saveMessageAndBlocks(userMessage, userBlocks);
 
     if (!isVideoModel) {
-      console.error(`[useVideoGeneration] 模型 ${selectedModel.name || selectedModel.id} 不支持视频生成`);
+      logger.error(`模型 ${selectedModel.name || selectedModel.id} 不支持视频生成`);
       // 创建错误消息
       const { message: errorMessage, blocks: errorBlocks } = createAssistantMessage({
         assistantId: currentTopic.assistantId,
@@ -99,7 +101,7 @@ export const useVideoGeneration = (
 
     try {
       // 调用视频生成API，但是我们需要拦截requestId
-      console.log('[useVideoGeneration] 开始调用视频生成API');
+      logger.debug('开始调用视频生成API');
 
       // 创建一个自定义的视频生成函数，支持多个提供商
       const generateVideoWithTaskSaving = async () => {
@@ -129,7 +131,7 @@ export const useVideoGeneration = (
           // 先提交请求获取操作名称
           const operationName = await submitVeoGeneration(selectedModel.apiKey, veoParams);
 
-          console.log('[useVideoGeneration] 获得Google Veo操作名称:', operationName);
+          logger.debug('获得Google Veo操作名称:', operationName);
 
           // 保存任务，使用操作名称作为requestId以支持恢复
           VideoTaskManager.saveTask({
@@ -163,7 +165,7 @@ export const useVideoGeneration = (
             }
           );
 
-          console.log('[useVideoGeneration] 获得requestId:', requestId);
+          logger.debug('获得requestId:', requestId);
 
           // 立即保存任务到本地存储，包含正确的requestId
           VideoTaskManager.saveTask({
@@ -229,7 +231,7 @@ export const useVideoGeneration = (
       VideoTaskManager.removeTask(taskId);
 
     } catch (error) {
-      console.error('[useVideoGeneration] 视频生成失败:', error);
+      logger.error('视频生成失败:', error);
 
       // 更新为错误消息
       if (mainTextBlock && mainTextBlock.id) {

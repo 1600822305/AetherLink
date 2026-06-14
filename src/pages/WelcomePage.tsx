@@ -10,6 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { setStorageItem } from '../shared/utils/storage';
 import { useTranslation } from '../i18n';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('WelcomePage');
 
 const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +30,7 @@ const WelcomePage: React.FC = () => {
       await setStorageItem('first-time-user', 'false');
       navigate('/chat');
     } catch (error) {
-      console.error(t('welcome.savingError'), error);
+      logger.error(t('welcome.savingError'), error);
       navigate('/chat');
     }
   }, [navigate, t]);

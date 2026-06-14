@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('backupUtils');
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { FileOpener } from '@capacitor-community/file-opener';
@@ -78,7 +80,7 @@ async function loadExtendedBackupData(
       extended.knowledgeBases = await dexieStorage.knowledge_bases.toArray();
       extended.knowledgeDocuments = await dexieStorage.knowledge_documents.toArray();
     } catch (error) {
-      console.error('备份知识库数据失败:', error);
+      logger.error('备份知识库数据失败:', error);
     }
   }
 
@@ -86,7 +88,7 @@ async function loadExtendedBackupData(
     try {
       extended.memories = await dexieStorage.memories.toArray();
     } catch (error) {
-      console.error('备份记忆数据失败:', error);
+      logger.error('备份记忆数据失败:', error);
     }
   }
 
@@ -94,7 +96,7 @@ async function loadExtendedBackupData(
     try {
       extended.quickPhrases = await dexieStorage.quick_phrases.toArray();
     } catch (error) {
-      console.error('备份快捷短语失败:', error);
+      logger.error('备份快捷短语失败:', error);
     }
   }
 
@@ -102,7 +104,7 @@ async function loadExtendedBackupData(
     try {
       extended.skills = await dexieStorage.skills.toArray();
     } catch (error) {
-      console.error('备份技能数据失败:', error);
+      logger.error('备份技能数据失败:', error);
     }
   }
 
@@ -111,7 +113,7 @@ async function loadExtendedBackupData(
       // files 记录内联了 base64Data，本身即包含文件内容
       extended.files = await dexieStorage.files.toArray();
     } catch (error) {
-      console.error('备份文件数据失败:', error);
+      logger.error('备份文件数据失败:', error);
     }
   }
 
@@ -126,7 +128,7 @@ async function loadExtendedBackupData(
       );
       extended.imageMetadata = await dexieStorage.imageMetadata.toArray();
     } catch (error) {
-      console.error('备份图片数据失败:', error);
+      logger.error('备份图片数据失败:', error);
     }
   }
 
@@ -167,14 +169,14 @@ export async function ensureBackupDirectory(): Promise<boolean> {
       // 忽略"目录已存在"错误，这是正常情况
       const errorMsg = error instanceof Error ? error.message : String(error);
       if (errorMsg.includes('Directory exists')) {
-        console.log('备份目录已存在，继续备份流程');
+        logger.debug('备份目录已存在，继续备份流程');
         return true;
       }
       throw error; // 其他错误则继续抛出
     }
     return true;
   } catch (error) {
-    console.error('创建备份目录失败:', error);
+    logger.error('创建备份目录失败:', error);
     return false;
   }
 }
@@ -190,7 +192,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
         await navigator.clipboard.writeText(text);
         return true;
       } catch (clipboardError) {
-        console.warn('使用navigator.clipboard复制失败，尝试备用方法:', clipboardError);
+        logger.warn('使用navigator.clipboard复制失败，尝试备用方法:', clipboardError);
         // 继续尝试其他方法
       }
     }
@@ -210,14 +212,14 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       document.body.removeChild(textarea);
       if (success) return true;
     } catch (execCommandError) {
-      console.warn('使用document.execCommand复制失败:', execCommandError);
+      logger.warn('使用document.execCommand复制失败:', execCommandError);
     }
 
     // 如果上述方法都失败，返回false
-    console.warn('所有剪贴板方法都失败');
+    logger.warn('所有剪贴板方法都失败');
     return false;
   } catch (error) {
-    console.error('复制到剪贴板操作失败:', error);
+    logger.error('复制到剪贴板操作失败:', error);
     return false;
   }
 }
@@ -244,7 +246,7 @@ export async function saveToDownloadDirectory(
       // 忽略"目录已存在"错误
       const errorMsg = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
       if (!errorMsg.includes('Directory exists')) {
-        console.error('创建下载目录失败:', mkdirError);
+        logger.error('创建下载目录失败:', mkdirError);
       }
     }
 
@@ -274,13 +276,13 @@ export async function saveToDownloadDirectory(
         const copied = await copyToClipboard(uriResult.uri);
         onSuccess(uriResult.uri, copied);
       } catch (openError) {
-        console.error('打开文件失败，但文件已保存:', openError);
+        logger.error('打开文件失败，但文件已保存:', openError);
 
         let copied = false;
         try {
           copied = await copyToClipboard(uriResult.uri);
         } catch (clipboardError) {
-          console.error('复制到剪贴板失败:', clipboardError);
+          logger.error('复制到剪贴板失败:', clipboardError);
         }
 
         // 即使FileOpener失败，仍然提示成功，但告知用户手动查找文件
@@ -293,7 +295,7 @@ export async function saveToDownloadDirectory(
       onSuccess();
     }
   } catch (error) {
-    console.error('保存到下载目录失败:', error);
+    logger.error('保存到下载目录失败:', error);
 
     // 回退到保存到内部存储根目录
     try {
@@ -314,14 +316,14 @@ export async function saveToDownloadDirectory(
         try {
           copied = await copyToClipboard(uriResult.uri);
         } catch (clipboardError) {
-          console.error('复制到剪贴板失败:', clipboardError);
+          logger.error('复制到剪贴板失败:', clipboardError);
         }
         onSuccess(uriResult.uri, copied);
       } else {
         onSuccess();
       }
     } catch (fallbackError) {
-      console.error('保存到内部存储根目录也失败:', fallbackError);
+      logger.error('保存到内部存储根目录也失败:', fallbackError);
       onError(fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
     }
   }
@@ -360,7 +362,7 @@ export async function getLocalStorageItems(excludeKeys: string[] = []): Promise<
 
     return result;
   } catch (error) {
-    console.error('获取所有localStorage项失败:', error);
+    logger.error('获取所有localStorage项失败:', error);
     return {};
   }
 }
@@ -381,15 +383,15 @@ export async function prepareBasicBackupData(): Promise<{
 }> {
   try {
     // 获取话题数据
-    console.log('开始获取话题数据...');
+    logger.debug('开始获取话题数据...');
     const topics = await dexieStorage.getAllTopics();
-    console.log(`获取到 ${topics.length} 个话题`);
+    logger.debug(`获取到 ${topics.length} 个话题`);
 
     // 为每个话题加载完整的消息数据
-    console.log('开始加载话题的完整消息数据...');
+    logger.debug('开始加载话题的完整消息数据...');
     for (const topic of topics) {
       if (topic.messageIds && topic.messageIds.length > 0) {
-        console.log(`加载话题 ${topic.id} 的 ${topic.messageIds.length} 条消息...`);
+        logger.debug(`加载话题 ${topic.id} 的 ${topic.messageIds.length} 条消息...`);
         
         // 从messages表加载消息
         const messages = await Promise.all(
@@ -397,7 +399,7 @@ export async function prepareBasicBackupData(): Promise<{
             try {
               return await dexieStorage.getMessage(id);
             } catch (error) {
-              console.error(`加载消息 ${id} 失败:`, error);
+              logger.error(`加载消息 ${id} 失败:`, error);
               return null;
             }
           })
@@ -416,27 +418,27 @@ export async function prepareBasicBackupData(): Promise<{
                 : await dexieStorage.getMessageBlocksByMessageId(message.id);
               (message as any).blocks = blocks;
             } catch (error) {
-              console.error(`加载消息 ${message.id} 的块失败:`, error);
+              logger.error(`加载消息 ${message.id} 的块失败:`, error);
             }
           }
         }
         
-        console.log(`话题 ${topic.id} 加载了 ${topic.messages.length} 条完整消息`);
+        logger.debug(`话题 ${topic.id} 加载了 ${topic.messages.length} 条完整消息`);
       } else {
         // 没有消息的话题，确保messages字段为空数组
         topic.messages = [];
       }
     }
-    console.log('所有话题的消息数据加载完成');
+    logger.debug('所有话题的消息数据加载完成');
 
     // 获取助手数据
-    console.log('开始获取助手数据...');
+    logger.debug('开始获取助手数据...');
     const assistants = await dexieStorage.getAllAssistants();
-    console.log(`获取到 ${assistants.length} 个助手`);
+    logger.debug(`获取到 ${assistants.length} 个助手`);
 
     // 处理话题数据 - 确保数据一致性
     const processedTopics = processTopics(topics);
-    console.log(`处理后话题数量: ${processedTopics.length}`);
+    logger.debug(`处理后话题数量: ${processedTopics.length}`);
 
     // 构建备份数据
     const backupData = {
@@ -452,7 +454,7 @@ export async function prepareBasicBackupData(): Promise<{
 
     return backupData;
   } catch (error) {
-    console.error('准备备份数据时出错:', error);
+    logger.error('准备备份数据时出错:', error);
 
     // 即使出错也返回空的备份结构
     return {
@@ -553,7 +555,7 @@ export async function prepareFullBackupData(
 
     return fullBackupData;
   } catch (error) {
-    console.error('准备完整备份数据时出错:', error);
+    logger.error('准备完整备份数据时出错:', error);
 
     // 创建基础备份数据
     const basicData = await prepareBasicBackupData();
@@ -612,7 +614,7 @@ async function downloadBackupFileForWeb(
       }, 500);
     }
   } catch (error) {
-    console.error('Web端下载失败:', error);
+    logger.error('Web端下载失败:', error);
     onError(error instanceof Error ? error : new Error('下载失败'));
   }
 }
@@ -634,7 +636,7 @@ export async function createAndShareBackupFile(
 
   // 移动端使用原有的分享逻辑
   try {
-    console.log(`开始创建备份文件: ${fileName}`);
+    logger.debug(`开始创建备份文件: ${fileName}`);
     const jsonString = JSON.stringify(jsonData, null, 2); // 使用格式化的JSON便于调试
     const tempPath = fileName;
 
@@ -645,7 +647,7 @@ export async function createAndShareBackupFile(
       directory: Directory.Cache,
       encoding: Encoding.UTF8
     });
-    console.log('已创建临时备份文件');
+    logger.debug('已创建临时备份文件');
 
     // 获取临时文件URI
     const tempFileResult = await Filesystem.getUri({
@@ -654,7 +656,7 @@ export async function createAndShareBackupFile(
     });
 
     if (tempFileResult && tempFileResult.uri) {
-      console.log(`临时文件URI: ${tempFileResult.uri}`);
+      logger.debug(`临时文件URI: ${tempFileResult.uri}`);
       try {
         // 使用Share API调用系统的分享功能，确保提示用户选择位置
         await Share.share({
@@ -663,7 +665,7 @@ export async function createAndShareBackupFile(
           url: tempFileResult.uri,
           dialogTitle: '选择保存位置'
         });
-        console.log('系统分享对话框已显示');
+        logger.debug('系统分享对话框已显示');
 
         // 备份完成后，通知调用者刷新文件列表
         if (onBackupComplete) {
@@ -675,12 +677,12 @@ export async function createAndShareBackupFile(
         onSuccess('请在系统分享菜单中选择"保存到设备"或文件管理器应用');
       } catch (shareError) {
         // 分享可能被用户取消或失败
-        console.error('分享文件失败:', shareError);
+        logger.error('分享文件失败:', shareError);
         const errorMsg = shareError instanceof Error ? shareError.message : String(shareError);
 
         // 如果是用户取消分享，不要视为错误，直接尝试其他方法
         if (errorMsg.includes('canceled') || errorMsg.includes('cancelled')) {
-          console.log('用户取消了分享，尝试备用方法');
+          logger.debug('用户取消了分享，尝试备用方法');
 
           // 备份完成后，仍然通知调用者刷新文件列表
           if (onBackupComplete) {
@@ -697,7 +699,7 @@ export async function createAndShareBackupFile(
             filePath: tempFileResult.uri,
             contentType: 'application/json'
           });
-          console.log('已使用文件打开器打开文件');
+          logger.debug('已使用文件打开器打开文件');
 
           // 备份完成后，通知调用者刷新文件列表
           if (onBackupComplete) {
@@ -708,7 +710,7 @@ export async function createAndShareBackupFile(
 
           onSuccess('文件已打开，请使用"另存为"保存到您想要的位置');
         } catch (openError) {
-          console.error('打开文件失败:', openError);
+          logger.error('打开文件失败:', openError);
           // 回退到保存到下载目录
           await saveToDownloadDirectory(
             fileName,
@@ -732,7 +734,7 @@ export async function createAndShareBackupFile(
         }
       }
     } else {
-      console.warn('无法获取临时文件URI，尝试直接保存到下载目录');
+      logger.warn('无法获取临时文件URI，尝试直接保存到下载目录');
       // 无法获取临时文件URI，回退到下载目录
       await saveToDownloadDirectory(
         fileName,
@@ -755,7 +757,7 @@ export async function createAndShareBackupFile(
       );
     }
   } catch (error) {
-    console.error('创建备份文件失败:', error);
+    logger.error('创建备份文件失败:', error);
     onError(error instanceof Error ? error : new Error(String(error)));
   }
 }
@@ -800,7 +802,7 @@ export async function getBackupFilesList(): Promise<{name: string, path: string,
             ctime: stat.ctime || Date.now()
           };
         } catch (error) {
-          console.error(`获取文件 ${file.name} 详情失败:`, error);
+          logger.error(`获取文件 ${file.name} 详情失败:`, error);
           return {
             name: file.name,
             path: `${downloadDir}/${file.name}`,
@@ -816,11 +818,11 @@ export async function getBackupFilesList(): Promise<{name: string, path: string,
       return fileDetails.sort((a, b) => b.ctime - a.ctime);
     } catch (error) {
       // 目录可能不存在
-      console.warn('读取备份目录失败，可能是目录不存在:', error);
+      logger.warn('读取备份目录失败，可能是目录不存在:', error);
       return [];
     }
   } catch (error) {
-    console.error('获取备份文件列表失败:', error);
+    logger.error('获取备份文件列表失败:', error);
     return [];
   }
 }

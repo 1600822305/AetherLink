@@ -6,6 +6,9 @@ import { selectProviders } from '../../../shared/store/selectors/settingsSelecto
 import { SolidBridge } from '../../../shared/bridges/SolidBridge';
 import { DialogModelSelector as SolidDialogModelSelector } from '../../../solid/components/ModelSelector/DialogModelSelector.solid';
 import DropdownModelSelector from './DropdownModelSelector';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ModelSelector');
 
 // 定义组件props类型
 interface ModelSelectorProps {
@@ -53,7 +56,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = (props) => {
       debugName="DialogModelSelector"
       debug={process.env.NODE_ENV === 'development'}
       onError={(error) => {
-        console.error('[ModelSelector] SolidJS 组件错误:', error);
+        logger.error('SolidJS 组件错误:', error);
       }}
     />
   );

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { LinearProgress, Typography, Box, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 import BackButtonDialog from '../../../../../components/common/BackButtonDialog';
 import { useTranslation } from '../../../../../i18n';
+import { createLogger } from '../../../../../shared/services/infra/logger';
+
+const logger = createLogger('BackupRestorePanel');
 import {
   Save,
   Folder,
@@ -95,7 +98,7 @@ const BackupRestorePanel: React.FC = () => {
           await webdavService.initialize(config);
         }
       } catch (error) {
-        console.error('加载 WebDAV 配置失败:', error);
+        logger.error('加载 WebDAV 配置失败:', error);
       }
     };
 
@@ -145,7 +148,7 @@ const BackupRestorePanel: React.FC = () => {
         refreshBackupFilesList // 添加备份完成后的回调
       );
     } catch (error) {
-      console.error('创建备份失败:', error);
+      logger.error('创建备份失败:', error);
       showMessage(t('dataSettings.messages.backupFailed') + ': ' + (error instanceof Error ? error.message : t('dataSettings.errors.unknown')), 'error');
     } finally {
       setIsLoading(false);
@@ -173,7 +176,7 @@ const BackupRestorePanel: React.FC = () => {
         refreshBackupFilesList // 添加备份完成后的回调
       );
     } catch (error) {
-      console.error('创建自定义位置备份失败:', error);
+      logger.error('创建自定义位置备份失败:', error);
       showMessage(t('dataSettings.messages.backupFailed') + ': ' + (error instanceof Error ? error.message : t('dataSettings.errors.unknown')), 'error');
     } finally {
       setIsLoading(false);
@@ -211,7 +214,7 @@ const BackupRestorePanel: React.FC = () => {
         (error) => showMessage(t('dataSettings.messages.selectiveBackupFailed') + ': ' + error.message, 'error')
       );
     } catch (error) {
-      console.error('创建选择性备份失败:', error);
+      logger.error('创建选择性备份失败:', error);
       showMessage(t('dataSettings.messages.backupFailed') + ': ' + (error instanceof Error ? error.message : t('dataSettings.errors.unknown')), 'error');
     } finally {
       setIsLoading(false);
@@ -247,7 +250,7 @@ const BackupRestorePanel: React.FC = () => {
       showMessage(t('dataSettings.dataManagement.clearAll.success'), 'success');
       refreshBackupFilesList(); // 刷新备份文件列表
     } catch (error) {
-      console.error('确认清理所有数据时出错:', error);
+      logger.error('确认清理所有数据时出错:', error);
       showMessage(t('dataSettings.messages.clearFailed') + ': ' + (error instanceof Error ? error.message : String(error)), 'error');
     } finally {
       setIsLoading(false);

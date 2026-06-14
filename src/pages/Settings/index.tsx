@@ -37,6 +37,9 @@ import { CustomIcon } from '../../components/icons/CustomIcon';
 import useScrollPosition from '../../hooks/useScrollPosition';
 import { useSwipeGesture } from '../../hooks/useSwipeGesture';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SettingsPage');
 
 // 精简模式存储键
 const COMPACT_MODE_KEY = 'settings-compact-mode';
@@ -62,7 +65,7 @@ const SettingsPage: React.FC = () => {
       try {
         localStorage.setItem(COMPACT_MODE_KEY, String(newValue));
       } catch (error) {
-        console.error('Failed to save compact mode preference:', error);
+        logger.error('Failed to save compact mode preference:', error);
       }
       return newValue;
     });
@@ -88,7 +91,7 @@ const SettingsPage: React.FC = () => {
         }
       });
     } catch (error) {
-      console.error(t('settings.scrollCacheError'), error);
+      logger.error(t('settings.scrollCacheError'), error);
     }
 
     navigate('/chat');

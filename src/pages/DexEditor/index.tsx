@@ -44,6 +44,9 @@ import {
 } from '../../components/settings/SettingComponents';
 import { useBackButton } from '../../shared/hooks/useBackButton';
 import NativeSmaliEditor from '../../components/SmaliEditor/NativeSmaliEditor';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('DexEditor');
 
 interface DexClassItem {
   name: string;
@@ -181,7 +184,7 @@ const DexEditor: React.FC = () => {
         setClassTree(tree);
       }
     } catch (err) {
-      console.error('Failed to load DEX classes:', err);
+      logger.error('Failed to load DEX classes:', err);
     } finally {
       setLoading(false);
     }
@@ -280,7 +283,7 @@ const DexEditor: React.FC = () => {
           setSmaliContent(`# 无法加载类 ${item.fullName} 的 Smali 代码\n# 错误: ${result.error || '未知错误'}`);
         }
       } catch (err) {
-        console.error('Failed to load smali:', err);
+        logger.error('Failed to load smali:', err);
         setSmaliContent(`# 加载失败\n# ${err}`);
       } finally {
         setSmaliLoading(false);
@@ -306,7 +309,7 @@ const DexEditor: React.FC = () => {
     
     try {
       for (const [className, smaliContent] of Object.entries(modifiedClasses)) {
-        console.log('[DexEditor] Compiling:', className);
+        logger.debug('Compiling:', className);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await (DexEditorPlugin as any).execute({
           action: 'saveClassSmali',
@@ -342,7 +345,7 @@ const DexEditor: React.FC = () => {
           }
         } catch (signErr) {
           setCompileProgress(prev => ({ ...prev, open: false }));
-          console.error('[DexEditor] Sign error:', signErr);
+          logger.error('Sign error:', signErr);
           alert('编译成功！APK 已更新\n\n自动签名出错，请手动签名');
         }
       } else {
@@ -351,7 +354,7 @@ const DexEditor: React.FC = () => {
       }
     } catch (err) {
       setCompileProgress(prev => ({ ...prev, open: false }));
-      console.error('[DexEditor] Compile error:', err);
+      logger.error('Compile error:', err);
       alert('编译出错: ' + err);
     }
   };
@@ -361,7 +364,7 @@ const DexEditor: React.FC = () => {
     
     setIsSearching(true);
     try {
-      console.log('[DexEditor] Search params:', { apkPath, dexPath, query: searchQuery, searchType });
+      logger.debug('Search params:', { apkPath, dexPath, query: searchQuery, searchType });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (DexEditorPlugin as any).execute({
         action: 'searchInDex',
@@ -375,14 +378,14 @@ const DexEditor: React.FC = () => {
         }
       });
 
-      console.log('[DexEditor] Search result:', result);
+      logger.debug('Search result:', result);
       if (result.success && result.data) {
         setSearchResults(result.data.results || []);
       } else {
-        console.error('[DexEditor] Search failed:', result.error);
+        logger.error('Search failed:', result.error);
       }
     } catch (err) {
-      console.error('[DexEditor] Search exception:', err);
+      logger.error('Search exception:', err);
     } finally {
       setIsSearching(false);
     }
@@ -401,7 +404,7 @@ const DexEditor: React.FC = () => {
         setStrings(result.data.strings || []);
       }
     } catch (err) {
-      console.error('Failed to load strings:', err);
+      logger.error('Failed to load strings:', err);
     } finally {
       setStringsLoading(false);
     }
@@ -885,7 +888,7 @@ const DexEditor: React.FC = () => {
             ...prev,
             [smaliClassName]: newContent
           }));
-          console.log('[DexEditor] Smali saved to memory:', smaliClassName);
+          logger.debug('Smali saved to memory:', smaliClassName);
         }}
       />
 

@@ -64,6 +64,9 @@ import { DialogModelSelector as SolidDialogModelSelector } from '../../solid/com
 import type { Model } from '../../shared/types';
 import { getModelOrProviderIcon } from '../../shared/utils/providerIcons';
 import { ImageUploadService } from '../../shared/services/files/ImageUploadService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('TranslatePage');
 
 // 提取到组件外部，避免每次渲染都重新创建
 const LanguageSelector = React.memo(({ value, onChange, showAuto = false }: {
@@ -151,7 +154,7 @@ const TranslatePage: React.FC = () => {
         return JSON.parse(savedModel);
       }
     } catch (e) {
-      console.error('[TranslatePage] 读取保存的模型失败:', e);
+      logger.error('读取保存的模型失败:', e);
     }
     // 如果没有保存的模型，使用默认翻译模型
     return getTranslateModel();
@@ -178,7 +181,7 @@ const TranslatePage: React.FC = () => {
     try {
       localStorage.setItem('translate_selected_model', JSON.stringify(model));
     } catch (e) {
-      console.error('[TranslatePage] 保存模型失败:', e);
+      logger.error('保存模型失败:', e);
     }
   }, []);
 
@@ -221,7 +224,7 @@ const TranslatePage: React.FC = () => {
       setHistories(await getTranslateHistories());
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
-        console.error('Translation failed:', error);
+        logger.error('Translation failed:', error);
         setTranslatedText(`翻译失败: ${(error as Error).message}`);
       }
     } finally {
@@ -296,7 +299,7 @@ const TranslatePage: React.FC = () => {
           await saveTranslateHistory(text, result, sourceLang, targetLanguage);
           setHistories(await getTranslateHistories());
         } catch (translateError) {
-          console.error('Translation failed:', translateError);
+          logger.error('Translation failed:', translateError);
           setTranslatedText(`翻译失败: ${(translateError as Error).message}`);
         } finally {
           setIsTranslating(false);
@@ -306,7 +309,7 @@ const TranslatePage: React.FC = () => {
         setIsOcrProcessing(false);
       }
     } catch (error) {
-      console.error('OCR failed:', error);
+      logger.error('OCR failed:', error);
       alert(`图片识别失败: ${(error as Error).message}`);
       setIsOcrProcessing(false);
     }
@@ -320,7 +323,7 @@ const TranslatePage: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Copy failed:', error);
+      logger.error('Copy failed:', error);
     }
   }, [translatedText]);
 

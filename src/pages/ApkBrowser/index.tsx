@@ -27,6 +27,9 @@ import {
   HeaderBar
 } from '../../components/settings/SettingComponents';
 import { useBackButton } from '../../shared/hooks/useBackButton';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ApkBrowser');
 
 interface ApkFileItem {
   name: string;
@@ -78,7 +81,7 @@ const ApkBrowser: React.FC = () => {
         setFileCount(result.data.fileCount || 0);
       }
     } catch (err) {
-      console.error('Failed to load APK directory:', err);
+      logger.error('Failed to load APK directory:', err);
     } finally {
       setLoading(false);
     }
@@ -150,16 +153,16 @@ const ApkBrowser: React.FC = () => {
             });
             
             if (saveResult.success) {
-              console.log('[ApkBrowser] XML saved successfully:', item.path);
+              logger.debug('XML saved successfully:', item.path);
             } else {
-              console.error('[ApkBrowser] Failed to save XML:', saveResult.error);
+              logger.error('Failed to save XML:', saveResult.error);
             }
           }
         } else {
-          console.error('[ApkBrowser] Failed to read XML:', readResult.error);
+          logger.error('Failed to read XML:', readResult.error);
         }
       } catch (err) {
-        console.error('[ApkBrowser] Error opening XML editor:', err);
+        logger.error('Error opening XML editor:', err);
       } finally {
         setLoading(false);
       }
@@ -167,7 +170,7 @@ const ApkBrowser: React.FC = () => {
     }
     
     // 其他文件类型暂不处理
-    console.log('File clicked:', item.name);
+    logger.debug('File clicked:', item.name);
   };
 
   const formatFileSize = (bytes?: number): string => {

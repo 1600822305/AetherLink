@@ -13,6 +13,9 @@ import { simpleNoteService } from '../../shared/services/notes/SimpleNoteService
 import { toastManager } from '../../components/EnhancedToast';
 import { NoteEditorView } from '../../components/NoteEditor';
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('NoteEditor');
 
 const NoteEditor: React.FC = () => {
   const navigate = useNavigate();
@@ -56,7 +59,7 @@ const NoteEditor: React.FC = () => {
       originalContentRef.current = fileContent;
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('读取文件失败:', error);
+      logger.error('读取文件失败:', error);
       toastManager.error('读取文件失败', '错误');
       navigate(getBackPath());
     } finally {
@@ -75,7 +78,7 @@ const NoteEditor: React.FC = () => {
       setHasUnsavedChanges(false);
       toastManager.success('保存成功', '成功');
     } catch (error) {
-      console.error('保存失败:', error);
+      logger.error('保存失败:', error);
       toastManager.error('保存失败', '错误');
     } finally {
       setSaving(false);

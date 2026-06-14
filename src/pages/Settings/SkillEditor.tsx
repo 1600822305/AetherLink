@@ -42,6 +42,9 @@ import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 import { toastManager } from '../../components/EnhancedToast';
 import AssistantIconPicker from '../../components/TopicManagement/AssistantTab/AssistantIconPicker';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SkillEditor');
 
 // ========================================================================
 // 主组件
@@ -121,7 +124,7 @@ const SkillEditor: React.FC = () => {
         toastManager.error(t('settings.skillsSettings.editor.saveFailed'));
       }
     } catch (error) {
-      console.error('[SkillEditor] 保存失败:', error);
+      logger.error('保存失败:', error);
       toastManager.error(t('settings.skillsSettings.editor.saveFailed'));
     } finally {
       setSaving(false);

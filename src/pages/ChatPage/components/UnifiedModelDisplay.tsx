@@ -4,6 +4,9 @@ import { Bot } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import type { Model } from '../../../shared/types';
 import { selectProviders } from '../../../shared/store/selectors/settingsSelectors';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('UnifiedModelDisplay');
 
 interface UnifiedModelDisplayProps {
   selectedModel: Model | null;
@@ -17,7 +20,7 @@ const validateDisplayStyle = (style: unknown): 'icon' | 'text' => {
     return style;
   }
   // 修复损坏的数据：返回默认值
-  console.warn(`[UnifiedModelDisplay] 无效的 displayStyle 值: "${style}", 使用默认值 "icon"`);
+  logger.warn(`无效的 displayStyle 值: "${style}", 使用默认值 "icon"`);
   return 'icon';
 };
 

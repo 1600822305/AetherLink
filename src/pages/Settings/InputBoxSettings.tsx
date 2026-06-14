@@ -22,6 +22,9 @@ import { IntegratedChatInput } from '../../components/input';
 import { useTranslation } from '../../i18n';
 import { SafeAreaContainer, CARD_STYLES } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('InputBoxSettings');
 
 // 输入框预览组件 - 模仿真实聊天页面布局
 const InputBoxPreview: React.FC<{
@@ -31,7 +34,7 @@ const InputBoxPreview: React.FC<{
 
   // 通用预览阻止函数
   const preventAction = (actionName: string) => () => {
-    console.log(`预览模式：阻止${actionName}`);
+    logger.debug(`预览模式：阻止${actionName}`);
   };
 
   // 预览用的空函数

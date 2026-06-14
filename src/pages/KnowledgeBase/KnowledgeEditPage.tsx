@@ -24,6 +24,9 @@ import type { SelectChangeEvent } from '@mui/material';
 import { ChevronDown as ExpandMoreIcon, ChevronUp as ExpandLessIcon, Save, RotateCcw } from 'lucide-react';
 import { getAvailableEmbeddingModels, getModelDimensions } from '../../shared/services/knowledge/MobileEmbeddingService';
 import { MobileEmbeddingService } from '../../shared/services/knowledge/MobileEmbeddingService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeEditPage');
 import {
   DEFAULT_KNOWLEDGE_DOCUMENT_COUNT,
   DEFAULT_DIMENSIONS,
@@ -99,7 +102,7 @@ const KnowledgeEditPage: React.FC = () => {
           navigate(-1);
         }
       } catch (error) {
-        console.error('加载知识库失败:', error);
+        logger.error('加载知识库失败:', error);
         toastManager.error('加载知识库失败', '加载失败');
         navigate(-1);
       } finally {
@@ -157,7 +160,7 @@ const KnowledgeEditPage: React.FC = () => {
       const embeddingService = MobileEmbeddingService.getInstance();
       dimensions = await embeddingService.getEmbeddingDimensions(modelId);
     } catch (error) {
-      console.error('获取模型维度失败:', error);
+      logger.error('获取模型维度失败:', error);
       dimensions = getModelDimensions(modelId);
     }
 
@@ -205,7 +208,7 @@ const KnowledgeEditPage: React.FC = () => {
         navigate(`/knowledge/${createdKB.id}`, { replace: true });
       }
     } catch (error) {
-      console.error('保存知识库失败:', error);
+      logger.error('保存知识库失败:', error);
       setSubmitError(error instanceof Error ? error.message : '保存知识库失败，请稍后再试');
     } finally {
       setIsSubmitting(false);

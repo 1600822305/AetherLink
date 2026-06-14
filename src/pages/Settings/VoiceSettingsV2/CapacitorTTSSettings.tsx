@@ -23,6 +23,9 @@ import { useTranslation } from '../../../i18n';
 import { cssVar } from '../../../shared/utils/cssVariables';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('CapacitorTTSSettings');
 
 const CapacitorTTSSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -84,7 +87,7 @@ const CapacitorTTSSettings: React.FC = () => {
           volume: storedVolume
         } as Partial<CapacitorTTSConfig>);
       } catch (error) {
-        console.error('加载Capacitor TTS设置失败:', error);
+        logger.error('加载Capacitor TTS设置失败:', error);
       }
     };
 
@@ -121,7 +124,7 @@ const CapacitorTTSSettings: React.FC = () => {
 
       navigate('/settings/voice');
     } catch (error) {
-      console.error('保存Capacitor TTS设置失败:', error);
+      logger.error('保存Capacitor TTS设置失败:', error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

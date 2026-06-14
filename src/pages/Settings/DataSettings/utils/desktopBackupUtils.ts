@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('desktopBackupUtils');
 // 处理备份数据的工具函数
 import { v4 as uuidv4 } from 'uuid';
 import type { ChatTopic } from '../../../../shared/types';
@@ -45,9 +47,9 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
   messageBlocks?: MessageBlock[];
 }> {
   try {
-    console.log('开始转换 Cherry Studio 备份数据...');
-    console.log('备份版本:', backupData.version);
-    console.log('备份时间:', new Date(backupData.time).toLocaleString());
+    logger.debug('开始转换 Cherry Studio 备份数据...');
+    logger.debug('备份版本:', backupData.version);
+    logger.debug('备份时间:', new Date(backupData.time).toLocaleString());
 
     // 统计原始数据
     const originalStats = {
@@ -56,7 +58,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
       messageBlocks: backupData.indexedDB.message_blocks?.length || 0,
       settings: backupData.indexedDB.settings?.length || 0
     };
-    console.log('原始数据统计:', originalStats);
+    logger.debug('原始数据统计:', originalStats);
 
     const result = {
       topics: [] as ChatTopic[],
@@ -68,14 +70,14 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
     // 获取消息块数据，用于后续内容提取
     const messageBlocks = backupData.indexedDB.message_blocks || [];
     result.messageBlocks = messageBlocks;
-    console.log(`处理 ${messageBlocks.length} 个消息块`);
+    logger.debug(`处理 ${messageBlocks.length} 个消息块`);
 
     // 创建助手ID映射表
     const assistantMap = new Map<string, Assistant>();
 
     // 0. 首先处理助手数据
     if (backupData.indexedDB.assistants) {
-      console.log(`发现 ${backupData.indexedDB.assistants.length} 个助手`);
+      logger.debug(`发现 ${backupData.indexedDB.assistants.length} 个助手`);
       for (const desktopAssistant of backupData.indexedDB.assistants) {
         if (desktopAssistant.id) {
           const mobileAssistant: Assistant = {
@@ -89,7 +91,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
             topics: []
           };
           assistantMap.set(desktopAssistant.id, mobileAssistant);
-          console.log(`添加助手: ${mobileAssistant.name} (${mobileAssistant.id})`);
+          logger.debug(`添加助手: ${mobileAssistant.name} (${mobileAssistant.id})`);
         }
       }
     }
@@ -101,7 +103,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
         if (persistData.assistants) {
           const assistantsData = JSON.parse(persistData.assistants);
           if (Array.isArray(assistantsData)) {
-            console.log(`从 localStorage 发现 ${assistantsData.length} 个助手`);
+            logger.debug(`从 localStorage 发现 ${assistantsData.length} 个助手`);
             for (const assistant of assistantsData) {
               if (assistant.id && !assistantMap.has(assistant.id)) {
                 const mobileAssistant: Assistant = {
@@ -115,13 +117,13 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
                   topics: []
                 };
                 assistantMap.set(assistant.id, mobileAssistant);
-                console.log(`从 localStorage 添加助手: ${mobileAssistant.name} (${mobileAssistant.id})`);
+                logger.debug(`从 localStorage 添加助手: ${mobileAssistant.name} (${mobileAssistant.id})`);
               }
             }
           }
         }
       } catch (error) {
-        console.warn('解析 localStorage 中的助手数据失败:', error);
+        logger.warn('解析 localStorage 中的助手数据失败:', error);
       }
     }
 
@@ -137,7 +139,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
         // 优先使用话题自身的名称
         if ((desktopTopic as any).name) {
           topicName = (desktopTopic as any).name;
-          console.log(`使用话题原始名称: ${topicName}`);
+          logger.debug(`使用话题原始名称: ${topicName}`);
         }
 
         if (desktopTopic.messages && desktopTopic.messages.length > 0) {
@@ -184,7 +186,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
                 } else if (block && typeof block === 'object' && block.id) {
                   return block.id;
                 } else {
-                  console.warn('消息块格式异常，生成新ID:', block);
+                  logger.warn('消息块格式异常，生成新ID:', block);
                   return uuidv4();
                 }
               }).filter(Boolean); // 过滤掉空值
@@ -238,7 +240,7 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
                 description = `从 Cherry Studio 导入的助手 (使用模型: ${desktopMessage.modelId})`;
               }
 
-              console.log(`创建缺失的助手: ${assistantName} (${msgAssistantId})`);
+              logger.debug(`创建缺失的助手: ${assistantName} (${msgAssistantId})`);
               assistantMap.set(msgAssistantId, {
                 id: msgAssistantId,
                 name: assistantName,
@@ -310,12 +312,12 @@ export async function convertDesktopBackup(backupData: DesktopBackupData): Promi
       messageBlocks: result.messageBlocks?.length || 0,
       hasSettings: !!result.settings
     };
-    console.log('转换结果统计:', convertedStats);
-    console.log('Cherry Studio 备份转换完成');
+    logger.debug('转换结果统计:', convertedStats);
+    logger.debug('Cherry Studio 备份转换完成');
 
     return result;
   } catch (error) {
-    console.error('转换备份数据失败:', error);
+    logger.error('转换备份数据失败:', error);
     throw new Error('转换备份数据失败: ' + (error instanceof Error ? error.message : '未知错误'));
   }
 }
@@ -420,7 +422,7 @@ export function extractMessageContent(
 
     return content.trim() || message.content || '';
   } catch (error) {
-    console.error('提取消息内容失败:', error);
+    logger.error('提取消息内容失败:', error);
     return message.content || '';
   }
 }
@@ -450,7 +452,7 @@ export function extractTopicNameFromMessages(
 
     return '导入的对话';
   } catch (error) {
-    console.error('提取话题名称失败:', error);
+    logger.error('提取话题名称失败:', error);
     return '导入的对话';
   }
 }

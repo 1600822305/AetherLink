@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('webdavAutoSync');
 import { WebDavBackupService } from '../../../../shared/services/storage/WebDavBackupService';
 import { getWebDavConfig } from '../../../../shared/utils/webdavUtils';
 import { prepareFullBackupData } from './backupUtils';
@@ -33,6 +35,6 @@ export async function initWebDavAutoSync(): Promise<void> {
 
     await WebDavBackupService.getInstance().resumeAutoSyncIfEnabled(config);
   } catch (error) {
-    console.error('[WebDAV] 初始化自动同步失败:', error);
+    logger.error('初始化自动同步失败:', error);
   }
 }

@@ -32,6 +32,9 @@ import { MobileEmbeddingService } from '../../shared/services/knowledge/MobileEm
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import type { KnowledgeBase, KnowledgeDocument } from '../../shared/types/KnowledgeBase';
 import { v4 as uuid } from 'uuid';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('DocumentChunkView');
 
 // 格式化字节大小
 const formatFileSize = (bytes: number): string => {
@@ -267,7 +270,7 @@ const DocumentChunkView: React.FC = () => {
           .sort((a, b) => (a.metadata.chunkIndex || 0) - (b.metadata.chunkIndex || 0));
         setDocs(filtered);
       } catch (err) {
-        console.error('加载文档块失败:', err);
+        logger.error('加载文档块失败:', err);
       } finally {
         setLoading(false);
       }
@@ -286,7 +289,7 @@ const DocumentChunkView: React.FC = () => {
       await service.deleteDocument(deleteTarget);
       setDocs(prev => prev.filter(d => d.id !== deleteTarget));
     } catch (err) {
-      console.error('删除文档块失败:', err);
+      logger.error('删除文档块失败:', err);
     } finally {
       setDeleteTarget(null);
     }
@@ -312,7 +315,7 @@ const DocumentChunkView: React.FC = () => {
       await dexieStorage.knowledge_documents.put(updated);
       setDocs(prev => prev.map(d => d.id === docId ? updated : d));
     } catch (err) {
-      console.error('保存文档块失败:', err);
+      logger.error('保存文档块失败:', err);
     } finally {
       setSavingIds(prev => {
         const next = new Set(prev);
@@ -333,7 +336,7 @@ const DocumentChunkView: React.FC = () => {
       await dexieStorage.knowledge_documents.put(updated);
       setDocs(prev => prev.map(d => d.id === docId ? updated : d));
     } catch (err) {
-      console.error('切换块状态失败:', err);
+      logger.error('切换块状态失败:', err);
     }
   }, [docs]);
 
@@ -362,7 +365,7 @@ const DocumentChunkView: React.FC = () => {
       setNewChunkContent('');
       setAddDialogOpen(false);
     } catch (err) {
-      console.error('添加块失败:', err);
+      logger.error('添加块失败:', err);
     } finally {
       setAddingChunk(false);
     }

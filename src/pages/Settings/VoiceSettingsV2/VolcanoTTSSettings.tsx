@@ -30,6 +30,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import FullScreenSelector, { type SelectorGroup } from '../../../components/TTS/FullScreenSelectorSolid';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('VolcanoTTSSettings');
 
 // 音色分组 (完整版 - 基于官方文档)
 const VOICE_GROUPS = {
@@ -227,7 +230,7 @@ const VolcanoTTSSettings: React.FC = () => {
         
         setTestText(t('settings.voice.volcano.testText'));
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'Volcano TTS' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'Volcano TTS' }), error);
       }
     };
 
@@ -292,7 +295,7 @@ const VolcanoTTSSettings: React.FC = () => {
       setUIState(prev => ({ ...prev, saveError: '' }));
       return true;
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'Volcano TTS' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'Volcano TTS' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

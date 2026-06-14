@@ -27,6 +27,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('OpenAITTSSettings');
 
 const OpenAITTSSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -99,7 +102,7 @@ const OpenAITTSSettings: React.FC = () => {
         const defaultTestText = t('settings.voice.openai.testText');
         setTestText(defaultTestText);
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'OpenAI TTS' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'OpenAI TTS' }), error);
       }
     };
 
@@ -161,7 +164,7 @@ const OpenAITTSSettings: React.FC = () => {
 
 
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'OpenAI TTS' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'OpenAI TTS' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

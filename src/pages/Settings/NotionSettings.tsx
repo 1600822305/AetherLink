@@ -25,6 +25,9 @@ import { useTranslation } from '../../i18n';
 import useScrollPosition from '../../hooks/useScrollPosition';
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('NotionSettings');
 
 /**
  * Notion设置页面
@@ -126,7 +129,7 @@ const NotionSettingsPage: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('测试Notion连接失败:', error);
+      logger.error('测试Notion连接失败:', error);
       const message = error instanceof NotionApiError
         ? error.getUserFriendlyMessage()
         : (error instanceof Error ? error.message : t('errors.unknownError'));

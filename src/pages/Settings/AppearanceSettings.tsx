@@ -52,6 +52,9 @@ import { useLanguageSettings } from '../../i18n/useLanguageSettings';
 import { supportedLanguages } from '../../i18n';
 import { Globe } from 'lucide-react';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('AppearanceSettings');
 import { SafeAreaContainer } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
 import CustomSwitch from '../../components/CustomSwitch';
@@ -91,7 +94,7 @@ const AppearanceSettings: React.FC = () => {
       const fonts = await getAllFontOptions();
       setFontOptions(fonts);
     } catch (err) {
-      console.error('加载字体列表失败:', err);
+      logger.error('加载字体列表失败:', err);
     } finally {
       setFontsLoading(false);
     }

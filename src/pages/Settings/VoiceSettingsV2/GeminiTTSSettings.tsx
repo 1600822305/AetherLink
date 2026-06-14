@@ -28,6 +28,9 @@ import { useTranslation } from '../../../i18n';
 import { cssVar } from '../../../shared/utils/cssVariables';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('GeminiTTSSettings');
 import type { GeminiVoiceName } from '../../../shared/types/voice';
 import { GeminiVoiceDescriptions } from '../../../shared/types/voice';
 
@@ -115,7 +118,7 @@ const GeminiTTSSettings: React.FC = () => {
           speakers: storedSpeakers
         } as Partial<GeminiTTSConfig>);
       } catch (error) {
-        console.error('加载 Gemini TTS 设置失败:', error);
+        logger.error('加载 Gemini TTS 设置失败:', error);
       }
     };
 
@@ -182,7 +185,7 @@ const GeminiTTSSettings: React.FC = () => {
         navigate('/settings/voice');
       }, 500);
     } catch (error) {
-      console.error('保存 Gemini TTS 设置失败:', error);
+      logger.error('保存 Gemini TTS 设置失败:', error);
       setUIState(prev => ({
         ...prev,
         isSaved: false,

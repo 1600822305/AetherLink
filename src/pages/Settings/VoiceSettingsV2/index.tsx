@@ -25,6 +25,9 @@ import { cssVar } from '../../../shared/utils/cssVariables';
 import useScrollPosition from '../../../hooks/useScrollPosition';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('VoiceSettings');
 
 // TTS服务配置 - 将在组件内使用 i18n
 const getTTSServices = (t: any) => [
@@ -184,7 +187,7 @@ const VoiceSettingsV2: React.FC = () => {
       setCurrentTTSService(selectedTTSService);
       setCurrentASRService(selectedASRService);
     } catch (error) {
-      console.error(t('settings.voice.common.loadingError', { service: 'current service status' }), error);
+      logger.error(t('settings.voice.common.loadingError', { service: 'current service status' }), error);
     }
   }, [t]);
 

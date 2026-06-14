@@ -28,6 +28,9 @@ import { modelComboService } from '../../shared/services/ai/ModelComboService';
 import type { ModelComboConfig, ModelComboTemplate, ModelComboStrategy } from '../../shared/types/ModelCombo';
 import { useModelComboSync } from '../../shared/hooks/useModelComboSync';
 import { useTranslation } from 'react-i18next';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ModelComboSettings');
 import useScrollPosition from '../../hooks/useScrollPosition';
 import {
   SafeAreaContainer,
@@ -65,7 +68,7 @@ const ModelComboSettings: React.FC = () => {
       setCombos(combosData);
       setTemplates(templatesData);
     } catch (error) {
-      console.error('加载模型组合数据失败:', error);
+      logger.error('加载模型组合数据失败:', error);
     }
   };
 
@@ -100,7 +103,7 @@ const ModelComboSettings: React.FC = () => {
         setDeleteDialogOpen(false);
         setComboToDelete(null);
       } catch (error) {
-        console.error('删除模型组合失败:', error);
+        logger.error('删除模型组合失败:', error);
       }
     }
   };
@@ -116,7 +119,7 @@ const ModelComboSettings: React.FC = () => {
       await loadData();
       await syncModelCombos();
     } catch (error) {
-      console.error('从模板创建模型组合失败:', error);
+      logger.error('从模板创建模型组合失败:', error);
     }
   };
 

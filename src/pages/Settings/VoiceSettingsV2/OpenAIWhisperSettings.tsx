@@ -19,6 +19,9 @@ import type { VoiceRecognitionSettings, OpenAIWhisperSettings as OpenAIWhisperSe
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('OpenAIWhisperSettings');
 
 const OpenAIWhisperSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -88,7 +91,7 @@ const OpenAIWhisperSettings: React.FC = () => {
           provider: 'openai',
         });
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'OpenAI Whisper' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'OpenAI Whisper' }), error);
       }
     };
 
@@ -121,7 +124,7 @@ const OpenAIWhisperSettings: React.FC = () => {
 
 
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'OpenAI Whisper' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'OpenAI Whisper' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

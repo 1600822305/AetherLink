@@ -29,6 +29,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import FullScreenSelector, { type SelectorGroup } from '../../../components/TTS/FullScreenSelectorSolid';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ElevenLabsTTSSettings');
 
 interface ElevenLabsSettings {
   apiKey: string;
@@ -173,7 +176,7 @@ const ElevenLabsTTSSettings: React.FC = () => {
         // 加载测试文本
         setTestText(t('settings.voice.elevenlabs.testText') || 'Hello, this is a test of ElevenLabs text to speech.');
       } catch (error) {
-        console.error('加载 ElevenLabs TTS 设置失败:', error);
+        logger.error('加载 ElevenLabs TTS 设置失败:', error);
       }
     };
 
@@ -221,7 +224,7 @@ const ElevenLabsTTSSettings: React.FC = () => {
       }, 0);
 
     } catch (error) {
-      console.error('保存 ElevenLabs TTS 设置失败:', error);
+      logger.error('保存 ElevenLabs TTS 设置失败:', error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

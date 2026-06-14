@@ -1,3 +1,5 @@
+import { createLogger } from '../../../shared/services/infra/logger';
+const logger = createLogger('useMessageHandling');
 import { useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import store from '../../../shared/store';
@@ -45,7 +47,7 @@ export const useMessageHandling = (
       // 返回成功标识
       return true;
     } catch (error) {
-      console.error('发送消息失败:', error);
+      logger.error('发送消息失败:', error);
       return null;
     }
   }, [dispatch, currentTopic, selectedModel]);
@@ -58,7 +60,7 @@ export const useMessageHandling = (
       // 使用Redux Thunk删除消息
       await dispatch(deleteMessage(messageId, currentTopic.id));
     } catch (error) {
-      console.error('删除消息失败:', error);
+      logger.error('删除消息失败:', error);
     }
   }, [dispatch, currentTopic]);
 
@@ -73,7 +75,7 @@ export const useMessageHandling = (
       const providers = state.settings.providers || [];
 
       if (!latestModelId) {
-        console.error('[handleRegenerateMessage] Redux中没有当前模型ID');
+        logger.error('Redux中没有当前模型ID');
         return null;
       }
 
@@ -88,19 +90,19 @@ export const useMessageHandling = (
           }
         : null;
       if (!latestModel) {
-        console.error('[handleRegenerateMessage] 找不到对应的模型:', latestModelId);
+        logger.error('找不到对应的模型:', latestModelId);
         // 如果找不到最新模型，回退到组件状态中的模型
         if (!selectedModel) {
-          console.error('[handleRegenerateMessage] 组件状态中也没有模型');
+          logger.error('组件状态中也没有模型');
           return null;
         }
-        console.warn('[handleRegenerateMessage] 回退使用组件状态中的模型:', selectedModel.id);
+        logger.warn('回退使用组件状态中的模型:', selectedModel.id);
       }
 
       const modelToUse = latestModel || selectedModel;
       if (!modelToUse) return null;
 
-      console.log(`[handleRegenerateMessage] 使用模型重新生成消息: ${messageId}`, {
+      logger.debug(`使用模型重新生成消息: ${messageId}`, {
         modelId: modelToUse.id,
         modelName: modelToUse.name,
         provider: modelToUse.provider,
@@ -117,7 +119,7 @@ export const useMessageHandling = (
       }));
       return true;
     } catch (error) {
-      console.error('重新生成消息失败:', error);
+      logger.error('重新生成消息失败:', error);
       return null;
     }
   }, [dispatch, currentTopic, selectedModel]);
@@ -129,7 +131,7 @@ export const useMessageHandling = (
       await dispatch(loadTopicMessagesThunk(topicId)); // 加载消息
       return selectMessagesForTopic(store.getState(), topicId)?.length || 0;
     } catch (error) {
-      console.error('加载主题消息失败:', error);
+      logger.error('加载主题消息失败:', error);
       throw error;
     }
   }, [dispatch]);
@@ -177,7 +179,7 @@ export const useMessageHandling = (
       const success = await versionService.switchToVersion(versionIdOrCommand);
       return success;
     } catch (error) {
-      console.error(`[handleSwitchMessageVersion] 版本操作异常:`, error);
+      logger.error(`版本操作异常:`, error);
       return false;
     }
   }, [currentTopic]);
@@ -197,7 +199,7 @@ export const useMessageHandling = (
       }));
       return true;
     } catch (error) {
-      console.error('重新发送消息失败:', error);
+      logger.error('重新发送消息失败:', error);
       return null;
     }
   }, [dispatch, currentTopic, selectedModel]);

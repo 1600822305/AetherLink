@@ -29,6 +29,9 @@ import { mcpService } from '../../shared/services/mcp';
 import { useTranslation } from '../../i18n';
 import { SafeAreaContainer, CARD_STYLES } from '../../components/settings/SettingComponents';
 import Scrollbar from '../../components/Scrollbar';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MCPAssistantDetail');
 
 /** 从工具名推断所属领域 */
 function inferDomain(toolName: string): string {
@@ -90,7 +93,7 @@ const MCPAssistantDetail: React.FC = () => {
       const toolsList = await mcpService.listTools(serverData, { includeDisabled: true });
       setTools(toolsList);
     } catch (error) {
-      console.error('加载工具列表失败', error);
+      logger.error('加载工具列表失败', error);
     } finally {
       setLoading(false);
     }

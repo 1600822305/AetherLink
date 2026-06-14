@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../../../shared/services/infra/logger';
+const logger = createLogger('chatboxaiJsonParser');
 // chatboxaiJsonParser.ts
 import { v4 as uuidv4 } from 'uuid';
 import type { MessageBlock } from '../../../../../../shared/types/newMessage';
@@ -213,11 +215,11 @@ export function parseChatboxaiJson(backupData: ChatboxaiBackup): {
   sessionsData: Record<string, ChatboxaiSession>;
   globalSettings: any;
 } {
-  console.log('开始解析 ChatboxAI JSON 格式...');
-  console.log('备份数据结构:', Object.keys(backupData));
+  logger.debug('开始解析 ChatboxAI JSON 格式...');
+  logger.debug('备份数据结构:', Object.keys(backupData));
 
   const sessionsList = backupData['chat-sessions-list'] || [];
-  console.log(`找到 ${sessionsList.length} 个ChatboxAI会话`);
+  logger.debug(`找到 ${sessionsList.length} 个ChatboxAI会话`);
 
   const sessionsData: Record<string, ChatboxaiSession> = {};
 

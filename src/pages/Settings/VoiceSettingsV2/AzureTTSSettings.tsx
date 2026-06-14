@@ -27,6 +27,9 @@ import CustomSwitch from '../../../components/CustomSwitch';
 import { useTranslation } from '../../../i18n';
 import { SafeAreaContainer } from '../../../components/settings/SettingComponents';
 import Scrollbar from '../../../components/Scrollbar';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AzureTTSSettings');
 
 const AzureTTSSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -118,7 +121,7 @@ const AzureTTSSettings: React.FC = () => {
           useSSML: storedAzureUseSSML
         } as Partial<AzureTTSConfig>);
       } catch (error) {
-        console.error(t('settings.voice.common.loadingError', { service: 'Azure TTS' }), error);
+        logger.error(t('settings.voice.common.loadingError', { service: 'Azure TTS' }), error);
       }
     };
 
@@ -192,7 +195,7 @@ const AzureTTSSettings: React.FC = () => {
 
 
     } catch (error) {
-      console.error(t('settings.voice.common.saveErrorText', { service: 'Azure TTS' }), error);
+      logger.error(t('settings.voice.common.saveErrorText', { service: 'Azure TTS' }), error);
       setUIState(prev => ({
         ...prev,
         saveError: t('settings.voice.common.saveError'),

@@ -1,3 +1,5 @@
+import { createLogger } from '../../../shared/services/infra/logger';
+const logger = createLogger('useAIDebate');
 import { useState, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { DebateConfig, DebateRole } from '../../../shared/services/ai/AIDebateService';
@@ -99,9 +101,9 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       // 先保存到 Dexie，再由 TopicService 同步写入 Redux，保持与普通消息链路一致
       await TopicService.saveMessageAndBlocks(message, blocks);
 
-      console.log(`✅ AI消息已发送: ${roleName}`);
+      logger.debug(`✅ AI消息已发送: ${roleName}`);
     } catch (error) {
-      console.error('发送AI消息失败:', error);
+      logger.error('发送AI消息失败:', error);
     }
   }, [currentTopic]);
 
@@ -112,7 +114,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
     }
 
     try {
-      console.log('🎯 开始AI辩论:', { question, config });
+      logger.debug('🎯 开始AI辩论:', { question, config });
 
       setIsDebating(true);
       setCurrentDebateConfig(config);
@@ -137,9 +139,9 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
 
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('AI辩论启动阶段已被中断');
+        logger.debug('AI辩论启动阶段已被中断');
       } else {
-        console.error('开始AI辩论失败:', error);
+        logger.error('开始AI辩论失败:', error);
       }
       setIsDebating(false);
       setCurrentDebateConfig(null);
@@ -149,7 +151,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
 
   // 停止AI辩论
   const handleStopDebate = useCallback(async () => {
-    console.log('🛑 用户请求停止辩论');
+    logger.debug('🛑 用户请求停止辩论');
 
     // 中断正在进行的 AI 请求和等待
     if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
@@ -177,23 +179,23 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
     // 添加初始问题到历史
     conversationHistory.push(`辩论主题：${question}`);
 
-    console.log('🎯 开始AI辩论流程:', { question, maxRounds: config.maxRounds, rolesCount: config.roles.length });
+    logger.debug('🎯 开始AI辩论流程:', { question, maxRounds: config.maxRounds, rolesCount: config.roles.length });
 
     while (currentRound <= config.maxRounds && shouldContinue) {
-      console.log(`📢 第${currentRound}轮开始，共${config.roles.length}个角色`);
+      logger.debug(`📢 第${currentRound}轮开始，共${config.roles.length}个角色`);
 
       // 遍历所有角色
       for (let i = 0; i < config.roles.length && shouldContinue; i++) {
         const role = config.roles[currentSpeakerIndex];
 
-        console.log(`🎭 ${role.name} 准备发言 (${getRoleStanceText(role.stance)})`);
+        logger.debug(`🎭 ${role.name} 准备发言 (${getRoleStanceText(role.stance)})`);
 
         try {
           // 构建上下文
           const context = buildDebateContext(question, conversationHistory, currentRound, role);
 
           // 发送AI请求
-          console.log(`🤖 正在请求 ${role.name} 的回应...`);
+          logger.debug(`🤖 正在请求 ${role.name} 的回应...`);
           const response = await streamRoleResponse(role, currentRound, context);
 
           if (response) {
@@ -209,7 +211,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
 
           // 检查主持人是否建议结束（但至少要进行2轮完整辩论）
           if (response && role.stance === 'moderator' && currentRound >= 2 && checkEndSuggestion(response)) {
-            console.log('🏁 主持人建议结束辩论');
+            logger.debug('🏁 主持人建议结束辩论');
             await abortableDelay(2000, abortControllerRef.current?.signal);
             await endDebateWithSummary(question, conversationHistory, config);
             return;
@@ -217,7 +219,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
 
           // 等待一段时间再继续（可中断）
           if (shouldContinue) {
-            console.log(`⏳ 等待3秒后继续...`);
+            logger.debug(`⏳ 等待3秒后继续...`);
             try {
               await abortableDelay(3000, abortControllerRef.current?.signal);
             } catch (error) {
@@ -231,11 +233,11 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
           }
         } catch (error) {
           if (isAbortError(error)) {
-            console.log(`🛑 角色 ${role.name} 发言被中断`);
+            logger.debug(`🛑 角色 ${role.name} 发言被中断`);
             shouldContinue = false;
             break;
           }
-          console.error(`❌ 角色 ${role.name} 发言失败:`, error);
+          logger.error(`❌ 角色 ${role.name} 发言失败:`, error);
         }
 
         // 移动到下一个发言者
@@ -250,12 +252,12 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       }
 
       currentRound++;
-      console.log(`✅ 第${currentRound - 1}轮结束`);
+      logger.debug(`✅ 第${currentRound - 1}轮结束`);
     }
 
     // 如果正常结束（达到最大轮数）
     if (shouldContinue) {
-      console.log('🏁 达到最大轮数，结束辩论');
+      logger.debug('🏁 达到最大轮数，结束辩论');
       await endDebateWithSummary(question, conversationHistory, config);
     }
   };
@@ -311,7 +313,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       try {
         options?.onDelta?.(delta);
       } catch (error) {
-        console.error(`⚠️ 推送流式增量失败 (${role.name}):`, error);
+        logger.error(`⚠️ 推送流式增量失败 (${role.name}):`, error);
       }
     };
 
@@ -324,7 +326,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
     try {
       // 检查角色是否配置了模型
       if (!role.modelId) {
-        console.warn(`角色 ${role.name} 未配置模型，使用模拟响应`);
+        logger.warn(`角色 ${role.name} 未配置模型，使用模拟响应`);
         return fallback();
       }
 
@@ -371,20 +373,20 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       }
 
       if (response.success && finalContent) {
-        console.log(`✅ ${role.name} AI响应成功`);
+        logger.debug(`✅ ${role.name} AI响应成功`);
         return finalContent;
       }
 
-      console.error(`❌ ${role.name} AI响应失败:`, response.error || 'content为空');
-      console.log(`[DEBUG] 完整响应对象:`, response);
+      logger.error(`❌ ${role.name} AI响应失败:`, response.error || 'content为空');
+      logger.debug(`完整响应对象:`, response);
       return fallback();
     } catch (error) {
       if (isAbortError(error)) {
-        console.log(`🛑 ${role.name} AI请求已中断`);
+        logger.debug(`🛑 ${role.name} AI请求已中断`);
         throw error;
       }
 
-      console.error(`❌ ${role.name} AI请求异常:`, error);
+      logger.error(`❌ ${role.name} AI请求异常:`, error);
       return fallback();
     }
   };
@@ -392,7 +394,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
   // 流式发送辩论消息
   const streamRoleResponse = async (role: DebateRole, round: number, context: string): Promise<string> => {
     if (!currentTopic) {
-      console.warn('[AI Debate] 当前没有有效的话题，无法发送辩论消息');
+      logger.warn('当前没有有效的话题，无法发送辩论消息');
       return '';
     }
 
@@ -414,7 +416,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
     const mainTextBlock = blocks.find(block => block.type === MessageBlockType.MAIN_TEXT);
 
     if (!mainTextBlock) {
-      console.warn(`[AI Debate] 未找到主文本块，角色: ${role.name}`);
+      logger.warn(`未找到主文本块，角色: ${role.name}`);
       return '';
     }
 
@@ -437,7 +439,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       }));
 
       void dexieStorage.updateMessage(message.id, changes).catch(error => {
-        console.error(`[AI Debate] 持久化消息状态失败 (${message.id}):`, error);
+        logger.error(`持久化消息状态失败 (${message.id}):`, error);
       });
     };
 
@@ -459,7 +461,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
       } else {
         flushThrottledUpdates();
         void dexieStorage.updateMessageBlock(mainTextBlock.id, changes).catch(error => {
-          console.error(`[AI Debate] 持久化消息块失败 (${mainTextBlock.id}):`, error);
+          logger.error(`持久化消息块失败 (${mainTextBlock.id}):`, error);
         });
       }
     };
@@ -546,7 +548,7 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
   const checkEndSuggestion = (response: string): boolean => {
     // 只检查专属停止指令
     if (response.includes('[DEBATE_END]')) {
-      console.log('🔚 检测到专属停止指令 [DEBATE_END]');
+      logger.debug('🔚 检测到专属停止指令 [DEBATE_END]');
       return true;
     }
     return false;
@@ -571,11 +573,11 @@ export const useAIDebate = ({ currentTopic }: UseAIDebateProps) => {
 
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('🛑 辩论总结生成被中断');
+        logger.debug('🛑 辩论总结生成被中断');
         throw error;
       }
 
-      console.error('生成辩论总结失败:', error);
+      logger.error('生成辩论总结失败:', error);
       await sendAIMessage('🏁 **AI辩论结束**\n\n辩论已结束，但总结生成失败。', '系统');
     } finally {
       setIsDebating(false);
@@ -618,7 +620,7 @@ ${debateRecord}
   // 生成辩论总结
   const generateSummary = async (question: string, history: string[], config: DebateConfig): Promise<string> => {
     try {
-      console.log('🤖 开始生成AI辩论总结...');
+      logger.debug('🤖 开始生成AI辩论总结...');
 
       // 构建总结提示词
       const summaryPrompt = `请对以下AI辩论进行客观、专业的总结分析：
@@ -655,7 +657,7 @@ ${history.join('\n\n')}
         return createFallbackSummary(question, history, '未配置总结角色，也没有找到任何配置了模型的辩论角色。');
       }
 
-      console.log(`🤖 使用${summaryRole.stance === 'summary' ? '专门的总结角色' : '辩论角色'} ${summaryRole.modelId} (${summaryRole.name}) 生成总结`);
+      logger.debug(`🤖 使用${summaryRole.stance === 'summary' ? '专门的总结角色' : '辩论角色'} ${summaryRole.modelId} (${summaryRole.name}) 生成总结`);
 
       // 调用AI生成总结
       const response = await sendChatRequest({
@@ -669,10 +671,10 @@ ${history.join('\n\n')}
       });
 
       if (response.success && response.content) {
-        console.log('✅ AI总结生成成功');
+        logger.debug('✅ AI总结生成成功');
         return response.content;
       } else {
-        console.error('❌ AI总结生成失败:', response.error);
+        logger.error('❌ AI总结生成失败:', response.error);
         throw new Error('AI总结生成失败');
       }
     } catch (error) {
@@ -680,7 +682,7 @@ ${history.join('\n\n')}
         throw error;
       }
 
-      console.error('生成AI总结时发生错误:', error);
+      logger.error('生成AI总结时发生错误:', error);
 
       return createFallbackSummary(
         question,

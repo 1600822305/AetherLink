@@ -1,3 +1,5 @@
+import { createLogger } from '../../../../shared/services/infra/logger';
+const logger = createLogger('restoreUtils');
 // import { saveTopicToDB, saveAssistantToDB } from '../../../../shared/services/storageService';
 import type { ChatTopic } from '../../../../shared/types';
 import type { Assistant } from '../../../../shared/types/Assistant';
@@ -81,11 +83,11 @@ export function validateBackupData(data: any): boolean {
 
   // 基本验证通过
   if (hasRequiredFields && hasAppInfo) {
-    console.log('备份数据基本验证通过');
+    logger.debug('备份数据基本验证通过');
 
     // 如果是选择性备份，记录备份类型
     if (data.appInfo.backupType === 'selective') {
-      console.log('检测到选择性备份数据', {
+      logger.debug('检测到选择性备份数据', {
         hasModelConfig,
         hasTopics,
         hasAssistants,
@@ -96,7 +98,7 @@ export function validateBackupData(data: any): boolean {
     return true;
   }
 
-  console.warn('备份数据验证失败，缺少必要字段');
+  logger.warn('备份数据验证失败，缺少必要字段');
   return false;
 }
 
@@ -113,11 +115,11 @@ export function processBackupDataForVersion(data: any): any {
     typeof data.appInfo.backupVersion === 'number' ?
     data.appInfo.backupVersion : 1;
 
-  console.log(`处理备份数据，备份版本: ${backupVersion}`);
+  logger.debug(`处理备份数据，备份版本: ${backupVersion}`);
 
   // 处理旧版本备份数据升级
   if (backupVersion < CURRENT_BACKUP_VERSION) {
-    console.log(`将备份数据从版本 ${backupVersion} 升级到 ${CURRENT_BACKUP_VERSION}`);
+    logger.debug(`将备份数据从版本 ${backupVersion} 升级到 ${CURRENT_BACKUP_VERSION}`);
 
     // 处理话题数据
     if (Array.isArray(processedData.topics)) {
@@ -216,11 +218,11 @@ export function processBackupDataForVersion(data: any): any {
  */
 export async function clearTopics(): Promise<void> {
   try {
-    console.log('开始清除所有话题...');
+    logger.debug('开始清除所有话题...');
     await dexieStorage.topics.clear();
-    console.log('所有话题已清除');
+    logger.debug('所有话题已清除');
   } catch (error) {
-    console.error('清除话题时出错:', error);
+    logger.error('清除话题时出错:', error);
     throw new Error(`清除话题时出错: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -230,11 +232,11 @@ export async function clearTopics(): Promise<void> {
  */
 export async function clearAssistants(): Promise<void> {
   try {
-    console.log('开始清除所有助手...');
+    logger.debug('开始清除所有助手...');
     await dexieStorage.assistants.clear();
-    console.log('所有助手已清除');
+    logger.debug('所有助手已清除');
   } catch (error) {
-    console.error('清除助手时出错:', error);
+    logger.error('清除助手时出错:', error);
     throw new Error(`清除助手时出错: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -261,9 +263,9 @@ export async function clearDataForReplace(data: any): Promise<void> {
     if (!present) return;
     try {
       await table.clear();
-      console.log(`替换模式：已清空${label}`);
+      logger.debug(`替换模式：已清空${label}`);
     } catch (error) {
-      console.error(`替换模式：清空${label}失败:`, error);
+      logger.error(`替换模式：清空${label}失败:`, error);
     }
   };
 
@@ -293,16 +295,16 @@ export async function clearDataForReplace(data: any): Promise<void> {
 export async function restoreTopics(topics: ChatTopic[]): Promise<number> {
   try {
     if (!Array.isArray(topics) || topics.length === 0) {
-      console.log('没有话题需要恢复');
+      logger.debug('没有话题需要恢复');
       return 0;
     }
 
-    console.log(`开始恢复 ${topics.length} 个话题...`);
+    logger.debug(`开始恢复 ${topics.length} 个话题...`);
     let successCount = 0;
 
     for (const topic of topics) {
       if (!topic.id) {
-        console.warn('跳过无效话题: 缺少ID');
+        logger.warn('跳过无效话题: 缺少ID');
         continue;
       }
       try {
@@ -311,19 +313,19 @@ export async function restoreTopics(topics: ChatTopic[]): Promise<number> {
         await dexieStorage.saveTopic(topic);
         
         if (topic.messages && Array.isArray(topic.messages) && topic.messages.length > 0) {
-          console.log(`话题 ${topic.id} 包含 ${topic.messages.length} 条消息，已由 saveTopic 自动处理`);
+          logger.debug(`话题 ${topic.id} 包含 ${topic.messages.length} 条消息，已由 saveTopic 自动处理`);
         }
 
         successCount++;
       } catch (error) {
-        console.error(`保存话题 ${topic.id} 时出错:`, error);
+        logger.error(`保存话题 ${topic.id} 时出错:`, error);
       }
     }
 
-    console.log(`话题恢复完成，成功: ${successCount}/${topics.length}`);
+    logger.debug(`话题恢复完成，成功: ${successCount}/${topics.length}`);
     return successCount;
   } catch (error) {
-    console.error('恢复话题时出错:', error);
+    logger.error('恢复话题时出错:', error);
     throw new Error(`恢复话题时出错: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -336,30 +338,30 @@ export async function restoreTopics(topics: ChatTopic[]): Promise<number> {
 export async function restoreAssistants(assistants: Assistant[]): Promise<number> {
   try {
     if (!Array.isArray(assistants) || assistants.length === 0) {
-      console.log('没有助手需要恢复');
+      logger.debug('没有助手需要恢复');
       return 0;
     }
 
-    console.log(`开始恢复 ${assistants.length} 个助手...`);
+    logger.debug(`开始恢复 ${assistants.length} 个助手...`);
     let successCount = 0;
 
     for (const assistant of assistants) {
       if (!assistant.id) {
-        console.warn('跳过无效助手: 缺少ID');
+        logger.warn('跳过无效助手: 缺少ID');
         continue;
       }
       try {
         await dexieStorage.saveAssistant(assistant);
         successCount++;
       } catch (error) {
-        console.error(`保存助手 ${assistant.id} 时出错:`, error);
+        logger.error(`保存助手 ${assistant.id} 时出错:`, error);
       }
     }
 
-    console.log(`助手恢复完成，成功: ${successCount}/${assistants.length}`);
+    logger.debug(`助手恢复完成，成功: ${successCount}/${assistants.length}`);
     return successCount;
   } catch (error) {
-    console.error('恢复助手时出错:', error);
+    logger.error('恢复助手时出错:', error);
     throw new Error(`恢复助手时出错: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -373,11 +375,11 @@ export async function restoreSettings(
 ): Promise<boolean> {
   try {
     if (!backupSettings) {
-      console.warn('没有设置需要恢复');
+      logger.warn('没有设置需要恢复');
       return false;
     }
 
-    console.log('开始恢复设置...');
+    logger.debug('开始恢复设置...');
 
     // 合并当前设置和备份设置
     const mergedSettings = {
@@ -397,13 +399,13 @@ export async function restoreSettings(
     };
 
     // 直接更新 Redux store，redux-persist 会自动持久化
-    console.log('更新设置到 Redux store...');
+    logger.debug('更新设置到 Redux store...');
     store.dispatch(updateSettings(finalSettings));
 
-    console.log('设置恢复完成');
+    logger.debug('设置恢复完成');
     return true;
   } catch (error) {
-    console.error('恢复设置时出错:', error);
+    logger.error('恢复设置时出错:', error);
     return false;
   }
 }
@@ -417,11 +419,11 @@ export async function restoreModelConfig(
 ): Promise<boolean> {
   try {
     if (!modelConfigData) {
-      console.warn('没有模型配置需要恢复');
+      logger.warn('没有模型配置需要恢复');
       return false;
     }
 
-    console.log('开始恢复模型配置...');
+    logger.debug('开始恢复模型配置...');
 
     // 合并当前设置和模型配置
     const mergedSettings = {
@@ -440,13 +442,13 @@ export async function restoreModelConfig(
     }
 
     // 直接更新 Redux store，redux-persist 会自动持久化
-    console.log('更新模型配置到 Redux store...');
+    logger.debug('更新模型配置到 Redux store...');
     store.dispatch(updateSettings(mergedSettings));
 
-    console.log('模型配置恢复完成');
+    logger.debug('模型配置恢复完成');
     return true;
   } catch (error) {
-    console.error('恢复模型配置时出错:', error);
+    logger.error('恢复模型配置时出错:', error);
     return false;
   }
 }
@@ -461,11 +463,11 @@ export async function restoreUserSettings(
 ): Promise<boolean> {
   try {
     if (!userSettingsData || Object.keys(userSettingsData).length === 0) {
-      console.warn('没有用户设置需要恢复');
+      logger.warn('没有用户设置需要恢复');
       return false;
     }
 
-    console.log('开始恢复用户设置...');
+    logger.debug('开始恢复用户设置...');
 
     // 合并当前设置和用户设置（保留模型配置不变）
     const mergedSettings = {
@@ -498,13 +500,13 @@ export async function restoreUserSettings(
     };
 
     // 直接更新 Redux store，redux-persist 会自动持久化
-    console.log('更新用户设置到 Redux store...');
+    logger.debug('更新用户设置到 Redux store...');
     store.dispatch(updateSettings(mergedSettings));
 
-    console.log('用户设置恢复完成');
+    logger.debug('用户设置恢复完成');
     return true;
   } catch (error) {
-    console.error('恢复用户设置时出错:', error);
+    logger.error('恢复用户设置时出错:', error);
     return false;
   }
 }
@@ -515,11 +517,11 @@ export async function restoreUserSettings(
 export async function restoreBackupSettings(backupSettings: { location?: string; storageType?: string }): Promise<boolean> {
   try {
     if (!backupSettings) {
-      console.warn('没有备份设置需要恢复');
+      logger.warn('没有备份设置需要恢复');
       return false;
     }
 
-    console.log('开始恢复备份设置...');
+    logger.debug('开始恢复备份设置...');
 
     // 保存备份位置
     if (backupSettings.location) {
@@ -531,10 +533,10 @@ export async function restoreBackupSettings(backupSettings: { location?: string;
       await dexieStorage.saveSetting('backup-storage-type', backupSettings.storageType);
     }
 
-    console.log('备份设置恢复完成');
+    logger.debug('备份设置恢复完成');
     return true;
   } catch (error) {
-    console.error('恢复备份设置时出错:', error);
+    logger.error('恢复备份设置时出错:', error);
     return false;
   }
 }
@@ -545,11 +547,11 @@ export async function restoreBackupSettings(backupSettings: { location?: string;
 export async function restoreLocalStorageItems(items: Record<string, any>): Promise<number> {
   try {
     if (!items || Object.keys(items).length === 0) {
-      console.warn('没有LocalStorage项需要恢复');
+      logger.warn('没有LocalStorage项需要恢复');
       return 0;
     }
 
-    console.log(`开始恢复 ${Object.keys(items).length} 个本地存储项...`);
+    logger.debug(`开始恢复 ${Object.keys(items).length} 个本地存储项...`);
 
     // 排除一些不应恢复的敏感键
     const excludeKeys = [
@@ -578,10 +580,10 @@ export async function restoreLocalStorageItems(items: Record<string, any>): Prom
     // 批量保存到数据库
     await setStorageItems(filteredItems);
 
-    console.log(`${count} 个本地存储项恢复完成`);
+    logger.debug(`${count} 个本地存储项恢复完成`);
     return count;
   } catch (error) {
-    console.error('恢复LocalStorage项时出错:', error);
+    logger.error('恢复LocalStorage项时出错:', error);
     return 0;
   }
 }
@@ -620,10 +622,10 @@ async function restoreTableRecords(
       await table.put(item);
       count++;
     } catch (error) {
-      console.error(`恢复${label}单条记录失败:`, error);
+      logger.error(`恢复${label}单条记录失败:`, error);
     }
   }
-  console.log(`${label}恢复完成，成功: ${count}/${items.length}`);
+  logger.debug(`${label}恢复完成，成功: ${count}/${items.length}`);
   return count;
 }
 
@@ -658,10 +660,10 @@ export async function restoreExtendedData(data: any): Promise<void> {
           imageCount++;
         }
       } catch (error) {
-        console.error('恢复图片单条记录失败:', error);
+        logger.error('恢复图片单条记录失败:', error);
       }
     }
-    console.log(`图片恢复完成，成功: ${imageCount}/${data.images.length}`);
+    logger.debug(`图片恢复完成，成功: ${imageCount}/${data.images.length}`);
   }
   await restoreTableRecords(dexieStorage.imageMetadata, data.imageMetadata, '图片元数据');
 }
@@ -714,7 +716,7 @@ export async function performFullRestore(
 
     if (isSelectiveBackup) {
       // 选择性备份恢复逻辑
-      console.log('执行选择性备份恢复');
+      logger.debug('执行选择性备份恢复');
 
       if (processedData.modelConfig) {
         onProgress?.('恢复模型配置', 0.3);
@@ -740,7 +742,7 @@ export async function performFullRestore(
       }
     } else {
       // 完整备份恢复逻辑
-      console.log('执行完整备份恢复');
+      logger.debug('执行完整备份恢复');
 
       onProgress?.('恢复话题数据', 0.2);
       topicsCount = await restoreTopics(processedData.topics);
@@ -792,7 +794,7 @@ export async function performFullRestore(
       backupType
     };
   } catch (error) {
-    console.error('执行完整恢复时出错:', error);
+    logger.error('执行完整恢复时出错:', error);
     return {
       success: false,
       topicsCount: 0,
@@ -836,9 +838,9 @@ export async function importExternalBackupFromFile(
 
     // 恢复消息块（必须在话题之前）
     if (messageBlocks && messageBlocks.length > 0) {
-      console.log(`开始恢复 ${messageBlocks.length} 个消息块...`);
+      logger.debug(`开始恢复 ${messageBlocks.length} 个消息块...`);
       await dexieStorage.bulkSaveMessageBlocks(messageBlocks);
-      console.log('消息块恢复完成');
+      logger.debug('消息块恢复完成');
     }
 
     // 恢复话题
@@ -854,7 +856,7 @@ export async function importExternalBackupFromFile(
       source
     };
   } catch (error) {
-    console.error('导入外部备份失败:', error);
+    logger.error('导入外部备份失败:', error);
     return {
       success: false,
       topicsCount: 0,
@@ -874,17 +876,17 @@ export async function clearAllData(): Promise<{
   error?: string;
 }> {
   try {
-    console.log('开始清空所有数据...');
+    logger.debug('开始清空所有数据...');
 
     // 清空所有表
     await dexieStorage.clearDatabase();
 
-    console.log('所有数据库数据已清空');
+    logger.debug('所有数据库数据已清空');
     return {
       success: true
     };
   } catch (error) {
-    console.error('清空数据时出错:', error);
+    logger.error('清空数据时出错:', error);
     return {
       success: false,
       error: `清空数据时出错: ${error instanceof Error ? error.message : String(error)}`

@@ -16,6 +16,9 @@ import type { MessageBlock } from '../../../shared/types/newMessage.ts';
 import store from '../../../shared/store';
 import type { SiliconFlowImageFormat, Model, ChatTopic } from '../../../shared/types';
 import type { Message } from '../../../shared/types/newMessage.ts';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('useMultiModelSend');
 
 /**
  * 处理多模型并行发送消息的钩子
@@ -56,7 +59,7 @@ export const useMultiModelSend = (
       );
 
     } catch (error) {
-      console.error(`[useMultiModelSend] 模型 ${model.id} 调用失败:`, error);
+      logger.error('模型调用失败:', error);
 
       // 更新消息状态为错误
       dispatch(newMessagesActions.updateMessage({
@@ -79,9 +82,7 @@ export const useMultiModelSend = (
     if (!currentTopic || !selectedModel) return;
 
     try {
-      console.log(`[useMultiModelSend] `, models.length);
-      console.log(`[useMultiModelSend] `, models.map(m => `${m.provider || m.providerType}:${m.id}`));
-      console.log(`[useMultiModelSend] 选中的模型:`, models.map(m => `${m.provider || m.providerType}:${m.id}`));
+      logger.debug('选中的模型:', models.map(m => `${m.provider || m.providerType}:${m.id}`));
 
       // 1. 创建用户消息，包含 mentions 字段记录选中的模型
       const { message: userMessage, blocks: userBlocks } = createUserMessage({
@@ -136,7 +137,7 @@ export const useMultiModelSend = (
         try {
           await callSingleModelForMultiModel(model, assistantMessage, assistantBlocks, currentTopic.id, _toolsEnabled);
         } catch (error) {
-          console.error(`[useMultiModelSend] 模型 ${model.id} 调用失败:`, error);
+          logger.error('模型调用失败:', error);
           // 更新消息状态为错误
           dispatch(newMessagesActions.updateMessage({
             id: assistantMessage.id,
@@ -149,7 +150,7 @@ export const useMultiModelSend = (
       }));
 
     } catch (error) {
-      console.error('[useMultiModelSend] 多模型发送失败:', error);
+      logger.error('多模型发送失败:', error);
     }
   }, [currentTopic, selectedModel, dispatch]);
 

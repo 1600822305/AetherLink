@@ -16,6 +16,9 @@ import ApiKeyManager from '../../../../shared/services/ai/ApiKeyManager';
 import type { LoadBalanceStrategy } from '../../../../shared/config/defaultModels';
 import { testingModelId } from './providerSignals';
 import { CONSTANTS } from './constants';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('useModelTest');
 
 // ============================================================================
 // 类型定义
@@ -158,7 +161,7 @@ export function useModelTest(
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
 
-      console.error('测试模型连接时出错:', error);
+      logger.error('测试模型连接时出错:', error);
       setTestResult({
         success: false,
         message: t('modelSettings.provider.connectionError', {
@@ -223,7 +226,7 @@ export function useModelTest(
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
 
-      console.error('测试API连接时出错:', error);
+      logger.error('测试API连接时出错:', error);
       setTestResult({
         success: false,
         message: t('modelSettings.provider.connectionError', {

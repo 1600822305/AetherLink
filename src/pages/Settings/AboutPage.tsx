@@ -18,6 +18,9 @@ import {
   XStack,
 } from '../../components/settings/SettingComponents';
 import { useTranslation } from '../../i18n';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('AboutPage');
 
 // 应用版本号
 const APP_VERSION = '0.6.5';
@@ -38,7 +41,7 @@ const AboutPage: React.FC = () => {
     try {
       window.open(url, '_blank');
     } catch (error) {
-      console.error('Failed to open link:', error);
+      logger.error('Failed to open link:', error);
     }
   };
 
