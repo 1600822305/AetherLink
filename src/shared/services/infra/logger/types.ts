@@ -38,6 +38,8 @@ export interface Transport {
 /** 内存缓冲中存储的日志条目：在 LogEntry 基础上附带稳定 id，供查看器列表渲染/选择使用 */
 export interface StoredLogEntry extends LogEntry {
   id: string;
+  /** error/warn 自动捕获的调用堆栈（参数未携带 Error 时），供查看器定位来源 */
+  stack?: string;
 }
 
 /** 可查询的内存通道能力：供 Logger 暴露 getRecentLogs/exportLogs/clearLogs */

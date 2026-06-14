@@ -38,6 +38,8 @@
   "console": {
     "searchPlaceholder": "Search console output...",
     "level": "Level:",
+    "module": "Module",
+    "allModules": "All",
     "empty": "No console output",
     "noResults": "No matching logs found",
     "commandPlaceholder": "Enter JavaScript command and press Enter to execute...",

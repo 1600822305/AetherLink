@@ -42,7 +42,8 @@ function toViewerEntry(e: StoredLogEntry): LogViewerEntry {
     context: e.context,
     message: e.message,
     args: e.args,
-    stack: extractStack(e.args),
+    // 优先用参数里 Error 的堆栈；无 Error 的 error/warn 用写入时自动捕获的调用栈
+    stack: extractStack(e.args) ?? e.stack,
   };
 }
 

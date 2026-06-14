@@ -187,6 +187,54 @@ describe('MemoryTransport 环形缓冲', () => {
   });
 });
 
+describe('error/warn 自动捕获调用堆栈', () => {
+  it('error/warn 未带 Error 时自动附带调用堆栈', () => {
+    const mem = new MemoryTransport(10);
+    const logger = makeLogger(LogLevel.DEBUG, [mem]);
+
+    logger.error('纯文本错误');
+    logger.warn('纯文本警告');
+
+    const [err, warn] = mem.getEntries();
+    expect(err.stack).toBeTruthy();
+    expect(warn.stack).toBeTruthy();
+  });
+
+  it('info/debug 不自动附带堆栈', () => {
+    const mem = new MemoryTransport(10);
+    const logger = makeLogger(LogLevel.DEBUG, [mem]);
+
+    logger.info('普通信息');
+    logger.debug('调试');
+
+    expect(mem.getEntries().every((e) => e.stack === undefined)).toBe(true);
+  });
+
+  it('error 已带 Error 时不重复捕获（沿用 Error 自身堆栈）', () => {
+    const mem = new MemoryTransport(10);
+    const logger = makeLogger(LogLevel.DEBUG, [mem]);
+
+    logger.error('请求失败', new Error('boom'));
+
+    expect(mem.getEntries()[0].stack).toBeUndefined();
+  });
+});
+
+describe('getRecentLogs 返回拷贝', () => {
+  it('返回值不随后续写入变化（不暴露内部缓冲引用）', () => {
+    const mem = new MemoryTransport(10);
+    const logger = makeLogger(LogLevel.DEBUG, [mem]);
+
+    logger.info('a');
+    const snapshot = logger.getRecentLogs();
+    expect(snapshot).toHaveLength(1);
+
+    logger.info('b');
+    expect(snapshot).toHaveLength(1);
+    expect(logger.getRecentLogs()).toHaveLength(2);
+  });
+});
+
 describe('logApiResponse 级别映射', () => {
   it('状态码 >= 400 记为 ERROR，否则 INFO', () => {
     const cap = new CaptureTransport();

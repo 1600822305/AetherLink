@@ -109,7 +109,8 @@ export class Logger {
     const sink = this.querySink();
     if (!sink) return [];
     const entries = sink.getEntries();
-    if (count === undefined || count >= entries.length) return entries;
+    // 返回拷贝，避免调用方拿到内存通道内部缓冲的实时引用（后续写入会改变其内容/长度）
+    if (count === undefined || count >= entries.length) return entries.slice();
     return entries.slice(entries.length - count);
   }
 
