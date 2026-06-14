@@ -140,8 +140,10 @@ export default function SettingItem({ setting, onChange }: SettingItemProps) {
             lineHeight: 1.2, 
             mt: 0.2,
             // 重要：确保长文本能够正确换行且不与右侧按钮重叠
-            wordBreak: 'break-word',
-            whiteSpace: 'normal'
+            sx: {
+              wordBreak: 'break-word',
+              whiteSpace: 'normal'
+            }
           }}
           sx={{
             // 关键修复：为右侧控件预留足够空间

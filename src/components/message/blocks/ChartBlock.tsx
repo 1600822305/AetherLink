@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Paper, Typography, useTheme } from '@mui/material';
+import { Box, Paper, Typography } from '@mui/material';
 import type { ChartMessageBlock } from '../../../shared/types/newMessage';
 import {
   Chart as ChartJS,
@@ -37,8 +37,6 @@ interface Props {
  * 负责渲染各种图表
  */
 const ChartBlock: React.FC<Props> = ({ block }) => {
-  const theme = useTheme();
-
   // 如果没有数据，不渲染任何内容
   if (!block.data) {
     return null;

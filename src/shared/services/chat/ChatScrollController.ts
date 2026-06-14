@@ -20,8 +20,8 @@ export interface ScrollContainer {
   readonly scrollHeight: number;
   readonly clientHeight: number;
   scrollTo: (options: { top: number; behavior?: ScrollBehavior }) => void;
-  addEventListener: (type: 'scroll', listener: () => void, options?: unknown) => void;
-  removeEventListener: (type: 'scroll', listener: () => void, options?: unknown) => void;
+  addEventListener: (type: 'scroll', listener: () => void, options?: boolean | AddEventListenerOptions) => void;
+  removeEventListener: (type: 'scroll', listener: () => void, options?: boolean | EventListenerOptions) => void;
 }
 
 /** ResizeObserver 的最小接口（便于测试注入） */
