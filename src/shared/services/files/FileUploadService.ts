@@ -3,6 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
 import { Toast } from '@capacitor/toast';
 import { mobileFileStorage } from './MobileFileStorageService';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('FileUploadService');
 
 // 最大文件大小限制（50MB）
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -75,13 +77,13 @@ export const FileUploadService = {
                 fileContent.width = dimensions.width;
                 fileContent.height = dimensions.height;
               } catch (error) {
-                console.warn('获取图片尺寸失败:', error);
+                logger.warn('获取图片尺寸失败:', error);
               }
             }
 
             fileContents.push(fileContent);
           } catch (uploadError) {
-            console.error('文件上传失败:', uploadError);
+            logger.error('文件上传失败:', uploadError);
             await Toast.show({
               text: `文件 ${file.name} 上传失败: ${uploadError instanceof Error ? uploadError.message : '未知错误'}`,
               duration: 'long'
@@ -153,13 +155,13 @@ export const FileUploadService = {
                       fileContent.width = dimensions.width;
                       fileContent.height = dimensions.height;
                     } catch (error) {
-                      console.warn('获取图片尺寸失败:', error);
+                      logger.warn('获取图片尺寸失败:', error);
                     }
                   }
 
                   fileContents.push(fileContent);
                 } catch (uploadError) {
-                  console.error('文件上传失败:', uploadError);
+                  logger.error('文件上传失败:', uploadError);
                   alert(`文件 ${file.name} 上传失败: ${uploadError instanceof Error ? uploadError.message : '未知错误'}`);
                 }
               }
@@ -192,7 +194,7 @@ export const FileUploadService = {
         });
       }
     } catch (error) {
-      console.error('选择文件失败:', error);
+      logger.error('选择文件失败:', error);
       await Toast.show({
         text: '选择文件失败: ' + (error instanceof Error ? error.message : String(error)),
         duration: 'long'

@@ -1,6 +1,8 @@
 import type { ImageContent } from '../../types';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('ImageUploadService');
 
 /**
  * 图片上传服务
@@ -30,7 +32,7 @@ export const ImageUploadService = {
               permissions: ['photos']
             });
             if (requested.photos !== 'granted') {
-              console.warn('用户拒绝了相册访问权限');
+              logger.warn('用户拒绝了相册访问权限');
               return []; // 用户拒绝权限，返回空数组而不是抛出错误
             }
           } else if (permissionStatus.camera !== 'granted' && source === 'camera') {
@@ -38,12 +40,12 @@ export const ImageUploadService = {
               permissions: ['camera']
             });
             if (requested.camera !== 'granted') {
-              console.warn('用户拒绝了相机访问权限');
+              logger.warn('用户拒绝了相机访问权限');
               return []; // 用户拒绝权限，返回空数组而不是抛出错误
             }
           }
         } catch (permissionError) {
-          console.error('权限检查失败:', permissionError);
+          logger.error('权限检查失败:', permissionError);
           // 权限检查失败，返回空数组而不是抛出错误
           return [];
         }
@@ -69,18 +71,18 @@ export const ImageUploadService = {
               errorMessage.includes('取消') || 
               errorMessage.includes('User cancelled') ||
               errorMessage.includes('cancelled')) {
-            console.log('用户取消了图片选择');
+            logger.debug('用户取消了图片选择');
             return []; // 返回空数组，表示用户取消了操作
           }
           
           // 其他错误记录日志但不抛出，避免闪退
-          console.error('获取图片失败:', cameraError);
+          logger.error('获取图片失败:', cameraError);
           return [];
         }
         
         // 检查结果是否有效
         if (!result || !result.base64String) {
-          console.warn('未获取到图片数据，用户可能取消了操作');
+          logger.warn('未获取到图片数据，用户可能取消了操作');
           return []; // 返回空数组而不是抛出错误
         }
         
@@ -150,7 +152,7 @@ export const ImageUploadService = {
         });
       }
     } catch (error) {
-      console.error('选择图片失败:', error);
+      logger.error('选择图片失败:', error);
       throw error;
     }
   },
@@ -286,7 +288,7 @@ export const ImageUploadService = {
             currentSize = Math.round(compressedBase64.length * 0.75 / 1024);
           }
           
-          console.log(`图片压缩：原始大小=${originalSize}KB, 压缩后=${currentSize}KB, 质量=${quality}, 尺寸=${width}x${height}`);
+          logger.debug(`图片压缩：原始大小=${originalSize}KB, 压缩后=${currentSize}KB, 质量=${quality}, 尺寸=${width}x${height}`);
           
           resolve({
             ...imageContent,
@@ -334,7 +336,7 @@ export const ImageUploadService = {
       img.onload = () => {
         // 这里不修改原始对象，因为它可能已经被使用
         // 只是记录一下，以便将来可能的优化
-        console.log(`获取到图片尺寸: ${img.width}x${img.height}`);
+        logger.debug(`获取到图片尺寸: ${img.width}x${img.height}`);
       };
       img.src = imageContent.base64Data;
     }

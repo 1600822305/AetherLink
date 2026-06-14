@@ -14,6 +14,8 @@ import type {
   WorkspaceFilesResponse,
   WorkspaceActionResult
 } from '../../types/workspace';
+import { createLogger } from '../infra/logger';
+const logger = createLogger('WorkspaceService');
 
 const WORKSPACE_STORAGE_KEY = 'workspaces';
 export const ENABLE_WORKSPACE_SIDEBAR_KEY = 'ENABLE_WORKSPACE_SIDEBAR';
@@ -32,7 +34,7 @@ class WorkspaceService {
       // 对于系统文件选择器返回的路径，直接认为有效
       return { success: true };
     } catch (error) {
-      console.error('验证文件夹路径失败:', error);
+      logger.error('验证文件夹路径失败:', error);
       return {
         success: false,
         error: `路径验证失败`
@@ -82,7 +84,7 @@ class WorkspaceService {
 
       return { success: true, data: workspace };
     } catch (error) {
-      console.error('创建工作区失败:', error);
+      logger.error('创建工作区失败:', error);
       return { success: false, error: '创建工作区失败，请重试' };
     }
   }
@@ -101,7 +103,7 @@ class WorkspaceService {
         total: workspaces.length
       };
     } catch (error) {
-      console.error('获取工作区列表失败:', error);
+      logger.error('获取工作区列表失败:', error);
       return { workspaces: [], total: 0 };
     }
   }
@@ -114,7 +116,7 @@ class WorkspaceService {
       const workspaces = await this.getWorkspaces();
       return workspaces.workspaces.find(ws => ws.id === id) || null;
     } catch (error) {
-      console.error('获取工作区详情失败:', error);
+      logger.error('获取工作区详情失败:', error);
       return null;
     }
   }
@@ -134,7 +136,7 @@ class WorkspaceService {
       await dexieStorage.saveSetting(WORKSPACE_STORAGE_KEY, filteredWorkspaces);
       return { success: true };
     } catch (error) {
-      console.error('删除工作区失败:', error);
+      logger.error('删除工作区失败:', error);
       return { success: false, error: '删除工作区失败，请重试' };
     }
   }
@@ -152,7 +154,7 @@ class WorkspaceService {
         await dexieStorage.saveSetting(WORKSPACE_STORAGE_KEY, workspaces.workspaces);
       }
     } catch (error) {
-      console.error('更新访问时间失败:', error);
+      logger.error('更新访问时间失败:', error);
     }
   }
 
@@ -204,7 +206,7 @@ class WorkspaceService {
         parentPath: (subPath && subPath.includes('/')) ? subPath.split('/').slice(0, -1).join('/') : undefined
       };
     } catch (error) {
-      console.error('获取工作区文件失败:', error);
+      logger.error('获取工作区文件失败:', error);
       // 如果高级文件管理器失败，回退到原始方法
       return this.getWorkspaceFiles(workspaceId, subPath);
     }
@@ -266,7 +268,7 @@ class WorkspaceService {
         parentPath: (subPath && subPath.includes('/')) ? subPath.split('/').slice(0, -1).join('/') : undefined
       };
     } catch (error) {
-      console.error('获取工作区文件失败:', error);
+      logger.error('获取工作区文件失败:', error);
       throw new Error('无法读取工作区文件，请检查路径是否存在或权限是否足够');
     }
   }
@@ -290,7 +292,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('创建文件夹失败:', error);
+      logger.error('创建文件夹失败:', error);
       return {
         success: false,
         error: '创建文件夹失败: ' + (error instanceof Error ? error.message : String(error))
@@ -312,7 +314,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('创建文件失败:', error);
+      logger.error('创建文件失败:', error);
       return {
         success: false,
         error: '创建文件失败: ' + (error instanceof Error ? error.message : String(error))
@@ -338,7 +340,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('删除项目失败:', error);
+      logger.error('删除项目失败:', error);
       return {
         success: false,
         error: '删除失败: ' + (error instanceof Error ? error.message : String(error))
@@ -363,7 +365,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('重命名失败:', error);
+      logger.error('重命名失败:', error);
       return {
         success: false,
         error: '重命名失败: ' + (error instanceof Error ? error.message : String(error))
@@ -389,7 +391,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('复制失败:', error);
+      logger.error('复制失败:', error);
       return {
         success: false,
         error: '复制失败: ' + (error instanceof Error ? error.message : String(error))
@@ -414,7 +416,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('移动失败:', error);
+      logger.error('移动失败:', error);
       return {
         success: false,
         error: '移动失败: ' + (error instanceof Error ? error.message : String(error))
@@ -439,7 +441,7 @@ class WorkspaceService {
 
       return { success: true, content: result.content };
     } catch (error) {
-      console.error('读取文件失败:', error);
+      logger.error('读取文件失败:', error);
       return {
         success: false,
         error: '读取文件失败: ' + (error instanceof Error ? error.message : String(error))
@@ -466,7 +468,7 @@ class WorkspaceService {
 
       return { success: true };
     } catch (error) {
-      console.error('写入文件失败:', error);
+      logger.error('写入文件失败:', error);
       return {
         success: false,
         error: '写入文件失败: ' + (error instanceof Error ? error.message : String(error))
@@ -506,7 +508,7 @@ class WorkspaceService {
 
       return { success: true, files };
     } catch (error) {
-      console.error('搜索文件失败:', error);
+      logger.error('搜索文件失败:', error);
       return {
         success: false,
         error: '搜索文件失败: ' + (error instanceof Error ? error.message : String(error))
