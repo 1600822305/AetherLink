@@ -21,6 +21,10 @@
       "label": "Preserve Log",
       "description": "Preserve log records after page refresh"
     },
+    "debugMode": {
+      "label": "Debug Mode",
+      "description": "Record debug/info level logs (production only records warn/error by default)"
+    },
     "close": "Close"
   },
   "clearDialog": {

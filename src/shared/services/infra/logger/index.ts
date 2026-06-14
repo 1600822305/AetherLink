@@ -14,7 +14,7 @@
 import { Logger, type LoggerCore } from './Logger';
 import { ConsoleTransport } from './transports/ConsoleTransport';
 import { MemoryTransport } from './transports/MemoryTransport';
-import { getDefaultLevel, resolvePlatform } from './config';
+import { getDefaultLevel, resolvePlatform, writeDebugFlag } from './config';
 import { defaultRedact } from './redact';
 
 /** 应用内日志查看器的数据源：500 条环形缓冲 */
@@ -34,6 +34,17 @@ export function createLogger(context: string): Logger {
   return logger.withContext(context);
 }
 
+/**
+ * 切换调试模式：持久化运行时调试开关（localStorage）并立即应用日志级别。
+ * 开启后即便生产构建（默认阈值 WARN）也会记录 debug/info，供应用内查看器查看；
+ * 关闭后回到环境默认阈值（开发 DEBUG / 生产 WARN）。
+ */
+export function setDebugMode(enabled: boolean): void {
+  writeDebugFlag(enabled);
+  logger.setLevel(getDefaultLevel());
+}
+
+export { readDebugFlag } from './config';
 export { Logger } from './Logger';
 export { ConsoleTransport } from './transports/ConsoleTransport';
 export { MemoryTransport } from './transports/MemoryTransport';
