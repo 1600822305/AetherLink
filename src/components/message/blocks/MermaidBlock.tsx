@@ -5,6 +5,9 @@ import { Copy as ContentCopyIcon, ChevronDown as ExpandMoreIcon, ChevronUp as Ex
 import { useAppSelector } from '../../../shared/store';
 import mermaid from 'mermaid';
 import { CodeBlockView } from '../../CodeBlockView';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MermaidBlock');
 
 interface MermaidBlockProps {
   code: string;
@@ -92,7 +95,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ code, id, messageRole }) =>
         setTimeout(() => setCopySuccess(false), 2000);
       })
       .catch(err => {
-        console.error('复制失败:', err);
+        logger.error('复制失败:', err);
       });
   }, [code]);
 
@@ -197,7 +200,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ code, id, messageRole }) =>
           }
         }
       } catch (err) {
-        console.error('Mermaid render error:', err);
+        logger.error('Mermaid render error:', err);
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to render diagram');
         }

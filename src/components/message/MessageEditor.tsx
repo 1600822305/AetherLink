@@ -18,6 +18,9 @@ import { clearGetMainTextContentCache } from '../../shared/utils/messageUtils';
 import styled from '@emotion/styled';
 import { Z_INDEX } from '../../shared/constants/zIndex';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageEditor');
 
 // 编辑块类型
 interface EditableBlock {
@@ -26,9 +29,9 @@ interface EditableBlock {
   type: string;
 }
 
-// 开发环境日志工具 - 只保留错误日志
+// 开发环境日志工具 - 使用 logger
 const isDev = process.env.NODE_ENV === 'development';
-const devError = isDev ? console.error : () => {};
+const devError = isDev ? (msg: string, ...args: any[]) => logger.error(msg, ...args) : () => {};
 
 // 样式组件定义 - 参考QuickPhraseButton的设计
 const EditorContainer = styled(Box)<{ theme?: any }>`
@@ -309,7 +312,7 @@ const MessageEditor: React.FC<MessageEditorProps> = ({ message, topicId, open, o
       try {
         clearGetMainTextContentCache();
       } catch (error) {
-        console.warn('[MessageEditor] 清除缓存失败:', error);
+        logger.warn('清除缓存失败:', error);
       }
 
       // 🔧 修复AI消息特殊问题

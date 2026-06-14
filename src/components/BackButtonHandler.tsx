@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../shared/hooks/useAppState';
 import { initBackButtonListener, useBackButton } from '../shared/hooks/useBackButton';
 import { getBackToFromHistory } from '../shared/hooks/useSmartBack';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('BackButtonHandler');
 
 /**
  * 处理设置页面的智能返回逻辑
@@ -200,13 +203,13 @@ const BackButtonHandler: React.FC = () => {
     // 获取当前路径
     const currentPath = window.location.hash.replace('#', '') || '/';
     
-    console.log('[BackButtonHandler] 返回键触发, 当前路径:', currentPath);
+    logger.info('[BackButtonHandler] 返回键触发, 当前路径:', currentPath);
 
     // 优先处理对话框关闭
     if (hasOpenDialogs()) {
       const closed = closeLastDialog();
       if (closed) {
-        console.log('[BackButtonHandler] 已关闭对话框');
+        logger.info('[BackButtonHandler] 已关闭对话框');
         return true; // 已处理
       }
     }

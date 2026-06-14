@@ -1,6 +1,9 @@
 import React from 'react';
 import { Alert, Box, Typography } from '@mui/material';
 import { formatErrorMessage } from '../../shared/utils/error';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageErrorBoundary');
 
 interface Props {
   fallback?: React.ReactNode;
@@ -29,8 +32,8 @@ class MessageErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     // 记录错误信息
-    console.error('消息渲染错误:', error);
-    console.error('错误组件栈:', errorInfo.componentStack);
+    logger.error('消息渲染错误:', error);
+    logger.error('错误组件栈:', errorInfo.componentStack);
   }
 
   render(): React.ReactNode {

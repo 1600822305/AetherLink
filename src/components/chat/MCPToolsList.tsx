@@ -14,6 +14,9 @@ import {
 import type { MCPToolResponse, MCPCallToolResponse } from '../../shared/types';
 import { parseAndCallTools } from '../../shared/utils/mcpToolParser';
 import { ChunkType } from '../../shared/types/chunk';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MCPToolsList');
 
 /**
  * MCP 工具列表组件
@@ -99,7 +102,7 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
 
           return result;
         } catch (error) {
-          console.error(`工具 ${tool.tool.name} 执行失败:`, error);
+          logger.error(`工具 ${tool.tool.name} 执行失败:`, error);
 
           const errorResult: MCPCallToolResponse = {
             isError: true,
@@ -127,7 +130,7 @@ const MCPToolsList: React.FC<MCPToolsListProps> = ({
 
       await Promise.all(promises);
     } catch (error) {
-      console.error('批量执行工具失败:', error);
+      logger.error('批量执行工具失败:', error);
     } finally {
       setExecuting(false);
       setProgress(0);

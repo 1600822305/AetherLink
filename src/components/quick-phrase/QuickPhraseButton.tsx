@@ -25,6 +25,9 @@ import type { QuickPhrase } from '../../shared/types';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import styled from '@emotion/styled';
 import { alpha } from '@mui/material/styles';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('QuickPhraseButton');
 
 interface QuickPhraseButtonProps {
   onInsertPhrase: (content: string) => void;
@@ -177,7 +180,7 @@ const QuickPhraseButton: React.FC<QuickPhraseButtonProps> = ({
         setAssistantPhrases(assistantPhrases);
       }
     } catch (error) {
-      console.error('加载快捷短语失败:', error);
+      logger.error('加载快捷短语失败:', error);
     }
   }, [assistant]);
 
@@ -187,7 +190,7 @@ const QuickPhraseButton: React.FC<QuickPhraseButtonProps> = ({
 
   // 打开面板
   const handleClick = () => {
-    console.log('QuickPhrase button clicked, opening panel');
+    logger.debug('QuickPhrase button clicked, opening panel');
     setPanelOpen(true);
     setSelectedIndex(-1);
   };
@@ -250,7 +253,7 @@ const QuickPhraseButton: React.FC<QuickPhraseButtonProps> = ({
       handleCloseDialog();
       await loadPhrases();
     } catch (error) {
-      console.error('保存快捷短语失败:', error);
+      logger.error('保存快捷短语失败:', error);
     }
   };
 

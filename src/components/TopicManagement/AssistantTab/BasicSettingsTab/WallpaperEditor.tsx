@@ -15,6 +15,9 @@ import { CloudUpload as CloudUploadIcon, Image as ImageIcon } from 'lucide-react
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import type { AssistantChatBackground } from './BasicSettingsTab';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('WallpaperEditor');
 
 interface WallpaperEditorProps {
   open: boolean;
@@ -125,7 +128,7 @@ const WallpaperEditor: React.FC<WallpaperEditorProps> = ({
       });
       onClose();
     } catch (error) {
-      console.error('裁剪壁纸失败:', error);
+      logger.error('裁剪壁纸失败:', error);
     } finally {
       setIsSaving(false);
     }

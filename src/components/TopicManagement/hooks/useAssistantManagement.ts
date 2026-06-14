@@ -7,6 +7,9 @@ import { TopicService } from '../../../shared/services/topics/TopicService';
 import { setStorageItem } from '../../../shared/utils/storage';
 import type { Assistant, ChatTopic } from '../../../shared/types/Assistant';
 import type { RootState } from '../../../shared/store';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AssistantManagement');
 
 // 常量
 const CURRENT_ASSISTANT_ID_KEY = 'currentAssistantId';
@@ -38,7 +41,7 @@ export function useAssistantManagement({
     try {
       await setStorageItem(CURRENT_ASSISTANT_ID_KEY, assistantId);
     } catch (error) {
-      console.warn('[SidebarTabs] 缓存助手ID到存储失败:', error);
+      logger.warn('缓存助手ID到存储失败:', error);
     }
   }, []);
 
@@ -51,7 +54,7 @@ export function useAssistantManagement({
 
   // 选择助手 - 简化版本，直接状态更新
   const handleSelectAssistant = useCallback((assistant: Assistant) => {
-    console.log('[useAssistantManagement] 切换助手:', assistant.name);
+    logger.debug('切换助手:', assistant.name);
 
     // 批量更新状态，减少重渲染
     startTransition(() => {
@@ -93,9 +96,9 @@ export function useAssistantManagement({
           }
         }
 
-        console.log('[useAssistantManagement] 后台保存完成:', assistant.id);
+        logger.debug('后台保存完成:', assistant.id);
       } catch (error) {
-        console.error('后台保存助手失败:', error);
+        logger.error('后台保存助手失败:', error);
       }
     });
   }, [dispatch, setCurrentAssistant, currentTopic]);
@@ -103,7 +106,7 @@ export function useAssistantManagement({
   // 添加助手 - 直接使用Redux dispatch，类似最佳实例，添加useCallback缓存
   const handleAddAssistant = useCallback(async (assistant: Assistant) => {
     try {
-      console.log('[useAssistantManagement] 开始添加助手:', assistant.name);
+      logger.debug('开始添加助手:', assistant.name);
 
       // 保存话题到数据库（仍然需要保存到数据库以便持久化）
       if (assistant.topics && assistant.topics.length > 0) {
@@ -126,16 +129,16 @@ export function useAssistantManagement({
       // 更新本地状态
       setCurrentAssistant(assistant);
 
-      console.log('[useAssistantManagement] 助手添加完成:', assistant.id);
+      logger.debug('助手添加完成:', assistant.id);
     } catch (error) {
-      console.error('添加助手失败:', error);
+      logger.error('添加助手失败:', error);
     }
   }, [dispatch, setCurrentAssistant]);
 
   // 更新助手 - 直接使用Redux dispatch，类似最佳实例，添加useCallback缓存
   const handleUpdateAssistant = useCallback(async (assistant: Assistant) => {
     try {
-      console.log('[useAssistantManagement] 开始更新助手:', assistant.name);
+      logger.debug('开始更新助手:', assistant.name);
 
       // 保存助手到数据库（仍然需要保存到数据库以便持久化）
       await dexieStorage.saveAssistant(assistant);
@@ -149,16 +152,16 @@ export function useAssistantManagement({
         setCurrentAssistant(assistant);
       }
 
-      console.log('[useAssistantManagement] 助手更新完成:', assistant.id);
+      logger.debug('助手更新完成:', assistant.id);
     } catch (error) {
-      console.error('更新助手失败:', error);
+      logger.error('更新助手失败:', error);
     }
   }, [dispatch, currentAssistant, setCurrentAssistant]);
 
   // 删除助手 - 直接使用Redux dispatch，类似最佳实例，添加useCallback缓存
   const handleDeleteAssistant = useCallback(async (assistantId: string) => {
     try {
-      console.log('[useAssistantManagement] 开始删除助手:', assistantId);
+      logger.debug('开始删除助手:', assistantId);
 
       // 从数据库删除助手（仍然需要从数据库删除以便持久化）
       await dexieStorage.deleteAssistant(assistantId);
@@ -182,9 +185,9 @@ export function useAssistantManagement({
         }
       }
 
-      console.log('[useAssistantManagement] 助手删除完成:', assistantId);
+      logger.debug('助手删除完成:', assistantId);
     } catch (error) {
-      console.error('删除助手失败:', error);
+      logger.error('删除助手失败:', error);
     }
   }, [dispatch, currentAssistant, setCurrentAssistant]);
 

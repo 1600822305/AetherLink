@@ -10,6 +10,9 @@ import {
 import { ArrowLeft, Save } from 'lucide-react';
 import { simpleNoteService } from '../../../shared/services/notes/SimpleNoteService';
 import { toastManager } from '../../EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('NoteEditor');
 
 interface NoteEditorProps {
   path: string;
@@ -34,7 +37,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ path, onClose }) => {
       const text = await simpleNoteService.readNote(path);
       setContent(text);
     } catch (error) {
-      console.error('读取笔记失败:', error);
+      logger.error('读取笔记失败:', error);
       toastManager.error('读取笔记失败', '错误');
     } finally {
       setLoading(false);
@@ -47,7 +50,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({ path, onClose }) => {
       await simpleNoteService.saveNote(path, content);
       toastManager.success('保存成功', '成功');
     } catch (error) {
-      console.error('保存笔记失败:', error);
+      logger.error('保存笔记失败:', error);
       toastManager.error('保存失败', '错误');
     } finally {
       setSaving(false);

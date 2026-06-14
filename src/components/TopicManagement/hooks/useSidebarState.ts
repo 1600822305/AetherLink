@@ -8,6 +8,9 @@ import { setSidebarTabIndex } from '../../../shared/store/settingsSlice';
 import type { Assistant } from '../../../shared/types/Assistant';
 import type { RootState } from '../../../shared/store';
 import { setAssistants, setCurrentAssistant as setReduxCurrentAssistant } from '../../../shared/store/slices/assistantsSlice';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('SidebarState');
 
 /**
  * 侧边栏状态管理钩子
@@ -78,18 +81,18 @@ export function useSidebarState() {
   const loadAssistants = useCallback(async (forceReload = false) => {
     // 如果需要强制重新加载，重新获取数据
     if (forceReload) {
-      console.log('[SidebarTabs] 强制重新加载助手列表...');
+      logger.debug('强制重新加载助手列表...');
       try {
         const assistants = await AssistantService.getUserAssistants();
         dispatch(setAssistants(assistants));
-        console.log(`[SidebarTabs] 重新加载了 ${assistants.length} 个助手`);
+        logger.debug(`重新加载了 ${assistants.length} 个助手`);
       } catch (error) {
-        console.error('[SidebarTabs] 重新加载助手列表失败:', error);
+        logger.error('重新加载助手列表失败:', error);
         throw error;
       }
     } else {
       // 正常情况下，数据已经在Redux中预加载，无需额外操作
-      console.log('[SidebarTabs] 使用预加载的助手数据');
+      logger.debug('使用预加载的助手数据');
     }
   }, [dispatch]);
 
@@ -97,12 +100,12 @@ export function useSidebarState() {
   useEffect(() => {
     // 数据已在AppInitializer中预加载，直接设置为已加载
     if (!initialized.current && userAssistants.length > 0) {
-      console.log('[SidebarTabs] 检测到预加载数据，设置为已初始化');
+      logger.debug('检测到预加载数据，设置为已初始化');
       initialized.current = true;
       setLoading(false);
     } else if (!initialized.current) {
       // 如果还没有数据，等待AppInitializer完成
-      console.log('[SidebarTabs] 等待AppInitializer完成数据预加载...');
+      logger.debug('等待AppInitializer完成数据预加载...');
     }
   }, [userAssistants.length]);
 

@@ -26,6 +26,9 @@ import KnowledgeReferenceBlock from './blocks/KnowledgeReferenceBlock';
 import ContextSummaryBlock from './blocks/ContextSummaryBlock';
 import ToolBlock from './blocks/ToolBlock';
 import { isEmptyMainTextBlock, shouldShowEmptyContentMessage } from './messageBlockRenderGuards';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageBlockRenderer');
 
 // 类型定义：分组后的块可以是单个块或块数组
 type GroupedBlock = MessageBlock | MessageBlock[];
@@ -434,7 +437,7 @@ const MessageBlockRenderer: React.FC<Props> = ({
                 // exhaustive check - 如果到达这里说明有未处理的类型
                 const _exhaustiveCheck: never = block;
                 if (process.env.NODE_ENV === 'development') {
-                  console.warn('不支持的块类型:', (_exhaustiveCheck as MessageBlock).type, _exhaustiveCheck);
+                  logger.warn('不支持的块类型:', (_exhaustiveCheck as MessageBlock).type, _exhaustiveCheck);
                 }
                 break;
               }

@@ -10,6 +10,9 @@ import { ModelManagementDrawer } from '../../solid/components/ModelSelector/Mode
 import { fetchModels } from '../../shared/services/network/APIService';
 import { useDialogBackHandler } from '../../hooks/useDialogBackHandler';
 import type { Model } from '../../shared/types';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ModelManagementDialogSolid');
 
 interface ModelManagementDialogSolidProps {
   open: boolean;
@@ -65,7 +68,7 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
       setModels(fetchedModels);
     } catch (err) {
       if (requestId !== latestRequestRef.current) return;
-      console.error('加载模型失败:', err);
+      logger.error('加载模型失败:', err);
       setModels([]);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -135,7 +138,7 @@ const ModelManagementDialogSolid: React.FC<ModelManagementDialogSolidProps> = ({
       debugName="ModelManagementDrawer"
       debug={process.env.NODE_ENV === 'development'}
       onError={(error) => {
-        console.error('[ModelManagementDialog] SolidJS 组件错误:', error);
+        logger.error('[ModelManagementDialog] SolidJS 组件错误:', error);
       }}
     />
   );

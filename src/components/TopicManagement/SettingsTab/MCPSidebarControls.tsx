@@ -38,6 +38,9 @@ import {
 } from './scrollOptimization';
 import { useMCPServerStateManager } from '../../../hooks/useMCPServerStateManager';
 import OptimizedCollapse from './OptimizedCollapse';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MCPSidebarControls');
 
 interface MCPSidebarControlsProps {
   onMCPModeChange?: (mode: 'prompt' | 'function') => void;
@@ -78,7 +81,7 @@ const MCPSidebarControls: React.FC<MCPSidebarControlsProps> = ({
       await mcpService.toggleServer(serverId, isActive);
       loadServers();
     } catch (error) {
-      console.error('切换服务器状态失败:', error);
+      logger.error('切换服务器状态失败:', error);
     }
   };
 

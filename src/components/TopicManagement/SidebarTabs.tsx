@@ -12,6 +12,9 @@ import { newMessagesActions } from '../../shared/store/slices/newMessagesSlice';
 import { removeTopic } from '../../shared/store/slices/assistantsSlice';
 import type { ChatTopic } from '../../shared/types/Assistant';
 import SidebarTabsContent from './SidebarTabsContent';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SidebarTabs');
 
 interface SidebarTabsProps {
   mcpMode?: 'prompt' | 'function';
@@ -72,23 +75,23 @@ const SidebarTabs = React.memo(function SidebarTabs({
   // ⚡ 关键修复：移除 startTransition，让选中状态立即响应
   // startTransition 会将更新标记为低优先级，导致 1-2 秒的延迟
   const handleSelectTopic = useCallback((topic: ChatTopic) => {
-    console.log('[SidebarTabs] handleSelectTopic被调用:', topic.id, topic.name);
+    logger.debug('handleSelectTopic被调用:', topic.id, topic.name);
 
     // 直接 dispatch，立即更新 Redux 状态，UI 即时响应
     dispatch(newMessagesActions.setCurrentTopicId(topic.id));
 
-    console.log('[SidebarTabs] 话题切换完成');
+    logger.debug('话题切换完成');
   }, [dispatch]);
 
   const handleDeleteTopic = useCallback(async (topicId: string, event: React.MouseEvent) => {
     event.stopPropagation();
 
-    console.log('[SidebarTabs] 开始删除话题:', topicId);
+    logger.debug('开始删除话题:', topicId);
 
     const topics = assistantWithTopics?.topics ?? [];
     const topicToDelete = topics.find(t => t.id === topicId);
     if (!topicToDelete || !currentAssistant) {
-      console.warn('[SidebarTabs] 找不到要删除的话题或当前助手');
+      logger.warn('找不到要删除的话题或当前助手');
       return;
     }
 
@@ -123,9 +126,9 @@ const SidebarTabs = React.memo(function SidebarTabs({
     Promise.resolve().then(async () => {
       try {
         await TopicService.deleteTopic(topicId);
-        console.log('[SidebarTabs] 话题数据库删除完成:', topicId);
+        logger.debug('话题数据库删除完成:', topicId);
       } catch (error) {
-        console.error('[SidebarTabs] 删除话题失败，需要回滚UI状态:', error);
+        logger.error('删除话题失败，需要回滚UI状态:', error);
         refreshTopics();
       }
     });

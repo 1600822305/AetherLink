@@ -35,6 +35,9 @@ import {
 import { workspaceService } from '../../../shared/services/files/WorkspaceService';
 import type { Workspace, WorkspaceFile } from '../../../shared/types/workspace';
 import { toastManager } from '../../EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('WorkspaceList');
 
 interface WorkspaceListProps {
   onSelectWorkspace: (workspaceId: string) => void;
@@ -67,7 +70,7 @@ const WorkspaceList: React.FC<WorkspaceListProps> = ({ onSelectWorkspace }) => {
       const result = await workspaceService.getWorkspaces();
       setWorkspaces(result.workspaces);
     } catch (error) {
-      console.error('加载工作区失败:', error);
+      logger.error('加载工作区失败:', error);
       toastManager.error('加载工作区失败', '错误');
     } finally {
       setLoading(false);
@@ -81,7 +84,7 @@ const WorkspaceList: React.FC<WorkspaceListProps> = ({ onSelectWorkspace }) => {
       setFiles(result.files);
       setCurrentPath(subPath);
     } catch (error) {
-      console.error('加载文件失败:', error);
+      logger.error('加载文件失败:', error);
       toastManager.error('加载文件失败', '错误');
     } finally {
       setLoading(false);
@@ -179,7 +182,7 @@ const WorkspaceList: React.FC<WorkspaceListProps> = ({ onSelectWorkspace }) => {
       loadFiles(currentWorkspace.id, currentPath);
       toastManager.success(`${createType === 'folder' ? '文件夹' : '文件'}创建成功`, '成功');
     } catch (error) {
-      console.error('创建失败:', error);
+      logger.error('创建失败:', error);
       toastManager.error('创建失败: ' + (error instanceof Error ? error.message : String(error)), '错误');
     }
   };
@@ -199,7 +202,7 @@ const WorkspaceList: React.FC<WorkspaceListProps> = ({ onSelectWorkspace }) => {
       loadFiles(currentWorkspace.id, currentPath);
       toastManager.success('删除成功', '成功');
     } catch (error) {
-      console.error('删除失败:', error);
+      logger.error('删除失败:', error);
       toastManager.error('删除失败', '错误');
     }
   };

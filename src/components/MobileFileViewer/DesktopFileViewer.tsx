@@ -26,6 +26,9 @@ import { EditorView } from '@codemirror/view';
 import { unifiedFileManager } from '../../shared/services/files/UnifiedFileManagerService';
 import { formatFileSize, getFileType, getLanguage, isEditableFile } from './utils';
 import type { DesktopFileViewerProps, WorkspaceFile, EditorSettings } from './types';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('DesktopFileViewer');
 
 // 简化的桌面缩放控制组件
 const DesktopZoomControls: React.FC<{
@@ -174,7 +177,7 @@ export const DesktopFileViewer: React.FC<DesktopFileViewerProps> = ({
       const extension = loadLanguage(language as any);
       return extension ? [extension] : [];
     } catch (error) {
-      console.warn('Failed to load language extension:', error);
+      logger.warn('Failed to load language extension:', error);
       return [];
     }
   }, []);

@@ -17,6 +17,9 @@ import { useNotesSearch } from '../shared/hooks/useNotesSearch';
 import type { NoteFile } from '../shared/types/note';
 import type { SearchResult } from '../shared/services/notes/NotesSearchService';
 import styled from '@emotion/styled';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('NoteSelector');
 
 interface NoteSelectorProps {
   open: boolean;
@@ -299,7 +302,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
       const items = await simpleNoteService.listNotes(path);
       setNotes(items);
     } catch (error) {
-      console.error('加载笔记列表失败:', error);
+      logger.error('加载笔记列表失败:', error);
       setNotes([]);
     } finally {
       setLoading(false);
@@ -360,7 +363,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
         onSelectNote(item.path, content, item.name);
         onClose();
       } catch (error) {
-        console.error('读取笔记失败:', error);
+        logger.error('读取笔记失败:', error);
       }
     }
   };

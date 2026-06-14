@@ -9,6 +9,9 @@ import { findModelInProviders } from '../../shared/utils/modelUtils';
 import { getMainTextContent } from '../../shared/utils/blockUtils';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import { Haptics } from '../../shared/utils/hapticFeedback';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ContextTokenIndicator');
 
 interface ContextTokenIndicatorProps {
   topicId?: string;
@@ -223,7 +226,7 @@ const ContextTokenIndicator: React.FC<ContextTokenIndicatorProps> = ({
           });
         }
       } catch (error) {
-        console.error('读取上下文设置失败:', error);
+        logger.error('读取上下文设置失败:', error);
       }
     };
     

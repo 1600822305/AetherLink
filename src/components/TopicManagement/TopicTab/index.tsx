@@ -52,6 +52,9 @@ import { TopicManager } from '../../../shared/services/assistant/TopicManager';
 import { exportTopicAsMarkdown, exportTopicAsDocx, copyTopicAsMarkdown } from '../../../utils/exportUtils';
 import { exportTopicToNotion } from '../../../utils/notionExport';
 import { toastManager } from '../../EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('TopicTab');
 
 interface TopicTabProps {
   currentAssistant: ({
@@ -160,7 +163,7 @@ export default function TopicTab({
       : false;
 
     if (!currentTopicExists) {
-      console.log('[TopicTab] 自动选择话题:', sortedTopics[0].name || sortedTopics[0].id);
+      logger.debug('自动选择话题:', sortedTopics[0].name || sortedTopics[0].id);
       startTransition(() => {
         onSelectTopic(sortedTopics[0]);
       });
@@ -256,7 +259,7 @@ export default function TopicTab({
 
   // 话题删除处理函数 - 简化版本，避免重复逻辑
   const handleTopicDelete = useCallback((topicId: string, e: React.MouseEvent) => {
-    console.log('[TopicTab] 话题删除图标被点击:', topicId);
+      logger.debug('话题删除图标被点击:', topicId);
 
     // 直接调用父组件的删除函数，让SidebarTabs处理所有逻辑
     startTransition(() => {
@@ -299,7 +302,7 @@ export default function TopicTab({
       const assistantId = updatedTopic.assistantId || currentAssistant?.id;
       
       if (!assistantId) {
-        console.error('[TopicTab] 更新话题失败：缺少 assistantId');
+        logger.error('更新话题失败：缺少 assistantId');
         return false;
       }
 
@@ -310,21 +313,21 @@ export default function TopicTab({
 
       // 1. 保存到数据库
       await dexieStorage.saveTopic(topicToSave);
-      console.log(`[TopicTab] 话题 ${topicToSave.id} 已保存到数据库`);
+      logger.debug(`话题 ${topicToSave.id} 已保存到数据库`);
 
       // 2. 直接更新 Redux 状态（避免通过回调导致的竞态条件）
       dispatch({
         type: 'assistants/updateTopic',
         payload: { assistantId: topicToSave.assistantId, topic: topicToSave }
       });
-      console.log(`[TopicTab] 话题 ${topicToSave.id} 的 Redux 状态已更新`);
+      logger.debug(`话题 ${topicToSave.id} 的 Redux 状态已更新`);
 
       // 3. 发送事件通知（用于其他组件监听）
       EventEmitter.emit(EVENT_NAMES.TOPIC_UPDATED, topicToSave);
       
       return true;
     } catch (error) {
-      console.error('[TopicTab] 更新话题失败:', error);
+      logger.error('更新话题失败:', error);
       // 刷新话题列表以恢复一致状态
       if (onUpdateTopic && currentAssistant) {
         try {
@@ -333,7 +336,7 @@ export default function TopicTab({
             onUpdateTopic(freshTopic);
           }
         } catch (refreshError) {
-          console.error('[TopicTab] 刷新话题失败:', refreshError);
+          logger.error('刷新话题失败:', refreshError);
         }
       }
       return false;
@@ -397,7 +400,7 @@ export default function TopicTab({
         await updateTopic(updatedTopic);
       }
     } catch (error) {
-      console.error('自动命名话题失败:', error);
+      logger.error('自动命名话题失败:', error);
     }
 
     handleCloseMenu();
@@ -433,7 +436,7 @@ export default function TopicTab({
               confirm: { isOpen: false, title: '', content: '', onConfirm: () => {} }
             }));
           } catch (error) {
-            console.error('清空话题消息失败:', error);
+            logger.error('清空话题消息失败:', error);
             setDialogState(prev => ({
               ...prev,
               confirm: { isOpen: false, title: '', content: '', onConfirm: () => {} }
@@ -486,7 +489,7 @@ export default function TopicTab({
             };
           }
         } catch (messageError) {
-          console.warn('[TopicTab] 获取话题消息失败，保持原有messageIds:', messageError);
+          logger.warn('获取话题消息失败，保持原有messageIds:', messageError);
         }
       }
 
@@ -515,7 +518,7 @@ export default function TopicTab({
       handleCloseMoveToMenu();
       handleCloseMenu();
     } catch (error) {
-      console.error('移动话题失败:', error);
+      logger.error('移动话题失败:', error);
     }
   };
 
@@ -527,7 +530,7 @@ export default function TopicTab({
     try {
       await exportTopicAsMarkdown(topic, includeReasoning);
     } catch (error) {
-      console.error('导出话题Markdown失败:', error);
+      logger.error('导出话题Markdown失败:', error);
     }
     handleCloseMenu();
   };
@@ -539,7 +542,7 @@ export default function TopicTab({
     try {
       await exportTopicAsDocx(topic, includeReasoning);
     } catch (error) {
-      console.error('导出话题DOCX失败:', error);
+      logger.error('导出话题DOCX失败:', error);
     }
     handleCloseMenu();
   };
@@ -551,7 +554,7 @@ export default function TopicTab({
     try {
       await copyTopicAsMarkdown(topic, includeReasoning);
     } catch (error) {
-      console.error('复制话题Markdown失败:', error);
+      logger.error('复制话题Markdown失败:', error);
     }
     handleCloseMenu();
   };
@@ -580,7 +583,7 @@ export default function TopicTab({
         dateField: notionSettings.dateField
       }, includeReasoning);
     } catch (error) {
-      console.error('导出话题到Notion失败:', error);
+      logger.error('导出话题到Notion失败:', error);
     }
     handleCloseMenu();
   };
@@ -791,7 +794,7 @@ export default function TopicTab({
                       confirm: { isOpen: false, title: '', content: '', onConfirm: () => {} }
                     }));
 
-                    console.log('[TopicTab] 菜单删除话题:', topic.id, topic.name);
+                    logger.debug('菜单删除话题:', topic.id, topic.name);
 
                     // 直接调用父组件的删除函数，让SidebarTabs处理所有逻辑
                     const mockEvent = {

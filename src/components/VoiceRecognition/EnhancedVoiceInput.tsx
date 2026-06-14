@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Paper, IconButton, Tooltip } from '@mui/material';
 import { VolumeX, ArrowLeft } from 'lucide-react';
 import { useVoiceRecognition } from '../../shared/hooks/useVoiceRecognition';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('EnhancedVoiceInput');
 
 interface EnhancedVoiceInputProps {
   isDarkMode?: boolean;
@@ -97,7 +100,7 @@ const EnhancedVoiceInput: React.FC<EnhancedVoiceInputProps> = ({
         partialResults: true
       });
     } catch (error) {
-      console.error('启动录音失败:', error);
+      logger.error('启动录音失败:', error);
       setHasStartedRecording(false);
     }
   }, [hasStartedRecording, startRecognition, currentMessage]);
@@ -173,7 +176,7 @@ const EnhancedVoiceInput: React.FC<EnhancedVoiceInputProps> = ({
         await stopRecognition();
         onClose();
       } catch (error) {
-        console.error('取消录音失败:', error);
+        logger.error('取消录音失败:', error);
         onClose();
       }
     } else {
@@ -183,7 +186,7 @@ const EnhancedVoiceInput: React.FC<EnhancedVoiceInputProps> = ({
         // 录音结束后关闭录音界面，识别结果已通过 onInsertText 实时更新到输入框
         onClose();
       } catch (error) {
-        console.error('发送录音失败:', error);
+        logger.error('发送录音失败:', error);
         onClose();
       }
     }
@@ -259,7 +262,7 @@ const EnhancedVoiceInput: React.FC<EnhancedVoiceInputProps> = ({
         await stopRecognition();
         onClose();
       } catch (error) {
-        console.error('取消录音失败:', error);
+        logger.error('取消录音失败:', error);
         onClose();
       }
     } else {
@@ -268,7 +271,7 @@ const EnhancedVoiceInput: React.FC<EnhancedVoiceInputProps> = ({
         // 录音结束后关闭录音界面，识别结果已通过 onInsertText 实时更新到输入框
         onClose();
       } catch (error) {
-        console.error('发送录音失败:', error);
+        logger.error('发送录音失败:', error);
         onClose();
       }
     }

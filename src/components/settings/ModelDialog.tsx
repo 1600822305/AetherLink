@@ -22,6 +22,9 @@ import { presetModels, getProviderName } from '../../shared/data/presetModels';
 import { generateId } from '../../shared/utils';
 import { matchModelTypes } from '../../shared/data/modelTypeRules';
 import EnhancedModelTypeSelector from './EnhancedModelTypeSelector';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ModelDialog');
 
 interface ModelDialogProps {
   open: boolean;
@@ -118,7 +121,7 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
 
       setAutoDetectTypes(true);
 
-      console.log(`选择预设模型: ${preset.name}, ID: ${preset.id}, 提供商: ${!editModel ? preset.provider : modelData.provider}`);
+      logger.debug(`选择预设模型: ${preset.name}, ID: ${preset.id}, 提供商: ${!editModel ? preset.provider : modelData.provider}`);
     }
   };
 

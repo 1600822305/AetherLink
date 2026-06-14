@@ -25,6 +25,9 @@ import {
 import { isTauri } from '../../../shared/utils/platformDetection';
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AdvancedImagePreview');
 
 interface AdvancedImagePreviewProps {
   src: string;
@@ -114,7 +117,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
 
         if (isTauri()) {
           // Tauri 桌面端：使用 Tauri HTTP 插件
-          console.log('[AdvancedImagePreview] Tauri 端加载外部图片:', src);
+          logger.info('[AdvancedImagePreview] Tauri 端加载外部图片:', src);
           const { fetch: tauriHttpFetch } = await import('@tauri-apps/plugin-http');
           response = await tauriHttpFetch(src, {
             method: 'GET',
@@ -122,7 +125,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           });
         } else if (Capacitor.isNativePlatform()) {
           // 移动端：使用 CorsBypass 插件
-          console.log('[AdvancedImagePreview] 移动端加载外部图片:', src);
+          logger.info('[AdvancedImagePreview] 移动端加载外部图片:', src);
           const result = await CorsBypass.request({
             url: src,
             method: 'GET',
@@ -145,7 +148,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           throw new Error('No data received from CorsBypass');
         } else {
           // Web 端：使用代理服务器
-          console.log('[AdvancedImagePreview] Web 端通过代理加载外部图片:', src);
+          logger.info('[AdvancedImagePreview] Web 端通过代理加载外部图片:', src);
           const proxyUrl = buildCorsProxyRequestUrl(src);
           response = await fetch(proxyUrl, {
             method: 'GET',
@@ -165,7 +168,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('[AdvancedImagePreview] 加载外部图片失败:', error);
+        logger.error('[AdvancedImagePreview] 加载外部图片失败:', error);
         if (isMounted) {
           setLoadError(error instanceof Error ? error.message : '图片加载失败');
           setIsLoading(false);
@@ -268,7 +271,7 @@ const AdvancedImagePreview: React.FC<AdvancedImagePreviewProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('下载图片失败:', error);
+      logger.error('下载图片失败:', error);
     }
   }, [src, alt]);
 

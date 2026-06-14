@@ -34,6 +34,9 @@ import {
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('HtmlArtifactsCard');
 
 interface HtmlArtifactsCardProps {
   html: string;
@@ -98,7 +101,7 @@ const HtmlArtifactsCard: React.FC<HtmlArtifactsCardProps> = memo(({
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
     } catch (error) {
-      console.error('打开外部浏览器失败:', error);
+      logger.error('打开外部浏览器失败:', error);
       // 降级方案：使用 window.open
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -144,7 +147,7 @@ const HtmlArtifactsCard: React.FC<HtmlArtifactsCardProps> = memo(({
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('下载失败:', error);
+      logger.error('下载失败:', error);
       // 降级方案
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);

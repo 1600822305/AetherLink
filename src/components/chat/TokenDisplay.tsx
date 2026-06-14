@@ -7,6 +7,9 @@ import type { RootState } from '../../shared/store';
 import { estimateTokens } from '../../shared/utils';
 import { getMainTextContent } from '../../shared/utils/messageUtils';
 import type { Message } from '../../shared/types/newMessage';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('TokenDisplay');
 
 interface TokenDisplayProps {
   currentMessage?: Message; // 当前选中或正在编辑的消息
@@ -90,7 +93,7 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
           total += estimateTokens(content);
         }
       } catch (error) {
-        console.warn('计算消息token失败:', error);
+        logger.warn('计算消息token失败:', error);
       }
     }
 
@@ -111,7 +114,7 @@ const TokenDisplay: React.FC<TokenDisplayProps> = ({
       const content = getMainTextContent(currentMessage);
       return content ? estimateTokens(content) : 0;
     } catch (error) {
-      console.warn('计算当前消息token失败:', error);
+      logger.warn('计算当前消息token失败:', error);
       return 0;
     }
   }, [currentMessage]);

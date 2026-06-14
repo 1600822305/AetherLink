@@ -15,6 +15,9 @@ import { clampSidebarWidth } from './sidebarOptimization';
 import { useDialogBackHandler } from '../../hooks/useDialogBackHandler';
 import { useAppSelector } from '../../shared/store';
 import { Haptics } from '../../shared/utils/hapticFeedback';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SolidMotionSidebar');
 
 // 侧边栏的唯一标识符
 const SIDEBAR_DIALOG_ID = 'sidebar-drawer-solid';
@@ -80,7 +83,7 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
         return clampSidebarWidth(settings.sidebarWidth || 350);
       }
     } catch (e) {
-      console.error('读取侧边栏宽度失败:', e);
+      logger.error('读取侧边栏宽度失败:', e);
     }
     return 350;
   }, []);
@@ -117,7 +120,7 @@ const SolidMotionSidebar = React.memo(function SolidMotionSidebar({
         detail: { settingId: 'sidebarWidth', value: newWidth }
       }));
     } catch (e) {
-      console.error('保存侧边栏宽度失败:', e);
+      logger.error('保存侧边栏宽度失败:', e);
     }
   }, []);
 

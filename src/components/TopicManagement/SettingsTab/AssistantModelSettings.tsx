@@ -36,6 +36,9 @@ import { dexieStorage } from '../../../shared/services/storage/DexieStorageServi
 import type { Assistant, CustomParameter, CustomParameterType } from '../../../shared/types/Assistant';
 import type { ThinkingOption } from '../../../shared/config/reasoningConfig';
 import { parameterSyncService } from '../../../shared/services/assistant/ParameterSyncService';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AssistantModelSettings');
 
 // TabPanel组件
 interface TabPanelProps {
@@ -156,7 +159,7 @@ const AssistantModelSettings: React.FC = () => {
             setMaxTokens(newMaxTokens);
           }
         } catch (error) {
-          console.error('解析localStorage变化失败:', error);
+          logger.error('解析localStorage变化失败:', error);
         }
       }
     };
@@ -214,7 +217,7 @@ const AssistantModelSettings: React.FC = () => {
   // 初始化助手数据
   useEffect(() => {
     if (assistant) {
-      console.log('AssistantModelSettings: 初始化助手数据', {
+      logger.debug('初始化助手数据', {
         assistant,
         temperature: assistant?.temperature,
         topP: assistant?.topP,
@@ -433,7 +436,7 @@ const AssistantModelSettings: React.FC = () => {
         updatedAt: new Date().toISOString()
       };
 
-      console.log('AssistantModelSettings: 保存助手设置', {
+      logger.debug('保存助手设置', {
         assistantId: assistant.id,
         assistantName: assistant.name,
         temperature,
@@ -451,9 +454,9 @@ const AssistantModelSettings: React.FC = () => {
       setHasChanges(false);
 
       // 显示成功提示
-      console.log('助手设置已保存成功');
+      logger.debug('助手设置已保存成功');
     } catch (error) {
-      console.error('保存助手设置失败:', error);
+      logger.error('保存助手设置失败:', error);
     } finally {
       setSaving(false);
     }

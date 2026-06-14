@@ -18,6 +18,9 @@ import type { ModelTypeRule } from '../../shared/types';
 import { getModelTypeDisplayName, defaultModelTypeRules } from '../../shared/data/modelTypeRules';
 import ModelTypeManagement from './ModelTypeManagement';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('EnhancedModelTypeSelector');
 
 // 模型类型分组
 const MODEL_TYPE_GROUPS = {
@@ -122,7 +125,7 @@ const EnhancedModelTypeSelector: React.FC<EnhancedModelTypeSelectorProps> = ({
           setModelTypeRules(defaultModelTypeRules);
         }
       } catch (error) {
-        console.error('[EnhancedModelTypeSelector] 加载模型类型规则失败:', error);
+        logger.error('加载模型类型规则失败:', error);
         // 使用默认规则
         setModelTypeRules(defaultModelTypeRules);
       }
@@ -164,9 +167,9 @@ const EnhancedModelTypeSelector: React.FC<EnhancedModelTypeSelectorProps> = ({
     // 保存规则到存储
     try {
       await dexieStorage.saveSetting('modelTypeRules', rules);
-      console.log('[EnhancedModelTypeSelector] 模型类型规则已保存');
+      logger.debug('模型类型规则已保存');
     } catch (error) {
-      console.error('[EnhancedModelTypeSelector] 保存模型类型规则失败:', error);
+      logger.error('保存模型类型规则失败:', error);
     }
   };
 

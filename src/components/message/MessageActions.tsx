@@ -46,6 +46,9 @@ import { Clipboard } from '@capacitor/clipboard';
 import { Z_INDEX } from '../../shared/constants/zIndex';
 import { debugLog } from '../../shared/utils/debugLogger';
 import MessageTranslateButton from './MessageTranslateButton';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageActions');
 
 // 初始化 dayjs 插件和全局语言设置
 dayjs.extend(relativeTime);
@@ -205,7 +208,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
         const isEnabled = enabled !== 'false'; // 默认启用
         setEnableTTS(isEnabled);
       } catch (error) {
-        console.error('获取TTS启用状态失败:', error);
+        logger.error('获取TTS启用状态失败:', error);
         setEnableTTS(true); // 默认启用
       }
     };
@@ -308,17 +311,17 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
 
   // 删除消息 - 根据渲染模式使用不同的删除逻辑
   const handleDeleteClick = useCallback(() => {
-    console.log('[MessageActions] 删除消息:', message.id);
+    logger.info('[MessageActions] 删除消息:', message.id);
 
     try {
       if (onDelete) {
         onDelete(message.id);
-        console.log('[MessageActions] 删除消息成功');
+        logger.info('[MessageActions] 删除消息成功');
       } else {
-        console.warn('[MessageActions] 没有删除回调函数');
+        logger.warn('[MessageActions] 没有删除回调函数');
       }
     } catch (error) {
-      console.error('[MessageActions] 删除消息失败:', error);
+      logger.error('[MessageActions] 删除消息失败:', error);
       toastManager.error('删除失败: ' + (error instanceof Error ? error.message : '未知错误'), '删除错误');
     } finally {
       // 重置删除按钮状态
@@ -372,7 +375,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
   // 创建分支 - 使用最佳实例的事件机制
   const handleCreateBranch = useCallback(() => {
     if (messageIndex === undefined) {
-      console.error('[MessageActions] 无法创建分支: 缺少messageIndex');
+      logger.error('[MessageActions] 无法创建分支: 缺少messageIndex');
       return;
     }
 
@@ -409,7 +412,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
         alert('文本转语音失败');
       }
     } catch (error) {
-      console.error('TTS错误:', error);
+      logger.error('TTS错误:', error);
       setIsPlaying(false);
       alert('文本转语音失败');
     }
@@ -557,7 +560,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
     try {
       return dayjs(dateString).fromNow();
     } catch (error) {
-      console.error('日期格式化错误:', error);
+      logger.error('日期格式化错误:', error);
       return '未知时间';
     }
   }, []);

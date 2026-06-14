@@ -3,6 +3,9 @@ import { useDispatch } from 'react-redux';
 import type { Message, MessageBlock } from '../../../shared/types/newMessage';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
 import { upsertManyBlocks } from '../../../shared/store/slices/messageBlocksSlice';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('useMessageBlocks');
 
 export const useMessageBlocks = (
   message: Message, 
@@ -27,16 +30,16 @@ export const useMessageBlocks = (
           if (messageBlocks.length < message.blocks.length) {
             const foundIds = new Set(messageBlocks.map(b => b.id));
             const missingIds = message.blocks.filter(id => !foundIds.has(id));
-            console.warn(`[MessageItem] 数据库中找不到块: ID=${missingIds.join(', ')}`);
+            logger.warn(`[MessageItem] 数据库中找不到块: ID=${missingIds.join(', ')}`);
           }
 
           if (messageBlocks.length > 0) {
             dispatch(upsertManyBlocks(messageBlocks));
           } else {
-            console.warn(`[MessageItem] 数据库中没有找到任何块: 消息ID=${message.id}`);
+            logger.warn(`[MessageItem] 数据库中没有找到任何块: 消息ID=${message.id}`);
           }
         } catch (error) {
-          console.error(`[MessageItem] 加载消息块失败: 消息ID=${message.id}`, error);
+          logger.error(`[MessageItem] 加载消息块失败: 消息ID=${message.id}`, error);
         }
       }
     };

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { DexEditorPlugin } from 'capacitor-dex-editor';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('NativeSmaliEditor');
 
 interface NativeSmaliEditorProps {
   open: boolean;
@@ -36,13 +39,13 @@ const NativeSmaliEditor: React.FC<NativeSmaliEditorProps> = ({
     
     const openNativeEditor = async () => {
       if (!Capacitor.isNativePlatform()) {
-        console.warn('Native editor only available on Android');
+        logger.warn('Native editor only available on Android');
         propsRef.current.onClose();
         return;
       }
 
       isOpeningRef.current = true;
-      console.log('[NativeSmaliEditor] Opening native editor...');
+      logger.debug('Opening native editor...');
 
       try {
         const result = await DexEditorPlugin.openSmaliEditor({
@@ -52,13 +55,13 @@ const NativeSmaliEditor: React.FC<NativeSmaliEditorProps> = ({
           readOnly: propsRef.current.readOnly || false,
         });
 
-        console.log('[NativeSmaliEditor] Result:', result);
+        logger.debug('Result:', result);
 
         if (result.success && result.modified && propsRef.current.onSave && result.content) {
           await propsRef.current.onSave(result.content);
         }
       } catch (error) {
-        console.error('[NativeSmaliEditor] Failed to open native editor:', error);
+        logger.error('Failed to open native editor:', error);
       } finally {
         isOpeningRef.current = false;
         propsRef.current.onClose();

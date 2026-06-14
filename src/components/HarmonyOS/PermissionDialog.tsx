@@ -34,6 +34,9 @@ import {
 import {
   harmonyOSPermissionService,
 } from '../../shared/services/platform/harmonyos/HarmonyOSPermissionService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('HarmonyOSPermissionDialog');
 
 interface PermissionDialogProps {
   open: boolean;
@@ -90,7 +93,7 @@ export const HarmonyOSPermissionDialog: React.FC<PermissionDialogProps> = ({
       await harmonyOSPermissionService.openAppSettings();
       onClose();
     } catch (err) {
-      console.error('[HarmonyOS] 打开设置失败:', err);
+      logger.error('[HarmonyOS] 打开设置失败:', err);
     }
   };
 

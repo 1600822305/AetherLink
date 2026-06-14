@@ -1,4 +1,7 @@
 import type { Area } from 'react-easy-crop';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('cropImage');
 
 /**
  * 创建裁剪后的图片
@@ -62,7 +65,7 @@ export const getCroppedImg = async (
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (!blob) {
-        console.error('Canvas is empty');
+        logger.error('Canvas is empty');
         return resolve('');
       }
       const reader = new FileReader();

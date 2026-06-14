@@ -9,6 +9,9 @@ import { Upload as UploadIcon, File as FileIcon } from 'lucide-react';
 import { getPlatformInfo } from '../../shared/utils/platformDetection';
 import { ALL_SUPPORTED_EXTENSIONS, SUPPORTED_FILE_EXTENSIONS } from '../../shared/services/knowledge/FileParserService';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('FileDropZone');
 
 // 将文件扩展名转换为 MIME 类型（Capacitor FilePicker 要求 MIME 类型）
 const extToMimeType = (ext: string): string => {
@@ -168,7 +171,7 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
 
     for (const file of fileArray) {
       if (maxSize && file.size > maxSize) {
-        console.warn(`文件 ${file.name} 超过大小限制`);
+        logger.warn(`文件 ${file.name} 超过大小限制`);
         continue;
       }
 
@@ -195,7 +198,7 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
           arrayBuffer, // 二进制文件的原始数据
         });
       } catch (err) {
-        console.error(`读取文件 ${file.name} 失败:`, err);
+        logger.error(`读取文件 ${file.name} 失败:`, err);
       }
     }
 
@@ -306,7 +309,7 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
               }
               arrayBuffer = bytes.buffer;
             } catch (e) {
-              console.warn('Capacitor: base64 转 ArrayBuffer 失败:', e);
+              logger.warn('Capacitor: base64 转 ArrayBuffer 失败:', e);
             }
           } else {
             // 文本文件：正确解码 base64 为 UTF-8
@@ -329,9 +332,9 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
       if (err?.message?.includes('cancel') || err?.message?.includes('Cancel')) {
         return;
       }
-      console.error('Capacitor 文件选择失败:', err);
+      logger.error('Capacitor 文件选择失败:', err);
       // 回退到 Web 文件选择
-      console.warn('回退到 Web 文件选择器');
+      logger.warn('回退到 Web 文件选择器');
       fileInputRef.current?.click();
     }
   }, [accept, multiple, onFilesSelected]);
@@ -392,13 +395,13 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
             });
           }
         } catch (err) {
-          console.error(`读取文件失败: ${filePath}`, err);
+          logger.error(`读取文件失败: ${filePath}`, err);
         }
       }
 
       onFilesSelected(files);
     } catch (err) {
-      console.error('Tauri 文件选择失败:', err);
+      logger.error('Tauri 文件选择失败:', err);
     }
   };
 

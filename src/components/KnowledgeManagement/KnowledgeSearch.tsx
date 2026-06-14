@@ -21,6 +21,9 @@ import { Search, X, Copy, Sparkles, Zap } from 'lucide-react';
 import CustomSwitch from '../CustomSwitch';
 import { MobileKnowledgeService } from '../../shared/services/knowledge/MobileKnowledgeService';
 import type { KnowledgeSearchResult } from '../../shared/types/KnowledgeBase';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeSearch');
 
 interface KnowledgeSearchProps {
   knowledgeBaseId: string;
@@ -49,7 +52,7 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
           setMaxResults(kb.documentCount || 5);
         }
       } catch (err) {
-        console.error('Error fetching knowledge base details:', err);
+        logger.error('Error fetching knowledge base details:', err);
       }
     };
 
@@ -86,7 +89,7 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
         setError('没有找到匹配的内容');
       }
     } catch (err) {
-      console.error('Search error:', err);
+      logger.error('Search error:', err);
       setError('搜索过程中发生错误');
     } finally {
       setLoading(false);
@@ -111,7 +114,7 @@ export const KnowledgeSearch: React.FC<KnowledgeSearchProps> = ({
       setCopiedId(result.documentId);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      console.error('Error copying content:', err);
+      logger.error('Error copying content:', err);
       setError('复制失败');
     }
   };

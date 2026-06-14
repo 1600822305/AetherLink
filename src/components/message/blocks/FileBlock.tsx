@@ -14,6 +14,9 @@ import { FileTypes } from '../../../shared/utils/fileUtils';
 import { MobileFileViewer, DesktopFileViewer } from '../../MobileFileViewer';
 import { isEditableFile as checkIsEditableFile } from '../../MobileFileViewer/utils';
 import type { WorkspaceFile } from '../../MobileFileViewer/types';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('FileBlock');
 
 interface Props {
   block: FileMessageBlock;
@@ -65,7 +68,7 @@ const createFileReaderService = (fileBlock: FileMessageBlock) => {
 
         return { content, encoding: options.encoding };
       } catch (error) {
-        console.error('解码文件内容失败:', error);
+        logger.error('解码文件内容失败:', error);
         throw new Error('无法读取文件内容，可能不是文本文件');
       }
     }
@@ -115,7 +118,7 @@ const FileBlock: React.FC<Props> = ({ block }) => {
 
   // 处理文件保存（暂时只是提示，实际保存需要更复杂的逻辑）
   const handleSaveFile = async (content: string) => {
-    console.log('保存文件内容:', content);
+    logger.info('保存文件内容:', content);
     // TODO: 实现实际的保存逻辑
     alert('文件保存功能暂未实现，这是演示版本');
   };
@@ -149,7 +152,7 @@ const FileBlock: React.FC<Props> = ({ block }) => {
   // 处理文件下载
   const handleDownload = () => {
     if (!file.base64Data) {
-      console.warn('文件没有base64数据，无法下载');
+      logger.warn('文件没有base64数据，无法下载');
       return;
     }
 
@@ -185,7 +188,7 @@ const FileBlock: React.FC<Props> = ({ block }) => {
       // 清理URL
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('文件下载失败:', error);
+      logger.error('文件下载失败:', error);
     }
   };
 

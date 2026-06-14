@@ -11,6 +11,9 @@ import { initGroups } from '../shared/store/slices/groupsSlice';
 import { useModelComboSync } from '../shared/hooks/useModelComboSync';
 import { unifiedFileManager } from '../shared/services/files/UnifiedFileManagerService';
 import { migrateTopicPreviews } from '../shared/services/topics/TopicPreviewService';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('AppInitializer');
 
 // 全局初始化标志，防止多个组件实例同时初始化
 let globalInitialized = false;
@@ -39,14 +42,14 @@ const AppInitializer = () => {
   useEffect(() => {
     // 🔥 防止重复初始化
     if (globalInitialized || assistants.length > 0) {
-      console.log('[AppInitializer] 已初始化或助手数据已存在，跳过初始化');
+      logger.info('[AppInitializer] 已初始化或助手数据已存在，跳过初始化');
       return;
     }
 
     globalInitialized = true; // 立即设置标志，防止并发初始化
 
     const initializeApp = async () => {
-      console.log('[AppInitializer] 开始应用初始化...');
+      logger.info('[AppInitializer] 开始应用初始化...');
 
       // 确保加载分组数据
       dispatch(initGroups());
@@ -54,32 +57,32 @@ const AppInitializer = () => {
       // 🚀 性能优化：将非关键的权限检查移到后台执行，不阻塞启动流程
       Promise.resolve().then(async () => {
         try {
-          console.log('[AppInitializer] 后台检查文件管理器权限状态...');
+          logger.info('[AppInitializer] 后台检查文件管理器权限状态...');
           const permissionResult = await unifiedFileManager.checkPermissions();
           if (permissionResult.granted) {
-            console.log('[AppInitializer] 文件管理器权限已授予');
+            logger.info('[AppInitializer] 文件管理器权限已授予');
           } else {
-            console.log('[AppInitializer] 文件管理器权限未授予，用户可在工作区设置中手动授权');
+            logger.info('[AppInitializer] 文件管理器权限未授予，用户可在工作区设置中手动授权');
           }
         } catch (error) {
-          console.error('[AppInitializer] 检查文件管理器权限失败:', error);
+          logger.error('[AppInitializer] 检查文件管理器权限失败:', error);
         }
       });
 
       try {
         // 🔥 优化：一次性预加载所有助手和话题数据到Redux
-        console.log('[AppInitializer] 预加载所有助手和话题数据...');
+        logger.info('[AppInitializer] 预加载所有助手和话题数据...');
         const allAssistants = await AssistantManager.getUserAssistants();
 
         if (allAssistants.length > 0) {
-          console.log(`[AppInitializer] 预加载了 ${allAssistants.length} 个助手，每个助手的话题已预加载`);
+          logger.info(`[AppInitializer] 预加载了 ${allAssistants.length} 个助手，每个助手的话题已预加载`);
 
           // 批量更新到Redux，避免多次重渲染
           dispatch(setAssistants(allAssistants));
 
           // 1. 确保选中了一个助手 - 简化版本，直接从预加载的数据中获取
           if (!currentAssistant) {
-            console.log('[AppInitializer] 当前没有选中助手，从预加载数据中选择');
+            logger.info('[AppInitializer] 当前没有选中助手，从预加载数据中选择');
 
             // 从数据库获取当前助手ID
             const currentAssistantId = await dexieStorage.getSetting('currentAssistant');
@@ -89,14 +92,14 @@ const AppInitializer = () => {
               // 🔥 优化：直接从预加载的助手列表中查找，无需再次查询数据库
               selectedAssistant = allAssistants.find(a => a.id === currentAssistantId);
               if (selectedAssistant) {
-                console.log(`[AppInitializer] 从预加载数据中找到当前助手: ${selectedAssistant.name}`);
+                logger.info(`[AppInitializer] 从预加载数据中找到当前助手: ${selectedAssistant.name}`);
               }
             }
 
             // 如果没找到，选择第一个助手
             if (!selectedAssistant && allAssistants.length > 0) {
               selectedAssistant = allAssistants[0];
-              console.log(`[AppInitializer] 选择第一个助手: ${selectedAssistant.name}`);
+              logger.info(`[AppInitializer] 选择第一个助手: ${selectedAssistant.name}`);
 
               // 保存到数据库
               await dexieStorage.saveSetting('currentAssistant', selectedAssistant.id);
@@ -108,7 +111,7 @@ const AppInitializer = () => {
 
               // 2. 确保选中了该助手下的一个话题
               if (!currentTopicId && selectedAssistant.topics && selectedAssistant.topics.length > 0) {
-                console.log(`[AppInitializer] 自动选择第一个话题: ${selectedAssistant.topics[0].name}`);
+                logger.info(`[AppInitializer] 自动选择第一个话题: ${selectedAssistant.topics[0].name}`);
                 dispatch(newMessagesActions.setCurrentTopicId(selectedAssistant.topics[0].id));
               }
             }
@@ -117,7 +120,7 @@ const AppInitializer = () => {
         else if (currentAssistant.topics && currentAssistant.topics.length > 0) {
           // 情况1: 没有选中话题，自动选择第一个话题
           if (!currentTopicId) {
-            console.log(`[AppInitializer] 已有当前助手但没有选中话题，自动选择第一个话题: ${currentAssistant.topics[0].name}`);
+            logger.info(`[AppInitializer] 已有当前助手但没有选中话题，自动选择第一个话题: ${currentAssistant.topics[0].name}`);
             dispatch(newMessagesActions.setCurrentTopicId(currentAssistant.topics[0].id));
           }
           // 情况2: 已选中话题，但需要验证该话题是否属于当前助手
@@ -137,13 +140,13 @@ const AppInitializer = () => {
                 const topicFromDB = await dexieStorage.getTopic(currentTopicId);
                 if (topicFromDB && topicFromDB.assistantId === currentAssistant.id) {
                   // 话题确实属于当前助手，可能是数据同步问题，不需要切换
-                  console.log(`[AppInitializer] 话题 ${currentTopicId} 确实属于当前助手，跳过切换`);
+                  logger.info(`[AppInitializer] 话题 ${currentTopicId} 确实属于当前助手，跳过切换`);
                 } else {
-                  console.log(`[AppInitializer] 当前话题 ${currentTopicId} 不属于当前助手，自动选择第一个话题: ${currentAssistant.topics[0].name}`);
+                  logger.info(`[AppInitializer] 当前话题 ${currentTopicId} 不属于当前助手，自动选择第一个话题: ${currentAssistant.topics[0].name}`);
                   dispatch(newMessagesActions.setCurrentTopicId(currentAssistant.topics[0].id));
                 }
               } catch (error) {
-                console.error('[AppInitializer] 验证话题归属时出错:', error);
+                logger.error('[AppInitializer] 验证话题归属时出错:', error);
                 // 出错时保持当前状态，不进行切换
               }
             } else {
@@ -154,12 +157,12 @@ const AppInitializer = () => {
         }
         } else {
           // 没有助手数据，创建默认助手
-          console.log('[AppInitializer] 没有助手数据，创建默认助手');
+          logger.info('[AppInitializer] 没有助手数据，创建默认助手');
           const defaultAssistants = await AssistantService.initializeDefaultAssistants();
 
           if (defaultAssistants.length > 0) {
             // 🔥 修复：直接使用创建的默认助手，避免重复查询
-            console.log(`[AppInitializer] 创建了 ${defaultAssistants.length} 个默认助手`);
+            logger.info(`[AppInitializer] 创建了 ${defaultAssistants.length} 个默认助手`);
             dispatch(setAssistants(defaultAssistants));
 
             const firstAssistant = defaultAssistants[0];
@@ -171,7 +174,7 @@ const AppInitializer = () => {
           }
         }
       } catch (error) {
-        console.error('[AppInitializer] 初始化过程中出错:', error);
+        logger.error('[AppInitializer] 初始化过程中出错:', error);
       }
     };
 

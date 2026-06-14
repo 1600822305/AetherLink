@@ -14,6 +14,9 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ChartBlock');
 
 // 注册Chart.js组件
 ChartJS.register(
@@ -64,7 +67,7 @@ const ChartBlock: React.FC<Props> = ({ block }) => {
           );
       }
     } catch (error) {
-      console.error('图表渲染失败:', error);
+      logger.error('图表渲染失败:', error);
       return (
         <Typography variant="body2" color="error">
           图表渲染失败: {(error as Error).message}

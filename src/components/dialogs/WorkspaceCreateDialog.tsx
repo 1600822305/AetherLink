@@ -26,6 +26,9 @@ import {
 import { workspaceService } from '../../shared/services/files/WorkspaceService';
 import { unifiedFileManager } from '../../shared/services/files/UnifiedFileManagerService';
 import type { WorkspaceCreateRequest } from '../../shared/types/workspace';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('WorkspaceCreateDialog');
 
 interface WorkspaceCreateDialogProps {
   open: boolean;
@@ -74,7 +77,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
       // 首先检查权限（Tauri 桌面端会自动返回 granted）
       const permissionResult = await unifiedFileManager.checkPermissions();
       if (!permissionResult.granted) {
-        console.log('权限未授予，尝试请求权限...');
+        logger.info('权限未授予，尝试请求权限...');
         const requestResult = await unifiedFileManager.requestPermissions();
         if (!requestResult.granted) {
           setError(requestResult.message || '需要文件访问权限才能选择文件夹');
@@ -92,7 +95,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
       if (!result.cancelled && result.directories.length > 0) {
         const selectedDir = result.directories[0];
 
-        console.log('选择的目录信息:', selectedDir);
+        logger.info('选择的目录信息:', selectedDir);
 
         // 优先使用转换后的友好路径，如果没有则使用原始路径
         const pathToUse = selectedDir.displayPath || selectedDir.path || selectedDir.uri || (typeof selectedDir === 'string' ? selectedDir : '');
@@ -105,7 +108,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
         }
       }
     } catch (err) {
-      console.error('选择文件夹失败:', err);
+      logger.error('选择文件夹失败:', err);
       setError('选择文件夹失败，请手动输入路径');
     } finally {
       setSelecting(false);
@@ -139,7 +142,7 @@ export const WorkspaceCreateDialog: React.FC<WorkspaceCreateDialogProps> = ({
       }
     } catch (err) {
       setError('创建工作区失败，请重试');
-      console.error('创建工作区失败:', err);
+      logger.error('创建工作区失败:', err);
     } finally {
       setLoading(false);
     }

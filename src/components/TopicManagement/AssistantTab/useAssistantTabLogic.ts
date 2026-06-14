@@ -11,6 +11,9 @@ import { addItemToGroup } from '../../../shared/store/slices/groupsSlice';
 import { setAssistants } from '../../../shared/store/slices/assistantsSlice';
 import { useAssistantGroups } from './hooks/useAssistantGroups';
 import { getAllAgentSources } from '../../../shared/services/assistant/PredefinedAssistants';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AssistantTabLogic');
 
 // 预设助手数据 - 从服务中获取
 const predefinedAssistantsData = getAllAgentSources();
@@ -264,29 +267,29 @@ export function useAssistantTabLogic(
 
       // 直接保存到数据库，确保数据持久化
       await dexieStorage.saveAssistant(updatedAssistant);
-      console.log('[useAssistantTabLogic] 已保存助手到数据库');
+      logger.debug('已保存助手到数据库');
 
       // 更新Redux状态
       if (onUpdateAssistant) {
         onUpdateAssistant(updatedAssistant);
-        console.log('[useAssistantTabLogic] 已通过回调更新助手');
+        logger.debug('已通过回调更新助手');
       }
 
       //  添加：派发事件通知其他组件更新，确保提示词气泡同步
       window.dispatchEvent(new CustomEvent('assistantUpdated', {
         detail: { assistant: updatedAssistant }
       }));
-      console.log('[useAssistantTabLogic] 已派发助手更新事件');
+      logger.debug('已派发助手更新事件');
 
       // 显示成功通知
       showNotification('助手已更新');
 
       // 添加提示，说明系统提示词更改不会影响现有话题
-      console.log('[useAssistantTabLogic] 注意：系统提示词更改不会影响现有话题，只会应用于新创建的话题');
+      logger.debug('注意：系统提示词更改不会影响现有话题，只会应用于新创建的话题');
 
       handleCloseEditDialog();
     } catch (error) {
-      console.error('[useAssistantTabLogic] 保存助手失败:', error);
+      logger.error('保存助手失败:', error);
       showNotification('保存助手失败', 'error');
     }
   };
@@ -324,18 +327,17 @@ export function useAssistantTabLogic(
       // 总是更新Redux状态，不管是否是当前助手
       if (onUpdateAssistant) {
         onUpdateAssistant(updatedAssistant);
-        console.log(`[useAssistantTabLogic] 已更新助手 ${selectedMenuAssistant.name} 的Redux状态`);
+        logger.debug('已更新助手 Redux状态');
       }
 
       // 如果是当前助手，也要更新当前助手状态
       if (currentAssistant && currentAssistant.id === selectedMenuAssistant.id) {
-        // 这里会通过onUpdateAssistant回调更新当前助手
-        console.log(`[useAssistantTabLogic] 清空的是当前助手，已同步更新`);
+        logger.debug('清空的是当前助手，已同步更新');
       }
 
-      console.log(`[useAssistantTabLogic] 成功清空助手 ${selectedMenuAssistant.name} 的话题`);
+      logger.debug('成功清空助手话题');
     } catch (error) {
-      console.error('清空话题失败:', error);
+      logger.error('清空话题失败:', error);
     }
 
     handleCloseAssistantMenu();
@@ -344,12 +346,12 @@ export function useAssistantTabLogic(
   // 选择新的图标
   const handleSelectEmoji = async (emoji: string) => {
     if (!selectedMenuAssistant) {
-      console.warn('[useAssistantTabLogic] 没有选中的助手，无法更新图标');
+      logger.warn('没有选中的助手，无法更新图标');
       return;
     }
 
     try {
-      console.log('[useAssistantTabLogic] 开始更新助手图标:', {
+      logger.debug('开始更新助手图标:', {
         id: selectedMenuAssistant.id,
         name: selectedMenuAssistant.name,
         oldEmoji: selectedMenuAssistant.emoji,
@@ -364,11 +366,11 @@ export function useAssistantTabLogic(
 
       // 保存到数据库，确保图标持久化
       await dexieStorage.saveAssistant(updatedAssistant);
-      console.log('[useAssistantTabLogic] 已保存助手图标到数据库');
+      logger.debug('已保存助手图标到数据库');
 
       // 验证保存结果 - 立即从数据库读取验证
       const verifyAssistant = await dexieStorage.getAssistant(selectedMenuAssistant.id);
-      console.log('[useAssistantTabLogic] 验证保存结果:', {
+      logger.debug('验证保存结果:', {
         savedEmoji: verifyAssistant?.emoji,
         expectedEmoji: emoji,
         isCorrect: verifyAssistant?.emoji === emoji
@@ -377,16 +379,16 @@ export function useAssistantTabLogic(
       // 更新Redux状态
       if (onUpdateAssistant) {
         onUpdateAssistant(updatedAssistant);
-        console.log('[useAssistantTabLogic] 已通过回调更新助手图标');
+        logger.debug('已通过回调更新助手图标');
       } else {
-        console.warn('[useAssistantTabLogic] onUpdateAssistant回调不存在');
+        logger.warn('onUpdateAssistant回调不存在');
       }
 
       // 派发自定义事件，确保其他组件也能收到更新
       window.dispatchEvent(new CustomEvent('assistantUpdated', {
         detail: { assistant: updatedAssistant }
       }));
-      console.log('[useAssistantTabLogic] 已派发assistantUpdated事件');
+      logger.debug('已派发assistantUpdated事件');
 
       // 关闭图标选择器
       handleCloseIconPicker();
@@ -394,7 +396,7 @@ export function useAssistantTabLogic(
       // 显示成功通知
       showNotification('助手图标已更新');
     } catch (error) {
-      console.error('[useAssistantTabLogic] 更新助手图标失败:', error);
+      logger.error('更新助手图标失败:', error);
       showNotification('更新助手图标失败');
     }
   };
@@ -473,11 +475,11 @@ export function useAssistantTabLogic(
   // 打开图标选择器
   const handleOpenIconPicker = () => {
     if (!selectedMenuAssistant) {
-      console.warn('[useAssistantTabLogic] 没有选中的助手，无法打开图标选择器');
+      logger.warn('没有选中的助手，无法打开图标选择器');
       return;
     }
 
-    console.log('[useAssistantTabLogic] 打开图标选择器，选中的助手:', {
+    logger.debug('打开图标选择器，选中的助手:', {
       id: selectedMenuAssistant.id,
       name: selectedMenuAssistant.name,
       emoji: selectedMenuAssistant.emoji

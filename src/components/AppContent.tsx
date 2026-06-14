@@ -8,6 +8,9 @@ import { useCapacitorSetup } from '../hooks/useCapacitorSetup';
 import { useDataPersistence } from '../hooks/useDataPersistence';
 // 🚀 性能优化：性能指标追踪
 import { recordMetric } from '../utils/performanceMetrics';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('AppContent');
 
 import AppRouter from '../routes';
 import AppInitializer from './AppInitializer';
@@ -40,7 +43,7 @@ const AppContent = memo(() => {
       }
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('✅ CSS Variables 系统已初始化');
+        logger.info('✅ CSS Variables 系统已初始化');
         // 🚀 性能优化：记录启动屏隐藏时间
         recordMetric('splashScreenHide');
       }

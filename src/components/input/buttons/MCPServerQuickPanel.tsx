@@ -37,6 +37,9 @@ import { dexieStorage } from '../../../shared/services/storage/DexieStorageServi
 import CustomSwitch from '../../CustomSwitch';
 import { useMCPServerStateManager } from '../../../hooks/useMCPServerStateManager';
 import { getStorageItem, setStorageItem } from '../../../shared/utils/storage';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MCPServerQuickPanel');
 
 // 服务器类型配置常量 — 颜色与 MCPServerSettings 保持一致
 const SERVER_TYPE_CONFIG = {
@@ -148,8 +151,8 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
         await setStorageItem('skills-saved-ids', currentSkillIds);
         const updated = { ...currentAssistant, skillIds: [] };
         dispatch(updateAssistant(updated));
-        try { await dexieStorage.saveAssistant(updated); } catch (e) { console.error('[Skills] 保存失败:', e); }
-        console.log(`[Skills] 开关关闭，已保存 ${currentSkillIds.length} 个技能绑定`);
+        try { await dexieStorage.saveAssistant(updated); } catch (e) { logger.error('[Skills] 保存失败:', e); }
+        logger.info(`[Skills] 开关关闭，已保存 ${currentSkillIds.length} 个技能绑定`);
       }
     } else if (enabled && currentAssistant) {
       // 开启时：恢复之前保存的技能绑定
@@ -160,9 +163,9 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
           dispatch(updateAssistant(updated));
           await dexieStorage.saveAssistant(updated);
           await setStorageItem('skills-saved-ids', null);
-          console.log(`[Skills] 开关开启，已恢复 ${saved.length} 个技能绑定`);
+          logger.info(`[Skills] 开关开启，已恢复 ${saved.length} 个技能绑定`);
         }
-      } catch (e) { console.error('[Skills] 恢复失败:', e); }
+      } catch (e) { logger.error('[Skills] 恢复失败:', e); }
     }
     setSkillsEnabledState(enabled);
     await setStorageItem('skills-enabled', enabled);
@@ -187,7 +190,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       const skills = await SkillManager.getEnabledSkills();
       setAllEnabledSkills(skills);
     } catch (error) {
-      console.error('[MCPPanel] 加载技能失败:', error);
+      logger.error('[MCPPanel] 加载技能失败:', error);
       setAllEnabledSkills([]);
     } finally {
       setSkillsLoading(false);
@@ -213,7 +216,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
     try {
       await dexieStorage.saveAssistant(updated);
     } catch (err) {
-      console.error('[MCPPanel] 保存技能绑定失败:', err);
+      logger.error('[MCPPanel] 保存技能绑定失败:', err);
     }
   }, [currentAssistant, dispatch]);
 
@@ -244,7 +247,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       setServers(allServers);
       setError(null);
     } catch (err) {
-      console.error('加载服务器列表失败:', err);
+      logger.error('加载服务器列表失败:', err);
       setError('加载服务器列表失败');
     } finally {
       setIsInitialLoading(false);
@@ -283,7 +286,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       await mcpService.addServer({ ...template, isActive: true });
       loadServers();
     } catch (err) {
-      console.error('添加内置服务器失败:', err);
+      logger.error('添加内置服务器失败:', err);
     }
   }, [loadServers]);
 
@@ -327,7 +330,7 @@ const MCPServerQuickPanelInner: React.FC<MCPServerQuickPanelProps> = ({
       await mcpService.toggleServer(serverId, isActive);
       loadServers();
     } catch (err) {
-      console.error('切换服务器状态失败:', err);
+      logger.error('切换服务器状态失败:', err);
       setError(`切换服务器状态失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setLoadingServers(prev => {

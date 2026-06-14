@@ -19,6 +19,9 @@ import { toggleWebSearchEnabled, setWebSearchProvider } from '../../shared/store
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import useVoiceInputManager from './IntegratedChatInput/VoiceInputManager';
 import useMenuManager from './IntegratedChatInput/MenuManager';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('IntegratedChatInput');
 import useButtonToolbar from './IntegratedChatInput/ButtonToolbar';
 import useExpandableContainer from './IntegratedChatInput/ExpandableContainer';
 
@@ -274,7 +277,7 @@ const IntegratedChatInput: React.FC<IntegratedChatInputProps> = ({
       const formattedImages = await processImagesLocal();
       const nonImageFiles = files.filter((f: FileContent) => !f.mimeType.startsWith('image/'));
       
-      console.log('智能发送：使用多模型模式', {
+      logger.info('智能发送：使用多模型模式', {
         models: menuManager.mentionedModels.map(m => m.id),
         message: message.trim()
       });

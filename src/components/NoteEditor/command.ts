@@ -24,6 +24,9 @@ import {
   Undo,
   X
 } from 'lucide-react'
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('command');
 
 export interface Command {
   id: string
@@ -422,7 +425,7 @@ const updatePosition = (editor: Editor, element: HTMLElement) => {
       element.setAttribute('data-placement', placement)
     })
     .catch((error) => {
-      console.error('Error positioning command list:', error)
+      logger.error('Error positioning command list:', error)
     })
 }
 
@@ -444,7 +447,7 @@ export const commandSuggestion: Omit<SuggestionOptions<Command, MentionNodeAttrs
     try {
       return filterCommands({ query })
     } catch (error) {
-      console.error('Error filtering commands:', error)
+      logger.error('Error filtering commands:', error)
       return []
     }
   },
@@ -466,7 +469,7 @@ export const commandSuggestion: Omit<SuggestionOptions<Command, MentionNodeAttrs
     return {
       onStart: async (props) => {
         if (!props?.items || !props?.clientRect) {
-          console.warn('Invalid props in command suggestion onStart')
+          logger.warn('Invalid props in command suggestion onStart')
           return
         }
 

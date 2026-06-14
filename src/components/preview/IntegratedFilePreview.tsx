@@ -5,6 +5,9 @@ import FilePreview from './FilePreview';
 import type { FileStatus } from './FilePreview';
 import type { FileContent, ImageContent } from '../../shared/types';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('IntegratedFilePreview');
 
 interface IntegratedFilePreviewProps {
   files: FileContent[];
@@ -58,7 +61,7 @@ const IntegratedFilePreview: React.FC<IntegratedFilePreviewProps> = ({
       // 从数据库获取图片Blob
       const blob = await dexieStorage.getImageBlob(imageId);
       if (!blob) {
-        console.warn('图片不存在:', imageId);
+        logger.warn('图片不存在:', imageId);
         return;
       }
 
@@ -71,7 +74,7 @@ const IntegratedFilePreview: React.FC<IntegratedFilePreviewProps> = ({
       // 更新状态
       setImageUrls(prev => ({ ...prev, [imageIndex]: url }));
     } catch (error) {
-      console.error('加载图片引用失败:', error);
+      logger.error('加载图片引用失败:', error);
     }
   }, []);
 
@@ -193,7 +196,7 @@ const IntegratedFilePreview: React.FC<IntegratedFilePreviewProps> = ({
                       }}
                       onError={(e) => {
                         // 图片加载失败时的处理
-                        console.warn('图片加载失败:', image);
+                        logger.warn('图片加载失败:', image);
                         e.currentTarget.style.display = 'none';
                       }}
                     />
@@ -311,7 +314,7 @@ const IntegratedFilePreview: React.FC<IntegratedFilePreviewProps> = ({
                           }}
                           onError={(e) => {
                             // 图片加载失败时的处理
-                            console.warn('图片加载失败:', image);
+                            logger.warn('图片加载失败:', image);
                             e.currentTarget.style.display = 'none';
                           }}
                         />

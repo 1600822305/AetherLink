@@ -23,6 +23,9 @@ import {
 import { useTranslation } from '../../../i18n';
 import type { ContextSummaryMessageBlock } from '../../../shared/types/newMessage';
 import Markdown from '../Markdown';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ContextSummaryBlock');
 
 interface Props {
   block: ContextSummaryMessageBlock;
@@ -68,7 +71,7 @@ const ContextSummaryBlock: React.FC<Props> = ({ block }) => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (error) {
-        console.error('复制失败:', error);
+        logger.error('复制失败:', error);
       }
     }
   }, [block.content]);

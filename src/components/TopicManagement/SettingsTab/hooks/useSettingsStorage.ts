@@ -3,6 +3,9 @@ import type { MathRendererType } from '../../../../shared/types';
 import type { ThinkingOption } from '../../../../shared/config/reasoningConfig';
 import { getUserAvatar, saveUserAvatar } from '../../../../shared/utils/avatarUtils';
 import { dexieStorage } from '../../../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('SettingsStorage');
 
 // 设置项的类型定义
 export interface AppSettings {
@@ -75,7 +78,7 @@ export function useSettingsStorage() {
         setUserAvatar(savedUserAvatar);
       }
     } catch (error) {
-      console.error('加载设置失败:', error);
+      logger.error('加载设置失败:', error);
       setSettings(DEFAULT_SETTINGS);
     }
   }, []);
@@ -101,7 +104,7 @@ export function useSettingsStorage() {
       
       return true;
     } catch (error) {
-      console.error(`保存设置 ${key} 失败:`, error);
+      logger.error(`保存设置 ${key} 失败:`, error);
       return false;
     }
   }, []);
@@ -127,7 +130,7 @@ export function useSettingsStorage() {
       
       return true;
     } catch (error) {
-      console.error('批量保存设置失败:', error);
+      logger.error('批量保存设置失败:', error);
       return false;
     }
   }, []);
@@ -176,10 +179,10 @@ export async function syncAssistantMaxTokens(maxTokens: number): Promise<boolean
       await dexieStorage.saveAssistant(updatedAssistant);
     }
 
-    console.log(`[SettingsStorage] 已同步更新 ${assistants.length} 个助手的maxTokens为 ${maxTokens}`);
+    logger.debug(`已同步更新 ${assistants.length} 个助手的maxTokens为 ${maxTokens}`);
     return true;
   } catch (error) {
-    console.error('同步助手maxTokens失败:', error);
+    logger.error('同步助手maxTokens失败:', error);
     return false;
   }
 }
@@ -203,10 +206,10 @@ export async function syncAssistantParameters(params: {
       await dexieStorage.saveAssistant(updatedAssistant);
     }
 
-    console.log(`[SettingsStorage] 已同步更新 ${assistants.length} 个助手的参数:`, params);
+    logger.debug(`已同步更新 ${assistants.length} 个助手的参数:`, params);
     return true;
   } catch (error) {
-    console.error('同步助手参数失败:', error);
+    logger.error('同步助手参数失败:', error);
     return false;
   }
 }
@@ -238,7 +241,7 @@ export function getEnabledUnifiedParameters(): Record<string, any> {
     
     return params;
   } catch (error) {
-    console.error('获取统一参数失败:', error);
+    logger.error('获取统一参数失败:', error);
     return {};
   }
 }

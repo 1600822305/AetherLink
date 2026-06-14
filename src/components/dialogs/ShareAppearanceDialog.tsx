@@ -19,6 +19,9 @@ import { X, Copy, Download, Share2 } from 'lucide-react';
 import type { AppearanceConfig } from '../../shared/utils/appearanceConfig';
 import { generateShareLink, encodeAppearanceConfig, exportAppearanceConfigToFile, exportAppearanceConfigToFolder } from '../../shared/utils/appearanceConfig';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ShareAppearanceDialog');
 
 interface ShareAppearanceDialogProps {
   open: boolean;
@@ -42,7 +45,7 @@ const ShareAppearanceDialog: React.FC<ShareAppearanceDialogProps> = ({ open, onC
         setShareLink(link);
         setShareCode(code);
       } catch (error) {
-        console.error('生成分享内容失败:', error);
+        logger.error('生成分享内容失败:', error);
       }
     }
   }, [open, config]);
@@ -94,7 +97,7 @@ const ShareAppearanceDialog: React.FC<ShareAppearanceDialogProps> = ({ open, onC
           url: shareLink
         });
       } catch (error) {
-        console.error('分享失败:', error);
+        logger.error('分享失败:', error);
       }
     } else {
       handleCopyLink();

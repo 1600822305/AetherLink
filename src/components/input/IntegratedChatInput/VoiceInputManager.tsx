@@ -2,6 +2,9 @@ import React, { useState, useCallback } from 'react';
 import { Keyboard, Mic } from 'lucide-react';
 import { useVoiceRecognition } from '../../../shared/hooks/useVoiceRecognition';
 import { EnhancedVoiceInput } from '../../VoiceRecognition';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('VoiceInputManager');
 import type { SiliconFlowImageFormat, ImageContent, FileContent } from '../../../shared/types';
 
 interface VoiceInputManagerProps {
@@ -72,7 +75,7 @@ const useVoiceInputManager = ({
     } else if (voiceState === 'recording') {
       // 停止录音并退出
       if (isListening) {
-        stopRecognition().catch(err => console.error('停止语音识别出错:', err));
+        stopRecognition().catch(err => logger.error('停止语音识别出错:', err));
       }
       setVoiceState('normal');
     }

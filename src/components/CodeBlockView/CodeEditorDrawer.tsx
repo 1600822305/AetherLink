@@ -18,6 +18,9 @@ import { useDialogBackHandler } from '../../hooks/useDialogBackHandler';
 import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import { useAppSelector, useAppDispatch } from '../../shared/store';
 import { setEditorZoomLevel } from '../../shared/store/settingsSlice';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('CodeEditorDrawer');
 
 // 语言支持 - 按需导入
 import { javascript } from '@codemirror/lang-javascript';
@@ -285,7 +288,7 @@ const CodeEditorDrawer: React.FC<CodeEditorDrawerProps> = ({
 
   // 编辑器主题 - 直接从Redux获取，无需复杂映射
   const codeMirrorTheme = useMemo(() => {
-    console.log('🎨 Editor Theme:', safeEditorTheme);
+    logger.info('🎨 Editor Theme:', safeEditorTheme);
     
     // 直接返回对应的CodeMirror主题
     switch (safeEditorTheme) {
@@ -316,7 +319,7 @@ const CodeEditorDrawer: React.FC<CodeEditorDrawerProps> = ({
       case 'monokai':
         return monokai;
       default:
-        console.log('→ Using oneDark (fallback)');
+        logger.info('→ Using oneDark (fallback)');
         return oneDark;
     }
   }, [safeEditorTheme]);

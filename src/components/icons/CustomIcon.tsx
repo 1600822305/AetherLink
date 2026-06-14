@@ -1,5 +1,8 @@
 import React from 'react';
 import { iconData, type IconName } from './iconData';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('CustomIcon');
 
 interface CustomIconProps {
   name: IconName;
@@ -21,7 +24,7 @@ export const CustomIcon: React.FC<CustomIconProps> = ({
   const icon = iconData[name];
   
   if (!icon) {
-    console.warn(`CustomIcon: 未找到名为 "${name}" 的图标`);
+    logger.warn(`CustomIcon: 未找到名为 "${name}" 的图标`);
     return null;
   }
 

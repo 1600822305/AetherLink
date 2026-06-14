@@ -10,6 +10,9 @@ import {
 } from '@mui/material';
 import BackButtonDialog from '../common/BackButtonDialog';
 import { MessageCircle, X } from 'lucide-react';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('UpdateNoticeDialog');
 
 // QQ群链接
 const QQ_GROUP_URL = 'http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=V-b46WoBNLIM4oc34JMULwoyJ3hyrKac&authKey=q%2FSwCcxda4e55ygtwp3h9adQXhqBLZ9wJdvM0QxTjXQkbxAa2tHoraOGy2fiibyY&noverify=0&group_code=930126592';
@@ -48,7 +51,7 @@ const UpdateNoticeDialog: React.FC = () => {
       // 使用传统方法打开链接 - 避免使用Capacitor插件
       window.open(QQ_GROUP_URL, '_blank');
     } catch (error) {
-      console.error('打开浏览器失败:', error);
+      logger.error('打开浏览器失败:', error);
     }
     // 不关闭弹窗，让用户可以继续查看内容
   };

@@ -16,6 +16,9 @@ import type { RootState } from '../../shared/store';
 import { clearSelectedKnowledgeBase, toggleKnowledgeBase } from '../../shared/store/slices/knowledgeSelectionSlice';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
 import type { KnowledgeBase as FullKnowledgeBase, KnowledgeSearchResult } from '../../shared/types/KnowledgeBase';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeSelector');
 
 /** UI展示用的知识库简化类型 */
 interface KnowledgeBaseDisplay {
@@ -196,7 +199,7 @@ const KnowledgeSelector: React.FC<KnowledgeSelectorProps> = ({ open, onClose, on
         setKnowledgeBases(kbsWithCount);
       }
     } catch (error) {
-      console.error('加载知识库失败:', error);
+      logger.error('加载知识库失败:', error);
       if (isMountedRef.current) {
         setError('加载知识库失败，请重试');
       }

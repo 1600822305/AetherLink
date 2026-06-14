@@ -11,6 +11,9 @@ import {
 import CustomSwitch from '../../CustomSwitch'; // 导入 CustomSwitch 组件
 import { getAppSettings } from '../../../shared/utils/settingsUtils';
 import { useAppSelector } from '../../../shared/store';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('SettingItem');
 
 interface Setting {
   id: string;
@@ -52,7 +55,7 @@ export default function SettingItem({ setting, onChange }: SettingItemProps) {
       const currentValue = appSettings[setting.id];
       return currentValue !== undefined ? currentValue : setting.defaultValue;
     } catch (error) {
-      console.error('加载设置失败:', error);
+      logger.error('加载设置失败:', error);
       return setting.defaultValue;
     }
   }, [setting.id, setting.defaultValue, messageStyle, autoScrollToBottom]);

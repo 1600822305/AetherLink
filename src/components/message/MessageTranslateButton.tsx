@@ -10,6 +10,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { getMainTextContent } from '../../shared/utils/messageUtils';
 import { toastManager } from '../EnhancedToast';
 import { messageBlockRepository } from '../../shared/services/messages/MessageBlockRepository';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageTranslateButton');
 
 interface MessageTranslateButtonProps {
   message: Message;
@@ -112,7 +115,7 @@ const MessageTranslateButton: React.FC<MessageTranslateButtonProps> = ({
         });
       }
     } catch (error) {
-      console.error('翻译失败:', error);
+      logger.error('翻译失败:', error);
       if (mountedRef.current) {
         const errorBlock = {
           ...translationBlock,

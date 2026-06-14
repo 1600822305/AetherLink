@@ -41,6 +41,9 @@ import type { NetworkEntry, NetworkFilter } from '../../shared/services/network/
 import CustomSwitch from '../CustomSwitch';
 import { shareTextAsFile } from '../../utils/exportUtils';
 import dayjs from 'dayjs';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('NetworkPanel');
 
 interface NetworkPanelProps {
   selectionMode?: boolean;
@@ -139,7 +142,7 @@ const NetworkPanel = forwardRef<NetworkPanelRef, NetworkPanelProps>(({
       await navigator.clipboard.writeText(details);
       // 可以添加一个提示，但为了简单起见暂时不加
     } catch (error) {
-      console.error('复制失败:', error);
+      logger.error('复制失败:', error);
     }
   };
 

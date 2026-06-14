@@ -7,6 +7,9 @@ import { selectProviders } from '../../../shared/store/selectors/settingsSelecto
 import type { Message, MessageBlock } from '../../../shared/types/newMessage';
 import { getMessageDividerSetting } from '../../../shared/utils/settingsUtils';
 import { getUserAvatar, getAssistantAvatar, getModelAvatar } from '../../../shared/utils/avatarUtils';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('useMessageData');
 
 export const useMessageData = (message: Message) => {
   const theme = useTheme();
@@ -105,7 +108,7 @@ export const useMessageData = (message: Message) => {
         const dividerSetting = getMessageDividerSetting();
         setShowMessageDivider(dividerSetting);
       } catch (error) {
-        console.error('获取消息分割线设置失败:', error);
+        logger.error('获取消息分割线设置失败:', error);
       }
     };
 

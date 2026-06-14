@@ -11,6 +11,9 @@ import WebSearchProviderSelector from '../WebSearchProviderSelector';
 import KnowledgeSelector from '../chat/KnowledgeSelector';
 import { useInputStyles } from '../../shared/hooks/useInputStyles';
 import MCPServerQuickPanel from './buttons/MCPServerQuickPanel';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ToolsMenu');
 
 interface ToolsMenuProps {
   anchorEl: null | HTMLElement;
@@ -122,7 +125,7 @@ const ToolsMenu: React.FC<ToolsMenuProps> = ({
 
   // 处理知识库选择
   const handleKnowledgeSelect = (knowledgeBase: { id: string; name: string }, searchResults: unknown[]) => {
-    console.log('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
+    logger.info('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
     // Redux dispatch 已由 KnowledgeSelector 内部处理（支持多选）
     // 关闭选择器
     setShowKnowledgeSelector(false);

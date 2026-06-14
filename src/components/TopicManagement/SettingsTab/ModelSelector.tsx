@@ -16,6 +16,9 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../../shared/store';
 import type { Model } from '../../../shared/types';
 import { getModelIdentityKey, modelMatchesIdentity, parseModelIdentityKey } from '../../../shared/utils/modelUtils';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ModelSelector');
 
 interface ModelSelectorProps {
   value: string;
@@ -85,7 +88,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       
       setAvailableModels(models);
     } catch (error) {
-      console.error('加载可用模型失败:', error);
+      logger.error('加载可用模型失败:', error);
     } finally {
       setLoading(false);
     }

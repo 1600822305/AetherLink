@@ -38,6 +38,9 @@ import type { QuickPhrase } from '../../shared/types';
 import type { RootState } from '../../shared/store';
 import { setShowQuickPhraseButton } from '../../shared/store/settingsSlice';
 import CustomSwitch from '../CustomSwitch';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('QuickPhraseSettings');
 
 const QuickPhraseSettings: React.FC = () => {
   const theme = useTheme();
@@ -68,7 +71,7 @@ const QuickPhraseSettings: React.FC = () => {
       const allPhrases = await QuickPhraseService.getAll();
       setPhrases(allPhrases);
     } catch (error) {
-      console.error(t('settings.quickPhraseManagement.errors.loadFailed'), error);
+      logger.error(t('settings.quickPhraseManagement.errors.loadFailed'), error);
     } finally {
       setLoading(false);
     }
@@ -103,7 +106,7 @@ const QuickPhraseSettings: React.FC = () => {
       await QuickPhraseService.delete(id);
       await loadPhrases();
     } catch (error) {
-      console.error(t('settings.quickPhraseManagement.errors.deleteFailed'), error);
+      logger.error(t('settings.quickPhraseManagement.errors.deleteFailed'), error);
     }
   };
 
@@ -138,7 +141,7 @@ const QuickPhraseSettings: React.FC = () => {
       handleCloseDialog();
       await loadPhrases();
     } catch (error) {
-      console.error(t('settings.quickPhraseManagement.errors.saveFailed'), error);
+      logger.error(t('settings.quickPhraseManagement.errors.saveFailed'), error);
     }
   };
 

@@ -3,6 +3,9 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../shared/store';
 import type { Assistant } from '../../../../shared/types/Assistant';
 import type { Group } from '../../../../shared/types';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('AssistantGroups');
 
 // 添加GroupMap类型定义
 type AssistantGroupMap = Record<string, string>;
@@ -18,13 +21,13 @@ export function useAssistantGroups(userAssistants: Assistant[]) {
     try {
       // 确保state.groups存在
       if (!state || !state.groups) {
-        console.warn('Groups state is missing');
+        logger.warn('Groups state is missing');
         return { groups: [] as Group[], assistantGroupMap: {} as AssistantGroupMap };
       }
       
       return state.groups;
     } catch (error) {
-      console.error('Error accessing groups state:', error);
+      logger.error('Error accessing groups state:', error);
       return { groups: [] as Group[], assistantGroupMap: {} as AssistantGroupMap };
     }
   });
@@ -49,7 +52,7 @@ export function useAssistantGroups(userAssistants: Assistant[]) {
           return orderA - orderB;
         });
     } catch (error) {
-      console.error('Error processing assistant groups:', error);
+      logger.error('Error processing assistant groups:', error);
       return [];
     }
   }, [groupState.groups]);
@@ -74,7 +77,7 @@ export function useAssistantGroups(userAssistants: Assistant[]) {
                !map[assistant.id];
       });
     } catch (error) {
-      console.error('Error processing ungrouped assistants:', error);
+      logger.error('Error processing ungrouped assistants:', error);
       return Array.isArray(userAssistants) ? [...userAssistants] : [];
     }
   }, [userAssistants, groupState.assistantGroupMap]);

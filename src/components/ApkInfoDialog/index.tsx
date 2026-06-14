@@ -25,6 +25,9 @@ import {
   Download
 } from 'lucide-react';
 import { DexEditorPlugin } from 'capacitor-dex-editor';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ApkInfoDialog');
 
 interface ApkInfoDialogProps {
   open: boolean;
@@ -118,7 +121,7 @@ const ApkInfoDialog: React.FC<ApkInfoDialogProps> = ({
         params: { apkPath }
       });
     } catch (err) {
-      console.error('Failed to install APK:', err);
+      logger.error('Failed to install APK:', err);
     }
   };
 

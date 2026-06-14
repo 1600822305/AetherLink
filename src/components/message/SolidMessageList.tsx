@@ -26,6 +26,9 @@ import { useKeyboard } from '../../shared/hooks/useKeyboard';
 import { ChatScrollController } from '../../shared/services/chat/ChatScrollController';
 import { registerChatScrollController, unregisterChatScrollController } from '../../shared/services/chat/scrollControllerRegistry';
 import { EventEmitter, EVENT_NAMES } from '../../shared/services/infra/EventEmitter';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SolidMessageList');
 
 interface SolidMessageListProps {
   messages: Message[];
@@ -139,7 +142,7 @@ const SolidMessageList: React.FC<SolidMessageListProps> = React.memo(({
   // 错误处理函数
   const handleError = useCallback((error: any, context: string, options: { showToUser?: boolean; canRecover?: boolean } = {}) => {
     const { showToUser = false, canRecover = false } = options;
-    console.error(`[SolidMessageList] ${context} 错误:`, error);
+    logger.error(`${context} 错误:`, error);
 
     if (showToUser) {
       const errorMessage = error?.message || '发生未知错误';

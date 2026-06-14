@@ -22,6 +22,9 @@ import { debounce } from 'lodash';
 import { useTranslation } from 'react-i18next';
 import VirtualizedModelGroupList from '../settings/VirtualizedModelGroupList';
 import { getDefaultGroupName, modelMatchesIdentity } from '../../shared/utils/modelUtils';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ModelManagementDialog');
 
 // 定义分组模型的类型
 type GroupedModels = Record<string, Model[]>;
@@ -256,7 +259,7 @@ const ModelManagementDialog: React.FC<ModelManagementDialogProps> = ({
       const allModels = [...fetchedModels];
       setModels(allModels);
     } catch (error) {
-      console.error('加载模型失败:', error);
+      logger.error('加载模型失败:', error);
     } finally {
       setLoading(false);
     }

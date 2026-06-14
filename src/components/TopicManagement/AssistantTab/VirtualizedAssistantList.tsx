@@ -9,6 +9,9 @@ import {
   VIRTUALIZATION_CONFIG
 } from './virtualizationConfig';
 import type { Assistant } from '../../../shared/types/Assistant';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('VirtualizedAssistantList');
 
 interface VirtualizedAssistantListProps {
   assistants: Assistant[];
@@ -177,7 +180,7 @@ const VirtualizedAssistantList = memo(function VirtualizedAssistantList({
     });
 
     if (emojiChanges.length > 0) {
-      console.log('[VirtualizedAssistantList] Emoji changes detected:', emojiChanges.map(a => a.name));
+      logger.debug('Emoji changes detected:', emojiChanges.map(a => a.name));
     }
   }
 

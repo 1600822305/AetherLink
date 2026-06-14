@@ -26,6 +26,9 @@ import { CustomIcon } from './icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CustomSwitch from './CustomSwitch';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('AIDebateButton');
 
 // AI辩论配置默认值常量
 const DEFAULT_CONFIG = {
@@ -192,7 +195,7 @@ const AIDebateButton: React.FC<AIDebateButtonProps> = ({
           setConfigGroups(parsedGroups);
         }
       } catch (error) {
-        console.error(t('errors.aiDebate.loadConfigFailed'), error);
+        logger.error(t('errors.aiDebate.loadConfigFailed'), error);
       }
     };
     loadConfig();
@@ -270,7 +273,7 @@ const AIDebateButton: React.FC<AIDebateButtonProps> = ({
             });
           }
         } catch (error) {
-          console.error(t('errors.aiDebate.loadConfigFailed'), error);
+          logger.error(t('errors.aiDebate.loadConfigFailed'), error);
         }
       })();
     }

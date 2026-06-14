@@ -6,6 +6,9 @@ import type { RootState } from '../../../shared/store';
 // KnowledgeSelector 内部已处理 Redux dispatch（多选模式）
 import KnowledgeSelector from '../../chat/KnowledgeSelector';
 import { getGlassmorphismToolbarStyles, getTransparentToolbarStyles } from '../../../shared/styles/toolbarStyles';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeButton');
 
 /** 知识库选择回调的最小接口，兼容 KnowledgeSelector 的输出类型 */
 interface KnowledgeBaseSelection {
@@ -47,9 +50,9 @@ const KnowledgeButton: React.FC<KnowledgeButtonProps> = ({
 
   // 处理知识库选择
   const handleKnowledgeSelect = useCallback((knowledgeBase: KnowledgeBaseSelection, searchResults?: unknown[]) => {
-    console.log('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
+    logger.info('选择了知识库:', knowledgeBase, '搜索结果:', searchResults);
     // Redux dispatch 已由 KnowledgeSelector 内部处理（支持多选）
-    console.log(`[知识库选择] 已选择知识库: ${knowledgeBase.name}，将在发送消息时自动搜索相关内容`);
+    logger.info(`[知识库选择] 已选择知识库: ${knowledgeBase.name}，将在发送消息时自动搜索相关内容`);
     // 关闭知识库选择器
     setShowKnowledgeSelector(false);
   }, []);

@@ -8,6 +8,9 @@ import type { FileStatus } from '../../preview/FilePreview';
 import IntegratedFilePreview from '../../preview/IntegratedFilePreview';
 import { toastManager } from '../../EnhancedToast';
 import { topicCacheManager } from '../../../shared/services/topics/TopicCacheManager';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('FileUploadManager');
 
 interface FileUploadManagerProps {
   images: ImageContent[];
@@ -64,10 +67,10 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         if (topic) {
           setCurrentTopicState(topic);
         } else {
-          console.warn('[FileUploadManager] 缓存或数据库中找不到话题:', currentTopicId);
+          logger.warn('[FileUploadManager] 缓存或数据库中找不到话题:', currentTopicId);
         }
       } catch (error) {
-        console.error('[FileUploadManager] 加载话题信息失败:', error);
+        logger.error('[FileUploadManager] 加载话题信息失败:', error);
       }
     };
 
@@ -83,7 +86,7 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         setImages(prev => [...prev, ...uploadedImages]);
       }
     } catch (error) {
-      console.error('图片上传失败:', error);
+      logger.error('图片上传失败:', error);
       // 确保在错误情况下重置上传状态
       setUploadingMedia(false);
     }
@@ -97,7 +100,7 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         setFiles(prev => [...prev, ...uploadedFiles]);
       }
     } catch (error) {
-      console.error('文件上传失败:', error);
+      logger.error('文件上传失败:', error);
       // 确保在错误情况下重置上传状态
       setUploadingMedia(false);
     }
@@ -206,7 +209,7 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         duration: 3000
       });
     } catch (error) {
-      console.error('拖拽文件处理失败:', error);
+      logger.error('拖拽文件处理失败:', error);
       toastManager.show({
         message: '文件处理失败，请重试',
         type: 'error',
@@ -231,7 +234,7 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
       });
     },
     onError: (error) => {
-      console.error('长文本转文件失败:', error);
+      logger.error('长文本转文件失败:', error);
       toastManager.show({
         message: '长文本转文件失败，请重试',
         type: 'error',
@@ -313,7 +316,7 @@ const FileUploadManager = forwardRef<FileUploadManagerRef, FileUploadManagerProp
         duration: 3000
       });
     } catch (error) {
-      console.error('粘贴图片处理失败:', error);
+      logger.error('粘贴图片处理失败:', error);
       toastManager.show({
         message: '粘贴图片失败，请重试',
         type: 'error',

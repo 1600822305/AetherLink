@@ -51,6 +51,9 @@ import {
   formatAiSdkError,
   safeToString
 } from '../../../shared/utils/error';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ErrorDetailDialog');
 
 interface ErrorDetailDialogProps {
   open: boolean;
@@ -86,7 +89,7 @@ const ErrorDetailDialog: React.FC<ErrorDetailDialogProps> = ({ open, onClose, er
       setCopiedText(true);
       setTimeout(() => setCopiedText(false), 2000);
     } catch (err) {
-      console.error('复制失败:', err);
+      logger.error('复制失败:', err);
     }
   };
 

@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../shared/store';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('DevToolsFloatingButton');
 
 interface DevToolsFloatingButtonProps {
   enabled?: boolean;
@@ -103,7 +106,7 @@ const DevToolsFloatingButton: React.FC<DevToolsFloatingButtonProps> = ({
       try {
         localStorage.setItem('devToolsFloatingButtonPosition', JSON.stringify(finalPosition));
       } catch (error) {
-        console.warn('无法保存开发者工具按钮位置:', error);
+        logger.warn('无法保存开发者工具按钮位置:', error);
       }
     }, 500);
 

@@ -13,7 +13,9 @@ import {
   isMultiModelGroup,
   type MessageOrGroup,
 } from './utils/askIdGrouping';
+import { createLogger } from '../../shared/services/infra/logger';
 
+const logger = createLogger('MessageGroup');
 
 // askId 多模型分组逻辑已抽到 ./utils/askIdGrouping（纯函数，便于单测与虚拟化复用）
 export {
@@ -70,9 +72,7 @@ const MessageGroup: React.FC<MessageGroupProps> = ({
         const dividerSetting = getMessageDividerSetting();
         setShowMessageDivider(dividerSetting);
       } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('获取消息分割线设置失败:', error);
-        }
+        logger.error('获取消息分割线设置失败:', error);
         // 保持默认值 true
       }
     };

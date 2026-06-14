@@ -4,6 +4,9 @@ import BackButtonDialog from '../../common/BackButtonDialog';
 import { Maximize2 as ZoomOutMapIcon, AlertCircle as ErrorOutlineIcon } from 'lucide-react';
 import type { ImageMessageBlock } from '../../../shared/types/newMessage';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('ImageBlock');
 
 interface Props {
   block: ImageMessageBlock;
@@ -68,7 +71,7 @@ const ImageBlock: React.FC<Props> = ({ block, isSingle = true }) => {
           setImageSrc(url);
           setLoading(false);
         } catch (err) {
-          console.error('加载图片引用失败:', err);
+          logger.error('加载图片引用失败:', err);
           setError(true);
           setLoading(false);
         }

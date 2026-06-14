@@ -15,6 +15,9 @@ import { CloudUpload as CloudUploadIcon, Camera as PhotoCameraIcon } from 'lucid
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import { getCroppedImg } from './cropImage.ts';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('AvatarUploader');
 
 interface AvatarUploaderProps {
   open: boolean;
@@ -86,7 +89,7 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
       onSave(croppedImage);
       onClose();
     } catch (error) {
-      console.error('Error cropping image:', error);
+      logger.error('Error cropping image:', error);
     } finally {
       setIsSaving(false);
     }

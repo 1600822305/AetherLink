@@ -6,6 +6,9 @@ import React, { memo, useCallback, useState, useEffect } from 'react';
 import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import { Minus, Square, X } from 'lucide-react';
 import { isTauri } from '../../shared/utils/platformDetection';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('TitleBar');
 
 interface TitleBarProps {
   title?: string;
@@ -40,7 +43,7 @@ const TitleBar: React.FC<TitleBarProps> = memo(({ title = 'AetherLink' }) => {
         const maximized = await win.isMaximized();
         setIsMaximized(maximized);
       } catch (e) {
-        console.error('检查窗口状态失败:', e);
+        logger.error('检查窗口状态失败:', e);
       }
     };
 
@@ -65,7 +68,7 @@ const TitleBar: React.FC<TitleBarProps> = memo(({ title = 'AetherLink' }) => {
       const win = getCurrentWindow();
       await win.startDragging();
     } catch (e) {
-      console.error('开始拖动失败:', e);
+      logger.error('开始拖动失败:', e);
     }
   }, []);
 
@@ -77,7 +80,7 @@ const TitleBar: React.FC<TitleBarProps> = memo(({ title = 'AetherLink' }) => {
       const win = getCurrentWindow();
       await win.minimize();
     } catch (e) {
-      console.error('最小化失败:', e);
+      logger.error('最小化失败:', e);
     }
   }, []);
 
@@ -90,7 +93,7 @@ const TitleBar: React.FC<TitleBarProps> = memo(({ title = 'AetherLink' }) => {
       await win.toggleMaximize();
       setIsMaximized(!isMaximized);
     } catch (e) {
-      console.error('最大化失败:', e);
+      logger.error('最大化失败:', e);
     }
   }, [isMaximized]);
 
@@ -102,7 +105,7 @@ const TitleBar: React.FC<TitleBarProps> = memo(({ title = 'AetherLink' }) => {
       const win = getCurrentWindow();
       await win.close();
     } catch (e) {
-      console.error('关闭失败:', e);
+      logger.error('关闭失败:', e);
     }
   }, []);
 

@@ -10,6 +10,9 @@ import { useTheme } from '@mui/material';
 import { SolidBridge } from '../../shared/bridges/SolidBridge';
 import { WebSearchTool as SolidWebSearchTool } from '../../solid/components/WebSearchTool/WebSearchTool.solid';
 import type { ToolMessageBlock } from '../../shared/types/newMessage';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MessageWebSearchTool');
 
 interface MessageWebSearchToolProps {
   block: ToolMessageBlock;
@@ -88,7 +91,7 @@ export const MessageWebSearchTool: React.FC<MessageWebSearchToolProps> = memo(({
       debugName="WebSearchTool"
       debug={process.env.NODE_ENV === 'development'}
       onError={(error) => {
-        console.error('[MessageWebSearchTool] SolidJS 组件错误:', error);
+        logger.error('SolidJS 组件错误:', error);
       }}
     />
   );

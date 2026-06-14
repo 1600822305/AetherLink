@@ -4,6 +4,9 @@ import BackButtonDialog from '../../common/BackButtonDialog';
 import { Maximize2 as ZoomOutMapIcon, AlertCircle as ErrorOutlineIcon } from 'lucide-react';
 import type { VideoMessageBlock } from '../../../shared/types/newMessage';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('VideoBlock');
 
 interface Props {
   block: VideoMessageBlock;
@@ -67,7 +70,7 @@ const VideoBlock: React.FC<Props> = ({ block }) => {
           setVideoSrc(url);
           setLoading(false);
         } catch (err) {
-          console.error('加载视频引用失败:', err);
+          logger.error('加载视频引用失败:', err);
           setError(true);
           setLoading(false);
         }

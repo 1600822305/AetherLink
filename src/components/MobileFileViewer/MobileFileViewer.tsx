@@ -29,6 +29,9 @@ import { FileIcon } from './components/FileIcon';
 import { ZoomControls } from './components/ZoomControls';
 import { formatFileSize, getFileType, getLanguage } from './utils';
 import type { MobileFileViewerProps } from './types';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('MobileFileViewer');
 
 export const MobileFileViewer: React.FC<MobileFileViewerProps> = ({
   open,
@@ -74,7 +77,7 @@ export const MobileFileViewer: React.FC<MobileFileViewerProps> = ({
     initialScale: 1.0,
     scaleStep: 0.1,
     onScaleChange: (newScale) => {
-      console.log('Font scale changed:', newScale);
+      logger.debug('Font scale changed:', newScale);
     }
   });
 
@@ -87,7 +90,7 @@ export const MobileFileViewer: React.FC<MobileFileViewerProps> = ({
       const extension = loadLanguage(language as any);
       return extension ? [extension] : [];
     } catch (error) {
-      console.warn('Failed to load language extension:', error);
+      logger.warn('Failed to load language extension:', error);
       return [];
     }
   };

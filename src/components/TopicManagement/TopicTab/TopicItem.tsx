@@ -14,6 +14,9 @@ import type { RootState } from '../../../shared/store';
 import { selectTopicStreaming, selectMessagesForTopic } from '../../../shared/store/selectors/messageSelectors';
 import { formatPreviewText } from '../../../shared/services/topics/TopicPreviewService';
 import { stripMarkdown } from '../../../shared/services/tts-v2/utils/textProcessor';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('TopicItem');
 
 interface TopicItemProps {
   topic: ChatTopic;
@@ -61,20 +64,20 @@ const TopicItem = React.memo(function TopicItem({
         deleteTimeoutRef.current = null;
       }
 
-      console.log(`[TopicItem] 确认删除话题: ${topic.name} (${topic.id})`);
+      logger.debug(`确认删除话题: ${topic.name} (${topic.id})`);
 
       // 🚀 优化：移除冗余的 startTransition（SidebarTabs.handleDeleteTopic 已包含）
       onDeleteTopic(topic.id, event);
     } else {
       // 第一次点击，进入确认状态
       setPendingDelete(true);
-      console.log(`[TopicItem] 进入删除确认状态: ${topic.name}`);
+      logger.debug(`进入删除确认状态: ${topic.name}`);
 
       // 1.5秒后自动重置（缩短等待时间，提升用户体验）
       deleteTimeoutRef.current = setTimeout(() => {
         setPendingDelete(false);
         deleteTimeoutRef.current = null;
-        console.log(`[TopicItem] 删除确认状态超时重置: ${topic.name}`);
+        logger.debug(`删除确认状态超时重置: ${topic.name}`);
       }, 1500); // 从2秒缩短到1.5秒
     }
   }, [topic.id, topic.name, onDeleteTopic, pendingDelete]);

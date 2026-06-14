@@ -22,6 +22,9 @@ import MarkdownCodeBlock from './blocks/MarkdownCodeBlock';
 import AdvancedImagePreview from './blocks/AdvancedImagePreview';
 import CitationTooltip from './CitationTooltip';
 import { findCitationInChildren, parseCitationData } from '../../shared/utils/citation';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('Markdown');
 
 const ALLOWED_ELEMENTS = /<(style|p|div|span|b|i|strong|em|ul|ol|li|table|tr|td|th|thead|tbody|h[1-6]|blockquote|pre|code|br|hr|svg|path|circle|rect|line|polyline|polygon|text|g|defs|title|desc|tspan|sub|sup)/i;
 const DISALLOWED_ELEMENTS = ['iframe'];
@@ -137,7 +140,7 @@ const Markdown: React.FC<Props> = ({ block, content, allowHtml = false, messageR
   const onSaveCodeBlock = useCallback(
     (id: string, newContent: string) => {
       // TODO: 实现代码块保存逻辑
-      console.log('保存代码块:', id, newContent);
+      logger.info('保存代码块:', id, newContent);
     },
     []
   );

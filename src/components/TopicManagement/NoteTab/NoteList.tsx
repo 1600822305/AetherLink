@@ -41,6 +41,9 @@ import { useNotesSearch } from '../../../shared/hooks/useNotesSearch';
 import type { NoteFile } from '../../../shared/types/note';
 import type { SearchResult } from '../../../shared/services/notes/NotesSearchService';
 import { toastManager } from '../../EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('NoteList');
 
 interface NoteListProps {
   onSelectNote: (path: string) => void;
@@ -114,7 +117,7 @@ const NoteList: React.FC<NoteListProps> = ({ onSelectNote }) => {
       const items = await simpleNoteService.listNotes(currentPath);
       setNotes(items);
     } catch (error) {
-      console.error('加载笔记失败:', error);
+      logger.error('加载笔记失败:', error);
       toastManager.error('加载笔记失败', '错误');
     } finally {
       setLoading(false);
@@ -190,7 +193,7 @@ const NoteList: React.FC<NoteListProps> = ({ onSelectNote }) => {
       loadNotes();
       toastManager.success(`${createType === 'folder' ? '文件夹' : '笔记'}创建成功`, '成功');
     } catch (error) {
-      console.error('创建失败:', error);
+      logger.error('创建失败:', error);
       toastManager.error('创建失败: ' + (error instanceof Error ? error.message : String(error)), '错误');
     }
   };
@@ -205,12 +208,12 @@ const NoteList: React.FC<NoteListProps> = ({ onSelectNote }) => {
 
   const handleRename = async () => {
     if (!selectedItem || !newItemName) {
-      console.log('重命名条件不满足:', { selectedItem, newItemName });
+      logger.debug('重命名条件不满足:', { selectedItem, newItemName });
       return;
     }
     
     const oldPath = currentPath ? `${currentPath}/${selectedItem.name}` : selectedItem.name;
-    console.log('开始重命名:', { oldPath, newName: newItemName });
+    logger.debug('开始重命名:', { oldPath, newName: newItemName });
     
     try {
       await simpleNoteService.renameItem(oldPath, newItemName);
@@ -219,7 +222,7 @@ const NoteList: React.FC<NoteListProps> = ({ onSelectNote }) => {
       loadNotes();
       toastManager.success('重命名成功', '成功');
     } catch (error) {
-      console.error('重命名失败:', error);
+      logger.error('重命名失败:', error);
       toastManager.error(`重命名失败: ${error instanceof Error ? error.message : String(error)}`, '错误');
     }
   };
@@ -240,7 +243,7 @@ const NoteList: React.FC<NoteListProps> = ({ onSelectNote }) => {
       loadNotes();
       toastManager.success('删除成功', '成功');
     } catch (error) {
-      console.error('删除失败:', error);
+      logger.error('删除失败:', error);
       toastManager.error('删除失败', '错误');
     }
   };

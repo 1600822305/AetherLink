@@ -1,5 +1,8 @@
 import { Component, type ReactNode } from 'react';
 import { Button, Box, Typography } from '@mui/material';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('ErrorBoundary');
 
 interface Props {
   children: ReactNode;
@@ -23,7 +26,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('ErrorBoundary捕获错误:', error, errorInfo);
+    logger.error('ErrorBoundary捕获错误:', error, errorInfo);
   }
 
   render() {

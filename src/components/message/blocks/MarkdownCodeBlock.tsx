@@ -5,6 +5,9 @@ import Markdown from '../Markdown';
 import { CodeBlockView } from '../../CodeBlockView';
 import HtmlArtifactsCard from '../../CodeBlockView/HtmlArtifactsCard';
 import { isOpenFenceBlock } from '../../../utils/markdown';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MarkdownCodeBlock');
 
 // 需要接收并传递 messageRole 和 isStreaming
 interface MarkdownCodeBlockProps {
@@ -103,7 +106,7 @@ const MarkdownCodeBlock: React.FC<MarkdownCodeBlockProps> = ({
         html={safeChildren}
         isStreaming={isActuallyStreaming}
         onSave={(newContent) => {
-          console.log('保存 HTML:', id, newContent);
+          logger.info('保存 HTML:', id, newContent);
         }}
       />
     );
@@ -148,7 +151,7 @@ const MarkdownCodeBlock: React.FC<MarkdownCodeBlockProps> = ({
     <CodeBlockView
       language={language}
       onSave={(newContent) => {
-        console.log('保存代码块:', id, newContent);
+        logger.info('保存代码块:', id, newContent);
       }}
       messageRole={messageRole}
     >

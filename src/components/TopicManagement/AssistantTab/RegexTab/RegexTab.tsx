@@ -29,6 +29,9 @@ import { CSS } from '@dnd-kit/utilities';
 import type { AssistantRegex } from '../../../../shared/types/Assistant';
 import RegexRuleCard from './RegexRuleCard';
 import RegexRuleDialog from './RegexRuleDialog';
+import { createLogger } from '../../../../shared/services/infra/logger';
+
+const logger = createLogger('RegexTab');
 
 export interface RegexTabProps {
   rules: AssistantRegex[];
@@ -107,7 +110,7 @@ const RegexTab: React.FC<RegexTabProps> = ({ rules, onChange }) => {
       onChange([...rules, ...importedRules]);
       setSnackbar({ open: true, message: `成功导入 ${importedRules.length} 条正则规则`, severity: 'success' });
     } catch (error) {
-      console.error('[RegexTab] 导入失败:', error);
+      logger.error('导入失败:', error);
       setSnackbar({ open: true, message: `导入失败: ${(error as Error).message}`, severity: 'error' });
     } finally {
       // 清空文件输入

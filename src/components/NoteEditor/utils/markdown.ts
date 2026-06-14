@@ -6,6 +6,9 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import rehypeRaw from 'rehype-raw';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('markdown');
 
 // 创建 unified 处理器用于 Markdown → HTML
 const markdownProcessor = unified()
@@ -57,7 +60,7 @@ export function htmlToMarkdown(html: string): string {
   try {
     return turndownService.turndown(html);
   } catch (error) {
-    console.error('Error converting HTML to Markdown:', error);
+    logger.error('Error converting HTML to Markdown:', error);
     // 降级方案：移除 HTML 标签
     const temp = document.createElement('div');
     temp.innerHTML = html;
@@ -77,7 +80,7 @@ export function markdownToHtml(markdown: string): string {
     const result = markdownProcessor.processSync(markdown);
     return String(result);
   } catch (error) {
-    console.error('Error converting Markdown to HTML:', error);
+    logger.error('Error converting Markdown to HTML:', error);
     return markdown;
   }
 }

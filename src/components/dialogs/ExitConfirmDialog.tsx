@@ -12,6 +12,9 @@ import { useAppState } from '../../shared/hooks/useAppState';
 import { getPlatformInfo } from '../../shared/utils/platformDetection';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ExitConfirmDialog');
 
 /**
  * 退出确认对话框组件
@@ -50,7 +53,7 @@ const ExitConfirmDialog: React.FC = () => {
         await CapApp.exitApp();
         return;
       } catch (error) {
-        console.error('[ExitConfirmDialog] Capacitor exitApp 失败:', error);
+        logger.error('[ExitConfirmDialog] Capacitor exitApp 失败:', error);
       }
     }
     
@@ -61,7 +64,7 @@ const ExitConfirmDialog: React.FC = () => {
         await getCurrentWindow().close();
         return;
       } catch (error) {
-        console.error('[ExitConfirmDialog] Tauri close 失败:', error);
+        logger.error('[ExitConfirmDialog] Tauri close 失败:', error);
       }
     }
     

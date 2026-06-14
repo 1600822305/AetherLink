@@ -3,6 +3,9 @@ import { Box, CircularProgress, IconButton, Dialog } from '@mui/material';
 import { Maximize2 as ZoomOutMapIcon, X as CloseIcon, AlertCircle as ErrorOutlineIcon } from 'lucide-react';
 import type { ImageContent as ImageContentType } from '../../shared/types';
 import { dexieStorage } from '../../shared/services/storage/DexieStorageService';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('ImageContent');
 
 interface ImageContentProps {
   image: ImageContentType;
@@ -35,7 +38,7 @@ const ImageContent: React.FC<ImageContentProps> = ({ image, index }) => {
 
       // 获取图片元数据
       const metadata = await dexieStorage.getImageMetadata(id);
-      console.debug('Image metadata loaded:', metadata);
+      logger.debug('Image metadata loaded:', metadata);
 
       // 创建Blob URL
       const url = URL.createObjectURL(blob);
@@ -52,7 +55,7 @@ const ImageContent: React.FC<ImageContentProps> = ({ image, index }) => {
         img.src = url;
       }
     } catch (error) {
-      console.error('从引用加载图片失败:', error);
+      logger.error('从引用加载图片失败:', error);
       setError(true);
       setLoading(false);
     }
@@ -73,7 +76,7 @@ const ImageContent: React.FC<ImageContentProps> = ({ image, index }) => {
             // 从DataService获取图片
             await loadImageFromReference(refMatch[1]);
           } catch (err) {
-            console.error('加载图片引用失败:', err);
+            logger.error('加载图片引用失败:', err);
             setError(true);
             setLoading(false);
           }

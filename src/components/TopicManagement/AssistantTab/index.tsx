@@ -44,6 +44,9 @@ import type { Group } from '../../../shared/types';
 import AgentPromptSelector from '../../AgentPromptSelector';
 import AvatarUploader from '../../settings/AvatarUploader';
 import EditAssistantDialog from './EditAssistantDialog';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('AssistantTab');
 
 
 
@@ -447,7 +450,7 @@ export class AssistantTabErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('AssistantTab error:', error, errorInfo);
+    logger.error('AssistantTab error:', error, errorInfo);
     // 这里可以添加错误上报逻辑
   }
 

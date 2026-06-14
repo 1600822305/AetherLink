@@ -5,7 +5,10 @@ import { getEditorExtensions } from './extensions';
 import Toolbar from './Toolbar';
 import type { RichEditorProps, RichEditorRef } from './types';
 import { htmlToMarkdown, markdownToHtml } from './utils/markdown';
+import { createLogger } from '../../shared/services/infra/logger';
 import './styles.css';
+
+const logger = createLogger('RichEditor');
 
 const RichEditor = forwardRef<RichEditorRef, RichEditorProps>((props, ref) => {
   const {
@@ -40,7 +43,7 @@ const RichEditor = forwardRef<RichEditorRef, RichEditorProps>((props, ref) => {
         const markdown = htmlToMarkdown(htmlContent);
         onMarkdownChange(markdown);
       } catch (error) {
-        console.error('Error converting HTML to Markdown:', error);
+        logger.error('Error converting HTML to Markdown:', error);
         // 降级方案：保存纯文本
         onMarkdownChange(editor.getText());
       }
@@ -67,7 +70,7 @@ const RichEditor = forwardRef<RichEditorRef, RichEditorProps>((props, ref) => {
     try {
       return htmlToMarkdown(editor.getHTML());
     } catch (error) {
-      console.error('Error getting markdown:', error);
+      logger.error('Error getting markdown:', error);
       return editor.getText();
     }
   }, [editor]);
@@ -78,7 +81,7 @@ const RichEditor = forwardRef<RichEditorRef, RichEditorProps>((props, ref) => {
       try {
         editor.commands.setContent(markdownToHtml(markdown));
       } catch (error) {
-        console.error('Error setting markdown:', error);
+        logger.error('Error setting markdown:', error);
         editor.commands.setContent(markdown);
       }
     },

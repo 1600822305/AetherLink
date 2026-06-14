@@ -47,6 +47,9 @@ import {
 import type { FileChange, FileOperationType } from '../../shared/store/slices/agenticFilesSlice';
 import { unifiedFileManager } from '../../shared/services/files/UnifiedFileManagerService';
 import SimpleDiffViewer from './SimpleDiffViewer';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('AgenticFilesList');
 
 /** 获取操作类型的图标 */
 const getOperationIcon = (operation: FileOperationType) => {
@@ -374,7 +377,7 @@ const AgenticFilesList: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('[AgenticFilesList] 恢复文件失败:', error);
+      logger.error('[AgenticFilesList] 恢复文件失败:', error);
     }
     
     dispatch(rejectFileChange(change.id));

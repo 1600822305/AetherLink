@@ -3,6 +3,9 @@ import { Box, Paper, useTheme } from '@mui/material';
 import type { MathMessageBlock } from '../../../shared/types/newMessage';
 import 'katex/dist/katex-swap.css';
 import { InlineMath, BlockMath } from 'react-katex';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MathBlock');
 
 interface Props {
   block: MathMessageBlock;
@@ -24,7 +27,7 @@ const MathBlock: React.FC<Props> = ({ block }) => {
         return <InlineMath math={block.content} />;
       }
     } catch (error) {
-      console.error('数学公式渲染失败:', error);
+      logger.error('数学公式渲染失败:', error);
       return (
         <Box component="pre" sx={{
           p: 1,

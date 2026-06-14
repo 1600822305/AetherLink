@@ -23,6 +23,9 @@ import { Brain, Plus, Trash2, Edit3, Search, RefreshCw } from 'lucide-react';
 import { memoryService } from '../../../shared/services/memory/MemoryService';
 import type { MemoryItem } from '../../../shared/types/memory';
 import { toastManager } from '../../EnhancedToast';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MemoryTab');
 
 interface MemoryTabProps {
   /** 助手 ID */
@@ -60,7 +63,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
       const result = await memoryService.list({ assistantId, limit: 100 });
       setMemories(result.memories);
     } catch (error) {
-      console.error('[MemoryTab] 加载记忆失败:', error);
+      logger.error('加载记忆失败:', error);
     } finally {
       setLoading(false);
     }
@@ -78,7 +81,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
       const result = await memoryService.textSearch(searchQuery, { assistantId });
       setMemories(result.memories);
     } catch (error) {
-      console.error('[MemoryTab] 搜索失败:', error);
+      logger.error('搜索失败:', error);
     } finally {
       setLoading(false);
     }
@@ -101,7 +104,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
         loadMemories();
       }
     } catch (error) {
-      console.error('[MemoryTab] 添加记忆失败:', error);
+      logger.error('添加记忆失败:', error);
       toastManager.error('添加记忆失败');
     }
   };
@@ -119,7 +122,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
         loadMemories();
       }
     } catch (error) {
-      console.error('[MemoryTab] 更新记忆失败:', error);
+      logger.error('更新记忆失败:', error);
       toastManager.error('更新记忆失败');
     }
   };
@@ -133,7 +136,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
         loadMemories();
       }
     } catch (error) {
-      console.error('[MemoryTab] 删除记忆失败:', error);
+      logger.error('删除记忆失败:', error);
       toastManager.error('删除记忆失败');
     }
   };
@@ -147,7 +150,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({
       toastManager.success('已清空所有记忆');
       loadMemories();
     } catch (error) {
-      console.error('[MemoryTab] 清空记忆失败:', error);
+      logger.error('清空记忆失败:', error);
       toastManager.error('清空记忆失败');
     }
   };

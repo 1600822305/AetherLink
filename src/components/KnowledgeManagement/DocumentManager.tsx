@@ -52,6 +52,9 @@ import FileDropZone, { type FileInfo } from './FileDropZone';
 import ProcessingStatusIcon from './ProcessingStatusIcon';
 import { v4 as uuidv4 } from 'uuid';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('DocumentManager');
 
 interface DocumentManagerProps {
   knowledgeBaseId: string;
@@ -164,7 +167,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       const docs = await knowledgeService.getDocumentsByKnowledgeBaseId(knowledgeBaseId);
       setDocuments(docs);
     } catch (err) {
-      console.error('加载文档失败:', err);
+      logger.error('加载文档失败:', err);
       setError('无法加载文档列表，请稍后再试');
     } finally {
       setLoading(false);
@@ -309,7 +312,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     // 批量提交 — 队列自动并发调度，不再逐个 await
     // queue:drained 事件会触发 loadDocuments 和状态重置
     taskQueue.addTasks(tasks).catch(err => {
-      console.error('[DocumentManager] 任务队列提交失败:', err);
+      logger.error('[DocumentManager] 任务队列提交失败:', err);
       setError('文档处理失败，请重试');
       setUploading(false);
       setProgress({ active: false, current: 0, total: 0 });
@@ -342,7 +345,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       setUploading(true);
       setProgress(prev => ({ ...prev, active: true, total: prev.total || 1 }));
       taskQueue.addTask(task).catch(err => {
-        console.error('[DocumentManager] 重试任务失败:', err);
+        logger.error('[DocumentManager] 重试任务失败:', err);
       });
     } else {
       updateDocumentItemStatus(itemId, { status: 'pending', progress: 0, error: undefined });
@@ -355,7 +358,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       await knowledgeService.deleteDocument(documentId);
       await loadDocuments();
     } catch (err) {
-      console.error('删除文档失败:', err);
+      logger.error('删除文档失败:', err);
       setError('删除文档失败，请稍后再试');
     }
   }, [knowledgeService, loadDocuments]);
@@ -373,7 +376,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       await loadDocuments();
       setDocumentItems([]);
     } catch (err) {
-      console.error('清理文档失败:', err);
+      logger.error('清理文档失败:', err);
       setError('清理文档失败，请稍后再试');
     } finally {
       setClearAllDialogOpen(false);
@@ -417,11 +420,11 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       // 提交到队列 — queue:drained 事件会触发 loadDocuments
       taskQueue.addTask(task).catch(err => {
-        console.error('[DocumentManager] 刷新任务失败:', err);
+        logger.error('[DocumentManager] 刷新任务失败:', err);
         setError('刷新文档失败，请稍后再试');
       });
     } catch (err) {
-      console.error('刷新文档失败:', err);
+      logger.error('刷新文档失败:', err);
       setError('刷新文档失败，请稍后再试');
     }
   }, [knowledgeService, knowledgeBaseId, taskQueue]);

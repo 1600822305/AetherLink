@@ -3,6 +3,9 @@ import { Box, Typography, Paper, IconButton, Chip, Tooltip } from '@mui/material
 import { ChevronDown as ExpandMoreIcon, ChevronUp as ExpandLessIcon, Link as LinkIcon, Copy, Check } from 'lucide-react';
 import type { KnowledgeReferenceMessageBlock } from '../../../shared/types/newMessage';
 import { styled } from '@mui/material/styles';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeReferenceBlock');
 
 interface KnowledgeReferenceBlockProps {
   block: KnowledgeReferenceMessageBlock;
@@ -121,7 +124,7 @@ const KnowledgeReferenceBlock: React.FC<KnowledgeReferenceBlockProps> = ({ block
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     }).catch(err => {
-      console.error('复制失败:', err);
+      logger.error('复制失败:', err);
     });
   }, []);
 
@@ -136,7 +139,7 @@ const KnowledgeReferenceBlock: React.FC<KnowledgeReferenceBlockProps> = ({ block
     const targetFileId = fileId || block.metadata?.fileId;
     if (targetFileId) {
       // TODO: 实现文件打开功能
-      console.log('打开文件:', targetFileId);
+      logger.info('打开文件:', targetFileId);
     }
   };
 

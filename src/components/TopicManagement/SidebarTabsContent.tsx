@@ -15,6 +15,9 @@ import { parseModelIdentityKey } from '../../shared/utils/modelUtils';
 import { ENABLE_NOTE_SIDEBAR_KEY, simpleNoteService } from '../../shared/services/notes/SimpleNoteService';
 import { workspaceService, ENABLE_WORKSPACE_SIDEBAR_KEY } from '../../shared/services/files/WorkspaceService';
 import { useNavigate } from 'react-router-dom';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('SidebarTabsContent');
 
 /**
  * 侧边栏标签页内容组件 - 使用memo优化性能
@@ -46,7 +49,7 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
           [ENABLE_NOTE_SIDEBAR_KEY]: noteEnabled,
         }));
       } catch (e) {
-        console.error('[SidebarTabsContent] 同步侧边栏开关失败:', e);
+        logger.error('同步侧边栏开关失败:', e);
       }
     };
     syncSidebarFlags();
@@ -105,7 +108,7 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
 
   // 标签页切换 - 优化版本，避免不必要的数据刷新
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-    console.log(`[SidebarTabs] 标签页切换: ${value} -> ${newValue}`, {
+    logger.debug(`标签页切换: ${value} -> ${newValue}`, {
       currentAssistant: currentAssistant?.id,
       assistantWithTopics: assistantWithTopics?.id,
       topicsCount: assistantWithTopics?.topics?.length || 0,
@@ -114,21 +117,21 @@ const SidebarTabsContent = React.memo(function SidebarTabsContent() {
     });
 
     if (newValue === 1) { // 切换到话题标签页
-      console.log('[SidebarTabs] 切换到话题标签页，话题详情:',
+      logger.debug('切换到话题标签页，话题详情:',
         assistantWithTopics?.topics?.map((t) => ({id: t.id, name: t.name})) || []);
 
       // 优化：只有在话题数据为空或过期时才刷新
       const hasTopics = assistantWithTopics?.topics && assistantWithTopics.topics.length > 0;
       if (!hasTopics && refreshTopics) {
-        console.log('[SidebarTabs] 话题数据为空，刷新话题数据');
+        logger.debug('话题数据为空，刷新话题数据');
         refreshTopics();
       } else {
-        console.log('[SidebarTabs] 话题数据已存在，跳过刷新以提升性能');
+        logger.debug('话题数据已存在，跳过刷新以提升性能');
       }
     }
 
     if (newValue === 0) { // 切换到助手标签页
-      console.log('[SidebarTabs] 切换到助手标签页');
+      logger.debug('切换到助手标签页');
       // 助手数据已预加载，无需刷新
     }
 

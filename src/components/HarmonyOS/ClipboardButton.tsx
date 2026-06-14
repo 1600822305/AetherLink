@@ -11,6 +11,9 @@ import { HarmonyOSPermission } from '../../shared/config/harmonyOSConfig';
 import { harmonyOSPermissionService } from '../../shared/services/platform/harmonyos/HarmonyOSPermissionService';
 import HarmonyOSPermissionDialog from './PermissionDialog';
 import { platformAdapter } from '../../shared/adapters/PlatformAdapter';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('HarmonyOSClipboardButton');
 
 interface ClipboardButtonProps {
   text: string;
@@ -57,7 +60,7 @@ export const HarmonyOSClipboardButton: React.FC<ClipboardButtonProps> = ({
       // 2秒后恢复
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('[HarmonyOS] 复制失败:', error);
+      logger.error('[HarmonyOS] 复制失败:', error);
       const errorMessage = error instanceof Error ? error.message : '复制失败';
       onError?.(errorMessage);
     }

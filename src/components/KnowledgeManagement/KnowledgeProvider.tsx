@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { MobileKnowledgeService } from '../../shared/services/knowledge/MobileKnowledgeService';
 import { EventEmitter, EVENT_NAMES } from '../../shared/services/infra/EventService';
 import type { KnowledgeBase } from '../../shared/types/KnowledgeBase';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('KnowledgeProvider');
 
 interface KnowledgeContextType {
   knowledgeBases: KnowledgeBase[];
@@ -50,7 +53,7 @@ export const KnowledgeProvider: React.FC<KnowledgeProviderProps> = ({ children }
         setSelectedKnowledgeBase(updated || null);
       }
     } catch (err) {
-      console.error('Error fetching knowledge bases:', err);
+      logger.error('Error fetching knowledge bases:', err);
       setError('获取知识库列表失败');
     } finally {
       setIsLoading(false);
@@ -68,11 +71,11 @@ export const KnowledgeProvider: React.FC<KnowledgeProviderProps> = ({ children }
       if (knowledgeBase) {
         setSelectedKnowledgeBase(knowledgeBase);
       } else {
-        console.warn(`Knowledge base with ID ${id} not found`);
+        logger.warn(`Knowledge base with ID ${id} not found`);
         setSelectedKnowledgeBase(null);
       }
     } catch (err) {
-      console.error(`Error selecting knowledge base ${id}:`, err);
+      logger.error(`Error selecting knowledge base ${id}:`, err);
       setSelectedKnowledgeBase(null);
     }
   }, []);

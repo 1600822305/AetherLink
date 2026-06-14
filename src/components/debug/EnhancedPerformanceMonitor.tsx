@@ -14,6 +14,9 @@ import {
   GripVertical
 } from 'lucide-react';
 import { useAppSelector } from '../../shared/store';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('EnhancedPerformanceMonitor');
 
 interface PerformanceMetrics {
   fps: number;
@@ -123,7 +126,7 @@ const EnhancedPerformanceMonitor: React.FC<EnhancedPerformanceMonitorProps> = ({
       try {
         localStorage.setItem('enhancedPerformanceMonitorPosition', JSON.stringify(finalPosition));
       } catch (error) {
-        console.warn('无法保存性能监控位置:', error);
+        logger.warn('无法保存性能监控位置:', error);
       }
     }, 500);
 

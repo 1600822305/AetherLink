@@ -54,6 +54,9 @@ import { simpleNoteService } from '../../shared/services/notes/SimpleNoteService
 import { getMainTextContent } from '../../shared/utils/messageUtils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getPlatformInfo } from '../../shared/utils/platformDetection';
+import { createLogger } from '../../shared/services/infra/logger';
+
+const logger = createLogger('UnifiedExportMenu');
 
 interface UnifiedExportMenuProps {
   message: Message;
@@ -134,7 +137,7 @@ export const UnifiedExportMenu: React.FC<UnifiedExportMenuProps> = ({
       
       toastManager.success('已保存到笔记', '成功');
     } catch (error) {
-      console.error('保存为笔记失败:', error);
+      logger.error('保存为笔记失败:', error);
       toastManager.error('保存失败: ' + (error instanceof Error ? error.message : '未知错误'), '错误');
     }
   };
@@ -145,7 +148,7 @@ export const UnifiedExportMenu: React.FC<UnifiedExportMenuProps> = ({
     try {
       await shareContentAsFile(message);
     } catch (error) {
-      console.error('分享文件失败:', error);
+      logger.error('分享文件失败:', error);
       toastManager.error('分享失败', '操作失败');
     }
   };

@@ -11,6 +11,9 @@ import type { SiliconFlowImageFormat, ImageContent, FileContent, Model } from '.
 import type { Assistant } from '../../../shared/types/Assistant';
 import { dexieStorage } from '../../../shared/services/storage/DexieStorageService';
 import { getModelIdentityKey } from '../../../shared/utils/modelUtils';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('MenuManager');
 
 interface MenuManagerProps {
   // 基础状态
@@ -146,12 +149,12 @@ const useMenuManager = ({
   // 处理多模型发送
   const handleMultiModelSend = useCallback(async (selectedModels: Model[]) => {
     if (!message.trim() && files.length === 0) {
-      console.log('没有内容可发送');
+      logger.info('没有内容可发送');
       return;
     }
 
     if (!selectedModels || selectedModels.length === 0) {
-      console.log('没有选择模型');
+      logger.info('没有选择模型');
       return;
     }
 
@@ -159,7 +162,7 @@ const useMenuManager = ({
     const formattedImages = await processImages();
     const nonImageFiles = files.filter((f: FileContent) => !f.mimeType.startsWith('image/'));
 
-    console.log('发送多模型消息:', {
+    logger.info('发送多模型消息:', {
       message: processedMessage,
       models: selectedModels.map(m => `${m.provider || m.providerType}:${m.id}`),
       images: formattedImages.length,
@@ -267,7 +270,7 @@ const useMenuManager = ({
     try {
       await dexieStorage.files.put(fileRecord);
     } catch (error) {
-      console.error('保存笔记文件到数据库失败:', error);
+      logger.error('保存笔记文件到数据库失败:', error);
     }
     
     const noteFile: FileContent = {

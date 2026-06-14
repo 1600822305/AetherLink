@@ -16,6 +16,9 @@ import {
 import { Zap } from 'lucide-react';
 import { SkillManager } from '../../../shared/services/skills/SkillManager';
 import type { Skill } from '../../../shared/types/Skill';
+import { createLogger } from '../../../shared/services/infra/logger';
+
+const logger = createLogger('SkillsTab');
 
 interface SkillsTabProps {
   assistantId: string;
@@ -38,7 +41,7 @@ export const SkillsTab: React.FC<SkillsTabProps> = ({
       const skills = await SkillManager.getEnabledSkills();
       setAllSkills(skills);
     } catch (error) {
-      console.error('[SkillsTab] 加载技能失败:', error);
+      logger.error('加载技能失败:', error);
     } finally {
       setLoading(false);
     }
