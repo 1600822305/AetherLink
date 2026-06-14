@@ -95,7 +95,8 @@ export class UnifiedParameterManager {
     }
 
     if (parameterSyncService.isParameterEnabled('maxOutputTokens')) {
-      params.maxOutputTokens = parameterSyncService.getParameter('maxOutputTokens', 4096);
+      // 默认值须与 getContextSettings（截断预留）保持一致，否则未显式设置时两者会分叉
+      params.maxOutputTokens = parameterSyncService.getParameter('maxOutputTokens', 8192);
     }
 
     return params;

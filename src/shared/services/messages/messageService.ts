@@ -7,6 +7,7 @@ import { ApiProviderRegistry } from './ApiProvider';
 import { getMainTextContent } from '../../utils/blockUtils';
 import { estimateTokens } from '../../utils';
 import { createLogger } from '../infra/logger';
+import { parameterSyncService } from '../assistant/ParameterSyncService';
 const logger = createLogger('messageService');
 
 // 类似 Roo Code 的 TOKEN_BUFFER_PERCENTAGE
@@ -120,14 +121,17 @@ export async function getContextSettings(): Promise<{
   let maxOutputTokens = 8192;   // 默认最大输出 Token 数
 
   try {
-    // 优先从 localStorage 读取（与设置页面保持一致）
+    // 上下文窗口/消息数仅此一处存储，从 localStorage 读取即可（不存在多源分叉）
     const appSettingsJSON = localStorage.getItem('appSettings');
     if (appSettingsJSON) {
       const appSettings = JSON.parse(appSettingsJSON);
       if (appSettings.contextCount !== undefined) contextCount = appSettings.contextCount;
       if (appSettings.contextWindowSize !== undefined) contextWindowSize = appSettings.contextWindowSize;
-      if (appSettings.maxOutputTokens !== undefined) maxOutputTokens = appSettings.maxOutputTokens;
     }
+    // maxOutputTokens 必须与实际 API 请求同源（parameterSyncService），
+    // 否则截断预留的输出空间与真正发送的 max_tokens 会不一致。
+    await parameterSyncService.ensureInitialized();
+    maxOutputTokens = parameterSyncService.getParameter('maxOutputTokens', 8192);
   } catch (error) {
     logger.error('读取上下文设置失败:', error);
   }
