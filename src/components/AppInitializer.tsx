@@ -149,9 +149,6 @@ const AppInitializer = () => {
                 logger.error('验证话题归属时出错:', error);
                 // 出错时保持当前状态，不进行切换
               }
-            } else {
-              // 减少重复日志输出
-              // console.log(`[AppInitializer] 当前话题 ${currentTopicId} 属于当前助手，无需切换`);
             }
           }
         }

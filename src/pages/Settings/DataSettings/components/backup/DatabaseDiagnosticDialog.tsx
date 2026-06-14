@@ -168,10 +168,6 @@ const DatabaseDiagnosticDialog: React.FC<DatabaseDiagnosticDialogProps> = ({
       setIsRepairing(true);
       setError(null);
 
-      // 手动创建一个新的数据库实例用于删除操作
-      // const tempDb = new Dexie('aetherlink-db-new');
-      // await tempDb.delete();
-      // console.log('尝试删除 aetherlink-db-new 数据库');
       // 改用 Dexie.delete()
       await Dexie.delete('aetherlink-db-new');
       logger.debug('已调用 Dexie.delete(\'aetherlink-db-new\')');
