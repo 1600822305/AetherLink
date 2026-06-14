@@ -44,8 +44,6 @@ export default tseslint.config(
     files: [
       'src/shared/services/infra/logger/**/*.{ts,tsx}',
       'src/shared/services/infra/EnhancedConsoleService.ts',
-      'src/shared/services/infra/LoggerService.ts',
-      'src/shared/utils/debugLogger.ts',
     ],
     rules: {
       'no-console': 'off',

@@ -4,7 +4,9 @@
  */
 
 import axios from 'axios';
-import LoggerService from '../infra/LoggerService';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('网络');
 
 // 请求记录类型
 export interface RequestRecord {
@@ -91,7 +93,7 @@ const setupRequestInterceptors = (): void => {
       // 将请求ID附加到配置中，以便在响应拦截器中识别
       (config as any).requestId = requestId;
 
-      LoggerService.log('DEBUG', `[网络] ${requestRecord.method} 请求开始: ${requestRecord.url}`, {
+      logger.debug(`${requestRecord.method} 请求开始: ${requestRecord.url}`, {
         method: requestRecord.method,
         url: requestRecord.url,
         headers: requestRecord.requestHeaders,
@@ -101,7 +103,7 @@ const setupRequestInterceptors = (): void => {
       return config;
     },
     (error) => {
-      LoggerService.log('ERROR', `[网络] 请求错误: ${error.message}`, error);
+      logger.error(`请求错误: ${error.message}`, error);
       return Promise.reject(error);
     }
   );
@@ -126,7 +128,7 @@ const setupRequestInterceptors = (): void => {
             duration
           });
 
-          LoggerService.log('INFO', `[网络] ${requestRecord.method} 请求完成: ${requestRecord.url} (${duration}ms)`, {
+          logger.info(`${requestRecord.method} 请求完成: ${requestRecord.url} (${duration}ms)`, {
             status: response.status,
             headers: response.headers,
             data: response.data,
@@ -161,7 +163,7 @@ const setupRequestInterceptors = (): void => {
             }
           });
 
-          LoggerService.log('ERROR', `[网络] ${requestRecord.method} 请求失败: ${requestRecord.url} (${duration}ms)`, {
+          logger.error(`${requestRecord.method} 请求失败: ${requestRecord.url} (${duration}ms)`, {
             status,
             error: error.message,
             response: error.response?.data,
@@ -195,7 +197,7 @@ const setupRequestInterceptors = (): void => {
 
     RequestStore.getInstance().addRequest(requestRecord);
 
-    LoggerService.log('DEBUG', `[网络] ${requestRecord.method} Fetch请求开始: ${requestRecord.url}`, {
+    logger.debug(`${requestRecord.method} Fetch请求开始: ${requestRecord.url}`, {
       method: requestRecord.method,
       url: requestRecord.url,
       headers: requestRecord.requestHeaders,
@@ -232,7 +234,7 @@ const setupRequestInterceptors = (): void => {
         duration
       });
 
-      LoggerService.log('INFO', `[网络] ${requestRecord.method} Fetch请求完成: ${requestRecord.url} (${duration}ms)`, {
+      logger.info(`${requestRecord.method} Fetch请求完成: ${requestRecord.url} (${duration}ms)`, {
         status: response.status,
         headers: Object.fromEntries(response.headers),
         data: responseData,
@@ -253,7 +255,7 @@ const setupRequestInterceptors = (): void => {
         }
       });
 
-      LoggerService.log('ERROR', `[网络] ${requestRecord.method} Fetch请求失败: ${requestRecord.url} (${duration}ms)`, {
+      logger.error(`${requestRecord.method} Fetch请求失败: ${requestRecord.url} (${duration}ms)`, {
         error: error.message,
         duration
       });
@@ -271,7 +273,7 @@ const getAllRequests = (): RequestRecord[] => {
 // 清除所有请求记录
 const clearAllRequests = (): void => {
   RequestStore.getInstance().clearAll();
-  LoggerService.log('INFO', '[网络] 已清除所有请求记录');
+  logger.info('已清除所有请求记录');
 };
 
 // 导出 RequestStore 类

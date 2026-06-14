@@ -5,7 +5,6 @@
  */
 import { streamText, generateText } from 'ai';
 import type { OpenAIProvider as AISDKOpenAIProvider } from '@ai-sdk/openai';
-import { logApiRequest } from '../../services/infra/LoggerService';
 import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
@@ -14,7 +13,7 @@ import type { Model, MCPTool } from '../../types';
 import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK } from './tools';
 import store from '../../store';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('AI SDK Stream');
 const nonStreamLogger = createLogger('AI SDK NonStream');
@@ -254,7 +253,7 @@ export async function streamCompletion(
     });
 
     // 记录 API 请求
-    logApiRequest('AI SDK OpenAI Stream', 'INFO', {
+    logger.logApiRequest('AI SDK OpenAI Stream', LogLevel.INFO, {
       provider: 'openai-aisdk',
       model: modelId,
       messageCount: processedMessages.length,

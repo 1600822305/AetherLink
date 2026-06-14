@@ -1,9 +1,8 @@
 import type { Model } from '../../types';
-import { logApiRequest, logApiResponse } from '../infra/LoggerService';
+import { createLogger, LogLevel } from '../infra/logger';
 import { handleError } from '../../utils/error';
 import type { ImageGenerationParams, GeneratedImage } from '../../types';
 import { ModelType } from '../../types';
-import { log } from '../infra/LoggerService';
 import { generateImage as openaiGenerateImage, generateVideo as openaiGenerateVideo } from '../../api/openai';
 import { generateImage as dashscopeGenerateImage, isDashScopeImageModel } from '../../api/dashscope/image';
 import { generateVideoWithVeo } from '../../api/gemini-aisdk/veo';
@@ -11,6 +10,8 @@ import type { VideoGenerationParams } from '../../api/openai/video';
 import type { GoogleVeoParams } from '../../api/gemini-aisdk/veo';
 import { fetchModels as factoryFetchModels } from '../ai/ProviderFactory';
 import { getModelIdentityKey } from '../../utils/modelUtils';
+
+const logger = createLogger('APIService');
 
 // 重新导出类型
 export type { VideoGenerationParams, GoogleVeoParams };
@@ -44,7 +45,7 @@ export async function generateImage(
   params: ImageGenerationParams
 ): Promise<GeneratedImage> {
   try {
-    log('INFO', `开始生成图像，使用模型: ${model.name}`);
+    logger.info(`开始生成图像，使用模型: ${model.name}`);
 
     // 检查模型是否支持图像生成
     // 优先检查模型编辑界面中的"输出能力"标签（modelTypes）
@@ -88,7 +89,7 @@ export async function generateImage(
       modelId: getModelIdentityKey({ id: model.id, provider: model.provider })
     };
 
-    log('INFO', `图像生成成功: ${generatedImage.url.substring(0, 50)}...`);
+    logger.info(`图像生成成功: ${generatedImage.url.substring(0, 50)}...`);
 
     return generatedImage;
   } catch (error: any) {
@@ -112,7 +113,7 @@ export async function generateVideo(
   params: VideoGenerationParams | GoogleVeoParams
 ): Promise<GeneratedVideo> {
   try {
-    log('INFO', `开始生成视频，使用模型: ${model.name}`);
+    logger.info(`开始生成视频，使用模型: ${model.name}`);
 
     // 检查模型是否支持视频生成
     const isVideoGenerationModel =
@@ -160,7 +161,7 @@ export async function generateVideo(
       modelId: getModelIdentityKey({ id: model.id, provider: model.provider })
     };
 
-    log('INFO', `视频生成成功: ${generatedVideo.url.substring(0, 50)}...`);
+    logger.info(`视频生成成功: ${generatedVideo.url.substring(0, 50)}...`);
 
     return generatedVideo;
   } catch (error: any) {
@@ -180,13 +181,13 @@ export async function generateVideo(
  */
 export async function fetchModels(provider: any): Promise<Model[]> {
   try {
-    logApiRequest('获取模型列表', 'INFO', { provider: provider.id });
+    logger.logApiRequest('获取模型列表', LogLevel.INFO, { provider: provider.id });
 
     // 直接使用供应商工厂获取已格式化的模型，参考最佳实例架构
     // 改为静态导入以避免动态导入警告
     const models = await factoryFetchModels(provider);
 
-    logApiResponse('获取模型列表', 200, {
+    logger.logApiResponse('获取模型列表', 200, {
       provider: provider.id,
       modelsCount: models.length
     });
@@ -197,7 +198,7 @@ export async function fetchModels(provider: any): Promise<Model[]> {
       logLevel: 'ERROR',
       additionalData: { provider: provider.id }
     });
-    logApiResponse('获取模型列表', 500, {
+    logger.logApiResponse('获取模型列表', 500, {
       provider: provider.id,
       error: error instanceof Error ? error.message : '未知错误'
     });

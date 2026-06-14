@@ -3,7 +3,9 @@
  */
 import type { Model, ImageGenerationParams } from '../../types';
 import { createClient } from './client';
-import { logApiRequest, logApiResponse, log } from '../../services/infra/LoggerService';
+import { createLogger, LogLevel } from '../../services/infra/logger';
+
+const logger = createLogger('Image Generation');
 
 /**
  * 使用OpenAI兼容格式生成图像 - 完整支持版本
@@ -93,7 +95,7 @@ export async function generateImage(
     }
 
     // 记录API请求
-    logApiRequest('Image Generation', 'INFO', {
+    logger.logApiRequest('Image Generation', LogLevel.INFO, {
       method: 'POST',
       url: `${baseUrl}/images/generations`,
       model: model.id,
@@ -129,7 +131,7 @@ export async function generateImage(
     }
 
     // 记录API响应
-    logApiResponse('Image Generation', 200, {
+    logger.logApiResponse('Image Generation', 200, {
       model: model.id,
       provider: model.provider,
       imageCount: imageUrls.length,
@@ -139,7 +141,7 @@ export async function generateImage(
     return imageUrls;
   } catch (error: any) {
     // 记录错误
-    log('ERROR', `图像生成失败: ${error.message || '未知错误'}`, {
+    logger.error(`图像生成失败: ${error.message || '未知错误'}`, {
       model: model.id,
       provider: model.provider,
       error
@@ -180,7 +182,7 @@ export async function generateImageByChat(
       throw new Error('没有找到有效的图像生成提示词');
     }
 
-    log('INFO', '正在生成图像...', { model: model.id });
+    logger.info('正在生成图像...', { model: model.id });
 
     // 使用基础图像生成功能
     const imageUrls = await generateImage(model, {
@@ -189,11 +191,11 @@ export async function generateImageByChat(
       batchSize: 1
     });
 
-    log('INFO', `图像生成完成！生成了 ${imageUrls.length} 张图像。`, { model: model.id });
+    logger.info(`图像生成完成！生成了 ${imageUrls.length} 张图像。`, { model: model.id });
 
     return imageUrls;
   } catch (error: any) {
-    log('ERROR', `聊天中图像生成失败: ${error.message || '未知错误'}`, {
+    logger.error(`聊天中图像生成失败: ${error.message || '未知错误'}`, {
       model: model.id,
       provider: model.provider,
       error

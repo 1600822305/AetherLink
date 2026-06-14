@@ -12,7 +12,9 @@
  */
 import type { Model, ImageGenerationParams } from '../../types';
 import { dashScopeRequest, getDashScopeBaseUrl } from './client';
-import { logApiRequest, logApiResponse, log } from '../../services/infra/LoggerService';
+import { createLogger, LogLevel } from '../../services/infra/logger';
+
+const logger = createLogger('DashScope Image Generation');
 
 // DashScope 文生图 API 路径
 const IMAGE_GENERATION_PATH = '/api/v1/services/aigc/multimodal-generation/generation';
@@ -183,7 +185,7 @@ export async function generateImage(
     }
 
     // 记录 API 请求
-    logApiRequest('DashScope Image Generation', 'INFO', {
+    logger.logApiRequest('DashScope Image Generation', LogLevel.INFO, {
       method: 'POST',
       url: `${baseUrl}${IMAGE_GENERATION_PATH}`,
       model: modelId,
@@ -222,7 +224,7 @@ export async function generateImage(
     }
 
     // 记录 API 响应
-    logApiResponse('DashScope Image Generation', 200, {
+    logger.logApiResponse('DashScope Image Generation', 200, {
       model: modelId,
       provider: 'dashscope',
       imageCount: imageUrls.length,
@@ -232,7 +234,7 @@ export async function generateImage(
 
     return imageUrls;
   } catch (error: any) {
-    log('ERROR', `[DashScope] 图像生成失败: ${error.message || '未知错误'}`, {
+    logger.error(`图像生成失败: ${error.message || '未知错误'}`, {
       model: model.id,
       provider: 'dashscope',
       error

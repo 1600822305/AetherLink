@@ -5,7 +5,6 @@
  */
 import { streamText, generateText } from 'ai';
 import type { AnthropicProvider as AISDKAnthropicProvider } from '@ai-sdk/anthropic';
-import { logApiRequest } from '../../services/infra/LoggerService';
 import { EventEmitter, EVENT_NAMES } from '../../services/infra/EventEmitter';
 import { hasToolUseTags } from '../../utils/mcpToolParser';
 import { ChunkType, type Chunk } from '../../types/chunk';
@@ -13,7 +12,7 @@ import type { Model, MCPTool } from '../../types';
 import { convertMcpToolsToAISDK } from './tools';
 import { supportsExtendedThinking, isClaudeReasoningModel } from './client';
 import { getAppropriateTag, type ReasoningTag, DEFAULT_REASONING_TAGS } from '../../config/reasoningTags';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('Anthropic SDK Stream');
 const nonStreamLogger = createLogger('Anthropic SDK NonStream');
@@ -188,7 +187,7 @@ export async function streamCompletion(
     }));
 
     // 记录 API 请求
-    logApiRequest('AI SDK Anthropic Stream', 'INFO', {
+    logger.logApiRequest('AI SDK Anthropic Stream', LogLevel.INFO, {
       provider: 'anthropic-aisdk',
       model: modelId,
       messageCount: processedMessages.length,

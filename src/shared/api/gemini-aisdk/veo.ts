@@ -1,4 +1,6 @@
-import { log } from '../../services/infra/LoggerService';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Google Veo');
 
 /**
  * Google Veo 2 视频生成参数
@@ -52,7 +54,7 @@ export async function generateVideoWithVeo(
   params: GoogleVeoParams
 ): Promise<GoogleVeoResult> {
   try {
-    log('INFO', '[Google Veo] 开始视频生成', {
+    logger.info('开始视频生成', {
       prompt: params.prompt.substring(0, 50),
       aspectRatio: params.aspectRatio,
       durationSeconds: params.durationSeconds
@@ -64,7 +66,7 @@ export async function generateVideoWithVeo(
     // 2. 轮询获取结果
     const videoUrl = await pollVeoOperation(apiKey, operationName);
     
-    log('INFO', '[Google Veo] 视频生成成功', { url: videoUrl.substring(0, 50) });
+    logger.info('视频生成成功', { url: videoUrl.substring(0, 50) });
     
     return {
       success: true,
@@ -73,7 +75,7 @@ export async function generateVideoWithVeo(
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    log('ERROR', '[Google Veo] 视频生成失败', { error: errorMessage });
+    logger.error('视频生成失败', { error: errorMessage });
     
     return {
       success: false,
@@ -122,7 +124,7 @@ export async function submitVeoGeneration(
     requestBody.parameters.enhancePrompt = params.enhancePrompt;
   }
 
-  log('INFO', '[Google Veo] 提交视频生成请求', { 
+  logger.info('提交视频生成请求', { 
     prompt: params.prompt.substring(0, 50),
     hasImage: !!params.image
   });
@@ -146,7 +148,7 @@ export async function submitVeoGeneration(
     throw new Error('Google Veo API未返回操作名称');
   }
 
-  log('INFO', '[Google Veo] 获得操作名称', { operationName: result.name });
+  logger.info('获得操作名称', { operationName: result.name });
   
   return result.name;
 }
@@ -164,7 +166,7 @@ export async function pollVeoOperation(
   
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      log('INFO', `[Google Veo] 轮询操作状态 (${attempt}/${maxAttempts})`, { operationName });
+      logger.info(`轮询操作状态 (${attempt}/${maxAttempts})`, { operationName });
 
       const response = await fetch(`${baseUrl}/${operationName}?key=${apiKey}`, {
         method: 'GET',
@@ -187,7 +189,7 @@ export async function pollVeoOperation(
       }
 
       const operation: GoogleOperation = await response.json();
-      log('INFO', `[Google Veo] 操作状态`, { 
+      logger.info(`操作状态`, { 
         operationName, 
         done: operation.done, 
         attempt 
@@ -212,7 +214,7 @@ export async function pollVeoOperation(
           videoUrl = `${videoUrl}${separator}key=${apiKey}`;
         }
 
-        log('INFO', '[Google Veo] 视频生成完成', {
+        logger.info('视频生成完成', {
           videoUrl: videoUrl.substring(0, 50),
           totalVideos: generatedSamples.length
         });
@@ -232,7 +234,7 @@ export async function pollVeoOperation(
         throw error;
       }
       
-      log('WARN', `[Google Veo] 轮询出错，继续重试`, { 
+      logger.warn(`轮询出错，继续重试`, { 
         error: error.message, 
         attempt, 
         operationName 

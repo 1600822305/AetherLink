@@ -4,7 +4,9 @@
  */
 import type { FileType } from '../types';
 import { MobileFileStorageService } from '../services/files/MobileFileStorageService';
-import { log } from '../services/infra/LoggerService';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('FileProcessing');
 
 /**
  * Base64 数据结果
@@ -47,7 +49,7 @@ export class FileProcessingUtils {
         mimeType: file.mimeType || this.getDefaultMimeType(file)
       };
     } catch (error) {
-      log('ERROR', `获取文件 Base64 失败: ${file.origin_name}`, {
+      logger.error(`获取文件 Base64 失败: ${file.origin_name}`, {
         fileId: file.id,
         error
       });
@@ -68,7 +70,7 @@ export class FileProcessingUtils {
         mime: result.mimeType
       };
     } catch (error) {
-      log('WARN', `获取图片 Base64 失败，使用回退方案: ${file.origin_name}`, { error });
+      logger.warn(`获取图片 Base64 失败，使用回退方案: ${file.origin_name}`, { error });
 
       // 回退到文件内置数据
       const base64Data = file.base64Data || '';
@@ -95,7 +97,7 @@ export class FileProcessingUtils {
         mime: result.mimeType
       };
     } catch (error) {
-      log('WARN', `获取视频 Base64 失败，使用回退方案: ${file.origin_name}`, { error });
+      logger.warn(`获取视频 Base64 失败，使用回退方案: ${file.origin_name}`, { error });
 
       // 回退到文件内置数据
       const base64Data = file.base64Data || '';
@@ -118,7 +120,7 @@ export class FileProcessingUtils {
     try {
       return await this.mobileFileStorage.readFile(file.id);
     } catch (error) {
-      log('ERROR', `读取文件内容失败: ${file.origin_name}`, {
+      logger.error(`读取文件内容失败: ${file.origin_name}`, {
         fileId: file.id,
         error
       });

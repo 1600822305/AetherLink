@@ -5,8 +5,10 @@
 import type { Model } from '../../types';
 import { createClient as createOpenAIClient } from '../openai/client';
 import { universalFetch } from '../../utils/universalFetch';
-import { log } from '../../services/infra/LoggerService';
+import { createLogger } from '../../services/infra/logger';
 import type OpenAI from 'openai';
+
+const logger = createLogger('DashScope');
 
 // DashScope API 基础 URL
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com';
@@ -81,7 +83,7 @@ export async function dashScopeRequest<T = any>(options: DashScopeRequestOptions
   const { path, body, apiKey, baseUrl, signal } = options;
   const url = `${baseUrl || DASHSCOPE_BASE_URL}${path}`;
 
-  log('INFO', `[DashScope] 发送请求: ${url}`, {
+  logger.info(`发送请求: ${url}`, {
     model: body.model,
     path
   });
@@ -105,7 +107,7 @@ export async function dashScopeRequest<T = any>(options: DashScopeRequestOptions
     } catch {
       errorMessage = `${errorMessage} - ${errorText}`;
     }
-    log('ERROR', `[DashScope] API 错误: ${errorMessage}`);
+    logger.error(`API 错误: ${errorMessage}`);
     throw new Error(errorMessage);
   }
 

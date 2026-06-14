@@ -44,7 +44,6 @@ import { getStorageItem } from '../../shared/utils/storage';
 import { useAppSelector } from '../../shared/store';
 import { Clipboard } from '@capacitor/clipboard';
 import { Z_INDEX } from '../../shared/constants/zIndex';
-import { debugLog } from '../../shared/utils/debugLogger';
 import MessageTranslateButton from './MessageTranslateButton';
 import { createLogger } from '../../shared/services/infra/logger';
 
@@ -245,7 +244,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
 
   // 打开菜单 - 优化：使用useCallback
   const handleMenuClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
-    debugLog.component('MessageActions', '三点菜单被点击', { renderMode, messageId: message.id });
+    logger.debug('三点菜单被点击', { renderMode, messageId: message.id });
     event.preventDefault();
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
@@ -261,14 +260,14 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
     if (!message) return;
 
     try {
-      debugLog.component('MessageActions', '开始复制内容', { messageId: message.id, renderMode });
+      logger.debug('开始复制内容', { messageId: message.id, renderMode });
 
       // 使用工具函数获取主文本内容
       const textContent = getMainTextContent(message);
-      debugLog.component('MessageActions', '获取到的文本内容', textContent?.substring(0, 100) + '...');
+      logger.debug('获取到的文本内容', textContent?.substring(0, 100) + '...');
 
       if (!textContent || !textContent.trim()) {
-        debugLog.warn('[MessageActions] 没有可复制的内容');
+        logger.warn('没有可复制的内容');
         alert('没有可复制的内容');
         return;
       }
@@ -278,16 +277,16 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
         await Clipboard.write({
           string: textContent
         });
-        debugLog.component('MessageActions', 'Capacitor复制成功');
+        logger.debug('Capacitor复制成功');
       } catch (capacitorError) {
-        debugLog.component('MessageActions', 'Capacitor复制失败，尝试Web API', capacitorError);
+        logger.debug('Capacitor复制失败，尝试Web API', capacitorError);
         // 如果Capacitor失败，回退到Web API
         await navigator.clipboard.writeText(textContent);
-        debugLog.component('MessageActions', 'Web API复制成功');
+        logger.debug('Web API复制成功');
       }
 
       // 显示成功提示
-      debugLog.component('MessageActions', '复制内容成功');
+      logger.debug('复制内容成功');
 
       // 发送复制成功事件，用于UI提示（检查是否有监听器）
       if (EventEmitter.listenerCount('ui:copy_success') > 0) {
@@ -295,7 +294,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
       }
 
     } catch (error) {
-      debugLog.error('[MessageActions] 复制内容失败', error);
+      logger.error('复制内容失败', error);
       toastManager.error('复制失败: ' + (error instanceof Error ? error.message : '未知错误'), '复制错误');
     } finally {
       // 确保菜单在操作完成后关闭
@@ -1146,7 +1145,7 @@ const MessageActions: React.FC<MessageActionsProps> = React.memo(({
       >
         <MenuItem
           onClick={(e) => {
-            debugLog.component('MessageActions', '复制菜单项被点击');
+            logger.debug('复制菜单项被点击');
             e.stopPropagation();
             handleCopyContent();
           }}

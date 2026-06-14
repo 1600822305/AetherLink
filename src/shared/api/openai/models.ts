@@ -5,9 +5,8 @@
  */
 import type { Model } from '../../types';
 import { createClient } from './client';
-import { logApiRequest, logApiResponse } from '../../services/infra/LoggerService';
 import { universalFetch } from '../../utils/universalFetch';
-import { createLogger } from '../../services/infra/logger';
+import { createLogger, LogLevel } from '../../services/infra/logger';
 
 const logger = createLogger('OpenAI Models');
 
@@ -172,7 +171,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     }
     
     // 记录API请求
-    logApiRequest('OpenAI Models', 'INFO', {
+    logger.logApiRequest('OpenAI Models', LogLevel.INFO, {
       method: 'GET',
       endpoint,
       provider: provider.id
@@ -191,7 +190,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
       logger.warn(`API请求失败: ${response.status}, ${errorText}`);
       
       // 记录API响应
-      logApiResponse('OpenAI Models', response.status, {
+      logger.logApiResponse('OpenAI Models', response.status, {
         error: errorText
       });
       
@@ -211,7 +210,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
     logger.debug(`成功获取模型列表, 找到 ${normalizedModels.length} 个模型`);
     
     // 记录API响应
-    logApiResponse('OpenAI Models', 200, {
+    logger.logApiResponse('OpenAI Models', 200, {
       modelsCount: normalizedModels.length,
       rawFormat: data.object || (Array.isArray(data) ? 'array' : 'unknown')
     });
@@ -234,7 +233,7 @@ export async function fetchModelsWithSDK(model: Model): Promise<any[]> {
     const openai = createClient(model);
     
     // 记录API请求
-    logApiRequest('OpenAI Models SDK', 'INFO', {
+    logger.logApiRequest('OpenAI Models SDK', LogLevel.INFO, {
       method: 'GET',
       model: model.id
     });
@@ -249,7 +248,7 @@ export async function fetchModelsWithSDK(model: Model): Promise<any[]> {
     });
     
     // 记录API响应
-    logApiResponse('OpenAI Models SDK', 200, {
+    logger.logApiResponse('OpenAI Models SDK', 200, {
       modelsCount: models.length
     });
     
