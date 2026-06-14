@@ -7,6 +7,9 @@ import { Toast } from '@capacitor/toast';
 import { Capacitor } from '@capacitor/core';
 import { CorsBypass } from 'capacitor-cors-bypass-enhanced';
 import { buildCorsProxyRequestUrl } from '../shared/utils/universalFetch';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('Notion API');
 
 // Notion API 配置
 export const getNotionApiUrl = (endpoint: string): string => {
@@ -38,7 +41,7 @@ const serializeRequestData = (data: any): string | undefined => {
     try {
       return JSON.stringify(data);
     } catch (error) {
-      console.warn('[Notion API] JSON序列化失败:', error);
+      logger.warn('JSON序列化失败:', error);
       throw new Error(`Failed to serialize request data: ${error}`);
     }
   }
@@ -48,7 +51,7 @@ const serializeRequestData = (data: any): string | undefined => {
     try {
       return JSON.stringify(data);
     } catch (error) {
-      console.warn('[Notion API] JSON序列化失败:', error);
+      logger.warn('JSON序列化失败:', error);
       throw new Error(`Failed to serialize request data: ${error}`);
     }
   }
@@ -57,7 +60,7 @@ const serializeRequestData = (data: any): string | undefined => {
   try {
     return String(data);
   } catch (error) {
-    console.warn('[Notion API] 数据序列化失败:', error);
+    logger.warn('数据序列化失败:', error);
     throw new Error(`Unable to serialize request data`);
   }
 };
@@ -81,7 +84,7 @@ export const notionApiRequest = async (
 
   // 移动端使用 CorsBypass 插件
   if (Capacitor.isNativePlatform()) {
-    console.log('[Notion API] 移动端使用 CorsBypass 插件:', url);
+    logger.debug('移动端使用 CorsBypass 插件:', url);
     
     try {
       const response = await CorsBypass.request({
@@ -104,7 +107,7 @@ export const notionApiRequest = async (
 
       return response.data;
     } catch (error: any) {
-      console.error('[Notion API] CorsBypass 请求失败:', error);
+      logger.error('CorsBypass 请求失败:', error);
       
       // 如果是网络错误，转换为合适的 NotionApiError
       if (error?.message?.includes('timeout') || error?.message?.includes('network')) {

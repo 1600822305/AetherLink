@@ -2,6 +2,9 @@ import type { ChatTopic } from '../shared/types';
 import { dexieStorage } from '../shared/services/storage/DexieStorageService';
 import dayjs from 'dayjs';
 import { notionApiRequest, showSuccessMessage, showErrorMessage } from './notionApiUtils';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('notionExport');
 
 // Notion API 相关类型定义
 interface NotionPageProperties {
@@ -531,7 +534,7 @@ async function topicToMarkdownForNotion(topic: ChatTopic, exportReasoning = fals
 
     return messageContents.join('\n\n---\n\n');
   } catch (error) {
-    console.error('转换话题为Markdown失败:', error);
+    logger.error('转换话题为Markdown失败:', error);
     throw error;
   }
 }
@@ -590,7 +593,7 @@ export async function exportTopicToNotion(
       body: createPageRequest
     });
 
-    console.log('话题已成功导出到Notion:', result.url);
+    logger.debug('话题已成功导出到Notion:', result.url);
 
     // 显示成功消息
     showSuccessMessage(
@@ -599,7 +602,7 @@ export async function exportTopicToNotion(
     );
     
   } catch (error) {
-    console.error('导出到Notion失败:', error);
+    logger.error('导出到Notion失败:', error);
     showErrorMessage(error as Error);
     throw error;
   }

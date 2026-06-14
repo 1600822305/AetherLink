@@ -8,6 +8,9 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { longTextPasteService, type PasteResult } from '../services/files/LongTextPasteService';
 import type { FileContent } from '../types';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('LongTextPaste');
 
 export interface UseLongTextPasteOptions {
   /** 文件添加回调 */
@@ -93,7 +96,7 @@ export function useLongTextPaste(options: UseLongTextPasteOptions = {}): UseLong
 
       return false;
     } catch (error) {
-      console.error('[useLongTextPaste] 处理失败:', error);
+      logger.error('处理失败:', error);
       onError?.(error instanceof Error ? error.message : '长文本转文件失败');
       return false;
     }
@@ -132,7 +135,7 @@ export function useLongTextPaste(options: UseLongTextPasteOptions = {}): UseLong
 
       return false;
     } catch (error) {
-      console.error('[useLongTextPaste] 处理失败:', error);
+      logger.error('处理失败:', error);
       onError?.(error instanceof Error ? error.message : '长文本转文件失败');
       return false;
     }

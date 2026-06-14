@@ -10,6 +10,9 @@ import {
   type GoogleFont,
   type CustomFont
 } from '../services/ui/GoogleFontsService';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('Fonts');
 
 // 字体分类类型
 export type FontCategory = 'system' | 'custom' | 'sans-serif' | 'serif' | 'monospace' | 'monospace-cn' | 'display' | 'handwriting';
@@ -164,7 +167,7 @@ export async function getAllFontOptions(): Promise<FontOption[]> {
     
     return [...staticFontOptions, ...customOptions, ...googleOptions];
   } catch (error) {
-    console.error('[Fonts] 获取字体列表失败:', error);
+    logger.error('获取字体列表失败:', error);
     const customFonts = getCustomFonts();
     const customOptions = customFonts.map(customFontToOption);
     return [...staticFontOptions, ...customOptions];

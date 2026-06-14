@@ -7,6 +7,9 @@ import { newMessagesActions } from '../store/slices/newMessagesSlice';
 import { addTopic } from '../store/slices/assistantsSlice';
 import { getDefaultTopic } from '../services/assistant/types';
 import store from '../store';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('useTopicManagement');
 
 /**
  * 统一的话题管理Hook
@@ -20,13 +23,13 @@ export const useTopicManagement = () => {
   const handleCreateTopic = async () => {
     // 🔒 防止快速重复点击
     if (isCreatingRef.current) {
-      console.log('[useTopicManagement] 正在创建话题，跳过重复请求');
+      logger.debug('正在创建话题，跳过重复请求');
       return null;
     }
 
     isCreatingRef.current = true;
     try {
-      console.log('[useTopicManagement] 开始创建话题 - Cherry Studio模式');
+      logger.debug('开始创建话题 - Cherry Studio模式');
 
       EventEmitter.emit(EVENT_NAMES.ADD_NEW_TOPIC);
 
@@ -39,7 +42,7 @@ export const useTopicManagement = () => {
       // 立即创建话题对象
       const newTopic = getDefaultTopic(currentAssistant.id);
 
-      console.log('[useTopicManagement] 立即更新Redux和选择新话题:', newTopic.id);
+      logger.debug('立即更新Redux和选择新话题:', newTopic.id);
 
       // 🚀 立即添加到Redux store
       store.dispatch(addTopic({ assistantId: currentAssistant.id, topic: newTopic }));
@@ -62,16 +65,16 @@ export const useTopicManagement = () => {
         try {
           await TopicService.saveTopic(newTopic);
           await AssistantService.addAssistantMessagesToTopic({ assistant: currentAssistant, topic: newTopic });
-          console.log('[useTopicManagement] 异步保存完成');
+          logger.debug('异步保存完成');
         } catch (error) {
-          console.error('[useTopicManagement] 异步保存话题失败:', error);
+          logger.error('异步保存话题失败:', error);
         }
       });
 
-      console.log('[useTopicManagement] 话题创建完成，UI已立即更新');
+      logger.debug('话题创建完成，UI已立即更新');
       return newTopic;
     } catch (error) {
-      console.error('[useTopicManagement] 创建话题失败:', error);
+      logger.error('创建话题失败:', error);
       return null;
     } finally {
       // 🔓 重置创建状态，允许下次创建

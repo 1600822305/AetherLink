@@ -1,6 +1,9 @@
 import type { Model, MCPTool, MCPToolResponse, MCPCallToolResponse, Usage, Metrics } from '../types';
 import { parseAndCallTools, parseToolUse, mcpToolsToAnthropicTools, mcpToolsToOpenAITools, getMCPSystemPrompt } from '../utils/mcpToolParser';
 import type { Chunk } from '../types/chunk';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('BaseAIProvider');
 
 /**
  * AI 提供者基类
@@ -146,7 +149,7 @@ export class OpenAICompatibleProvider extends BaseAIProvider {
       );
 
       if (!mcpTool) {
-        console.warn(`未找到工具: ${toolCall.function?.name}`);
+        logger.warn(`未找到工具: ${toolCall.function?.name}`);
         continue;
       }
 
@@ -217,7 +220,7 @@ export class AnthropicCompatibleProvider extends BaseAIProvider {
       );
 
       if (!mcpTool) {
-        console.warn(`未找到工具: ${toolCall.name}`);
+        logger.warn(`未找到工具: ${toolCall.name}`);
         continue;
       }
 

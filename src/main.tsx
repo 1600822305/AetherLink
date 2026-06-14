@@ -15,11 +15,14 @@ import './i18n/config';
 // 🚀 性能优化：初始化性能追踪系统
 import { initPerformanceTracking } from './utils/performanceMetrics';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from './shared/services/infra/logger';
+
+const logger = createLogger('App');
 
 //  保存原生fetch引用，防止被拦截器覆盖
 if (typeof globalThis !== 'undefined' && globalThis.fetch) {
   (globalThis as any).__originalFetch = globalThis.fetch.bind(globalThis);
-  console.log('[Fetch Backup] 原生fetch已备份');
+  logger.debug('原生fetch已备份');
 }
 
 
@@ -38,14 +41,14 @@ async function initializeApp() {
   const startTime = Date.now();
 
   try {
-    console.log('[INFO] 应用初始化开始');
+    logger.debug('应用初始化开始');
 
     // 检测是否是首次安装
     const hasLaunched = localStorage.getItem('app-has-launched');
     const isFirstTime = !hasLaunched;
     const minSplashDuration = isFirstTime ? MIN_SPLASH_DURATION_FIRST_INSTALL : MIN_SPLASH_DURATION_NORMAL;
 
-    console.log(`[INFO] ${isFirstTime ? '首次安装' : '正常启动'}，启动画面最小显示时间: ${minSplashDuration}ms`);
+    logger.debug(`${isFirstTime ? '首次安装' : '正常启动'}，启动画面最小显示时间: ${minSplashDuration}ms`);
 
     // 立即渲染应用，避免白屏
     createRoot(document.getElementById('root')!).render(
@@ -63,7 +66,7 @@ async function initializeApp() {
         localStorage.setItem('app-has-launched', 'true');
         localStorage.setItem('app-first-launch-time', Date.now().toString());
       } catch (error) {
-        console.warn('[WARN] 无法保存启动标记:', error);
+        logger.warn('无法保存启动标记:', error);
       }
     }
 
@@ -72,21 +75,21 @@ async function initializeApp() {
     const remainingTime = Math.max(0, minSplashDuration - elapsedTime);
 
     if (remainingTime > 0) {
-      console.log(`[INFO] 等待 ${remainingTime}ms 以确保启动画面显示足够时间`);
+      logger.debug(`等待 ${remainingTime}ms 以确保启动画面显示足够时间`);
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
     // 原生启动画面已禁用，无需手动隐藏
-    console.log('[INFO] 原生启动画面已禁用，应用启动完成');
+    logger.debug('原生启动画面已禁用，应用启动完成');
 
-    console.log('[App] 应用启动完成');
+    logger.debug('应用启动完成');
 
   } catch (error) {
-    console.error('应用初始化失败:',
+    logger.error('应用初始化失败:',
       error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
     // 原生启动画面已禁用，无需手动隐藏
-    console.log('[WARN] 应用初始化失败，但原生启动画面已自动隐藏');
+    logger.warn('应用初始化失败，但原生启动画面已自动隐藏');
 
     // 显示用户友好的错误信息
     showErrorUI(error);
@@ -105,9 +108,9 @@ async function initializeInBackground() {
             localStorage.removeItem(key);
           }
         });
-        console.log('[App] 已清理设置页面滚动位置缓存');
+        logger.debug('已清理设置页面滚动位置缓存');
       } catch (error) {
-        console.warn('[App] 清理滚动位置缓存失败:', error);
+        logger.warn('清理滚动位置缓存失败:', error);
       }
     });
 
@@ -118,9 +121,9 @@ async function initializeInBackground() {
         if (!isOpen) {
           await dexieStorage.open();
         }
-        console.log('数据库连接已就绪');
+        logger.debug('数据库连接已就绪');
       } catch (dbError) {
-        console.error('数据库连接初始化失败:',
+        logger.error('数据库连接初始化失败:',
           dbError instanceof Error ? dbError.message : String(dbError));
         throw new Error('数据库连接失败，无法初始化应用');
       }
@@ -137,19 +140,19 @@ async function initializeInBackground() {
     const deferredInit = () => {
       Promise.all([
         cleanupPromise,
-        initStorageService().then(() => console.log('Dexie存储服务初始化成功')),
-        initializeServices().then(() => console.log('所有服务初始化完成')),
+        initStorageService().then(() => logger.debug('Dexie存储服务初始化成功')),
+        initializeServices().then(() => logger.debug('所有服务初始化完成')),
         // 恢复 WebDAV 自动同步（注入备份数据来源 + 根据持久化状态续跑定时备份）
         import('./pages/Settings/DataSettings/utils/webdavAutoSync')
           .then(({ initWebDavAutoSync }) => initWebDavAutoSync())
-          .then(() => console.log('WebDAV 自动同步初始化完成'))
+          .then(() => logger.debug('WebDAV 自动同步初始化完成'))
       ]).then(() => {
-        console.log('[App] 后台初始化完成');
+        logger.debug('后台初始化完成');
         if (Capacitor.isNativePlatform()) {
-          console.log('移动端：原生层已禁用CORS，直接使用标准fetch');
+          logger.debug('移动端：原生层已禁用CORS，直接使用标准fetch');
         }
       }).catch(error => {
-        console.error('[ERROR] 后台初始化失败:', error);
+        logger.error('后台初始化失败:', error);
       });
     };
 
@@ -163,7 +166,7 @@ async function initializeInBackground() {
     // 🚀 性能优化：i18n 配置已改为静态导入，无需延迟加载
 
   } catch (error) {
-    console.error('[ERROR] 关键初始化失败:', error);
+    logger.error('关键初始化失败:', error);
     throw error;
   }
 }

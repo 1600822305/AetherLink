@@ -17,6 +17,9 @@ import {
   HarmonyOSErrorCode,
   HARMONYOS_ERROR_MESSAGES
 } from '../config/harmonyOSConfig';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('PlatformAdapter');
 
 // 统一的接口定义
 export interface UnifiedPlatformAPI {
@@ -353,7 +356,7 @@ class CapacitorAdapter implements UnifiedPlatformAPI {
           
           return; // 成功
         } catch (error) {
-          console.warn(`[HarmonyOS] 剪贴板写入失败 (尝试 ${i + 1}/${retries}):`, error);
+          logger.warn(`剪贴板写入失败 (尝试 ${i + 1}/${retries}):`, error);
           
           if (i === retries - 1) {
             throw error; // 最后一次失败，抛出错误
@@ -386,7 +389,7 @@ class CapacitorAdapter implements UnifiedPlatformAPI {
           
           return result.value;
         } catch (error) {
-          console.warn(`[HarmonyOS] 剪贴板读取失败 (尝试 ${i + 1}/${retries}):`, error);
+          logger.warn(`剪贴板读取失败 (尝试 ${i + 1}/${retries}):`, error);
           
           if (i === retries - 1) {
             throw error; // 最后一次失败，抛出错误
@@ -506,7 +509,7 @@ class TauriAdapter implements UnifiedPlatformAPI {
         await writeText(text);
         return;
       } catch (error) {
-        console.warn('[TauriAdapter] Tauri 剪贴板写入失败，降级到 Web API:', error);
+        logger.warn('Tauri 剪贴板写入失败，降级到 Web API:', error);
       }
       
       // 降级到 Web Clipboard API
@@ -523,7 +526,7 @@ class TauriAdapter implements UnifiedPlatformAPI {
         const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
         return await readText();
       } catch (error) {
-        console.warn('[TauriAdapter] Tauri 剪贴板读取失败，降级到 Web API:', error);
+        logger.warn('Tauri 剪贴板读取失败，降级到 Web API:', error);
       }
       
       // 降级到 Web Clipboard API

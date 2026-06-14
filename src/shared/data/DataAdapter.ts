@@ -11,6 +11,9 @@ import {
 import type { ChatTopic } from '../types';
 // Message类型已移至DataRepairService中使用
 import type { Assistant } from '../types/Assistant';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('DataAdapter');
 
 /**
  * 数据适配器类
@@ -42,7 +45,7 @@ export class DataAdapter {
    */
   private log(message: string, data?: any): void {
     if (this.debug) {
-      console.log(`[DataAdapter] ${message}`, data ? data : '');
+      logger.debug(message, data ? data : '');
     }
   }
 

@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { MCPServer, MCPTool, MCPPrompt, MCPResource } from '../shared/types';
 import { mcpService } from '../shared/services/mcp';
 import { getStorageItem, setStorageItem } from '../shared/utils/storage';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('MCP Hook');
 
 export type MCPMode = 'prompt' | 'function';
 
@@ -59,7 +62,7 @@ export const useMCP = (): MCPState & MCPActions => {
           bridgeMode: savedBridgeMode ?? false
         }));
       } catch (error) {
-        console.error('[MCP Hook] 加载设置失败:', error);
+        logger.error('加载设置失败:', error);
       }
     };
 
@@ -95,7 +98,7 @@ export const useMCP = (): MCPState & MCPActions => {
         }
       }
     } catch (error) {
-      console.error('[MCP Hook] 切换服务器状态失败:', error);
+      logger.error('切换服务器状态失败:', error);
       throw error;
     }
   }, [refreshServers]);
@@ -139,7 +142,7 @@ export const useMCP = (): MCPState & MCPActions => {
         loading: false
       }));
     } catch (error) {
-      console.error('[MCP Hook] 加载服务器数据失败:', error);
+      logger.error('加载服务器数据失败:', error);
       setState(prev => ({ ...prev, loading: false }));
     }
   }, []);
@@ -150,7 +153,7 @@ export const useMCP = (): MCPState & MCPActions => {
       const result = await mcpService.callTool(server, toolName, args);
       return result;
     } catch (error) {
-      console.error('[MCP Hook] 工具调用失败:', error);
+      logger.error('工具调用失败:', error);
       throw error;
     }
   }, []);
@@ -201,7 +204,7 @@ export const useMCP = (): MCPState & MCPActions => {
           loading: false
         }));
       } catch (error) {
-        console.error('[MCP Hook] 加载活跃服务器数据失败:', error);
+        logger.error('加载活跃服务器数据失败:', error);
         setState(prev => ({ ...prev, loading: false }));
       }
     };

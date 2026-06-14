@@ -15,6 +15,9 @@
  */
 
 import { getPlatformInfo } from '../utils/platformDetection';
+import { createLogger } from './infra/logger';
+
+const logger = createLogger('KeyboardManager');
 
 export type KeyboardListener = (state: KeyboardState) => void;
 
@@ -117,9 +120,9 @@ export class KeyboardManager {
         }
       };
       
-      console.log('[KeyboardManager] 初始化完成 (Tauri/Capacitor 兼容模式)');
+      logger.debug('初始化完成 (Tauri/Capacitor 兼容模式)');
     } catch (error) {
-      console.error('[KeyboardManager] 初始化失败:', error);
+      logger.error('初始化失败:', error);
     }
   }
   

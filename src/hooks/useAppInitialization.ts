@@ -10,6 +10,10 @@ import { initGroups } from '../shared/store/slices/groupsSlice';
 import store from '../shared/store';
 // 🚀 性能优化：性能指标追踪
 import { recordMetric } from '../utils/performanceMetrics';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('useAppInitialization');
+const initLogger = logger.withContext('Init');
 
 export const useAppInitialization = () => {
   const [appInitialized, setAppInitialized] = useState(false);
@@ -68,7 +72,7 @@ export const useAppInitialization = () => {
       // 异步修复数据，不阻塞界面
       DataRepairService.checkDataConsistency().then(hasIssues => {
         if (hasIssues) {
-          console.log('[Init] 后台执行数据修复...');
+          initLogger.debug('后台执行数据修复...');
           return DataRepairService.repairAllData({
             fixAssistantTopicRelations: true,
             fixDuplicateMessages: true,
@@ -76,7 +80,7 @@ export const useAppInitialization = () => {
             migrateMessages: true
           });
         }
-      }).catch(err => console.error('[Init] 数据修复失败:', err));
+      }).catch(err => initLogger.error('数据修复失败:', err));
 
       if (signal.aborted) return;
 
@@ -87,7 +91,7 @@ export const useAppInitialization = () => {
       dispatch(initGroups() as any);
 
       // ：消息加载由useActiveTopic Hook按需自动处理，无需批量预加载
-      console.log('[useAppInitialization] ：跳过批量消息预加载，由Hook按需加载');
+      logger.debug('：跳过批量消息预加载，由Hook按需加载');
 
       if (signal.aborted) return;
 
@@ -111,7 +115,7 @@ export const useAppInitialization = () => {
 
     } catch (error) {
       if (!signal.aborted) {
-        console.error('应用初始化失败:', error);
+        logger.error('应用初始化失败:', error);
         setInitError(error as Error);
       }
     }

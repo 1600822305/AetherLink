@@ -12,6 +12,9 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('PluginLoader');
 
 // 插件缓存，避免重复加载
 const pluginCache = new Map<string, any>();
@@ -28,11 +31,11 @@ const pluginCache = new Map<string, any>();
 export async function lazyLoadPlugin(pluginName: string): Promise<any> {
   // 检查缓存
   if (pluginCache.has(pluginName)) {
-    console.log(`[PluginLoader] 从缓存加载插件: ${pluginName}`);
+    logger.debug(`从缓存加载插件: ${pluginName}`);
     return pluginCache.get(pluginName);
   }
 
-  console.log(`[PluginLoader] 懒加载插件: ${pluginName}`);
+  logger.debug(`懒加载插件: ${pluginName}`);
   const startTime = performance.now();
 
   try {
@@ -108,11 +111,11 @@ export async function lazyLoadPlugin(pluginName: string): Promise<any> {
     pluginCache.set(pluginName, plugin);
 
     const loadTime = performance.now() - startTime;
-    console.log(`[PluginLoader] ✅ 插件 ${pluginName} 加载完成 (${loadTime.toFixed(2)}ms)`);
+    logger.debug(`✅ 插件 ${pluginName} 加载完成 (${loadTime.toFixed(2)}ms)`);
 
     return plugin;
   } catch (error) {
-    console.error(`[PluginLoader] ❌ 插件 ${pluginName} 加载失败:`, error);
+    logger.error(`❌ 插件 ${pluginName} 加载失败:`, error);
     throw error;
   }
 }
@@ -126,16 +129,16 @@ export async function lazyLoadPlugin(pluginName: string): Promise<any> {
  * preloadPlugins(['Camera', 'Share', 'Toast']);
  */
 export function preloadPlugins(pluginNames: string[]): Promise<void> {
-  console.log(`[PluginLoader] 后台预加载 ${pluginNames.length} 个插件...`);
+  logger.debug(`后台预加载 ${pluginNames.length} 个插件...`);
 
   return Promise.all(
     pluginNames.map(name => 
       lazyLoadPlugin(name).catch(err => 
-        console.warn(`[PluginLoader] 预加载 ${name} 失败:`, err)
+        logger.warn(`预加载 ${name} 失败:`, err)
       )
     )
   ).then(() => {
-    console.log('[PluginLoader] 后台预加载完成');
+    logger.debug('后台预加载完成');
   });
 }
 

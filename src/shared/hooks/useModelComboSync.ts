@@ -3,6 +3,9 @@ import { useDispatch } from 'react-redux';
 import { updateModelComboModels } from '../store/settingsSlice';
 import { modelComboService } from '../services/ai/ModelComboService';
 import { EventEmitter, EVENT_NAMES } from '../services/infra/EventEmitter';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('ModelComboSync');
 
 /**
  * Hook用于同步模型组合到Redux store
@@ -35,7 +38,7 @@ export const useModelComboSync = () => {
       // 更新Redux store
       dispatch(updateModelComboModels(comboModels));
     } catch (error) {
-      console.error('[useModelComboSync] 同步模型组合失败:', error);
+      logger.error('同步模型组合失败:', error);
     }
   }, [dispatch]);
 

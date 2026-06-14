@@ -7,7 +7,10 @@
 import { createSignal, createMemo, For, Show, onCleanup, createEffect } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useAppState } from '../../../shared/hooks/useAppState';
+import { createLogger } from '../../../shared/services/infra/logger';
 import './WebSearchTool.solid.css';
+
+const logger = createLogger('WebSearchTool');
 
 export interface SearchResult {
   title: string;
@@ -222,7 +225,7 @@ export function WebSearchTool(props: WebSearchToolProps) {
     
     if (isOpen) {
       registerDialog(dialogId, () => {
-        console.log('[SolidJS WebSearchTool] 通过返回键关闭');
+        logger.debug('通过返回键关闭');
         setDialogOpen(false);
       });
     } else {

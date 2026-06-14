@@ -3,6 +3,9 @@ import { AssistantService } from './assistant';
 import { dexieStorage } from './storage/DexieStorageService';
 import { EventEmitter, EVENT_NAMES } from './infra/EventService';
 import { EnhancedNetworkService } from './network';
+import { createLogger } from './infra/logger';
+
+const logger = createLogger('Services');
 
 // 导出核心服务
 export {
@@ -35,12 +38,12 @@ export async function initializeServices(): Promise<void> {
     try {
       const { default: EnhancedConsoleService } = await import('./infra/EnhancedConsoleService');
       EnhancedConsoleService.getInstance();
-      console.log('控制台拦截服务初始化完成');
+      logger.debug('控制台拦截服务初始化完成');
 
       EnhancedNetworkService.getInstance();
-      console.log('网络拦截服务初始化完成');
+      logger.debug('网络拦截服务初始化完成');
     } catch (devToolsError) {
-      console.warn('开发者工具服务初始化失败:', devToolsError);
+      logger.warn('开发者工具服务初始化失败:', devToolsError);
     }
 
     // 初始化TTS服务（逻辑已提取到 tts-v2/initTTS.ts）
@@ -48,12 +51,12 @@ export async function initializeServices(): Promise<void> {
       const { initTTS } = await import('./tts-v2/initTTS');
       await initTTS();
     } catch (ttsError) {
-      console.warn('TTS服务配置初始化失败:', ttsError);
+      logger.warn('TTS服务配置初始化失败:', ttsError);
     }
 
     // 系统提示词服务现在通过Redux thunk初始化
-    console.log('服务初始化完成');
+    logger.debug('服务初始化完成');
   } catch (error) {
-    console.error('服务初始化失败:', error);
+    logger.error('服务初始化失败:', error);
   }
 }

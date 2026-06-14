@@ -568,7 +568,7 @@ export function getCustomFontFamily(fontId: string): string | null {
 }
 
 // 模块加载时自动初始化自定义字体
-loadSavedCustomFonts().catch(console.error);
+loadSavedCustomFonts().catch((error) => logger.error('加载自定义字体失败:', error));
 
 // 导出服务实例
 export const googleFontsService = {

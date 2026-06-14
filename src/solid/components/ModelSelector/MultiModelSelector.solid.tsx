@@ -9,7 +9,10 @@ import type { Model } from '../../../shared/types';
 import { getModelIdentityKey } from '../../../shared/utils/modelUtils';
 import { getModelOrProviderIcon } from '../../../shared/utils/providerIcons';
 import { useAppState } from '../../../shared/hooks/useAppState';
+import { createLogger } from '../../../shared/services/infra/logger';
 import './MultiModelSelector.solid.css';
+
+const logger = createLogger('MultiModelSelector');
 
 export interface MultiModelSelectorProps {
   open: boolean;
@@ -33,7 +36,7 @@ const saveSelection = (modelIds: string[]) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(modelIds));
   } catch (e) {
-    console.warn('保存多模型选择失败:', e);
+    logger.warn('保存多模型选择失败:', e);
   }
 };
 
@@ -43,13 +46,13 @@ const loadSelection = (): string[] => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch (e) {
-    console.warn('加载多模型选择失败:', e);
+    logger.warn('加载多模型选择失败:', e);
     return [];
   }
 };
 
 export function MultiModelSelector(props: MultiModelSelectorProps) {
-  console.log('[SolidJS] MultiModelSelector 已加载');
+  logger.debug('MultiModelSelector 已加载');
 
   const maxSelection = () => props.maxSelection ?? 5;
   const [internalSelectedIds, setInternalSelectedIds] = createSignal<string[]>([]);
@@ -327,7 +330,7 @@ export function MultiModelSelector(props: MultiModelSelectorProps) {
 
     if (isOpen) {
       openDialog(dialogId, () => {
-        console.log('[SolidJS MultiModelSelector] 通过返回键关闭');
+        logger.debug('通过返回键关闭');
         handleClose();
       });
     } else {

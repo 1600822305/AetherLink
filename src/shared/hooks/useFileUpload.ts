@@ -2,6 +2,9 @@ import { ImageUploadService } from '../services/files/ImageUploadService';
 import { FileUploadService } from '../services/files/FileUploadService';
 import { dexieStorage } from '../services/storage/DexieStorageService';
 import type { ImageContent, FileContent } from '../types';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('FileUpload');
 
 interface UseFileUploadProps {
   currentTopicState?: any;
@@ -30,7 +33,7 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
           return [];
         }
         // 其他错误记录日志并返回空数组
-        console.error('选择图片时出错:', selectError);
+        logger.error('选择图片时出错:', selectError);
         setUploadingMedia(false);
         return [];
       }
@@ -47,7 +50,7 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
       // 创建一个进度更新函数
       const updateProgress = (increment: number = 1) => {
         completedImages += increment;
-        console.log(`处理图片进度: ${completedImages}/${totalImages}`);
+        logger.debug(`处理图片进度: ${completedImages}/${totalImages}`);
       };
 
       // 处理图片
@@ -85,7 +88,7 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
 
               } catch (storageError) {
                 // 数据库存储失败，直接使用压缩后的图片
-                console.warn('[useFileUpload] 数据库存储图片失败，使用内存中的图片:', storageError);
+                logger.warn('数据库存储图片失败，使用内存中的图片:', storageError);
                 updateProgress(0.5);
 
                 // 返回压缩后的图片，而不是引用
@@ -93,13 +96,13 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
               }
             } else {
               // 没有当前话题或话题ID，使用原始方式
-              console.log('[useFileUpload] 当前没有话题或话题ID，直接使用压缩后的图片');
+              logger.debug('当前没有话题或话题ID，直接使用压缩后的图片');
               const formattedImage = ImageUploadService.ensureCorrectFormat(compressedImage);
               updateProgress(0.5);
               return formattedImage;
             }
           } catch (error) {
-            console.error(`[useFileUpload] 处理第 ${index + 1} 张图片时出错:`, error);
+            logger.error(`处理第 ${index + 1} 张图片时出错:`, error);
             updateProgress(1);
             // 返回null，稍后过滤掉，避免因单张图片失败导致整体失败
             return null;
@@ -114,7 +117,7 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
     } catch (error: any) {
       // 捕获所有未预期的错误，避免闪退
       const errorMessage = error?.message || String(error);
-      console.error('图片上传失败:', error);
+      logger.error('图片上传失败:', error);
       setUploadingMedia(false);
       
       // 对于用户取消等正常操作，返回空数组而不是抛出错误
@@ -144,7 +147,7 @@ export const useFileUpload = ({ currentTopicState, setUploadingMedia }: UseFileU
       setUploadingMedia(false);
       return selectedFiles;
     } catch (error) {
-      console.error('文件上传失败:', error);
+      logger.error('文件上传失败:', error);
       setUploadingMedia(false);
       throw error;
     }

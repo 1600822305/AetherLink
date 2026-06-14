@@ -17,6 +17,9 @@ import { useEffect, useRef } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { getPlatformInfo } from '../utils/platformDetection';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('BackButton');
 
 // 全局返回键回调栈（用于多个监听器的优先级管理）
 const backButtonCallbacks: Array<{ id: string; callback: () => boolean | void }> = [];
@@ -79,7 +82,7 @@ export function initBackButtonListener() {
   isGlobalListenerInitialized = true;
   const platformInfo = getPlatformInfo();
   
-  console.log('[useBackButton] 初始化返回键监听器', {
+  logger.debug('初始化返回键监听器', {
     isCapacitor: platformInfo.isCapacitor,
     isTauri: platformInfo.isTauri,
     isAndroid: platformInfo.isAndroid
@@ -87,16 +90,16 @@ export function initBackButtonListener() {
   
   // Capacitor 平台：使用原生 backButton API
   if (platformInfo.isCapacitor && Capacitor.isNativePlatform()) {
-    console.log('[useBackButton] 注册 Capacitor backButton 监听器');
+    logger.debug('注册 Capacitor backButton 监听器');
     
     CapApp.addListener('backButton', ({ canGoBack }) => {
-      console.log('[useBackButton] Capacitor 返回键触发, canGoBack:', canGoBack);
+      logger.debug('Capacitor 返回键触发, canGoBack:', canGoBack);
       executeBackButtonCallbacks();
     }).then(listener => {
       capacitorListenerHandle = listener;
-      console.log('[useBackButton] Capacitor 监听器注册成功');
+      logger.debug('Capacitor 监听器注册成功');
     }).catch(err => {
-      console.error('[useBackButton] Capacitor 监听器注册失败:', err);
+      logger.error('Capacitor 监听器注册失败:', err);
     });
   }
   
@@ -104,7 +107,7 @@ export function initBackButtonListener() {
   // Tauri Android 通过 MainActivity.kt 将返回键转发为 Escape 事件
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
-      console.log('[useBackButton] Escape 键触发');
+      logger.debug('Escape 键触发');
       const handled = executeBackButtonCallbacks();
       if (handled) {
         event.preventDefault();
@@ -114,7 +117,7 @@ export function initBackButtonListener() {
   };
   
   document.addEventListener('keydown', handleKeyDown);
-  console.log('[useBackButton] 键盘监听器注册成功');
+  logger.debug('键盘监听器注册成功');
 }
 
 /**
@@ -131,12 +134,12 @@ export function cleanupBackButtonListener() {
   // 移除 Capacitor 监听器
   if (capacitorListenerHandle) {
     capacitorListenerHandle.remove().catch(err => {
-      console.warn('[useBackButton] 移除 Capacitor 监听器失败:', err);
+      logger.warn('移除 Capacitor 监听器失败:', err);
     });
     capacitorListenerHandle = null;
   }
   
-  console.log('[useBackButton] 全局监听器已清理');
+  logger.debug('全局监听器已清理');
 }
 
 /**

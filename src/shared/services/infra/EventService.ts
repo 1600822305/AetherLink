@@ -1,4 +1,7 @@
 import { EventEmitter as EmitteryInstance, EVENT_NAMES as COMMON_EVENT_NAMES } from './EventEmitter';
+import { createLogger } from './logger';
+
+const logger = createLogger('EventService');
 
 // 重新导出 EventEmitter，以保持向后兼容性
 export const EventEmitter = EmitteryInstance;
@@ -57,7 +60,7 @@ export class EventService {
     EventEmitter.emit(eventName, data);
     if (process.env.NODE_ENV === 'development') {
       // 仅在开发环境记录日志
-      console.debug(`[EventService] 事件: ${eventName}`, data);
+      logger.debug(`事件: ${eventName}`, data);
     }
   }
 

@@ -10,6 +10,9 @@ import { useAppSelector, useAppDispatch } from '../shared/store';
 import { updateAssistant } from '../shared/store/slices/assistantsSlice';
 import { dexieStorage } from '../shared/services/storage/DexieStorageService';
 import type { Assistant } from '../shared/types/Assistant';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('useSkillBinding');
 
 export interface SkillBindingInfo {
   assistantId: string;
@@ -67,7 +70,7 @@ export function useSkillBinding() {
     try {
       await dexieStorage.saveAssistant(updatedAssistant);
     } catch (error) {
-      console.error('[useSkillBinding] 保存助手失败:', error);
+      logger.error('保存助手失败:', error);
     }
   }, [assistants, dispatch]);
 
@@ -97,7 +100,7 @@ export function useSkillBinding() {
       try {
         await dexieStorage.saveAssistant(updated);
       } catch (error) {
-        console.error('[useSkillBinding] 批量保存助手失败:', error);
+        logger.error('批量保存助手失败:', error);
       }
     }
   }, [assistants, dispatch]);

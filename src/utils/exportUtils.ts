@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { Clipboard } from '@capacitor/clipboard';
 import { isTauri } from '../shared/utils/platformDetection';
+import { createLogger } from '../shared/services/infra/logger';
 
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
@@ -17,6 +18,8 @@ import { toastManager } from '../components/EnhancedToast';
 // 添加话题导出相关的导入
 import type { ChatTopic } from '../shared/types';
 import { dexieStorage } from '../shared/services/storage/DexieStorageService';
+
+const logger = createLogger('ExportUtils');
 
 /**
  * 获取消息标题
@@ -151,11 +154,11 @@ export async function exportMessageAsMarkdown(message: Message, exportReasoning 
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败，尝试复制到剪贴板:', shareError);
+        logger.warn('分享失败，尝试复制到剪贴板:', shareError);
         // 回退到复制到剪贴板
         await Clipboard.write({ string: markdown });
         toastManager.warning('分享失败，内容已复制到剪贴板', '导出提醒');
@@ -177,7 +180,7 @@ export async function exportMessageAsMarkdown(message: Message, exportReasoning 
           toastManager.success('文件已保存', '导出成功');
         }
       } catch (tauriError) {
-        console.error('Tauri保存失败:', tauriError);
+        logger.error('Tauri保存失败:', tauriError);
         // 回退到复制到剪贴板
         await Clipboard.write({ string: markdown });
         toastManager.warning('保存失败，内容已复制到剪贴板', '导出提醒');
@@ -195,7 +198,7 @@ export async function exportMessageAsMarkdown(message: Message, exportReasoning 
       URL.revokeObjectURL(url);
     }
   } catch (error) {
-    console.error('导出Markdown失败:', error);
+    logger.error('导出Markdown失败:', error);
     toastManager.error('导出失败: ' + (error as Error).message, '导出错误');
   }
 }
@@ -220,7 +223,7 @@ export async function copyMessageAsMarkdown(message: Message, exportReasoning = 
     // 复制成功，可以考虑使用更优雅的提示方式
     toastManager.success('Markdown内容已复制到剪贴板', '复制成功');
   } catch (error) {
-    console.error('复制Markdown失败:', error);
+    logger.error('复制Markdown失败:', error);
     toastManager.error('复制失败', '复制错误');
   }
 }
@@ -266,7 +269,7 @@ export async function exportToObsidian(message: Message, options: {
     // 简化提示，避免过多弹窗
     toastManager.info('正在打开Obsidian...', '导出提醒');
   } catch (error) {
-    console.error('导出到Obsidian失败:', error);
+    logger.error('导出到Obsidian失败:', error);
     toastManager.error('导出到Obsidian失败', '导出错误');
   }
 }
@@ -299,7 +302,7 @@ export async function shareMessage(message: Message, format: 'text' | 'markdown'
       toastManager.success('内容已复制到剪贴板', '分享成功');
     }
   } catch (error) {
-    console.error('分享失败:', error);
+    logger.error('分享失败:', error);
     toastManager.error('分享失败', '分享错误');
   }
 }
@@ -347,11 +350,11 @@ export async function shareContentAsFile(message: Message): Promise<void> {
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败，尝试复制到剪贴板:', shareError);
+        logger.warn('分享失败，尝试复制到剪贴板:', shareError);
         // 回退到复制到剪贴板
         await Clipboard.write({ string: textContent });
         toastManager.warning('分享失败，内容已复制到剪贴板', '保存提醒');
@@ -373,7 +376,7 @@ export async function shareContentAsFile(message: Message): Promise<void> {
           toastManager.success('文件已保存', '保存成功');
         }
       } catch (tauriError) {
-        console.error('Tauri保存失败:', tauriError);
+        logger.error('Tauri保存失败:', tauriError);
         // 回退到复制到剪贴板
         await Clipboard.write({ string: textContent });
         toastManager.warning('保存失败，内容已复制到剪贴板', '保存提醒');
@@ -391,7 +394,7 @@ export async function shareContentAsFile(message: Message): Promise<void> {
       URL.revokeObjectURL(url);
     }
   } catch (error) {
-    console.error('保存文件失败:', error);
+    logger.error('保存文件失败:', error);
     toastManager.error('保存失败: ' + (error as Error).message, '保存错误');
   }
 }
@@ -440,11 +443,11 @@ export async function captureMessageAsImage(messageElement: HTMLElement): Promis
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败:', shareError);
+        logger.warn('分享失败:', shareError);
         toastManager.error('复制图片失败', '操作失败');
       }
     } else if (isTauri()) {
@@ -460,7 +463,7 @@ export async function captureMessageAsImage(messageElement: HTMLElement): Promis
           ]);
           toastManager.success('图片已复制到剪贴板', '复制成功');
         } catch (clipboardError) {
-          console.warn('复制到剪贴板失败:', clipboardError);
+          logger.warn('复制到剪贴板失败:', clipboardError);
           toastManager.error('复制图片失败', '操作失败');
         }
       }, 'image/png');
@@ -478,7 +481,7 @@ export async function captureMessageAsImage(messageElement: HTMLElement): Promis
           ]);
           toastManager.success('图片已复制到剪贴板', '复制成功');
         } catch (clipboardError) {
-          console.warn('复制到剪贴板失败，尝试下载:', clipboardError);
+          logger.warn('复制到剪贴板失败，尝试下载:', clipboardError);
 
           // 回退到下载
           const url = URL.createObjectURL(blob);
@@ -493,7 +496,7 @@ export async function captureMessageAsImage(messageElement: HTMLElement): Promis
       }, 'image/png');
     }
   } catch (error) {
-    console.error('截图失败:', error);
+    logger.error('截图失败:', error);
     toastManager.error('截图失败', '操作失败');
   }
 }
@@ -547,11 +550,11 @@ export async function exportMessageAsImage(messageElement: HTMLElement): Promise
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败:', shareError);
+        logger.warn('分享失败:', shareError);
         toastManager.error('导出图片失败', '导出失败');
       }
     } else if (isTauri()) {
@@ -579,7 +582,7 @@ export async function exportMessageAsImage(messageElement: HTMLElement): Promise
             toastManager.success('图片已保存', '导出成功');
           }
         } catch (tauriError) {
-          console.error('Tauri保存图片失败:', tauriError);
+          logger.error('Tauri保存图片失败:', tauriError);
           toastManager.error('导出图片失败', '导出失败');
         }
       }, 'image/png');
@@ -599,7 +602,7 @@ export async function exportMessageAsImage(messageElement: HTMLElement): Promise
       }, 'image/png');
     }
   } catch (error) {
-    console.error('导出图片失败:', error);
+    logger.error('导出图片失败:', error);
     toastManager.error('导出图片失败', '导出失败');
   }
 }
@@ -648,7 +651,7 @@ export async function topicToMarkdown(topic: ChatTopic, exportReasoning = false)
 
     return markdown;
   } catch (error) {
-    console.error('转换话题为Markdown失败:', error);
+    logger.error('转换话题为Markdown失败:', error);
     throw error;
   }
 }
@@ -749,11 +752,11 @@ export async function exportTopicAsMarkdown(topic: ChatTopic, exportReasoning = 
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败，尝试复制到剪贴板:', shareError);
+        logger.warn('分享失败，尝试复制到剪贴板:', shareError);
         await Clipboard.write({ string: markdown });
         toastManager.warning('分享失败，内容已复制到剪贴板', '导出提醒');
       }
@@ -770,7 +773,7 @@ export async function exportTopicAsMarkdown(topic: ChatTopic, exportReasoning = 
       URL.revokeObjectURL(url);
     }
   } catch (error) {
-    console.error('导出话题Markdown失败:', error);
+    logger.error('导出话题Markdown失败:', error);
     toastManager.error('导出失败: ' + (error as Error).message, '导出错误');
   }
 }
@@ -792,7 +795,7 @@ export async function copyTopicAsMarkdown(topic: ChatTopic, exportReasoning = fa
 
     toastManager.success('话题Markdown内容已复制到剪贴板', '复制成功');
   } catch (error) {
-    console.error('复制话题Markdown失败:', error);
+    logger.error('复制话题Markdown失败:', error);
     toastManager.error('复制失败', '复制错误');
   }
 }
@@ -868,11 +871,11 @@ export async function exportTopicAsDocx(topic: ChatTopic, exportReasoning = fals
             directory: Directory.Cache
           });
         } catch (deleteError) {
-          console.warn('清理临时文件失败:', deleteError);
+          logger.warn('清理临时文件失败:', deleteError);
         }
 
       } catch (shareError) {
-        console.warn('分享失败:', shareError);
+        logger.warn('分享失败:', shareError);
         toastManager.error('导出失败，请重试', '导出失败');
       }
     } else {
@@ -880,7 +883,7 @@ export async function exportTopicAsDocx(topic: ChatTopic, exportReasoning = fals
       saveAs(buffer, fileName);
     }
   } catch (error) {
-    console.error('导出话题DOCX失败:', error);
+    logger.error('导出话题DOCX失败:', error);
     toastManager.error('导出失败: ' + (error as Error).message, '导出错误');
   }
 }
@@ -1430,7 +1433,7 @@ export async function shareTextAsFile(content: string, fileName: string): Promis
           directory: Directory.Cache
         });
       } catch (deleteError) {
-        console.warn('清理临时文件失败:', deleteError);
+        logger.warn('清理临时文件失败:', deleteError);
       }
     } else {
       // Web端：下载文件
@@ -1445,7 +1448,7 @@ export async function shareTextAsFile(content: string, fileName: string): Promis
       URL.revokeObjectURL(url);
     }
   } catch (error) {
-    console.error('分享文件失败:', error);
+    logger.error('分享文件失败:', error);
     // 回退到复制到剪贴板
     try {
       await Clipboard.write({ string: content });

@@ -6,6 +6,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { render } from 'solid-js/web';
 import { createStore, unwrap } from 'solid-js/store';
 import type { JSX } from 'solid-js';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('SolidBridge');
 
 // ==================== 类型定义 ====================
 
@@ -132,7 +135,7 @@ export function SolidBridge<T extends Record<string, any>>({
   const log = useCallback(
     (message: string, ...args: any[]) => {
       if (debug) {
-        console.log(`[${debugName}]`, message, ...args);
+        logger.debug(`[${debugName}]`, message, ...args);
       }
     },
     [debug, debugName]
@@ -141,7 +144,7 @@ export function SolidBridge<T extends Record<string, any>>({
   // 错误处理
   const handleError = useCallback(
     (err: Error) => {
-      console.error(`[${debugName}] 错误:`, err);
+      logger.error(`[${debugName}] 错误:`, err);
       // 出错时立即销毁 Solid 根，避免组件继续挂在游离 DOM 节点上
       if (disposeRef.current) {
         disposeRef.current();

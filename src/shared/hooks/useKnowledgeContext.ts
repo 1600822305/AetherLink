@@ -11,6 +11,9 @@ import type { RootState } from '../store';
 import { clearSelectedKnowledgeBase, removeSelectedKnowledgeBase } from '../store/slices/knowledgeSelectionSlice';
 import type { KnowledgeSelectionState, SelectedKnowledgeInfo } from '../store/slices/knowledgeSelectionSlice';
 import { REFERENCE_PROMPT } from '../config/prompts';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('useKnowledgeContext');
 
 export interface KnowledgeContextData {
   knowledgeBase: {
@@ -75,7 +78,7 @@ export const useKnowledgeContext = () => {
     }
 
     try {
-      console.log('[useKnowledgeContext] 开始搜索知识库内容...');
+      logger.debug('开始搜索知识库内容...');
 
       // 动态导入MobileKnowledgeService（避免循环依赖）
       const { MobileKnowledgeService } = await import('../services/knowledge/MobileKnowledgeService');
@@ -89,10 +92,10 @@ export const useKnowledgeContext = () => {
         limit: contextData.knowledgeBase.documentCount || 5
       });
 
-      console.log(`[useKnowledgeContext] 搜索到 ${searchResults.length} 个相关内容`);
+      logger.debug(`搜索到 ${searchResults.length} 个相关内容`);
 
       if (searchResults.length === 0) {
-        console.log('[useKnowledgeContext] 未找到相关内容');
+        logger.debug('未找到相关内容');
         return originalMessage;
       }
 
@@ -114,7 +117,7 @@ export const useKnowledgeContext = () => {
           .replace('{question}', originalMessage)
           .replace('{references}', referenceContent);
 
-        console.log('[useKnowledgeContext] 应用REFERENCE_PROMPT格式');
+        logger.debug('应用REFERENCE_PROMPT格式');
         return processedMessage;
       } else {
         // 使用简单的文本格式
@@ -128,11 +131,11 @@ export const useKnowledgeContext = () => {
 
         knowledgeContent += '\n--- 请基于以上知识库内容回答问题 ---\n';
 
-        console.log('[useKnowledgeContext] 应用简单文本格式');
+        logger.debug('应用简单文本格式');
         return originalMessage + knowledgeContent;
       }
     } catch (error) {
-      console.error('搜索知识库失败:', error);
+      logger.error('搜索知识库失败:', error);
       return originalMessage;
     }
   }, [getStoredKnowledgeContext]);

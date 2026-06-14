@@ -5,6 +5,9 @@
 
 import type { MigrationResult } from './types';
 import { v4 as uuid } from 'uuid';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('DatabaseMigration');
 
 /**
  * 数据库迁移管理器
@@ -325,16 +328,15 @@ export class DatabaseMigrationManager {
    * 日志记录
    */
   private log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
-    const prefix = '[DatabaseMigration]';
     switch (level) {
       case 'warn':
-        console.warn(`${prefix} ${message}`);
+        logger.warn(message);
         break;
       case 'error':
-        console.error(`${prefix} ${message}`);
+        logger.error(message);
         break;
       default:
-        console.log(`${prefix} ${message}`);
+        logger.debug(message);
     }
   }
 }

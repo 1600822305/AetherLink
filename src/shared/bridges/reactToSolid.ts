@@ -4,6 +4,9 @@
  */
 
 import { createSignal, createEffect, onCleanup } from 'solid-js';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('ReactSolidBridge');
 
 /**
  * 创建一个可以从 React 外部更新的 SolidJS Signal
@@ -60,7 +63,7 @@ export class ReactSolidEventBus {
       try {
         handler(data);
       } catch (error) {
-        console.error(`[EventBus] 事件处理失败 (${event}):`, error);
+        logger.error(`事件处理失败 (${event}):`, error);
       }
     });
   }

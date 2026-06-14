@@ -4,6 +4,9 @@ import { createCustomTheme, getValidThemeStyle } from '../shared/config/themes';
 import { statusBarService } from '../shared/services/platform/StatusBarService';
 import { applyCSSVariables } from '../shared/utils/cssVariables';
 import { loadSavedCustomFonts } from '../shared/services/ui/GoogleFontsService';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('useTheme');
 
 export const useTheme = () => {
   const [mode, setMode] = useState<'light' | 'dark'>('light');
@@ -44,12 +47,12 @@ export const useTheme = () => {
     try {
       applyCSSVariables(themeStyle, mode);
     } catch (error) {
-      console.error('CSS Variables 注入失败:', error);
+      logger.error('CSS Variables 注入失败:', error);
       // 如果注入失败，尝试使用默认主题
       try {
         applyCSSVariables('default', mode);
       } catch (fallbackError) {
-        console.error('默认主题注入也失败:', fallbackError);
+        logger.error('默认主题注入也失败:', fallbackError);
       }
     }
   }, [mode, themeStyle]);
@@ -62,7 +65,7 @@ export const useTheme = () => {
           await statusBarService.updateTheme(mode, themeStyle);
         }
       } catch (error) {
-        console.error('状态栏主题更新失败:', error);
+        logger.error('状态栏主题更新失败:', error);
       }
     };
 

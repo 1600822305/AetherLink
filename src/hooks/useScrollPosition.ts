@@ -1,5 +1,8 @@
 import { useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
 import { throttle } from 'lodash';
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('useScrollPosition');
 
 interface UseScrollPositionOptions {
   throttleTime?: number;
@@ -38,7 +41,7 @@ export function useScrollPosition(key: string, options: UseScrollPositionOptions
       localStorage.setItem(scrollKey, position.toString());
       lastSavedPosition.current = position;
     } catch (error) {
-      console.error('保存滚动位置失败:', error);
+      logger.error('保存滚动位置失败:', error);
     }
   }, [scrollKey]);
 

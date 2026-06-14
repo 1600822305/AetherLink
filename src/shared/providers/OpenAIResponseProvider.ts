@@ -6,6 +6,9 @@ import { ChunkType } from '../types/chunk';
 import { parseAndCallTools } from '../utils/mcpToolParser';
 import { createOpenAIAdapter, type OpenAIParameterAdapter } from '../api/parameters';
 import { Capacitor } from '@capacitor/core';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('OpenAIResponseProvider');
 
 /**
  * OpenAI Responses API 移动端提供者
@@ -21,8 +24,8 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
     // 获取 Responses API 专用的基础 URL
     const responsesAPIBaseURL = this.getResponsesAPIBaseURL(model.baseUrl);
 
-    console.log(`[OpenAIResponseProvider] 使用 Responses API 基础 URL: ${responsesAPIBaseURL}`);
-    console.log(`[OpenAIResponseProvider] 原始 baseUrl: ${model.baseUrl || '未设置'}`);
+    logger.debug(`使用 Responses API 基础 URL: ${responsesAPIBaseURL}`);
+    logger.debug(`原始 baseUrl: ${model.baseUrl || '未设置'}`);
 
     // 初始化 OpenAI SDK - 使用 Responses API 专用配置
     this.sdk = new OpenAI({
@@ -143,7 +146,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       );
 
       if (!mcpTool) {
-        console.warn(`[OpenAIResponseProvider] 未找到工具: ${toolCall.function?.name}`);
+        logger.warn(`未找到工具: ${toolCall.function?.name}`);
         continue;
       }
 
@@ -277,7 +280,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       assistant?: any;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[OpenAIResponseProvider] 开始发送聊天消息，消息数量: ${messages.length}`);
+    logger.debug(`开始发送聊天消息，消息数量: ${messages.length}`);
 
     const startTime = Date.now();
     let accumulatedContent = '';
@@ -322,7 +325,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       const endTime = Date.now();
       const reasoningTime = endTime - startTime;
 
-      console.log(`[OpenAIResponseProvider] 聊天消息发送完成，耗时: ${reasoningTime}ms`);
+      logger.debug(`聊天消息发送完成，耗时: ${reasoningTime}ms`);
 
       // 如果有推理内容，返回带推理信息的结果
       if (accumulatedReasoning) {
@@ -336,7 +339,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       return accumulatedContent;
 
     } catch (error: any) {
-      console.error('[OpenAIResponseProvider] 发送聊天消息失败:', error);
+      logger.error('发送聊天消息失败:', error);
       throw error;
     }
   }
@@ -419,7 +422,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       await this.processStream(stream, onChunk!, finalUsage, finalMetrics, toolResponses);
 
     } catch (error) {
-      console.error('[OpenAIResponseProvider] 完成对话生成失败:', error);
+      logger.error('完成对话生成失败:', error);
       if (onChunk) {
         onChunk({
           type: ChunkType.ERROR,
@@ -516,7 +519,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
 
           case 'response.completed':
             // 响应完成
-            console.log('[OpenAIResponseProvider] 响应完成');
+            logger.debug('响应完成');
             break;
 
           case 'response.created':
@@ -526,7 +529,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
           case 'response.content_part.done':
           case 'response.output_item.done':
             // 这些事件不需要特殊处理，只是状态更新
-            console.log(`[OpenAIResponseProvider] 收到事件: ${chunk.type}`);
+            logger.debug(`收到事件: ${chunk.type}`);
             break;
 
           default:
@@ -592,7 +595,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       });
 
     } catch (error) {
-      console.error('[OpenAIResponseProvider] 流式响应处理失败:', error);
+      logger.error('流式响应处理失败:', error);
       onChunk({
         type: ChunkType.ERROR,
         error: {
@@ -626,7 +629,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       });
 
     } catch (error) {
-      console.error('[OpenAIResponseProvider] 工具调用处理失败:', error);
+      logger.error('工具调用处理失败:', error);
       onChunk({
         type: ChunkType.ERROR,
         error: {
@@ -661,7 +664,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       ).filter(Boolean);
 
     } catch (error) {
-      console.error('[OpenAIResponseProvider] 工具调用处理失败:', error);
+      logger.error('工具调用处理失败:', error);
       return [];
     }
   }
@@ -684,12 +687,12 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       }
 
       // 这里可以添加具体的 XML 工具使用处理逻辑
-      console.log(`[OpenAIResponseProvider] 检测到 ${matches.length} 个工具使用`);
+      logger.debug(`检测到 ${matches.length} 个工具使用`);
 
       return [];
 
     } catch (error) {
-      console.error('[OpenAIResponseProvider] XML 工具使用处理失败:', error);
+      logger.error('XML 工具使用处理失败:', error);
       return [];
     }
   }
@@ -699,7 +702,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
    */
   public async getModels(): Promise<any[]> {
     try {
-      console.log('[OpenAIResponseProvider] 获取模型列表');
+      logger.debug('获取模型列表');
 
       // 使用 OpenAI SDK 获取模型列表
       const response = await this.sdk.models.list();
@@ -735,11 +738,11 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
         );
       });
 
-      console.log(`[OpenAIResponseProvider] 获取到 ${models.length} 个模型，其中 ${supportedModels.length} 个支持 Responses API`);
+      logger.debug(`获取到 ${models.length} 个模型，其中 ${supportedModels.length} 个支持 Responses API`);
 
       return supportedModels.length > 0 ? supportedModels : models;
     } catch (error) {
-      console.error('[OpenAIResponseProvider] 获取模型列表失败:', error);
+      logger.error('获取模型列表失败:', error);
 
       // 返回预设的支持 Responses API 的模型列表
       return [
@@ -816,7 +819,7 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
    */
   public async testConnection(): Promise<boolean> {
     try {
-      console.log('[OpenAIResponseProvider] 测试 Responses API 连接');
+      logger.debug('测试 Responses API 连接');
 
       // 使用 Responses API 进行连接测试
       const testResponse = await this.sdk.responses.create({
@@ -832,14 +835,14 @@ export class OpenAIResponseProvider extends BaseOpenAIResponseProvider {
       });
 
       if (testResponse) {
-        console.log('[OpenAIResponseProvider] Responses API 连接测试成功');
+        logger.debug('Responses API 连接测试成功');
         return true;
       } else {
-        console.warn('[OpenAIResponseProvider] Responses API 连接测试失败：未获取到响应');
+        logger.warn('Responses API 连接测试失败：未获取到响应');
         return false;
       }
     } catch (error) {
-      console.error('[OpenAIResponseProvider] Responses API 连接测试失败:', error);
+      logger.error('Responses API 连接测试失败:', error);
       return false;
     }
   }

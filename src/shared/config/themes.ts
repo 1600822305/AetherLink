@@ -2,6 +2,9 @@ import { createTheme } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 import { getFontFamilyString } from './fonts';
 import { cssVar } from '../utils/cssVariables';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('Themes');
 
 // 主题风格类型
 export type ThemeStyle = 'default' | 'claude' | 'nature' | 'tech' | 'soft' | 'ocean' | 'sunset' | 'cinnamonSlate' | 'horizonGreen' | 'cherryCoded';
@@ -376,7 +379,7 @@ export const createCustomTheme = (
   
   // 如果传入的 themeStyle 不存在，输出警告
   if (!themeConfigs[themeStyle]) {
-    console.warn(`主题配置不存在: ${themeStyle}，使用默认主题`);
+    logger.warn(`主题配置不存在: ${themeStyle}，使用默认主题`);
   }
   
   const fontScale = fontSize / 16;

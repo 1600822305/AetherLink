@@ -5,6 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChatSearchService } from '../services/search/ChatSearchService';
 import type { SearchMode, SearchResultSet } from '../services/search/types';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('ChatSearch');
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 1;
@@ -118,7 +121,7 @@ export function useChatSearch(active: boolean): UseChatSearchResult {
         })
         .catch((err) => {
           if (controller.signal.aborted || err?.name === 'AbortError') return;
-          console.error('[useChatSearch] 搜索失败:', err);
+          logger.error('搜索失败:', err);
           setError(true);
           setResults(null);
           setIsSearching(false);

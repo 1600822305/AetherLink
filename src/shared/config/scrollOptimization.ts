@@ -3,6 +3,10 @@
  * 集中管理所有与滚动性能相关的CSS属性和配置
  */
 
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('ScrollOptimization');
+
 // ✅ 滚动容器优化样式 - 只对滚动容器本身应用
 export const scrollContainerStyles = {
   // iOS 滚动优化
@@ -160,7 +164,7 @@ export const debugScrollPerformance = () => {
   const config = getOptimizedConfig();
   const level = getDevicePerformanceLevel();
   
-  console.log('🚀 滚动性能配置:', {
+  logger.debug('滚动性能配置:', {
     设备性能等级: level,
     硬件并发数: navigator.hardwareConcurrency,
     设备内存: (navigator as any).deviceMemory,

@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('useVisualViewport');
 
 /**
  * ============================================================================
@@ -81,7 +84,7 @@ export const useVisualViewport = (): UseVisualViewportResult => {
 
   useEffect(() => {
     if (!window.visualViewport) {
-      console.log('[useVisualViewport] visualViewport API 不可用');
+      logger.debug('visualViewport API 不可用');
       return;
     }
 

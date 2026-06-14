@@ -22,6 +22,10 @@
  * - LCP 测量最大内容元素的渲染时间，通常接近可交互时间
  */
 
+import { createLogger } from '../shared/services/infra/logger';
+
+const logger = createLogger('Performance');
+
 export interface PerformanceMetrics {
   domContentLoaded: number;
   firstContentfulPaint: number;
@@ -52,7 +56,7 @@ export function recordMetric(key: keyof PerformanceMetrics, value?: number): voi
   metrics[key] = metricValue;
 
   if (process.env.NODE_ENV === 'development') {
-    console.log(`📊 [Performance] ${key}: ${metricValue.toFixed(2)}ms`);
+    logger.debug(`${key}: ${metricValue.toFixed(2)}ms`);
   }
 
   // 检查是否所有关键指标都已收集
@@ -91,22 +95,20 @@ function reportPerformanceMetrics(): void {
   // 计算总加载时间
   completedMetrics.totalLoadTime = completedMetrics.appInitialized - completedMetrics.navigationStart;
 
-  console.group('🚀 启动性能指标报告');
-  console.log('📊 详细指标：');
-  console.table({
+  // 展开为一个完整的信息上报
+  const details = {
     'DOMContentLoaded': `${completedMetrics.domContentLoaded.toFixed(2)}ms`,
     'First Contentful Paint': `${completedMetrics.firstContentfulPaint.toFixed(2)}ms`,
     'Time to Interactive': `${completedMetrics.timeToInteractive.toFixed(2)}ms`,
     'Splash Screen Hide': `${completedMetrics.splashScreenHide?.toFixed(2) || 'N/A'}ms`,
     'App Initialized': `${completedMetrics.appInitialized.toFixed(2)}ms`,
     '总启动时间': `${completedMetrics.totalLoadTime.toFixed(2)}ms`
-  });
+  };
+
+  logger.debug('� 启动性能指标报告 - 详细指标：', details);
 
   // 性能评估
-  console.log('\n📈 性能评估：');
   evaluatePerformance(completedMetrics);
-
-  console.groupEnd();
 
   // 可以在这里发送到分析服务
   // sendToAnalytics(completedMetrics);
@@ -116,7 +118,7 @@ function reportPerformanceMetrics(): void {
  * 性能评估（基于文章中的优化目标）
  */
 function evaluatePerformance(metrics: PerformanceMetrics): void {
-  const evaluations = [];
+  const evaluations: string[] = [];
 
   // 白屏时间评估（FCP）
   if (metrics.firstContentfulPaint < 1000) {
@@ -145,15 +147,11 @@ function evaluatePerformance(metrics: PerformanceMetrics): void {
     evaluations.push('❌ 总启动时间需要优化 (> 4s)');
   }
 
-  evaluations.forEach(msg => console.log(msg));
+  logger.debug('📈 性能评估：', evaluations.join(', '));
 
   // 提供优化建议
   if (metrics.totalLoadTime > 4000) {
-    console.log('\n💡 优化建议：');
-    console.log('- 考虑使用插件懒加载');
-    console.log('- 检查是否有阻塞启动的同步操作');
-    console.log('- 优化图片资源大小');
-    console.log('- 使用代码分割减少初始 Bundle 大小');
+    logger.debug('💡 优化建议：考虑使用插件懒加载，检查是否有阻塞启动的同步操作，优化图片资源大小，使用代码分割减少初始 Bundle 大小');
   }
 }
 
@@ -173,7 +171,7 @@ export function initPerformanceTracking(): void {
     return;
   }
 
-  console.log('📊 [Performance] 性能追踪已启动');
+  logger.debug('性能追踪已启动');
 
   // 监听 DOMContentLoaded
   if (document.readyState === 'loading') {
@@ -208,12 +206,12 @@ export function initPerformanceTracking(): void {
         // INP 更能反映真实的交互响应时间
         onINP((metric: { value: number }) => {
           if (process.env.NODE_ENV === 'development') {
-            console.log(`📊 [Performance] INP (交互响应): ${metric.value.toFixed(2)}ms`);
+            logger.debug(`INP (交互响应): ${metric.value.toFixed(2)}ms`);
           }
         });
       })
       .catch(() => {
-        console.warn('[Performance] web-vitals 未安装，跳过 FCP/INP 追踪');
+        logger.warn('web-vitals 未安装，跳过 FCP/INP 追踪');
         // 使用 Performance API 的备选方案
         useFallbackMetrics();
       });
@@ -242,7 +240,7 @@ function useFallbackMetrics(): void {
         recordMetric('timeToInteractive', performance.now());
       });
     } catch (error) {
-      console.warn('[Performance] PerformanceObserver 不可用');
+      logger.warn('PerformanceObserver 不可用');
     }
   }
 }
@@ -255,7 +253,7 @@ function useFallbackMetrics(): void {
 export function recordCustomEvent(eventName: string, duration?: number): void {
   if (process.env.NODE_ENV === 'development') {
     const time = duration ?? performance.now();
-    console.log(`📊 [Performance] ${eventName}: ${time.toFixed(2)}ms`);
+    logger.debug(`${eventName}: ${time.toFixed(2)}ms`);
   }
 }
 

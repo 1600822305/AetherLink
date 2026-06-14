@@ -6,6 +6,9 @@ import { addTopic, removeTopic, updateTopic } from '../store/slices/assistantsSl
 import type { RootState } from '../store';
 import type { Assistant, ChatTopic } from '../types/Assistant';
 import { TopicService } from '../services/topics/TopicService';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('useAssistant');
 
 /**
  * 助手钩子 - 加载助手及其关联的话题
@@ -29,7 +32,7 @@ export function useAssistant(assistantId: string | null) {
 
     // 🔥 Cherry Studio模式：移除自动创建逻辑，由Redux层面处理
     if (forceRefresh) {
-      console.log(`[useAssistant] 强制刷新助手 ${assistant.name} 的话题数据`);
+      logger.debug(`强制刷新助手 ${assistant.name} 的话题数据`);
       // 这里可以添加从数据库重新加载话题的逻辑
       // 但目前助手数据已经预加载，通常不需要强制刷新
     }
@@ -60,7 +63,7 @@ export function useAssistant(assistantId: string | null) {
     if (!assistantId) return false;
 
     if (topic.assistantId !== assistantId) {
-        console.warn(`addTopicToAssistant: Topic ${topic.id} had assistantId ${topic.assistantId}. Forcing to current assistant ${assistantId}.`);
+        logger.warn(`addTopicToAssistant: Topic ${topic.id} had assistantId ${topic.assistantId}. Forcing to current assistant ${assistantId}.`);
         topic.assistantId = assistantId;
     }
 
@@ -72,7 +75,7 @@ export function useAssistant(assistantId: string | null) {
       dispatch(addTopic({ assistantId, topic }));
       return true;
     } catch (err) {
-      console.error('添加话题失败:', err);
+      logger.error('添加话题失败:', err);
       return false;
     }
   }, [assistantId, dispatch]);
@@ -86,7 +89,7 @@ export function useAssistant(assistantId: string | null) {
       dispatch(removeTopic({ assistantId, topicId }));
       return true;
     } catch (err) {
-      console.error('删除话题失败:', err);
+      logger.error('删除话题失败:', err);
       return false;
     }
   }, [assistantId, dispatch]);
@@ -95,7 +98,7 @@ export function useAssistant(assistantId: string | null) {
     if (!assistantId) return false;
 
     if (topic.assistantId !== assistantId) {
-        console.warn(`updateAssistantTopic: Topic ${topic.id} had assistantId ${topic.assistantId}. Forcing to current assistant ${assistantId}.`);
+        logger.warn(`updateAssistantTopic: Topic ${topic.id} had assistantId ${topic.assistantId}. Forcing to current assistant ${assistantId}.`);
         topic.assistantId = assistantId;
     }
 
@@ -104,7 +107,7 @@ export function useAssistant(assistantId: string | null) {
       dispatch(updateTopic({ assistantId, topic }));
       return true;
     } catch (err) {
-      console.error('更新话题失败:', err);
+      logger.error('更新话题失败:', err);
       return false;
     }
   }, [assistantId, dispatch]);
