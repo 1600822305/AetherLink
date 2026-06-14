@@ -716,7 +716,8 @@ class MemoryService {
    * 用更新后的记忆替换缓存中的同名条目
    */
   private replaceInCache(item: Memory): void {
-    const cached = this.memoryCache.get(item.userId);
+    const filterKey = item.assistantId || item.userId || 'default';
+    const cached = this.memoryCache.get(filterKey);
     if (!cached) {
       return;
     }
