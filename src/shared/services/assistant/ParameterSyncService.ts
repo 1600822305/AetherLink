@@ -14,6 +14,15 @@ const logger = createLogger('ParameterSyncService');
 const SAVE_DEBOUNCE_MS = 300;
 // 持久化键名
 const STORAGE_KEY = 'appSettings';
+// 标记 localStorage -> Dexie 一次性迁移是否已完成
+const LS_MIGRATION_FLAG = '__ctxMigratedFromLS';
+// 旧版侧栏历史上写在 localStorage 的设置键，迁移时以 localStorage 为准恢复一次
+const LS_OWNED_KEYS = new Set<string>([
+  'maxOutputTokens',
+  'enableMaxOutputTokens',
+  'contextCount',
+  'contextWindowSize',
+]);
 
 // 参数同步服务 - 用于在侧边栏和助手设置之间同步参数
 
@@ -150,6 +159,7 @@ class ParameterSyncService {
   constructor() {
     // 应用启动即开始加载缓存，确保后续同步读取时缓存已就绪
     void this.ensureInitialized();
+    this.registerFlushOnHide();
   }
 
   /**
@@ -164,6 +174,7 @@ class ParameterSyncService {
         const stored = await getStorageItem<Record<string, any>>(STORAGE_KEY);
         // 以存储值为基底，叠加初始化期间可能已发生的写入，避免丢失这些写入
         this.cache = { ...(stored || {}), ...this.cache };
+        await this.migrateFromLocalStorage();
       } catch (error) {
         logger.error('初始化设置缓存失败:', error);
       } finally {
@@ -207,8 +218,68 @@ class ParameterSyncService {
   private schedulePersist(): void {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
+      this.saveTimeout = null;
       void setStorageItem(STORAGE_KEY, this.cache);
     }, SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * 立即把缓存落盘（取消防抖）。用于页面隐藏/卸载等场景，
+   * 避免「防抖窗口内被关闭」导致的写入丢失。
+   */
+  flush(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    void setStorageItem(STORAGE_KEY, this.cache);
+  }
+
+  /**
+   * 注册页面隐藏/卸载时的强制落盘，消除防抖丢写。
+   */
+  private registerFlushOnHide(): void {
+    if (typeof window === 'undefined') return;
+    const flushIfPending = () => {
+      if (this.saveTimeout) this.flush();
+    };
+    window.addEventListener('beforeunload', flushIfPending);
+    window.addEventListener('pagehide', flushIfPending);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushIfPending();
+      });
+    }
+  }
+
+  /**
+   * 一次性把历史上写在 localStorage 的 appSettings 迁移/补齐进 Dexie。
+   * 旧版侧栏（useSettingsStorage / DynamicContextSettings）把 maxOutputTokens 等键写在
+   * localStorage，而本服务以 Dexie 为唯一真源；若防抖写入曾丢失会造成两边分叉。此迁移
+   * 将用户既有设置收敛到唯一真源，仅执行一次（用 LS_MIGRATION_FLAG 标记）。
+   */
+  private async migrateFromLocalStorage(): Promise<void> {
+    if (this.cache[LS_MIGRATION_FLAG]) return;
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const ls = JSON.parse(raw) as Record<string, any>;
+        for (const [key, value] of Object.entries(ls)) {
+          if (value === undefined) continue;
+          // 侧栏历史拥有的键以 localStorage 为准恢复一次；其余键仅在缺失时补齐
+          if (LS_OWNED_KEYS.has(key)) {
+            this.cache[key] = value;
+          } else if (this.cache[key] === undefined) {
+            this.cache[key] = value;
+          }
+        }
+      }
+    } catch (error) {
+      logger.warn('迁移 localStorage 设置失败:', error);
+    }
+    this.cache[LS_MIGRATION_FLAG] = true;
+    await setStorageItem(STORAGE_KEY, this.cache);
   }
 
   /**
