@@ -16,6 +16,9 @@ import {
 import { cosineSimilarity } from '../../utils/vectorUtils';
 import { chunkText } from '../../utils/textChunker';
 import type { KnowledgeBase, KnowledgeDocument, KnowledgeSearchResult } from '../../types/KnowledgeBase';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MobileKnowledgeService');
 
 /**
  * 移动端知识库服务类
@@ -73,12 +76,12 @@ export class MobileKnowledgeService {
       // 保存到数据库
       await dexieStorage.knowledge_bases.put(knowledgeBase);
 
-      console.log(`[MobileKnowledgeService] 知识库创建成功: ${knowledgeBase.id}`);
+      logger.debug(`知识库创建成功: ${knowledgeBase.id}`);
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_BASE_CREATED, knowledgeBase);
 
       return knowledgeBase;
     } catch (error) {
-      console.error('[MobileKnowledgeService] 创建知识库失败:', error);
+      logger.error('创建知识库失败:', error);
       throw error;
     }
   }
@@ -90,7 +93,7 @@ export class MobileKnowledgeService {
     try {
       return await dexieStorage.knowledge_bases.get(id);
     } catch (error) {
-      console.error(`[MobileKnowledgeService] 获取知识库失败: ${id}`, error);
+      logger.error(`获取知识库失败: ${id}`, error);
       return null;
     }
   }
@@ -102,7 +105,7 @@ export class MobileKnowledgeService {
     try {
       return await dexieStorage.knowledge_bases.toArray();
     } catch (error) {
-      console.error('[MobileKnowledgeService] 获取所有知识库失败:', error);
+      logger.error('获取所有知识库失败:', error);
       return [];
     }
   }
@@ -128,12 +131,12 @@ export class MobileKnowledgeService {
 
       await dexieStorage.knowledge_bases.put(updatedKnowledgeBase);
 
-      console.log(`[MobileKnowledgeService] 知识库更新成功: ${id}`);
+      logger.debug(`知识库更新成功: ${id}`);
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_BASE_UPDATED, updatedKnowledgeBase);
 
       return updatedKnowledgeBase;
     } catch (error) {
-      console.error(`[MobileKnowledgeService] 更新知识库失败: ${id}`, error);
+      logger.error(`更新知识库失败: ${id}`, error);
       return null;
     }
   }
@@ -158,12 +161,12 @@ export class MobileKnowledgeService {
       // 删除知识库
       await dexieStorage.knowledge_bases.delete(id);
 
-      console.log(`[MobileKnowledgeService] 知识库删除成功: ${id}`);
+      logger.debug(`知识库删除成功: ${id}`);
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_BASE_DELETED, { id, documentCount: documents.length });
 
       return true;
     } catch (error) {
-      console.error(`[MobileKnowledgeService] 删除知识库失败: ${id}`, error);
+      logger.error(`删除知识库失败: ${id}`, error);
       return false;
     }
   }
@@ -195,7 +198,7 @@ export class MobileKnowledgeService {
         strategy: knowledgeBase.chunkStrategy || 'fixed',
       });
 
-      console.log(`[MobileKnowledgeService] 文档分块: ${chunks.length} 个块`);
+      logger.debug(`文档分块: ${chunks.length} 个块`);
 
       // 批量获取嵌入向量（一次 API 请求处理多个文本）
       const documents: KnowledgeDocument[] = [];
@@ -244,14 +247,14 @@ export class MobileKnowledgeService {
             });
           }
 
-          console.log(`[MobileKnowledgeService] 批量嵌入完成: ${batchStart + batchChunks.length}/${chunks.length}`);
+          logger.debug(`批量嵌入完成: ${batchStart + batchChunks.length}/${chunks.length}`);
         } catch (error) {
-          console.error(`[MobileKnowledgeService] 批量嵌入失败 (${batchStart}-${batchStart + batchChunks.length}):`, error);
+          logger.error(`批量嵌入失败 (${batchStart}-${batchStart + batchChunks.length}):`, error);
           throw new Error(`无法获取文本向量嵌入，请检查嵌入模型配置和网络连接。错误: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      console.log(`[MobileKnowledgeService] 文档添加成功: ${documents.length} 个块`);
+      logger.debug(`文档添加成功: ${documents.length} 个块`);
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_DOCUMENTS_ADDED, {
         knowledgeBaseId: params.knowledgeBaseId,
         count: documents.length
@@ -259,7 +262,7 @@ export class MobileKnowledgeService {
 
       return documents;
     } catch (error) {
-      console.error('[MobileKnowledgeService] 添加文档失败:', error);
+      logger.error('添加文档失败:', error);
       throw error;
     }
   }
@@ -276,10 +279,10 @@ export class MobileKnowledgeService {
         .equals(knowledgeBaseId)
         .toArray();
 
-      console.log(`[MobileKnowledgeService] 获取知识库文档成功: ${knowledgeBaseId}, 共 ${documents.length} 个文档`);
+      logger.debug(`获取知识库文档成功: ${knowledgeBaseId}, 共 ${documents.length} 个文档`);
       return documents;
     } catch (error) {
-      console.error(`[MobileKnowledgeService] 获取知识库文档失败: ${knowledgeBaseId}`, error);
+      logger.error(`获取知识库文档失败: ${knowledgeBaseId}`, error);
       return [];
     }
   }
@@ -294,14 +297,14 @@ export class MobileKnowledgeService {
       // 获取文档信息，用于通知事件
       const document = await dexieStorage.knowledge_documents.get(documentId);
       if (!document) {
-        console.warn(`[MobileKnowledgeService] 尝试删除不存在的文档: ${documentId}`);
+        logger.warn(`尝试删除不存在的文档: ${documentId}`);
         return false;
       }
 
       // 删除文档
       await dexieStorage.knowledge_documents.delete(documentId);
 
-      console.log(`[MobileKnowledgeService] 删除文档成功: ${documentId}, 知识库: ${document.knowledgeBaseId}`);
+      logger.debug(`删除文档成功: ${documentId}, 知识库: ${document.knowledgeBaseId}`);
 
       // 发出文档删除事件
       EventEmitter.emit(EVENT_NAMES.KNOWLEDGE_DOCUMENT_DELETED, {
@@ -311,7 +314,7 @@ export class MobileKnowledgeService {
 
       return true;
     } catch (error) {
-      console.error(`[MobileKnowledgeService] 删除文档失败: ${documentId}`, error);
+      logger.error(`删除文档失败: ${documentId}`, error);
       return false;
     }
   }
@@ -343,7 +346,7 @@ export class MobileKnowledgeService {
     enableQueryExpansion?: boolean;
     enableHybridSearch?: boolean;
   }): Promise<KnowledgeSearchResult[]> {
-    console.log(`[MobileKnowledgeService] 使用增强RAG搜索: ${params.query}`);
+    logger.debug(`使用增强RAG搜索: ${params.query}`);
     return this.enhancedRAGService.enhancedSearch(params);
   }
 
@@ -359,7 +362,7 @@ export class MobileKnowledgeService {
   }): Promise<KnowledgeSearchResult[]> {
     // 如果启用增强RAG，使用新的搜索算法
     if (params.useEnhancedRAG !== false) {
-      console.log(`[MobileKnowledgeService] 使用增强RAG搜索模式`);
+      logger.debug(`使用增强RAG搜索模式`);
       try {
         return await this.enhancedRAGService.enhancedSearch({
           knowledgeBaseId: params.knowledgeBaseId,
@@ -376,13 +379,13 @@ export class MobileKnowledgeService {
           }
         });
       } catch (error) {
-        console.warn('[MobileKnowledgeService] 增强RAG搜索失败，回退到简单搜索:', error);
+        logger.warn('增强RAG搜索失败，回退到简单搜索:', error);
         // 继续执行简单搜索作为回退
       }
     }
 
     // 简单搜索模式（原有逻辑）
-    console.log(`[MobileKnowledgeService] 使用简单搜索模式`);
+    logger.debug(`使用简单搜索模式`);
     return this.simpleSearch(params);
   }
 
@@ -406,10 +409,10 @@ export class MobileKnowledgeService {
       try {
         const embeddingService = MobileEmbeddingService.getInstance();
         queryVector = await embeddingService.getEmbedding(params.query, knowledgeBase.model);
-        console.log(`[MobileKnowledgeService] 查询向量获取成功，维度: ${queryVector.length}`);
+        logger.debug(`查询向量获取成功，维度: ${queryVector.length}`);
       } catch (embeddingError) {
         // 不使用随机向量，直接抛出错误
-        console.error(`[MobileKnowledgeService] 查询向量获取失败:`, embeddingError);
+        logger.error(`查询向量获取失败:`, embeddingError);
         throw new Error(`无法获取查询向量，请检查嵌入模型配置和网络连接。`);
       }
 
@@ -419,13 +422,13 @@ export class MobileKnowledgeService {
         .equals(params.knowledgeBaseId)
         .toArray();
 
-      console.log(`[MobileKnowledgeService] 搜索知识库: ${documents.length} 个文档`);
+      logger.debug(`搜索知识库: ${documents.length} 个文档`);
 
       // 检查文档向量维度
       if (documents.length > 0) {
         const firstDocVector = documents[0].vector;
-        console.log(`[MobileKnowledgeService] 文档向量维度: ${firstDocVector?.length || '未知'}`);
-        console.log(`[MobileKnowledgeService] 查询向量维度: ${queryVector.length}`);
+        logger.debug(`文档向量维度: ${firstDocVector?.length || '未知'}`);
+        logger.debug(`查询向量维度: ${queryVector.length}`);
 
         if (firstDocVector && firstDocVector.length !== queryVector.length) {
           throw new Error(`向量维度不匹配: 查询向量(${queryVector.length}) vs 知识库文档向量(${firstDocVector.length})。请使用相同的嵌入模型或重新创建知识库。`);
@@ -439,11 +442,11 @@ export class MobileKnowledgeService {
       // 使用简单的相似度计算
       const results = this.localVectorSearch(queryVector, documents, threshold, limit);
 
-      console.log(`[MobileKnowledgeService] 简单搜索结果: ${results.length} 条`);
+      logger.debug(`简单搜索结果: ${results.length} 条`);
 
       return results;
     } catch (error) {
-      console.error('[MobileKnowledgeService] 简单搜索失败:', error);
+      logger.error('简单搜索失败:', error);
       return [];
     }
   }

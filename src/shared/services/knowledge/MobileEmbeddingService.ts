@@ -9,6 +9,9 @@ import { getEmbeddingDimensions } from '../../config/embeddingModels';
 import { universalFetch } from '../../utils/universalFetch';
 import store from '../../store';
 import { createGeminiEmbeddingService } from "../../api/gemini-aisdk/embeddingService";
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('MobileEmbeddingService');
 
 /**
  * 获取模型的维度
@@ -56,7 +59,7 @@ export function getAvailableEmbeddingModels(): Model[] {
 
     return allModels;
   } catch (error) {
-    console.error('[MobileEmbeddingService] 获取嵌入模型失败:', error);
+    logger.error('获取嵌入模型失败:', error);
     return [];
   }
 }
@@ -109,7 +112,7 @@ export class MobileEmbeddingService {
       const testVector = await this.getEmbedding('test', modelId);
       return testVector.length;
     } catch (error) {
-      console.error('[MobileEmbeddingService] 获取模型维度失败:', error);
+      logger.error('获取模型维度失败:', error);
       // 回退到配置文件中的维度
       return getEmbeddingDimensions(modelId);
     }
@@ -216,7 +219,7 @@ export class MobileEmbeddingService {
       this.cleanExpiredCache();
       return embedding;
     } catch (error) {
-      console.error('[MobileEmbeddingService] 获取向量嵌入失败:', error);
+      logger.error('获取向量嵌入失败:', error);
       throw error;
     }
   }
@@ -364,7 +367,7 @@ export class MobileEmbeddingService {
       // 直接使用本地向量搜索，避免复杂的云端调用
       return this.localVectorSearch(params);
     } catch (error) {
-      console.error('[MobileEmbeddingService] 搜索向量失败:', error);
+      logger.error('搜索向量失败:', error);
       return [];
     }
   }

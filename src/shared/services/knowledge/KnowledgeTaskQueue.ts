@@ -21,6 +21,9 @@ import type {
   QueueConfig,
   QueueStatus,
 } from '../../types/KnowledgeBase';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('KnowledgeTaskQueue');
 
 // 默认队列配置（移动端保守值）
 const DEFAULT_QUEUE_CONFIG: QueueConfig = {
@@ -135,7 +138,7 @@ export class KnowledgeTaskQueue {
       // 注入 PDF 解析模式
       fileParserService.setPdfParseMode(pdfPreprocess.parseMode || 'auto');
     } catch (err) {
-      console.warn('[KnowledgeTaskQueue] 读取云端预处理配置失败:', err);
+      logger.warn('读取云端预处理配置失败:', err);
     }
   }
 
@@ -161,7 +164,7 @@ export class KnowledgeTaskQueue {
         try {
           (cb as Function)(...args);
         } catch (err) {
-          console.error(`[KnowledgeTaskQueue] 事件处理器错误 (${event}):`, err);
+          logger.error(`事件处理器错误 (${event}):`, err);
         }
       }
     }
@@ -240,8 +243,8 @@ export class KnowledgeTaskQueue {
       this.pendingQueue.push(task);
       this.emit('task:queued', task);
 
-      console.log(
-        `[KnowledgeTaskQueue] 任务入队: ${task.fileName} ` +
+      logger.debug(
+        `任务入队: ${task.fileName} ` +
         `(${this.formatBytes(task.fileSize)}, 队列: ${this.pendingQueue.length})`
       );
 
@@ -298,8 +301,8 @@ export class KnowledgeTaskQueue {
     for (const task of tasksToStart) {
       this.emit('task:started', task);
 
-      console.log(
-        `[KnowledgeTaskQueue] 任务开始: ${task.fileName} ` +
+      logger.debug(
+        `任务开始: ${task.fileName} ` +
         `(并发: ${this.processingMap.size}/${this.config.maxConcurrent}, ` +
         `负载: ${this.formatBytes(this.currentWorkload)}/${this.formatBytes(this.config.maxWorkload)})`
       );
@@ -312,8 +315,8 @@ export class KnowledgeTaskQueue {
           this.completedCount++;
           this.emit('task:completed', task);
 
-          console.log(
-            `[KnowledgeTaskQueue] 任务完成: ${task.fileName} ` +
+          logger.debug(
+            `任务完成: ${task.fileName} ` +
             `(耗时: ${Date.now() - (task.startedAt || Date.now())}ms)`
           );
         })
@@ -326,15 +329,15 @@ export class KnowledgeTaskQueue {
           this.failedCount++;
           this.emit('task:failed', task);
 
-          console.error(
-            `[KnowledgeTaskQueue] 任务失败: ${task.fileName}:`,
+          logger.error(
+            `任务失败: ${task.fileName}:`,
             error.message
           );
 
           // 自动重试
           if (task.retryCount < task.maxRetries) {
-            console.log(
-              `[KnowledgeTaskQueue] 将在 ${this.config.retryDelay}ms 后重试 ` +
+            logger.debug(
+              `将在 ${this.config.retryDelay}ms 后重试 ` +
               `(${task.retryCount + 1}/${task.maxRetries}): ${task.fileName}`
             );
             setTimeout(() => {
@@ -360,8 +363,8 @@ export class KnowledgeTaskQueue {
           // 检查队列是否完全清空
           if (this.processingMap.size === 0 && this.pendingQueue.length === 0) {
             this.emit('queue:drained');
-            console.log(
-              `[KnowledgeTaskQueue] 队列清空 — ` +
+            logger.debug(
+              `队列清空 — ` +
               `完成: ${this.completedCount}, 失败: ${this.failedCount}`
             );
           }
@@ -407,7 +410,7 @@ export class KnowledgeTaskQueue {
           contentToProcess = parsed.content;
         }
       } catch (parseErr) {
-        console.warn(`[KnowledgeTaskQueue] 文件解析失败: ${task.fileName}`, parseErr);
+        logger.warn(`文件解析失败: ${task.fileName}`, parseErr);
         contentToProcess = `[${task.fileName}]\n\n此文件格式需要额外依赖才能解析。\n\n${parseErr instanceof Error ? parseErr.message : '解析失败'}`;
       }
 
@@ -480,7 +483,7 @@ export class KnowledgeTaskQueue {
       task.state = 'cancelled';
       this.pendingQueue.splice(pendingIndex, 1);
       this.abortControllers.delete(taskId);
-      console.log(`[KnowledgeTaskQueue] 任务取消(等待中): ${task.fileName}`);
+      logger.debug(`任务取消(等待中): ${task.fileName}`);
       return true;
     }
 
@@ -490,7 +493,7 @@ export class KnowledgeTaskQueue {
       processingTask.state = 'cancelled';
       const controller = this.abortControllers.get(taskId);
       controller?.abort();
-      console.log(`[KnowledgeTaskQueue] 任务取消(处理中): ${processingTask.fileName}`);
+      logger.debug(`任务取消(处理中): ${processingTask.fileName}`);
       return true;
     }
 
@@ -516,7 +519,7 @@ export class KnowledgeTaskQueue {
 
     // 清理
     this.abortControllers.clear();
-    console.log('[KnowledgeTaskQueue] 所有任务已取消');
+    logger.debug('所有任务已取消');
   }
 
   /**
@@ -532,7 +535,7 @@ export class KnowledgeTaskQueue {
     }
 
     if (task.retryCount >= task.maxRetries) {
-      console.warn(`[KnowledgeTaskQueue] 任务已达最大重试次数: ${task.fileName}`);
+      logger.warn(`任务已达最大重试次数: ${task.fileName}`);
       return false;
     }
 
