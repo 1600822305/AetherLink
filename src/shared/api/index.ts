@@ -6,6 +6,10 @@ import { OpenAIResponseProvider } from '../providers/OpenAIResponseProvider';
 import type { ModelProvider } from '../config/defaultModels';
 import { ChunkType } from '../types/chunk';
 import { isAbortError } from '../utils/abortController';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('API');
+
 
 /**
  * API模块索引文件
@@ -57,7 +61,7 @@ export const testApiConnection = async (model: Model): Promise<boolean> => {
   try {
     // 检查是否为 OpenAI Responses API 提供商
     if (model.providerType === 'openai-response') {
-      console.log('[testApiConnection] 使用 OpenAI Responses API 测试连接');
+      logger.debug('使用 OpenAI Responses API 测试连接');
 
       // 使用静态导入的 OpenAIResponseProvider
       const provider = new OpenAIResponseProvider(model);
@@ -85,7 +89,7 @@ export const testApiConnection = async (model: Model): Promise<boolean> => {
     const content = typeof response === 'string' ? response : response.content;
     return Boolean(content && content.length > 0);
   } catch (error) {
-    console.error('API连接测试失败:', error);
+    logger.error('API连接测试失败:', error);
     return false;
   }
 };
@@ -102,11 +106,11 @@ export const sendChatRequest = async (options: ChatRequest): Promise<{ success: 
     return processModelRequest(model, options);
   } catch (error) {
     if (isAbortError(error)) {
-      console.log('[sendChatRequest] 请求已取消:', error instanceof Error ? error.message : String(error));
+      logger.debug('请求已取消:', error instanceof Error ? error.message : String(error));
       throw error;
     }
 
-    console.error('[sendChatRequest] 请求失败:', error instanceof Error ? error.message : String(error));
+    logger.error('请求失败:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -198,20 +202,20 @@ async function processModelRequest(model: Model, options: ChatRequest): Promise<
       };
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('[processModelRequest] API调用已取消:', error instanceof Error ? error.message : String(error));
+        logger.debug('API调用已取消:', error instanceof Error ? error.message : String(error));
         throw error;
       }
 
-      console.error('[processModelRequest] API调用失败:', error instanceof Error ? error.message : String(error));
+      logger.error('API调用失败:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   } catch (error) {
     if (isAbortError(error)) {
-      console.log('[processModelRequest] 请求已取消:', error instanceof Error ? error.message : String(error));
+      logger.debug('请求已取消:', error instanceof Error ? error.message : String(error));
       throw error;
     }
 
-    console.error('[processModelRequest] 请求失败:', error instanceof Error ? error.message : String(error));
+    logger.error('请求失败:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -293,10 +297,10 @@ function findModelById(modelId: string): Model | null {
       }
     }
 
-    console.warn(`[findModelById] 未找到模型: ${modelId}`);
+    logger.warn(`未找到模型: ${modelId}`);
     return null;
   } catch (error) {
-    console.error('[findModelById] 查找失败:', error);
+    logger.error('查找失败:', error);
     return null;
   }
 }

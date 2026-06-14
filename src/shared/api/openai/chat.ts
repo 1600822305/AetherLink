@@ -8,6 +8,10 @@ import type { Chunk } from '../../types/chunk';
 import { logApiRequest } from '../../services/infra/LoggerService';
 import { isAbortError } from '../../utils/abortController';
 import { OpenAIProvider } from './provider';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Chat');
+
 
 /**
  * 聊天选项接口
@@ -68,7 +72,7 @@ function normalizeChatOptions(options?: ChatOptions): NormalizedChatOptions {
 function validateAndNormalizeMessages(messages: Message[]): Message[] {
   // 检查消息数组是否有效
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
-    console.warn('[OpenAI Chat] 消息数组为空或无效，创建默认消息');
+    logger.warn('消息数组为空或无效，创建默认消息');
 
     // 创建默认消息
     const defaultMessage: Message = {
@@ -93,8 +97,8 @@ function validateAndNormalizeMessages(messages: Message[]): Message[] {
  * 记录聊天请求日志
  */
 function logChatRequest(messages: Message[], model: Model, options: NormalizedChatOptions): void {
-  console.log(`[OpenAI Chat] 发送聊天请求 - 模型: ${model.id}, 消息数量: ${messages.length}`);
-  console.log(`[OpenAI Chat] 配置 - 网页搜索: ${options.enableWebSearch}, 工具: ${options.enableTools}, 系统提示: ${options.systemPrompt ? '有' : '无'}`);
+  logger.debug(`发送聊天请求 - 模型: ${model.id}, 消息数量: ${messages.length}`);
+  logger.debug(`配置 - 网页搜索: ${options.enableWebSearch}, 工具: ${options.enableTools}, 系统提示: ${options.systemPrompt ? '有' : '无'}`);
 
   // 记录API请求到日志服务
   logApiRequest('OpenAI Chat', 'INFO', {
@@ -121,7 +125,7 @@ function logChatRequest(messages: Message[], model: Model, options: NormalizedCh
 function handleChatError(error: any, model: Model): never {
   // 用户主动中断是正常控制流，不按错误打印堆栈
   if (isAbortError(error)) {
-    console.log('[OpenAI Chat] 聊天请求已取消:', {
+    logger.debug('聊天请求已取消:', {
       model: model.id,
       provider: model.provider,
       message: error instanceof Error ? error.message : String(error)
@@ -129,8 +133,8 @@ function handleChatError(error: any, model: Model): never {
     throw new DOMException('Operation aborted', 'AbortError');
   }
 
-  console.error('[OpenAI Chat] 聊天请求失败:', error);
-  console.error('[OpenAI Chat] 错误详情:', {
+  logger.error('聊天请求失败:', error);
+  logger.error('错误详情:', {
     message: error instanceof Error ? error.message : '未知错误',
     model: model.id,
     provider: model.provider,
@@ -176,13 +180,13 @@ export async function sendChatMessage(
     // 记录工具状态
     if (normalizedOptions.enableTools) {
       if (normalizedOptions.enableWebSearch && model.capabilities?.webSearch) {
-        console.log(`[OpenAI Chat] 启用网页搜索功能`);
+        logger.debug(`启用网页搜索功能`);
       }
       if (normalizedOptions.mcpTools && normalizedOptions.mcpTools.length > 0) {
-        console.log(`[OpenAI Chat] 启用 ${normalizedOptions.mcpTools.length} 个MCP工具`);
+        logger.debug(`启用 ${normalizedOptions.mcpTools.length} 个MCP工具`);
       }
     } else {
-      console.log(`[OpenAI Chat] 工具功能已禁用`);
+      logger.debug(`工具功能已禁用`);
     }
 
     // 调用Provider发送消息
@@ -197,7 +201,7 @@ export async function sendChatMessage(
       assistant: normalizedOptions.assistant
     });
 
-    console.log(`[OpenAI Chat] 聊天请求成功完成`);
+    logger.debug(`聊天请求成功完成`);
     return result;
 
   } catch (error) {

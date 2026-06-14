@@ -14,6 +14,11 @@ import type { Model, MCPTool } from '../../types';
 import type { ModelProvider } from '../../config/defaultModels';
 import { convertMcpToolsToAISDK, parseGroundingMetadata } from './tools';
 import store from '../../store';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Gemini AI SDK Stream');
+const nonStreamLogger = createLogger('Gemini AI SDK NonStream');
+
 
 /**
  * 获取模型对应的供应商配置
@@ -30,7 +35,7 @@ function getProviderConfig(model: Model): ModelProvider | null {
     const provider = providers.find((p: ModelProvider) => p.id === model.provider);
     return provider || null;
   } catch (error) {
-    console.error('[Gemini AI SDK Stream] 获取供应商配置失败:', error);
+    logger.error('获取供应商配置失败:', error);
     return null;
   }
 }
@@ -89,7 +94,7 @@ export async function streamCompletion(
   additionalParams?: StreamParams,
   onChunk?: (chunk: Chunk) => void
 ): Promise<StreamResult> {
-  console.log(`[Gemini AI SDK Stream] 开始流式响应, 模型: ${modelId}`);
+  logger.debug(`开始流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -155,7 +160,7 @@ export async function streamCompletion(
         });
       }
       if (tools && Object.keys(tools).length > 0) {
-        console.log(`[Gemini AI SDK Stream] 启用 ${Object.keys(tools).length} 个工具`);
+        logger.debug(`启用 ${Object.keys(tools).length} 个工具`);
       }
     }
 
@@ -166,7 +171,7 @@ export async function streamCompletion(
     // 添加 extraBody
     if (extraBody && typeof extraBody === 'object' && Object.keys(extraBody).length > 0) {
       Object.assign(googleOptions, extraBody);
-      console.log(`[Gemini AI SDK Stream] 合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
+      logger.debug(`合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
     }
 
     // 添加思考配置（如果模型支持）
@@ -175,7 +180,7 @@ export async function streamCompletion(
         thinkingBudget: additionalParams.thinkingBudget || 1024,
         includeThoughts: additionalParams.includeThoughts !== false
       };
-      console.log(`[Gemini AI SDK Stream] 启用思考配置: budget=${googleOptions.thinkingConfig.thinkingBudget}`);
+      logger.debug(`启用思考配置: budget=${googleOptions.thinkingConfig.thinkingBudget}`);
     }
 
     if (Object.keys(googleOptions).length > 0) {
@@ -185,7 +190,7 @@ export async function streamCompletion(
     // 如果启用 Google Search，使用特殊的工具配置
     // 注意：Google Search 需要通过 providerOptions 或特殊工具启用
     if (enableGoogleSearch) {
-      console.log(`[Gemini AI SDK Stream] 启用 Google Search Grounding`);
+      logger.debug(`启用 Google Search Grounding`);
       // Google Search 通过 providerOptions 启用
       if (!providerOptions) providerOptions = { google: {} };
       providerOptions.google = providerOptions.google || {};
@@ -197,7 +202,7 @@ export async function streamCompletion(
     const isPromptMode = !enableTools && mcpTools.length > 0;
     const stopSequences = isPromptMode ? ['<tool_use_result'] : undefined;
 
-    console.log(`[Gemini AI SDK Stream] 创建流式请求`);
+    logger.debug(`创建流式请求`);
 
     const result = await streamText({
       model: client(modelId),
@@ -247,7 +252,7 @@ export async function streamCompletion(
           break;
 
         case 'tool-call':
-          console.log(`[Gemini AI SDK Stream] 检测到工具调用: ${part.toolName}`);
+          logger.debug(`检测到工具调用: ${part.toolName}`);
           const toolInput = (part as any).input || (part as any).args || {};
           toolCalls.push({
             id: part.toolCallId,
@@ -331,7 +336,7 @@ export async function streamCompletion(
 
     // 检查工具使用标签（XML 模式）
     if (hasToolUseTags(fullContent)) {
-      console.log(`[Gemini AI SDK Stream] 检测到 XML 工具使用标签`);
+      logger.debug(`检测到 XML 工具使用标签`);
       EventEmitter.emit(EVENT_NAMES.TOOL_USE_DETECTED, {
         content: fullContent,
         model: modelId
@@ -339,7 +344,7 @@ export async function streamCompletion(
     }
 
     const endTime = Date.now();
-    console.log(`[Gemini AI SDK Stream] 完成，耗时: ${endTime - startTime}ms`);
+    logger.debug(`完成，耗时: ${endTime - startTime}ms`);
 
     return {
       content: fullContent,
@@ -352,7 +357,7 @@ export async function streamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[Gemini AI SDK Stream] 流式响应失败:', error);
+    logger.error('流式响应失败:', error);
 
     EventEmitter.emit(EVENT_NAMES.STREAM_ERROR, {
       provider: 'gemini-aisdk',
@@ -376,7 +381,7 @@ export async function nonStreamCompletion(
   maxTokens?: number,
   additionalParams?: StreamParams
 ): Promise<StreamResult> {
-  console.log(`[Gemini AI SDK NonStream] 开始非流式响应, 模型: ${modelId}`);
+  nonStreamLogger.debug(`开始非流式响应, 模型: ${modelId}`);
 
   const startTime = Date.now();
   const signal = additionalParams?.signal;
@@ -434,7 +439,7 @@ export async function nonStreamCompletion(
 
     if (extraBody && typeof extraBody === 'object' && Object.keys(extraBody).length > 0) {
       Object.assign(googleOptions, extraBody);
-      console.log(`[Gemini AI SDK NonStream] 合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
+      nonStreamLogger.debug(`合并自定义请求体参数: ${Object.keys(extraBody).join(', ')}`);
     }
 
     if (additionalParams?.thinkingBudget || additionalParams?.includeThoughts) {
@@ -469,7 +474,7 @@ export async function nonStreamCompletion(
 
     const endTime = Date.now();
     const totalTime = endTime - startTime;
-    console.log(`[Gemini AI SDK NonStream] 完成，耗时: ${totalTime}ms`);
+    nonStreamLogger.debug(`完成，耗时: ${totalTime}ms`);
 
     // 提取推理内容和 grounding metadata
     // AI SDK v5: result.reasoningText 是字符串，result.reasoning 是数组
@@ -496,7 +501,7 @@ export async function nonStreamCompletion(
         // 按 token 比例估算思考时间
         const thoughtsRatio = usageMetadata.thoughtsTokenCount / usageMetadata.totalTokenCount;
         reasoningTime = Math.round(totalTime * thoughtsRatio);
-        console.log(`[Gemini AI SDK NonStream] 思考时间估算: ${reasoningTime}ms (tokens: ${usageMetadata.thoughtsTokenCount}/${usageMetadata.totalTokenCount})`);
+        nonStreamLogger.debug(`思考时间估算: ${reasoningTime}ms (tokens: ${usageMetadata.thoughtsTokenCount}/${usageMetadata.totalTokenCount})`);
       } else {
         // 回退：使用总时间
         reasoningTime = totalTime;
@@ -514,7 +519,7 @@ export async function nonStreamCompletion(
     };
 
   } catch (error: any) {
-    console.error('[Gemini AI SDK NonStream] 非流式响应失败:', error);
+    nonStreamLogger.error('非流式响应失败:', error);
     throw error;
   }
 }

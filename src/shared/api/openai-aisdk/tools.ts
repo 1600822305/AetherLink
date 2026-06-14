@@ -4,6 +4,10 @@
  */
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
 import { splitMcpToolContent, toImageDataUrl } from '../../utils/mcpToolResultContent';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('AI SDK Tools');
+
 
 // 复用 openai/tools.ts 中的类型定义
 export { WEB_SEARCH_TOOL } from '../openai/tools';
@@ -64,7 +68,7 @@ export function convertToolCallsToMcpResponses(
         args = toolCall.input;
       }
     } catch (e) {
-      console.warn(`[AI SDK Tools] 解析工具参数失败: ${e}`);
+      logger.warn(`解析工具参数失败: ${e}`);
       args = toolCall.function?.arguments || toolCall.args || {};
     }
 

@@ -5,6 +5,10 @@
 import type { Message, MCPTool, Model } from '../types';
 import { buildSystemPrompt, type WorkspaceInfo } from '../utils/mcpPrompt';
 import { workspaceService } from '../services/files/WorkspaceService';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('MCP');
+
 
 /**
  * 基础提供者接口
@@ -97,30 +101,30 @@ export abstract class AbstractBaseProvider implements BaseProvider {
       return { tools };
     }
 
-    console.log(`[MCP] 用户选择的工具模式: ${mcpMode}, 工具数量: ${mcpTools.length}, 启用工具: ${enableToolUse}`);
+    logger.debug(`用户选择的工具模式: ${mcpMode}, 工具数量: ${mcpTools.length}, 启用工具: ${enableToolUse}`);
 
     // 如果用户明确选择提示词模式，强制使用系统提示词模式
     if (mcpMode === 'prompt') {
-      console.log(`[MCP] 用户选择提示词注入模式，使用系统提示词模式`);
+      logger.debug(`用户选择提示词注入模式，使用系统提示词模式`);
       this.useSystemPromptForTools = true;
-      console.log(`[MCP] 设置 useSystemPromptForTools = true`);
+      logger.debug(`设置 useSystemPromptForTools = true`);
       return { tools };
     }
 
     // 如果工具数量超过阈值，强制使用系统提示词模式
     if (mcpTools.length > AbstractBaseProvider.SYSTEM_PROMPT_THRESHOLD) {
-      console.log(`[MCP] 工具数量 ${mcpTools.length} 超过阈值 ${AbstractBaseProvider.SYSTEM_PROMPT_THRESHOLD}，使用系统提示词模式`);
+      logger.debug(`工具数量 ${mcpTools.length} 超过阈值 ${AbstractBaseProvider.SYSTEM_PROMPT_THRESHOLD}，使用系统提示词模式`);
       this.useSystemPromptForTools = true;
       return { tools };
     }
 
     // 用户选择函数调用模式，直接使用函数调用模式（不再检测模型能力）
     if (mcpMode === 'function' && enableToolUse) {
-      console.log(`[MCP] 用户选择函数调用模式，使用函数调用模式`);
+      logger.debug(`用户选择函数调用模式，使用函数调用模式`);
       tools = this.convertMcpTools<T>(mcpTools);
       this.useSystemPromptForTools = false;
     } else {
-      console.log(`[MCP] 使用系统提示词模式`);
+      logger.debug(`使用系统提示词模式`);
       this.useSystemPromptForTools = true;
     }
 
@@ -151,7 +155,7 @@ export abstract class AbstractBaseProvider implements BaseProvider {
       this.workspacesCacheTime = now;
       return this.cachedWorkspaces;
     } catch (error) {
-      console.warn('[MCP] 获取工作区列表失败:', error);
+      logger.warn('获取工作区列表失败:', error);
       return this.cachedWorkspaces; // 返回缓存的数据
     }
   }
@@ -161,19 +165,19 @@ export abstract class AbstractBaseProvider implements BaseProvider {
    * 这是提供商层面的备用注入机制
    */
   protected buildSystemPromptWithTools(basePrompt: string, mcpTools?: MCPTool[], workspaces?: WorkspaceInfo[]): string {
-    console.log(`[MCP] buildSystemPromptWithTools - 工具数量: ${mcpTools?.length || 0}, useSystemPromptForTools: ${this.useSystemPromptForTools}`);
+    logger.debug(`buildSystemPromptWithTools - 工具数量: ${mcpTools?.length || 0}, useSystemPromptForTools: ${this.useSystemPromptForTools}`);
 
     // 如果没有工具或不使用系统提示词模式，直接返回基础提示词
     if (!mcpTools || mcpTools.length === 0 || !this.useSystemPromptForTools) {
-      console.log(`[MCP] 不注入工具提示词 - 原因: ${!mcpTools ? '无工具' : mcpTools.length === 0 ? '工具数量为0' : '不使用系统提示词模式'}`);
+      logger.debug(`不注入工具提示词 - 原因: ${!mcpTools ? '无工具' : mcpTools.length === 0 ? '工具数量为0' : '不使用系统提示词模式'}`);
       return basePrompt || '';
     }
 
-    console.log(`[MCP] 提供商层注入：将 ${mcpTools.length} 个工具注入到系统提示词中, 工作区数量: ${workspaces?.length || 0}`);
+    logger.debug(`提供商层注入：将 ${mcpTools.length} 个工具注入到系统提示词中, 工作区数量: ${workspaces?.length || 0}`);
     const result = buildSystemPrompt(basePrompt || '', mcpTools, {
       workspaces: workspaces || []
     });
-    console.log(`[MCP] 注入后的系统提示词长度: ${result.length}`);
+    logger.debug(`注入后的系统提示词长度: ${result.length}`);
     return result;
   }
 

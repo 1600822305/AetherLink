@@ -5,6 +5,10 @@
  */
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
 import { splitMcpToolContent, buildAISDKToolOutput, toImageDataUrl } from '../../utils/mcpToolResultContent';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Gemini AI SDK Tools');
+
 
 /**
  * 将 MCP 工具转换为 AI SDK 工具格式
@@ -64,7 +68,7 @@ export function convertToolCallsToMcpResponses(
         args = toolCall.function.arguments;
       }
     } catch (e) {
-      console.warn(`[Gemini AI SDK Tools] 解析工具参数失败: ${e}`);
+      logger.warn(`解析工具参数失败: ${e}`);
       args = toolCall.function?.arguments || toolCall.args || {};
     }
 

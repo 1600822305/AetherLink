@@ -85,6 +85,10 @@ export {
   type ChatOptions,
   type ChatResponse
 } from './chat';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Index');
+
 
 // 使用统一聊天模块的包装函数
 export async function sendChatRequest(
@@ -98,7 +102,7 @@ export async function sendChatRequest(
 ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
   const systemPrompt = options?.systemPrompt || '';
 
-  console.log(`[openai/index.ts] 使用统一聊天模块 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
+  logger.debug(`使用统一聊天模块 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
 
   return sendChatMessage(messages, model, {
     systemPrompt,
@@ -122,7 +126,7 @@ export async function sendChatRequest(
  * ```
  */
 export function createOpenAIAPI(model: Model) {
-  console.log(`[openai/index.ts] 创建OpenAI API适配器 - 模型ID: ${model.id}`);
+  logger.debug(`创建OpenAI API适配器 - 模型ID: ${model.id}`);
   const provider = new OpenAIProvider(model);
 
   return {
@@ -141,7 +145,7 @@ export function createOpenAIAPI(model: Model) {
         assistant?: any;
       }
     ) => {
-      console.log(`[openai/index.ts] 通过统一聊天模块发送消息 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
+      logger.debug(`通过统一聊天模块发送消息 - 模型ID: ${model.id}, 消息数量: ${messages.length}`);
       return sendChatMessage(messages, model, options);
     },
 

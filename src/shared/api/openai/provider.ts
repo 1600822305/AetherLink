@@ -27,6 +27,10 @@ import {
 } from './tools';
 import { ChunkType } from '../../types/chunk';
 import { isAbortError } from '../../utils/abortController';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAIProvider');
+
 
 /**
  * 工具调用循环的最大迭代次数（安全阀，防止模型反复发起工具调用导致死循环）。
@@ -141,7 +145,7 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
           });
         }
       } catch (error) {
-        console.error(`[OpenAIProvider] 处理消息失败:`, error);
+        logger.error(`处理消息失败:`, error);
         // 降级处理
         const content = (message as any).content;
         if (content && typeof content === 'string' && content.trim()) {
@@ -180,7 +184,7 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
       });
       return Boolean(response.choices[0].message);
     } catch (error) {
-      console.error('API连接测试失败:', error);
+      logger.error('API连接测试失败:', error);
       return false;
     }
   }
@@ -230,7 +234,7 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
     const toolNames = toolCalls.map(tc => tc.function?.name || tc.name || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[OpenAI] 处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
@@ -267,7 +271,7 @@ export abstract class BaseOpenAIProvider extends AbstractBaseProvider {
     const toolNames = toolResponses.map(tr => tr.tool?.name || tr.tool?.id || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[OpenAI] 处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const results = await parseAndCallTools(content, mcpTools, onChunk);
     const messages: any[] = [];
@@ -331,7 +335,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       assistant?: any;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[OpenAIProvider] 开始API调用, 模型: ${this.model.id}`);
+    logger.debug(`开始API调用, 模型: ${this.model.id}`);
 
     const {
       onChunk,
@@ -376,12 +380,12 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
     // 检查API密钥和基础URL是否设置
     if (!this.model.apiKey) {
-      console.error('[OpenAIProvider.sendChatMessage] 错误: API密钥未设置');
+      logger.error('错误: API密钥未设置');
       throw new Error('API密钥未设置，请在设置中配置OpenAI API密钥');
     }
 
     if (!this.model.baseUrl) {
-      console.warn('[OpenAIProvider.sendChatMessage] 警告: 基础URL未设置，使用默认值');
+      logger.warn('警告: 基础URL未设置，使用默认值');
     }
 
     // 添加网页搜索参数
@@ -405,7 +409,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
     } catch (error: any) {
       // 检查是否为中断错误
       if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        console.log('[OpenAIProvider.sendChatMessage] 请求被用户中断');
+        logger.debug('请求被用户中断');
         throw new DOMException('Operation aborted', 'AbortError');
       }
 
@@ -413,11 +417,11 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       if (error?.status === 400 && error?.message?.includes('max_tokens')) {
         const modelName = this.model.name || this.model.id;
         const currentMaxTokens = requestParams.max_tokens;
-        console.error(`[OpenAIProvider] ${modelName} 模型的 max_tokens 参数超出限制: ${currentMaxTokens}`);
+        logger.error(`${modelName} 模型的 max_tokens 参数超出限制: ${currentMaxTokens}`);
         throw new Error(`模型 ${modelName} 不支持当前的最大输出token设置 (${currentMaxTokens})。请在模型设置中降低最大输出token数量。`, { cause: error });
       }
 
-      console.error('[OpenAIProvider.sendChatMessage] API请求失败:', error);
+      logger.error('API请求失败:', error);
       throw error;
     }
   }
@@ -455,7 +459,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
       while (iteration < MAX_TOOL_ITERATIONS) {
         iteration++;
-        console.log(`[OpenAIProvider] 流式工具调用迭代 ${iteration}`);
+        logger.debug(`流式工具调用迭代 ${iteration}`);
 
         // 准备请求参数
         const iterationParams = {
@@ -468,7 +472,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
         if (this.getUseSystemPromptForTools()) {
           delete iterationParams.tools;
           delete iterationParams.tool_choice;
-          console.log(`[OpenAIProvider] 提示词模式：移除 API 中的 tools 参数`);
+          logger.debug(`提示词模式：移除 API 中的 tools 参数`);
         }
 
         // 构建流参数
@@ -490,11 +494,11 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
         lastResult = result;
 
-        console.log(`[OpenAIProvider] 流式响应结果类型: ${typeof result}, hasToolCalls: ${typeof result === 'object' && (result as any)?.hasToolCalls}`);
+        logger.debug(`流式响应结果类型: ${typeof result}, hasToolCalls: ${typeof result === 'object' && (result as any)?.hasToolCalls}`);
 
         // 检查是否有工具调用标记
         if (typeof result === 'object' && (result as any).hasToolCalls) {
-          console.log(`[OpenAIProvider] 流式响应检测到工具调用`);
+          logger.debug(`流式响应检测到工具调用`);
 
           const content = result.content;
           const nativeToolCalls = (result as any).nativeToolCalls;
@@ -503,12 +507,12 @@ export class OpenAIProvider extends BaseOpenAIProvider {
           // 根据用户设置决定工具调用方式
           if (usePromptMode) {
             // 提示词注入模式：使用 XML 格式工具调用
-            console.log(`[OpenAIProvider] 提示词注入模式：处理 XML 格式工具调用`);
+            logger.debug(`提示词注入模式：处理 XML 格式工具调用`);
             const { messages: xmlToolResults, hasCompletion } = await this.processToolUses(content, mcpTools, onChunk);
 
             if (xmlToolResults.length > 0) {
               // 保留完整内容（包含工具调用），让模型知道自己调用了什么工具
-              console.log(`[OpenAIProvider] 流式：对话历史保留完整内容（含工具调用），长度: ${content.length}`);
+              logger.debug(`流式：对话历史保留完整内容（含工具调用），长度: ${content.length}`);
 
               // 添加助手消息到对话历史（保留工具调用标签）
               // 同样需要保留 reasoning_content 以兼容 DeepSeek V4 thinking 模式
@@ -524,17 +528,17 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
               // 检测到 attempt_completion 时提前退出
               if (hasCompletion) {
-                console.log(`[OpenAIProvider] 检测到 attempt_completion，返回结果让上层处理终止`);
+                logger.debug(`检测到 attempt_completion，返回结果让上层处理终止`);
                 return result;
               }
 
-              console.log(`[OpenAIProvider] 流式 XML 工具调用完成，继续下一轮对话`);
+              logger.debug(`流式 XML 工具调用完成，继续下一轮对话`);
               continue;
             }
           } else {
             // 函数调用模式：使用原生 Function Calling
             if (nativeToolCalls && nativeToolCalls.length > 0) {
-              console.log(`[OpenAIProvider] 函数调用模式：检测到 ${nativeToolCalls.length} 个原生工具调用`);
+              logger.debug(`函数调用模式：检测到 ${nativeToolCalls.length} 个原生工具调用`);
 
               // 添加助手消息到对话历史（包含 tool_calls）
               // 注意：DeepSeek V4 thinking 模式要求把 reasoning_content 原样回传，
@@ -557,11 +561,11 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
                 // 如果检测到 attempt_completion，结束循环
                 if (hasCompletion) {
-                  console.log(`[OpenAIProvider] attempt_completion 已执行，结束工具调用循环`);
+                  logger.debug(`attempt_completion 已执行，结束工具调用循环`);
                   return result;
                 }
 
-                console.log(`[OpenAIProvider] 流式原生工具调用完成，继续下一轮对话`);
+                logger.debug(`流式原生工具调用完成，继续下一轮对话`);
                 continue;
               }
             }
@@ -573,15 +577,15 @@ export class OpenAIProvider extends BaseOpenAIProvider {
       }
 
       // 达到最大迭代次数：返回最后一轮结果而非丢弃内容（安全阀触发）
-      console.warn(`[OpenAIProvider] 流式工具调用达到最大迭代次数 ${MAX_TOOL_ITERATIONS}，提前结束循环`);
+      logger.warn(`流式工具调用达到最大迭代次数 ${MAX_TOOL_ITERATIONS}，提前结束循环`);
       return lastResult ?? '';
     } catch (error) {
       if (isAbortError(error)) {
-        console.log('[OpenAIProvider] 流式请求已取消:', error instanceof Error ? error.message : String(error));
+        logger.debug('流式请求已取消:', error instanceof Error ? error.message : String(error));
         throw new DOMException('Operation aborted', 'AbortError');
       }
 
-      console.error('[OpenAIProvider] 流式请求失败:', error);
+      logger.error('流式请求失败:', error);
       throw error;
     }
   }
@@ -716,7 +720,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
 
         // 如果检测到 attempt_completion，结束循环
         if (hasCompletion) {
-          console.log(`[OpenAIProvider] 非流式：attempt_completion 已执行，结束工具调用循环`);
+          logger.debug(`非流式：attempt_completion 已执行，结束工具调用循环`);
           if (toolResults.length > 0) {
             currentMessages.push(...toolResults);
           }
@@ -753,7 +757,7 @@ export class OpenAIProvider extends BaseOpenAIProvider {
         return finalContent;
       }
     } catch (error) {
-      console.error('[OpenAIProvider.handleNonStreamResponse] 非流式API请求失败:', error);
+      logger.error('非流式API请求失败:', error);
       throw error;
     }
   }

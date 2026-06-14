@@ -25,6 +25,10 @@ import { ChunkType, type Chunk } from '../../types/chunk';
 import { getMainTextContent } from '../../utils/blockUtils';
 import { UnifiedParameterManager } from '../parameters/UnifiedParameterManager';
 import { AnthropicParameterFormatter } from '../parameters/formatters';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Anthropic SDK Provider');
+
 
 /**
  * Anthropic 参数接口
@@ -133,7 +137,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
       return { type: 'disabled' };
     }
 
-    console.log(`[AnthropicProvider] 模型 ${this.model.id} Extended Thinking: enabled`);
+    logger.debug(`模型 ${this.model.id} Extended Thinking: enabled`);
 
     return {
       type: 'enabled',
@@ -244,7 +248,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
                   data: typeof data === 'string' ? data : Buffer.from(data).toString('base64')
                 }
               });
-              console.log(`[Anthropic SDK Provider] 添加 PDF 文件: ${file.filename || 'unknown'}`);
+              logger.debug(`添加 PDF 文件: ${file.filename || 'unknown'}`);
             } else if (mediaType?.startsWith('image/') && data) {
               // 图像文件
               contentParts.push({
@@ -283,7 +287,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
           });
         }
       } catch (error) {
-        console.error(`[Anthropic SDK Provider] 处理消息失败:`, error);
+        logger.error(`处理消息失败:`, error);
       }
     }
 
@@ -360,7 +364,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
       });
       return Boolean(result.text);
     } catch (error) {
-      console.error('[Anthropic SDK Provider] API 连接测试失败:', error);
+      logger.error('API 连接测试失败:', error);
       return false;
     }
   }
@@ -409,7 +413,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolCalls.map(tc => tc.function?.name || tc.name || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[Anthropic SDK Provider] 处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
@@ -437,7 +441,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolResponses.map(tr => tr.tool?.name || tr.tool?.id || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[Anthropic SDK Provider] 处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const results = await parseAndCallTools(content, mcpTools, onChunk);
     const messages: any[] = [];
@@ -475,7 +479,7 @@ export abstract class BaseAnthropicAISDKProvider extends AbstractBaseProvider {
 export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
   constructor(model: Model) {
     super(model);
-    console.log(`[AnthropicAISDKProvider] 初始化完成，模型: ${model.id}`);
+    logger.debug(`初始化完成，模型: ${model.id}`);
   }
 
   /**
@@ -495,7 +499,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
       assistant?: any;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[AnthropicAISDKProvider] 开始 API 调用, 模型: ${this.model.id}`);
+    logger.debug(`开始 API 调用, 模型: ${this.model.id}`);
 
     const {
       onChunk,
@@ -522,7 +526,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
     const { unified, apiParams } = this.getApiParams(assistant);
     const streamEnabled = unified.stream ?? true;
 
-    console.log(`[AnthropicAISDKProvider] API 请求参数:`, {
+    logger.debug(`API 请求参数:`, {
       model: this.model.id,
       apiParams,
       stream: streamEnabled,
@@ -531,7 +535,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
 
     // 检查 API 密钥
     if (!this.model.apiKey) {
-      console.error('[AnthropicAISDKProvider] 错误: API 密钥未设置');
+      logger.error('错误: API 密钥未设置');
       throw new Error('API 密钥未设置，请在设置中配置 Anthropic API 密钥');
     }
 
@@ -561,11 +565,11 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        console.log('[AnthropicAISDKProvider] 请求被用户中断');
+        logger.debug('请求被用户中断');
         throw new DOMException('Operation aborted', 'AbortError');
       }
 
-      console.error('[AnthropicAISDKProvider] API 请求失败:', error);
+      logger.error('API 请求失败:', error);
       throw error;
     }
   }
@@ -603,7 +607,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
 
     while (iteration < maxIterations) {
       iteration++;
-      console.log(`[AnthropicAISDKProvider] 流式工具调用迭代 ${iteration}`);
+      logger.debug(`流式工具调用迭代 ${iteration}`);
 
       const usePromptMode = this.getUseSystemPromptForTools();
       const streamTools = usePromptMode ? [] : tools;
@@ -628,7 +632,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
 
       // 检查是否有工具调用
       if (result.hasToolCalls) {
-        console.log(`[AnthropicAISDKProvider] 检测到工具调用`);
+        logger.debug(`检测到工具调用`);
 
         const content = result.content;
         const nativeToolCalls = result.nativeToolCalls;
@@ -647,7 +651,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
             currentMessages.push(...xmlToolResults);
 
             if (hasCompletion) {
-              console.log(`[AnthropicAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -689,7 +693,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
             currentMessages.push(...toolResults);
 
             if (hasCompletion) {
-              console.log(`[AnthropicAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -701,7 +705,7 @@ export class AnthropicAISDKProvider extends BaseAnthropicAISDKProvider {
       return this.formatResult(result);
     }
 
-    console.warn(`[AnthropicAISDKProvider] 达到最大迭代次数 ${maxIterations}`);
+    logger.warn(`达到最大迭代次数 ${maxIterations}`);
     return '';
   }
 

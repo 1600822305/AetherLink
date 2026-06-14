@@ -7,6 +7,10 @@ import type { Chunk } from '../../types/chunk';
 import { AbstractBaseProvider } from '../baseProvider';
 import { OpenAIProvider } from '../openai/provider';
 import { getDashScopeCompatibleUrl } from './client';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('DashScope');
+
 
 /**
  * DashScope Provider
@@ -43,7 +47,7 @@ export class DashScopeProvider extends AbstractBaseProvider {
       abortSignal?: AbortSignal;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[DashScope] 通过 OpenAI 兼容模式发送聊天请求 - 模型: ${this.model.id}`);
+    logger.debug(`通过 OpenAI 兼容模式发送聊天请求 - 模型: ${this.model.id}`);
     return this.openaiProvider.sendChatMessage(messages, options);
   }
 
@@ -51,7 +55,7 @@ export class DashScopeProvider extends AbstractBaseProvider {
    * 测试 API 连接 — 委托给 OpenAI Provider
    */
   async testConnection(): Promise<boolean> {
-    console.log(`[DashScope] 测试连接 - 模型: ${this.model.id}`);
+    logger.debug(`测试连接 - 模型: ${this.model.id}`);
     return this.openaiProvider.testConnection();
   }
 

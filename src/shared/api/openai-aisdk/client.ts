@@ -9,6 +9,10 @@ import type { OpenAIProvider as AISDKOpenAIProvider } from '@ai-sdk/openai';
 import type { Model } from '../../types';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
 import { isReasoningModel } from '../../../config/models';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('AI SDK Client');
+
 
 
 /**
@@ -93,7 +97,7 @@ export function createClient(model: Model): AISDKOpenAIProvider {
   try {
     const apiKey = model.apiKey;
     if (!apiKey) {
-      console.error('[AI SDK Client] 错误: 未提供 API 密钥');
+      logger.error('错误: 未提供 API 密钥');
       throw new Error('未提供 OpenAI API 密钥，请在设置中配置');
     }
 
@@ -104,7 +108,7 @@ export function createClient(model: Model): AISDKOpenAIProvider {
     if (import.meta.env.DEV && baseURL.includes('code.newcli.com')) {
       const proxyPath = baseURL.replace('https://code.newcli.com', '/api/newcli');
       baseURL = `${window.location.origin}${proxyPath}`;
-      console.log(`[AI SDK Client] 开发环境代理转换`);
+      logger.debug(`开发环境代理转换`);
     }
 
     // 检查是否需要特殊处理
@@ -120,7 +124,7 @@ export function createClient(model: Model): AISDKOpenAIProvider {
       baseURL = `${baseURL}/v1`;
     }
 
-    console.log(`[AI SDK Client] 创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 30)}...`);
+    logger.debug(`创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 30)}...`);
 
     // 构建配置
     const config: Parameters<typeof createOpenAI>[0] = {
@@ -138,13 +142,13 @@ export function createClient(model: Model): AISDKOpenAIProvider {
     // Azure OpenAI 特殊配置
     if (isAzureOpenAI(model)) {
       customHeaders['api-version'] = (model as any).apiVersion || '2024-02-15-preview';
-      console.log(`[AI SDK Client] 检测到 Azure OpenAI`);
+      logger.debug(`检测到 Azure OpenAI`);
     }
 
     // 添加模型级别额外头部
     if (model.extraHeaders) {
       Object.assign(customHeaders, model.extraHeaders);
-      console.log(`[AI SDK Client] 设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
+      logger.debug(`设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
     }
 
     // 添加供应商级别额外头部
@@ -160,7 +164,7 @@ export function createClient(model: Model): AISDKOpenAIProvider {
       });
 
       if (headersToRemove.length > 0) {
-        console.log(`[AI SDK Client] 配置删除请求头: ${headersToRemove.join(', ')}`);
+        logger.debug(`配置删除请求头: ${headersToRemove.join(', ')}`);
       }
     }
 
@@ -190,23 +194,23 @@ export function createClient(model: Model): AISDKOpenAIProvider {
     // 添加组织信息
     if ((model as any).organization) {
       config.organization = (model as any).organization;
-      console.log(`[AI SDK Client] 设置组织ID: ${(model as any).organization}`);
+      logger.debug(`设置组织ID: ${(model as any).organization}`);
     }
 
     // 创建并返回 AI SDK OpenAI Provider
     const client = createOpenAI(config);
-    console.log(`[AI SDK Client] 客户端创建成功`);
+    logger.debug(`客户端创建成功`);
     return client;
 
   } catch (error) {
-    console.error('[AI SDK Client] 创建客户端失败:', error);
+    logger.error('创建客户端失败:', error);
     
     // 创建后备客户端
     const fallbackClient = createOpenAI({
       apiKey: 'sk-missing-key-please-configure',
       baseURL: 'https://api.openai.com/v1',
     });
-    console.warn('[AI SDK Client] 使用后备客户端配置');
+    logger.warn('使用后备客户端配置');
     return fallbackClient;
   }
 }
@@ -218,7 +222,7 @@ export async function testConnection(model: Model): Promise<boolean> {
   try {
     const client = createClient(model);
     
-    console.log(`[AI SDK Client] 测试连接: ${model.id}`);
+    logger.debug(`测试连接: ${model.id}`);
     
     // 使用 .chat() 调用 Chat Completions API（兼容 OpenAI 兼容 API）
     const result = await generateText({
@@ -229,7 +233,7 @@ export async function testConnection(model: Model): Promise<boolean> {
 
     return Boolean(result.text);
   } catch (error) {
-    console.error('[AI SDK Client] 连接测试失败:', error);
+    logger.error('连接测试失败:', error);
     return false;
   }
 }

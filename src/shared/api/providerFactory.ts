@@ -5,6 +5,10 @@
 import { OpenAIProvider } from './openai/provider';
 import { OpenAIAISDKProvider } from './openai-aisdk/provider';
 import type { Model } from '../types';
+import { createLogger } from '../services/infra/logger';
+
+const logger = createLogger('ProviderFactory');
+
 
 /**
  * 创建 Provider 实例
@@ -14,7 +18,7 @@ import type { Model } from '../types';
 export function createProvider(model: Model): any {
   const providerType = model.providerType || model.provider;
   
-  console.log(`[ProviderFactory] 创建 Provider，类型: ${providerType}, 模型: ${model.id}`);
+  logger.debug(`创建 Provider，类型: ${providerType}, 模型: ${model.id}`);
   
   switch (providerType) {
     case 'openai':
@@ -38,7 +42,7 @@ export function createProvider(model: Model): any {
       
     default:
       // 默认使用 OpenAI Provider
-      console.warn(`[ProviderFactory] 未知的供应商类型: ${providerType}，使用默认 OpenAI Provider`);
+      logger.warn(`未知的供应商类型: ${providerType}，使用默认 OpenAI Provider`);
       return new OpenAIProvider(model);
   }
 }

@@ -20,6 +20,10 @@ export {
   generateImage,
   isDashScopeImageModel
 } from './image';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('DashScope');
+
 
 // 导出 Provider
 export { DashScopeProvider } from './provider';
@@ -37,7 +41,7 @@ export async function sendChatRequest(
     baseUrl: getDashScopeCompatibleUrl(model)
   };
 
-  console.log(`[DashScope] sendChatRequest - 模型: ${model.id}, 使用兼容模式`);
+  logger.debug(`sendChatRequest - 模型: ${model.id}, 使用兼容模式`);
 
   return openaiSendChatMessage(messages as Message[], compatibleModel, {
     systemPrompt: options?.systemPrompt
@@ -49,7 +53,7 @@ export async function sendChatRequest(
  * DashScope 不支持标准的 /v1/models 接口，返回预设列表
  */
 export async function fetchModels(_provider: any): Promise<any[]> {
-  console.log(`[DashScope] 使用预设模型列表`);
+  logger.debug(`使用预设模型列表`);
   return [
     // 聊天模型
     { id: 'qwen-max', name: 'Qwen-Max', description: '通义千问超大规模语言模型，适合复杂任务', owned_by: 'dashscope' },

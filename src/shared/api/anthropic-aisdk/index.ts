@@ -62,6 +62,10 @@ export type { Model, Message, MCPTool } from '../../types';
 
 // 导入 universalFetch 用于 fetchModels
 import { universalFetch } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('anthropic-aisdk');
+
 
 /**
  * 获取 Claude 模型列表
@@ -69,14 +73,14 @@ import { universalFetch } from '../../utils/universalFetch';
  * @returns 模型列表
  */
 export async function fetchModels(provider: any): Promise<any[]> {
-  console.log(`[anthropic-aisdk] 获取Claude模型列表`);
+  logger.debug(`获取Claude模型列表`);
   
   try {
     const baseUrl = provider.baseUrl || 'https://api.anthropic.com';
     const apiKey = provider.apiKey;
     
     if (!apiKey) {
-      console.warn('[anthropic-aisdk] 未提供 API Key，返回预设模型列表');
+      logger.warn('未提供 API Key，返回预设模型列表');
       return getDefaultModels();
     }
 
@@ -109,7 +113,7 @@ export async function fetchModels(provider: any): Promise<any[]> {
 
     throw new Error('未找到模型数据');
   } catch (error) {
-    console.error('[anthropic-aisdk] 获取模型列表失败:', error);
+    logger.error('获取模型列表失败:', error);
     return getDefaultModels();
   }
 }

@@ -19,6 +19,10 @@ import {
   convertToolCallsToMcpResponses
 } from './tools';
 import { ChunkType, type Chunk } from '../../types/chunk';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('AI SDK Provider');
+
 
 /**
  * AI SDK OpenAI Provider 基类
@@ -121,7 +125,7 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
           });
         }
       } catch (error) {
-        console.error(`[AI SDK Provider] 处理消息失败:`, error);
+        logger.error(`处理消息失败:`, error);
         const content = (message as any).content;
         if (content && typeof content === 'string' && content.trim()) {
           apiMessages.push({
@@ -156,7 +160,7 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
       });
       return Boolean(result.text);
     } catch (error) {
-      console.error('[AI SDK Provider] API 连接测试失败:', error);
+      logger.error('API 连接测试失败:', error);
       return false;
     }
   }
@@ -206,7 +210,7 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolCalls.map(tc => tc.function?.name || tc.name || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[AI SDK Provider] 处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolCalls.length} 个工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const mcpToolResponses = this.convertToolCallsToMcpResponses(toolCalls, mcpTools);
     const results = await parseAndCallTools(mcpToolResponses, mcpTools, onChunk);
@@ -243,7 +247,7 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
     const toolNames = toolResponses.map(tr => tr.tool?.name || tr.tool?.id || '');
     const hasCompletion = this.hasCompletionTool(toolNames);
 
-    console.log(`[AI SDK Provider] 处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
+    logger.debug(`处理 ${toolResponses.length} 个 XML 工具调用${hasCompletion ? '（含 attempt_completion）' : ''}`);
 
     const results = await parseAndCallTools(content, mcpTools, onChunk);
     const messages: any[] = [];
@@ -281,7 +285,7 @@ export abstract class BaseOpenAIAISDKProvider extends AbstractBaseProvider {
 export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
   constructor(model: Model) {
     super(model);
-    console.log(`[OpenAIAISDKProvider] 初始化完成，模型: ${model.id}`);
+    logger.debug(`初始化完成，模型: ${model.id}`);
   }
 
   /**
@@ -300,7 +304,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
       assistant?: any;
     }
   ): Promise<string | { content: string; reasoning?: string; reasoningTime?: number }> {
-    console.log(`[OpenAIAISDKProvider] 开始 API 调用, 模型: ${this.model.id}`);
+    logger.debug(`开始 API 调用, 模型: ${this.model.id}`);
 
     const {
       onChunk,
@@ -329,7 +333,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
     const { unified, apiParams } = this.getApiParams(assistant);
     const streamEnabled = unified.stream ?? true;
 
-    console.log(`[OpenAIAISDKProvider] API 请求参数:`, {
+    logger.debug(`API 请求参数:`, {
       model: this.model.id,
       apiParams,
       stream: streamEnabled,
@@ -338,7 +342,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
 
     // 检查 API 密钥
     if (!this.model.apiKey) {
-      console.error('[OpenAIAISDKProvider] 错误: API 密钥未设置');
+      logger.error('错误: API 密钥未设置');
       throw new Error('API 密钥未设置，请在设置中配置 OpenAI API 密钥');
     }
 
@@ -374,7 +378,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
       }
     } catch (error: any) {
       if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-        console.log('[OpenAIAISDKProvider] 请求被用户中断');
+        logger.debug('请求被用户中断');
         throw new DOMException('Operation aborted', 'AbortError');
       }
 
@@ -383,7 +387,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
         throw new Error(`模型 ${modelName} 不支持当前的最大输出 token 设置 (${apiParams.max_tokens})。`);
       }
 
-      console.error('[OpenAIAISDKProvider] API 请求失败:', error);
+      logger.error('API 请求失败:', error);
       throw error;
     }
   }
@@ -422,7 +426,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
 
     while (iteration < maxIterations) {
       iteration++;
-      console.log(`[OpenAIAISDKProvider] 流式工具调用迭代 ${iteration}`);
+      logger.debug(`流式工具调用迭代 ${iteration}`);
 
       // 准备工具配置
       const usePromptMode = this.getUseSystemPromptForTools();
@@ -448,7 +452,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
 
       // 检查是否有工具调用
       if (result.hasToolCalls) {
-        console.log(`[OpenAIAISDKProvider] 检测到工具调用`);
+        logger.debug(`检测到工具调用`);
 
         const content = result.content;
         const nativeToolCalls = result.nativeToolCalls;
@@ -468,7 +472,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
             currentMessages.push(...xmlToolResults);
 
             if (hasCompletion) {
-              console.log(`[OpenAIAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -511,7 +515,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
             currentMessages.push(...toolResults);
 
             if (hasCompletion) {
-              console.log(`[OpenAIAISDKProvider] attempt_completion 已执行`);
+              logger.debug(`attempt_completion 已执行`);
               return this.formatResult(result);
             }
             continue;
@@ -523,7 +527,7 @@ export class OpenAIAISDKProvider extends BaseOpenAIAISDKProvider {
       return this.formatResult(result);
     }
 
-    console.warn(`[OpenAIAISDKProvider] 达到最大迭代次数 ${maxIterations}`);
+    logger.warn(`达到最大迭代次数 ${maxIterations}`);
     return '';
   }
 

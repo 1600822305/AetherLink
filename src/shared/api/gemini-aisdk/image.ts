@@ -3,6 +3,10 @@
  * 使用 @ai-sdk/google 实现图像生成
  */
 import type { Model } from '../../types';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('GeminiImage');
+
 
 /**
  * 图像生成结果
@@ -45,7 +49,7 @@ export async function generateImage(
   const imageModelId = model.id || 'gemini-2.0-flash-exp-image-generation';
   
   try {
-    console.log(`[GeminiImage] 开始生成图像, 模型: ${imageModelId}`);
+    logger.debug(`开始生成图像, 模型: ${imageModelId}`);
     
     const url = `${baseUrl}/models/${imageModelId}:generateContent?key=${apiKey}`;
     
@@ -88,15 +92,15 @@ export async function generateImage(
     }
 
     if (imageUrls.length === 0) {
-      console.warn('[GeminiImage] 响应中没有图像数据');
+      logger.warn('响应中没有图像数据');
       throw new Error('Gemini 没有返回图像数据');
     }
 
-    console.log(`[GeminiImage] 成功生成 ${imageUrls.length} 张图像`);
+    logger.debug(`成功生成 ${imageUrls.length} 张图像`);
     return imageUrls;
     
   } catch (error) {
-    console.error('[GeminiImage] 图像生成失败:', error);
+    logger.error('图像生成失败:', error);
     throw error;
   }
 }

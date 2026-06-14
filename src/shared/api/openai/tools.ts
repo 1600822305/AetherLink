@@ -13,6 +13,10 @@ import {
 import { isReasoningModel } from '../../../config/models';
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
 import { splitMcpToolContent, toImageDataUrl } from '../../utils/mcpToolResultContent';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Tools');
+
 
 // 重新导出工具类型和工具定义，保持向后兼容
 export const ToolType = ToolTypeEnum;
@@ -60,7 +64,7 @@ export function parseThinkingToolCall(toolCall: any): string | null {
       }
     }
   } catch (e) {
-    console.error('解析思考工具调用失败', e);
+    logger.error('解析思考工具调用失败', e);
   }
 
   return null;
@@ -99,14 +103,14 @@ export function parseToolCall(toolCall: any): { toolName: string; args: any } | 
       try {
         args = JSON.parse(toolCall.function.arguments);
       } catch (e) {
-        console.error(`解析工具参数失败: ${toolName}`, e);
+        logger.error(`解析工具参数失败: ${toolName}`, e);
         args = { raw: toolCall.function.arguments };
       }
     }
 
     return { toolName, args };
   } catch (e) {
-    console.error('解析工具调用失败', e);
+    logger.error('解析工具调用失败', e);
     return null;
   }
 }
@@ -165,7 +169,7 @@ export function openAIToolToTool(tools: any[], toolCall: any): any {
 
   // 如果找不到工具，返回undefined
   if (!tool) {
-    console.warn('未找到匹配的工具:', toolCall);
+    logger.warn('未找到匹配的工具:', toolCall);
     return undefined;
   }
 
@@ -206,7 +210,7 @@ export function convertMcpToolsToOpenAI<T>(mcpTools: MCPTool[]): T[] {
       toolName = `tool_${toolName}`;
     }
 
-    console.log(`[OpenAI] 转换工具名称: ${tool.id || tool.name} -> ${toolName}`);
+    logger.debug(`转换工具名称: ${tool.id || tool.name} -> ${toolName}`);
 
     return {
       type: 'function',

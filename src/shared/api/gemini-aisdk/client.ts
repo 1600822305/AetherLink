@@ -8,6 +8,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google';
 import type { Model } from '../../types';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Gemini AI SDK Client');
+
 
 
 /**
@@ -85,7 +89,7 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
   try {
     const apiKey = model.apiKey;
     if (!apiKey) {
-      console.error('[Gemini AI SDK Client] 错误: 未提供 API 密钥');
+      logger.error('错误: 未提供 API 密钥');
       throw new Error('未提供 Gemini API 密钥，请在设置中配置');
     }
 
@@ -96,7 +100,7 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
     if (import.meta.env.DEV && baseURL.includes('code.newcli.com')) {
       const proxyPath = baseURL.replace('https://code.newcli.com', '/api/newcli');
       baseURL = `${window.location.origin}${proxyPath}`;
-      console.log(`[Gemini AI SDK Client] 开发环境代理转换`);
+      logger.debug(`开发环境代理转换`);
     }
 
     // 确保 baseURL 格式正确
@@ -104,7 +108,7 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
       baseURL = baseURL.slice(0, -1);
     }
 
-    console.log(`[Gemini AI SDK Client] 创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 40)}...`);
+    logger.debug(`创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 40)}...`);
 
     // 构建配置
     const config: Parameters<typeof createGoogleGenerativeAI>[0] = {
@@ -122,7 +126,7 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
     // 添加模型级别额外头部
     if (model.extraHeaders) {
       Object.assign(customHeaders, model.extraHeaders);
-      console.log(`[Gemini AI SDK Client] 设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
+      logger.debug(`设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
     }
 
     // 添加供应商级别额外头部
@@ -138,7 +142,7 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
       });
 
       if (headersToRemove.length > 0) {
-        console.log(`[Gemini AI SDK Client] 配置删除请求头: ${headersToRemove.join(', ')}`);
+        logger.debug(`配置删除请求头: ${headersToRemove.join(', ')}`);
       }
     }
 
@@ -158,18 +162,18 @@ export function createClient(model: Model): GoogleGenerativeAIProvider {
 
     // 创建并返回 AI SDK Google Generative AI Provider
     const client = createGoogleGenerativeAI(config);
-    console.log(`[Gemini AI SDK Client] 客户端创建成功`);
+    logger.debug(`客户端创建成功`);
     return client;
 
   } catch (error) {
-    console.error('[Gemini AI SDK Client] 创建客户端失败:', error);
+    logger.error('创建客户端失败:', error);
     
     // 创建后备客户端
     const fallbackClient = createGoogleGenerativeAI({
       apiKey: 'missing-key-please-configure',
       baseURL: getDefaultBaseUrl(),
     });
-    console.warn('[Gemini AI SDK Client] 使用后备客户端配置');
+    logger.warn('使用后备客户端配置');
     return fallbackClient;
   }
 }
@@ -181,7 +185,7 @@ export async function testConnection(model: Model): Promise<boolean> {
   try {
     const client = createClient(model);
     
-    console.log(`[Gemini AI SDK Client] 测试连接: ${model.id}`);
+    logger.debug(`测试连接: ${model.id}`);
     
     // 使用简单的生成请求测试连接
     const result = await generateText({
@@ -192,7 +196,7 @@ export async function testConnection(model: Model): Promise<boolean> {
 
     return Boolean(result.text);
   } catch (error) {
-    console.error('[Gemini AI SDK Client] 连接测试失败:', error);
+    logger.error('连接测试失败:', error);
     return false;
   }
 }

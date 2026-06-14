@@ -8,6 +8,10 @@ import type { Model } from '../../types';
 import { logApiRequest } from '../../services/infra/LoggerService';
 import { isReasoningModel } from '../../../config/models';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('OpenAI Client');
+
 
 /**
  * 创建OpenAI客户端
@@ -18,7 +22,7 @@ export function createClient(model: Model): OpenAI {
   try {
     const apiKey = model.apiKey;
     if (!apiKey) {
-      console.error('[OpenAI createClient] 错误: 未提供API密钥');
+      logger.error('错误: 未提供API密钥');
       throw new Error('未提供OpenAI API密钥，请在设置中配置');
     }
 
@@ -33,7 +37,7 @@ export function createClient(model: Model): OpenAI {
         // 使用当前页面的 origin 构造完整的代理 URL
         const proxyPath = baseURL.replace('https://code.newcli.com', '/api/newcli');
         baseURL = `${window.location.origin}${proxyPath}`;
-        console.log(`[OpenAI createClient] 开发环境代理转换: ${originalURL} -> ${baseURL}`);
+        logger.debug(`开发环境代理转换: ${originalURL} -> ${baseURL}`);
       }
     }
 
@@ -62,11 +66,11 @@ export function createClient(model: Model): OpenAI {
       baseURL = `${baseURL}/v1`;
     }
 
-    console.log(`[OpenAI createClient] 创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 20)}...`);
+    logger.debug(`创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 20)}...`);
 
     // 检查是否为Azure OpenAI
     if (isAzureOpenAI(model)) {
-      console.log(`[OpenAI createClient] 检测到Azure OpenAI，使用Azure配置`);
+      logger.debug(`检测到Azure OpenAI，使用Azure配置`);
     }
 
     // 创建配置对象
@@ -94,7 +98,7 @@ export function createClient(model: Model): OpenAI {
     // 添加组织信息（如果有）
     if ((model as any).organization) {
       config.organization = (model as any).organization;
-      console.log(`[OpenAI createClient] 设置组织ID: ${(model as any).organization}`);
+      logger.debug(`设置组织ID: ${(model as any).organization}`);
     }
 
     // 添加额外头部（如果有）
@@ -103,7 +107,7 @@ export function createClient(model: Model): OpenAI {
         ...config.defaultHeaders,
         ...model.extraHeaders
       };
-      console.log(`[OpenAI createClient] 设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
+      logger.debug(`设置模型额外头部: ${Object.keys(model.extraHeaders).join(', ')}`);
     }
 
     // 添加供应商级别的额外头部（如果有）
@@ -139,7 +143,7 @@ export function createClient(model: Model): OpenAI {
             keysToDelete.forEach(key => headers.delete(key));
           }
         );
-        console.log(`[OpenAI createClient] 配置删除请求头: ${headersToRemove.join(', ')}`);
+        logger.debug(`配置删除请求头: ${headersToRemove.join(', ')}`);
       }
 
       // 添加自定义头部
@@ -148,17 +152,17 @@ export function createClient(model: Model): OpenAI {
           ...config.defaultHeaders,
           ...filteredHeaders
         };
-        console.log(`[OpenAI createClient] 设置供应商额外头部: ${Object.keys(filteredHeaders).join(', ')}`);
+        logger.debug(`设置供应商额外头部: ${Object.keys(filteredHeaders).join(', ')}`);
       }
     }
 
     // 创建客户端
     const client = new OpenAI(config);
-    console.log(`[OpenAI createClient] 客户端创建成功`);
+    logger.debug(`客户端创建成功`);
     return client;
 
   } catch (error) {
-    console.error('[OpenAI createClient] 创建客户端失败:', error);
+    logger.error('创建客户端失败:', error);
     // 即使没有API密钥，也尝试创建一个客户端，以便调用代码不会崩溃
     // 后续API调用将失败，但至少不会在这里抛出异常
     const fallbackConfig: ClientOptions = {
@@ -167,7 +171,7 @@ export function createClient(model: Model): OpenAI {
       timeout: 30000,
       dangerouslyAllowBrowser: true
     };
-    console.warn('[OpenAI createClient] 使用后备客户端配置');
+    logger.warn('使用后备客户端配置');
     return new OpenAI(fallbackConfig);
   }
 }
@@ -300,7 +304,7 @@ export async function testConnection(model: Model): Promise<boolean> {
 
     return Boolean(response.choices[0].message);
   } catch (error) {
-    console.error('OpenAI API连接测试失败:', error);
+    logger.error('OpenAI API连接测试失败:', error);
     return false;
   }
 }

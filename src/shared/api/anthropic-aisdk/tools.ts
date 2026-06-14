@@ -4,6 +4,10 @@
  */
 import type { MCPTool, MCPToolResponse, MCPCallToolResponse, Model } from '../../types';
 import { splitMcpToolContent, buildAISDKToolOutput, toImageDataUrl } from '../../utils/mcpToolResultContent';
+import { createLogger } from '../../services/infra/logger';
+
+const logger = createLogger('Anthropic SDK Tools');
+
 
 /**
  * Claude 内置工具类型
@@ -96,7 +100,7 @@ export function convertToolCallsToMcpResponses(
         args = toolCall.input;
       }
     } catch (e) {
-      console.warn(`[Anthropic SDK Tools] 解析工具参数失败: ${e}`);
+      logger.warn(`解析工具参数失败: ${e}`);
       args = toolCall.function?.arguments || toolCall.args || toolCall.input || {};
     }
 
