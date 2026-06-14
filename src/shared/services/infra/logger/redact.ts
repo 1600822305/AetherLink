@@ -26,6 +26,9 @@ const MASK = '***';
 
 function redactValue(value: unknown, seen: WeakSet<object>): unknown {
   if (value === null || typeof value !== 'object') return value;
+  // Error 的 name/message/stack 多为不可枚举属性，按普通对象重建会丢成 {}，
+  // 导致控制台与查看器都看不到错误详情/堆栈，故原样保留交由各通道处理。
+  if (value instanceof Error) return value;
   if (seen.has(value)) return value;
   seen.add(value);
 

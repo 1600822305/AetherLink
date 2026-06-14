@@ -106,6 +106,35 @@ describe('脱敏 Processor', () => {
     cyclic.self = cyclic;
     expect(() => logger.info('cyclic', cyclic)).not.toThrow();
   });
+
+  it('保留 Error 实例，不丢失 message/stack（回归：脱敏曾把 Error 重建成 {}）', () => {
+    const cap = new CaptureTransport();
+    const logger = makeLogger(LogLevel.DEBUG, [cap]);
+    const err = new Error('boom');
+
+    logger.error('登录失败', err);
+
+    const logged = cap.entries[0].args[0];
+    expect(logged).toBeInstanceOf(Error);
+    expect((logged as Error).message).toBe('boom');
+    expect((logged as Error).stack).toBeTruthy();
+  });
+
+  it('Error 经 MemoryTransport 序列化后仍带堆栈，供查看器展示', () => {
+    const mem = new MemoryTransport(10);
+    const logger = makeLogger(LogLevel.DEBUG, [mem]);
+
+    logger.error('请求失败', new Error('network down'));
+
+    const stored = mem.getEntries()[0].args[0] as {
+      __type?: string;
+      message?: string;
+      stack?: string;
+    };
+    expect(stored.__type).toBe('Error');
+    expect(stored.message).toBe('network down');
+    expect(stored.stack).toBeTruthy();
+  });
 });
 
 describe('Transport 隔离', () => {
