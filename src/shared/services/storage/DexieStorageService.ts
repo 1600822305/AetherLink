@@ -9,6 +9,9 @@ import { DB_CONFIG, VERSION_CONFIGS, type Memory } from '../../database/config';
 import { databaseMigrationManager } from '../../database/migrations';
 import { throttle } from 'lodash';
 import { makeSerializable, diagnoseSerializationIssues } from '../../utils/serialization';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('DexieStorageService');
 
 
 /**
@@ -116,7 +119,7 @@ export class DexieStorageService extends Dexie {
   async getAssistant(id: string): Promise<Assistant | null> {
     const assistant = await this.assistants.get(id);
     if (assistant) {
-      console.log(`[DexieStorageService.getAssistant] 从数据库读取助手 ${id} (${assistant.name})，emoji: "${assistant.emoji}"`);
+      logger.debug(`从数据库读取助手 ${id} (${assistant.name})，emoji: "${assistant.emoji}"`);
     }
     return assistant || null;
   }
@@ -130,7 +133,7 @@ export class DexieStorageService extends Dexie {
       const assistantToSave = { ...assistant };
 
       // 调试日志：记录保存前的emoji值
-      console.log(`[DexieStorageService.saveAssistant] 保存助手 ${assistant.id} (${assistant.name})，emoji: "${assistant.emoji}"`);
+      logger.debug(`保存助手 ${assistant.id} (${assistant.name})，emoji: "${assistant.emoji}"`);
 
       if (assistantToSave.icon && typeof assistantToSave.icon === 'object') {
         assistantToSave.icon = null;
@@ -144,19 +147,19 @@ export class DexieStorageService extends Dexie {
       }
 
       // 调试日志：记录保存到数据库的emoji值
-      console.log(`[DexieStorageService.saveAssistant] 即将保存到数据库的emoji: "${assistantToSave.emoji}"`);
+      logger.debug(`即将保存到数据库的emoji: "${assistantToSave.emoji}"`);
 
       await this.assistants.put(assistantToSave);
 
       // 验证保存结果
       const savedAssistant = await this.assistants.get(assistant.id);
-      console.log(`[DexieStorageService.saveAssistant] 保存后验证，数据库中的emoji: "${savedAssistant?.emoji}"`);
+      logger.debug(`保存后验证，数据库中的emoji: "${savedAssistant?.emoji}"`);
 
     } catch (error) {
       const errorMessage = error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-      console.error(`[DexieStorageService] 保存助手失败: ${errorMessage}`);
+      logger.error(`保存助手失败: ${errorMessage}`);
       throw error;
     }
   }
@@ -187,12 +190,12 @@ export class DexieStorageService extends Dexie {
       }
 
       await this.assistants.put(updatedAssistant);
-      console.log(`[DexieStorageService] 已更新助手 ${id}:`, updates);
+      logger.debug(`已更新助手 ${id}:`, updates);
     } catch (error) {
       const errorMessage = error instanceof Error
         ? `${error.name}: ${error.message}`
         : String(error);
-      console.error(`[DexieStorageService] 更新助手失败: ${errorMessage}`);
+      logger.error(`更新助手失败: ${errorMessage}`);
       throw error;
     }
   }
@@ -217,7 +220,7 @@ export class DexieStorageService extends Dexie {
         await this.assistants.delete(id);
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 删除助手失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`删除助手失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -247,7 +250,7 @@ export class DexieStorageService extends Dexie {
 
       // 兼容性处理：如果有messages字段，保存消息到messages表
       if (topic.messages && Array.isArray(topic.messages) && topic.messages.length > 0) {
-        console.log(`[DexieStorageService] 保存话题 ${topic.id} 的 ${topic.messages.length} 条消息...`);
+        logger.debug(`保存话题 ${topic.id} 的 ${topic.messages.length} 条消息...`);
         
         for (const message of topic.messages) {
           if (message.id) {
@@ -256,7 +259,7 @@ export class DexieStorageService extends Dexie {
             
             // 保存消息块（如果blocks是完整对象数组）
             if (messageBlocks && Array.isArray(messageBlocks)) {
-              console.log(`[DexieStorageService] 保存消息 ${message.id} 的 ${messageBlocks.length} 个块...`);
+              logger.debug(`保存消息 ${message.id} 的 ${messageBlocks.length} 个块...`);
               
               for (const block of messageBlocks) {
                 // 检查是否是完整的block对象（有content等字段）
@@ -291,7 +294,7 @@ export class DexieStorageService extends Dexie {
           }
         }
         
-        console.log(`[DexieStorageService] 话题 ${topic.id} 的消息和块保存完成`);
+        logger.debug(`话题 ${topic.id} 的消息和块保存完成`);
       }
 
       // 设置lastMessageTime字段
@@ -308,7 +311,7 @@ export class DexieStorageService extends Dexie {
 
       await this.topics.put(topicToStore);
     } catch (error) {
-      console.error(`[DexieStorageService] 保存话题失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`保存话题失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -351,7 +354,7 @@ export class DexieStorageService extends Dexie {
         await this.topics.delete(id);
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 删除话题失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`删除话题失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -377,7 +380,7 @@ export class DexieStorageService extends Dexie {
       // 重构：只更新 messages 表，不再维护冗余的 topic.messages
       await this.updateMessage(messageId, updatedMessage);
     } catch (error) {
-      console.error(`[DexieStorageService] 更新话题消息失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`更新话题消息失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -422,7 +425,7 @@ export class DexieStorageService extends Dexie {
         await this.topics.put(topicToStore);
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 从话题中删除消息失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`从话题中删除消息失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -463,7 +466,7 @@ export class DexieStorageService extends Dexie {
         await this.topics.put(topicToStore);
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 添加消息到话题失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`添加消息到话题失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -475,7 +478,7 @@ export class DexieStorageService extends Dexie {
 
     // 🔧 修复：对比分析块的特殊处理
     if ('subType' in block && (block as any).subType === 'comparison') {
-      console.log(`[DexieStorageService] 保存对比分析块: ${block.id}`);
+      logger.debug(`保存对比分析块: ${block.id}`);
       // 确保 comboResult 被正确序列化
       const comparisonBlock = block as any;
       if (comparisonBlock.comboResult) {
@@ -500,20 +503,20 @@ export class DexieStorageService extends Dexie {
 
     // 🔧 修复：对比分析块的特殊处理
     if ('subType' in block && (block as any).subType === 'comparison') {
-      console.log(`[DexieStorageService] 加载对比分析块: ${id}`);
+      logger.debug(`加载对比分析块: ${id}`);
       const comparisonBlock = block as any;
 
       // 验证 comboResult 数据完整性
       if (comparisonBlock.comboResult) {
         // 确保 comboResult 具有正确的结构
         if (!comparisonBlock.comboResult.modelResults || !Array.isArray(comparisonBlock.comboResult.modelResults)) {
-          console.error(`[DexieStorageService] 对比分析块数据损坏: ${id}`);
+          logger.error(`对比分析块数据损坏: ${id}`);
           return null;
         }
 
-        console.log(`[DexieStorageService] 对比分析块加载成功，模型数量: ${comparisonBlock.comboResult.modelResults.length}`);
+        logger.debug(`对比分析块加载成功，模型数量: ${comparisonBlock.comboResult.modelResults.length}`);
       } else {
-        console.error(`[DexieStorageService] 对比分析块缺少 comboResult: ${id}`);
+        logger.error(`对比分析块缺少 comboResult: ${id}`);
         return null;
       }
     }
@@ -580,13 +583,13 @@ export class DexieStorageService extends Dexie {
    */
   async saveSetting(key: string, value: any): Promise<void> {
     try {
-      console.log(`[DexieStorageService] 开始保存设置: ${key}`);
+      logger.debug(`开始保存设置: ${key}`);
 
       // 检查数据是否存在序列化问题
       const { hasCircularRefs, nonSerializableProps } = diagnoseSerializationIssues(value);
 
       if (hasCircularRefs || nonSerializableProps.length > 0) {
-        console.warn(`[DexieStorageService] 设置 ${key} 存在序列化问题，将尝试修复:`, {
+        logger.warn(`设置 ${key} 存在序列化问题，将尝试修复:`, {
           hasCircularRefs,
           nonSerializableProps: nonSerializableProps.slice(0, 10) // 只显示前10个问题，避免日志过长
         });
@@ -594,30 +597,30 @@ export class DexieStorageService extends Dexie {
         // 使用makeSerializable处理数据，确保可序列化
         const serializableValue = makeSerializable(value);
         await this.settings.put({ id: key, value: serializableValue });
-        console.log(`[DexieStorageService] 设置 ${key} 已修复并保存成功`);
+        logger.debug(`设置 ${key} 已修复并保存成功`);
       } else {
         // 数据没有序列化问题，直接保存
         await this.settings.put({ id: key, value });
-        console.log(`[DexieStorageService] 设置 ${key} 保存成功`);
+        logger.debug(`设置 ${key} 保存成功`);
       }
     } catch (error) {
-      console.error(`[DexieStorageService] 保存设置 ${key} 失败:`, error);
+      logger.error(`保存设置 ${key} 失败:`, error);
 
       // 记录更详细的错误信息
       if (error instanceof Error) {
-        console.error('错误类型:', error.name);
-        console.error('错误消息:', error.message);
-        console.error('错误堆栈:', error.stack);
+        logger.error('错误类型:', error.name);
+        logger.error('错误消息:', error.message);
+        logger.error('错误堆栈:', error.stack);
       }
 
       // 尝试使用JSON序列化再保存
       try {
-        console.log(`[DexieStorageService] 尝试使用JSON序列化再保存设置 ${key}`);
+        logger.debug(`尝试使用JSON序列化再保存设置 ${key}`);
         const jsonString = JSON.stringify(value);
         await this.settings.put({ id: key, value: { _isJsonString: true, data: jsonString } });
-        console.log(`[DexieStorageService] 设置 ${key} 使用JSON序列化保存成功`);
+        logger.debug(`设置 ${key} 使用JSON序列化保存成功`);
       } catch (jsonError) {
-        console.error(`[DexieStorageService] JSON序列化保存设置 ${key} 也失败:`, jsonError);
+        logger.error(`JSON序列化保存设置 ${key} 也失败:`, jsonError);
         throw error; // 抛出原始错误
       }
     }
@@ -642,14 +645,14 @@ export class DexieStorageService extends Dexie {
         try {
           return JSON.parse(setting.value.data);
         } catch (e) {
-          console.error(`[DexieStorageService] 解析JSON序列化的设置 ${key} 失败:`, e);
+          logger.error(`解析JSON序列化的设置 ${key} 失败:`, e);
           return null;
         }
       }
 
       return setting.value;
     } catch (error) {
-      console.error(`[DexieStorageService] 获取设置 ${key} 失败:`, error);
+      logger.error(`获取设置 ${key} 失败:`, error);
       return null;
     }
   }
@@ -710,7 +713,7 @@ export class DexieStorageService extends Dexie {
 
       return id;
     } catch (error) {
-      console.error(`[DexieStorageService] 保存base64图片失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`保存base64图片失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -769,7 +772,7 @@ export class DexieStorageService extends Dexie {
       const modelKey = `model_${modelId}`;
       return await this.getMetadata(modelKey);
     } catch (error) {
-      console.error(`[DexieStorageService] 获取模型配置失败: ${modelId}`, error);
+      logger.error(`获取模型配置失败: ${modelId}`, error);
       return null;
     }
   }
@@ -785,7 +788,7 @@ export class DexieStorageService extends Dexie {
       const modelKey = `model_${modelId}`;
       await this.saveMetadata(modelKey, modelConfig);
     } catch (error) {
-      console.error(`[DexieStorageService] 保存模型配置失败: ${modelId}`, error);
+      logger.error(`保存模型配置失败: ${modelId}`, error);
       throw error;
     }
   }
@@ -819,13 +822,13 @@ export class DexieStorageService extends Dexie {
 
   async createMessageBlocksTable(): Promise<void> {
     if (!this.message_blocks) {
-      console.log('创建消息块表...');
+      logger.debug('创建消息块表...');
       this.version(DB_CONFIG.VERSION).stores({
         [DB_CONFIG.STORES.MESSAGE_BLOCKS]: 'id, messageId'
       });
-      console.log('消息块表创建完成');
+      logger.debug('消息块表创建完成');
     } else {
-      console.log('消息块表已存在');
+      logger.debug('消息块表已存在');
     }
   }
 
@@ -859,7 +862,7 @@ export class DexieStorageService extends Dexie {
 
       // 从messageIds加载消息
       if (topic.messageIds && Array.isArray(topic.messageIds) && topic.messageIds.length > 0) {
-        console.log(`[DexieStorageService] 使用 bulkGet 加载 ${topic.messageIds.length} 条消息`);
+        logger.debug(`使用 bulkGet 加载 ${topic.messageIds.length} 条消息`);
 
         // 使用 bulkGet 批量查询，1次查询替代N次查询
         const messagesResult = await this.messages.bulkGet(topic.messageIds);
@@ -870,10 +873,10 @@ export class DexieStorageService extends Dexie {
         return messages;
       }
 
-      console.log(`[DexieStorageService] 话题 ${topicId} 没有消息`);
+      logger.debug(`话题 ${topicId} 没有消息`);
       return [];
     } catch (error) {
-      console.error(`[DexieStorageService] 获取话题消息失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取话题消息失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -918,7 +921,7 @@ export class DexieStorageService extends Dexie {
         }
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 保存消息失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`保存消息失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -951,10 +954,10 @@ export class DexieStorageService extends Dexie {
    */
   async getAllMessages(): Promise<Message[]> {
     try {
-      console.log('[DexieStorageService] 获取所有消息');
+      logger.debug('获取所有消息');
       return await this.messages.toArray();
     } catch (error) {
-      console.error(`[DexieStorageService] 获取所有消息失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取所有消息失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1015,7 +1018,7 @@ export class DexieStorageService extends Dexie {
         block.metadata.versionId === versionId
       );
     } catch (error) {
-      console.error(`[DexieStorageService] 获取版本块失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取版本块失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1047,7 +1050,7 @@ export class DexieStorageService extends Dexie {
         await this.topics.put(topic);
       }
     } catch (error) {
-      console.error(`[DexieStorageService] 迁移话题消息数据失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`迁移话题消息数据失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1068,7 +1071,7 @@ export class DexieStorageService extends Dexie {
 
       return { migrated: migratedCount, total: topics.length };
     } catch (error) {
-      console.error(`[DexieStorageService] 批量迁移话题消息数据失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`批量迁移话题消息数据失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1099,7 +1102,7 @@ export class DexieStorageService extends Dexie {
       const combosData = await this.getMetadata('model_combos');
       return combosData || [];
     } catch (error) {
-      console.error(`[DexieStorageService] 获取模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1110,7 +1113,7 @@ export class DexieStorageService extends Dexie {
       const combos = await this.getAllModelCombos();
       return combos.find(combo => combo.id === id) || null;
     } catch (error) {
-      console.error(`[DexieStorageService] 获取模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -1129,7 +1132,7 @@ export class DexieStorageService extends Dexie {
 
       await this.saveMetadata('model_combos', combos);
     } catch (error) {
-      console.error(`[DexieStorageService] 保存模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`保存模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1141,7 +1144,7 @@ export class DexieStorageService extends Dexie {
       const filteredCombos = combos.filter(combo => combo.id !== id);
       await this.saveMetadata('model_combos', filteredCombos);
     } catch (error) {
-      console.error(`[DexieStorageService] 删除模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`删除模型组合失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1156,7 +1159,7 @@ export class DexieStorageService extends Dexie {
       const phrases = await this.quick_phrases.toArray();
       return phrases.sort((a, b) => (b.order ?? 0) - (a.order ?? 0));
     } catch (error) {
-      console.error(`[DexieStorageService] 获取快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1166,7 +1169,7 @@ export class DexieStorageService extends Dexie {
     try {
       return await this.quick_phrases.get(id) || null;
     } catch (error) {
-      console.error(`[DexieStorageService] 获取快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -1199,7 +1202,7 @@ export class DexieStorageService extends Dexie {
       await this.quick_phrases.add(phrase);
       return phrase;
     } catch (error) {
-      console.error(`[DexieStorageService] 添加快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`添加快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1212,7 +1215,7 @@ export class DexieStorageService extends Dexie {
         updatedAt: Date.now()
       });
     } catch (error) {
-      console.error(`[DexieStorageService] 更新快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`更新快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1233,7 +1236,7 @@ export class DexieStorageService extends Dexie {
         await this.quick_phrases.bulkPut(updatedPhrases);
       }
     } catch (error) {
-      console.error(`[DexieStorageService] 删除快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`删除快捷短语失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1253,7 +1256,7 @@ export class DexieStorageService extends Dexie {
       
       await this.quick_phrases.bulkPut(updatedPhrases);
     } catch (error) {
-      console.error(`[DexieStorageService] 更新快捷短语顺序失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`更新快捷短语顺序失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1273,9 +1276,9 @@ export class DexieStorageService extends Dexie {
       memory.updatedAt = new Date().toISOString();
 
       await this.memories.put(memory);
-      console.log(`[DexieStorageService] 已保存记忆: ${memory.id}`);
+      logger.debug(`已保存记忆: ${memory.id}`);
     } catch (error) {
-      console.error(`[DexieStorageService] 保存记忆失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`保存记忆失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
@@ -1285,7 +1288,7 @@ export class DexieStorageService extends Dexie {
       const memory = await this.memories.get(id);
       return memory || null;
     } catch (error) {
-      console.error(`[DexieStorageService] 获取记忆失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取记忆失败: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -1294,7 +1297,7 @@ export class DexieStorageService extends Dexie {
     try {
       return await this.memories.toArray();
     } catch (error) {
-      console.error(`[DexieStorageService] 获取所有记忆失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`获取所有记忆失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1303,7 +1306,7 @@ export class DexieStorageService extends Dexie {
     try {
       return await this.memories.where('type').equals(type).toArray();
     } catch (error) {
-      console.error(`[DexieStorageService] 按类型获取记忆失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`按类型获取记忆失败: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
@@ -1311,9 +1314,9 @@ export class DexieStorageService extends Dexie {
   async deleteMemory(id: string): Promise<void> {
     try {
       await this.memories.delete(id);
-      console.log(`[DexieStorageService] 已删除记忆: ${id}`);
+      logger.debug(`已删除记忆: ${id}`);
     } catch (error) {
-      console.error(`[DexieStorageService] 删除记忆失败: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`删除记忆失败: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

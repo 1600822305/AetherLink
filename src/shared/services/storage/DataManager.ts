@@ -1,6 +1,9 @@
 import { DB_CONFIG } from '../../types/DatabaseSchema';
 import { dexieStorage } from './DexieStorageService';
 import Dexie from 'dexie';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('DataManager');
 
 // 版本检查状态缓存
 let versionCheckPromise: Promise<any> | null = null;
@@ -23,7 +26,7 @@ export const DataManager = {
   }> {
     // 如果已经有正在进行的版本检查，直接返回该Promise
     if (versionCheckPromise) {
-      console.log('DataManager: 版本检查已在进行中，等待结果...');
+      logger.debug('DataManager: 版本检查已在进行中，等待结果...');
       return versionCheckPromise;
     }
 
@@ -49,7 +52,7 @@ export const DataManager = {
     newVersion?: number;
   }> {
     try {
-      console.log('DataManager: 开始检查数据库版本');
+      logger.debug('DataManager: 开始检查数据库版本');
 
       // 使用Dexie获取所有数据库
       const databases = await Dexie.getDatabaseNames();
@@ -59,7 +62,7 @@ export const DataManager = {
 
       // 如果数据库不存在，不需要修复
       if (!targetDB) {
-        console.log('DataManager: 数据库不存在，将在首次访问时创建');
+        logger.debug('DataManager: 数据库不存在，将在首次访问时创建');
         return {
           success: true,
           message: '数据库不存在，将在首次访问时创建'
@@ -71,7 +74,7 @@ export const DataManager = {
       const currentVersion = dexieStorage.verno;
 
       if (currentVersion === DB_CONFIG.VERSION) {
-        console.log(`DataManager: 数据库版本匹配 (v${currentVersion})`);
+        logger.debug(`DataManager: 数据库版本匹配 (v${currentVersion})`);
         return {
           success: true,
           message: `数据库版本匹配 (v${currentVersion})`
@@ -80,8 +83,8 @@ export const DataManager = {
 
       // 版本不匹配时，让 Dexie 自己处理版本升级
       // 移除激进清理机制，避免数据丢失
-      console.log(`DataManager: 数据库版本不匹配，当前: v${currentVersion}，期望: v${DB_CONFIG.VERSION}`);
-      console.log('DataManager: 将使用 Dexie 标准迁移机制进行版本升级，保留用户数据');
+      logger.debug(`DataManager: 数据库版本不匹配，当前: v${currentVersion}，期望: v${DB_CONFIG.VERSION}`);
+      logger.debug('DataManager: 将使用 Dexie 标准迁移机制进行版本升级，保留用户数据');
 
       return {
         success: true,
@@ -90,7 +93,7 @@ export const DataManager = {
         newVersion: DB_CONFIG.VERSION
       };
     } catch (error) {
-      console.error('DataManager: 检查数据库版本失败:', error);
+      logger.error('DataManager: 检查数据库版本失败:', error);
       return {
         success: false,
         message: `检查数据库版本失败: ${error instanceof Error ? error.message : String(error)}`

@@ -3,6 +3,9 @@ import { corsService } from '../network/CORSBypassService';
 import { getPlatformInfo, RuntimeType } from '../../utils/platformDetection';
 import { getStorageItem } from '../../utils/storage';
 import { buildCorsProxyRequestUrl } from '../../utils/universalFetch';
+import { createLogger } from '../infra/logger';
+
+const logger = createLogger('WebDAV Manager');
 
 // 代理配置接口
 interface ProxyConfig {
@@ -40,7 +43,7 @@ export class WebDavManagerService {
     let basePath = this.config.webdavPath.replace(/^\/+|\/+$/g, '');
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [WebDAV] buildUrl debug:', { host, basePath, path });
+      logger.debug('🔍 buildUrl debug:', { host, basePath, path });
     }
 
     // 对于 123 云盘，如果 host 已经包含 /webdav，不需要再添加 basePath
@@ -107,13 +110,13 @@ export class WebDavManagerService {
     } catch (error: any) {
       // 合理的回退策略：只在同类型环境内回退
       if (platformInfo.runtimeType === RuntimeType.CAPACITOR) {
-        console.warn('🔄 [WebDAV] Capacitor CORS服务失败，尝试标准fetch回退:', error);
+        logger.warn('🔄 Capacitor CORS服务失败，尝试标准fetch回退:', error);
         return await this.fallbackFetch(options);
       } else if (platformInfo.runtimeType === RuntimeType.TAURI) {
-        console.error('❌ [WebDAV] Tauri HTTP请求失败，无可用回退方案:', error);
+        logger.error('❌ Tauri HTTP请求失败，无可用回退方案:', error);
         throw error;
       } else {
-        console.error('❌ [WebDAV] Web代理请求失败:', error);
+        logger.error('❌ Web代理请求失败:', error);
         throw error;
       }
     }
@@ -147,7 +150,7 @@ export class WebDavManagerService {
 
       return result;
     } catch (error) {
-      console.error('🖥️ [WebDAV] 获取 Tauri 代理配置失败:', error);
+      logger.error('🖥️ 获取 Tauri 代理配置失败:', error);
       return undefined;
     }
   }
@@ -186,7 +189,7 @@ export class WebDavManagerService {
         fetchOptions.proxy = {
           all: proxyConfig,
         };
-        console.log('🖥️ [WebDAV] Tauri 使用代理:', proxyConfig.url);
+        logger.debug('🖥️ Tauri 使用代理:', proxyConfig.url);
       }
 
       // 使用Tauri的HTTP客户端
@@ -197,7 +200,7 @@ export class WebDavManagerService {
 
       // 仅在出错时显示详细日志
       if (!response.ok) {
-        console.error('🖥️ [WebDAV] Tauri请求失败:', {
+        logger.error('🖥️ Tauri请求失败:', {
           status: response.status,
           statusText: response.statusText || 'Unknown Error',
           url: options.url
@@ -212,7 +215,7 @@ export class WebDavManagerService {
         error: response.ok ? undefined : `${response.status} ${response.statusText || 'Request failed'}`
       };
     } catch (error) {
-      console.error('🖥️ [WebDAV] Tauri HTTP请求失败:', error);
+      logger.error('🖥️ Tauri HTTP请求失败:', error);
       return {
         success: false,
         status: 0,
@@ -256,11 +259,11 @@ export class WebDavManagerService {
       // 所有 WebDAV 服务都使用通用 CORS 代理
       proxyUrl = buildCorsProxyRequestUrl(options.url);
       useProxy = true;
-      console.log(`🌐 [WebDAV] ${provider} 使用通用 CORS 代理转发请求`);
+      logger.debug(`🌐 ${provider} 使用通用 CORS 代理转发请求`);
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🌐 [WebDAV] ${useProxy ? '代理' : '直接'}请求:`, useProxy ? proxyUrl : options.url);
+      logger.debug(`🌐 ${useProxy ? '代理' : '直接'}请求:`, useProxy ? proxyUrl : options.url);
     }
 
     const headers = {
@@ -279,7 +282,7 @@ export class WebDavManagerService {
 
     // 仅在出错时显示响应日志
     if (!response.ok) {
-      console.error(`🌐 [WebDAV] 请求失败 (${provider}):`, {
+      logger.error(`🌐 请求失败 (${provider}):`, {
         status: response.status,
         statusText: response.statusText,
         url: finalUrl
@@ -421,7 +424,7 @@ export class WebDavManagerService {
 
       return this.parseWebDavResponse(response.data);
     } catch (error) {
-      console.error('列出备份文件失败:', error);
+      logger.error('列出备份文件失败:', error);
       return [];
     }
   }
@@ -468,10 +471,10 @@ export class WebDavManagerService {
 
       // 201 表示创建成功，405 表示目录已存在
       if (!response.success && response.status !== 405) {
-        console.warn('创建目录失败，但继续执行:', response.status, response.statusText || response.error);
+        logger.warn('创建目录失败，但继续执行:', response.status, response.statusText || response.error);
       }
     } catch (error) {
-      console.warn('创建目录时出错，但继续执行:', error);
+      logger.warn('创建目录时出错，但继续执行:', error);
     }
   }
 
@@ -487,8 +490,8 @@ export class WebDavManagerService {
       // 检查解析错误
       const parseError = xmlDoc.getElementsByTagName('parsererror')[0];
       if (parseError) {
-        console.error('🚫 [WebDAV] XML 解析错误:', parseError.textContent);
-        console.error('🚫 [WebDAV] 完整XML内容:', xmlText);
+        logger.error('🚫 XML 解析错误:', parseError.textContent);
+        logger.error('🚫 完整XML内容:', xmlText);
         return [];
       }
 
@@ -539,7 +542,7 @@ export class WebDavManagerService {
       // 按修改时间降序排序
       return files.sort((a, b) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime());
     } catch (error) {
-      console.error('🚫 [WebDAV] 解析 WebDAV 响应失败:', error);
+      logger.error('🚫 解析 WebDAV 响应失败:', error);
       return [];
     }
   }
