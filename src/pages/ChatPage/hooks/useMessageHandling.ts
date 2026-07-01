@@ -9,7 +9,7 @@ import { loadTopicMessagesThunk } from '../../../shared/store/slices/newMessages
 import { versionService } from '../../../shared/services/messages/VersionService';
 import type { SiliconFlowImageFormat, Model, ChatTopic } from '../../../shared/types';
 import type { AppDispatch } from '../../../shared/store';
-import { findModelInProviders } from '../../../shared/utils/modelUtils';
+import { resolveModelFromProviders } from '../../../shared/utils/modelUtils';
 
 /**
  * 处理消息相关逻辑的钩子
@@ -23,7 +23,19 @@ export const useMessageHandling = (
 
   // 处理发送消息
   const handleSendMessage = useCallback(async (content: string, images?: SiliconFlowImageFormat[], toolsEnabled?: boolean, files?: any[]) => {
-    if (!currentTopic || !content.trim() || !selectedModel) return null;
+    if (!currentTopic || !content.trim()) return null;
+
+    // 直接从 Redux 现取最新选中的模型，避免组件本地 selectedModel 状态滞后/被覆盖
+    // 导致“界面显示 A、实际请求 B”的问题（与 handleRegenerateMessage 保持一致）
+    const state = store.getState();
+    const latestModelId = state.settings.currentModelId;
+    const providers = state.settings.providers || [];
+    const modelToUse = resolveModelFromProviders(providers, latestModelId) || selectedModel;
+
+    if (!modelToUse) {
+      logger.error('没有可用的模型，无法发送消息');
+      return null;
+    }
 
     try {
       // 转换图片格式
@@ -38,7 +50,7 @@ export const useMessageHandling = (
       dispatch(sendMessage(
         content.trim(),
         currentTopic.id,
-        selectedModel,
+        modelToUse,
         formattedImages,
         toolsEnabled, // 传递工具开关状态
         formattedFiles // 传递文件
@@ -79,16 +91,7 @@ export const useMessageHandling = (
         return null;
       }
 
-      const latestMatch = findModelInProviders(providers, latestModelId);
-      const latestModel = latestMatch
-        ? {
-            ...latestMatch.model,
-            provider: latestMatch.model.provider || latestMatch.provider.id,
-            providerType: latestMatch.model.providerType || latestMatch.provider.providerType || latestMatch.provider.id,
-            apiKey: latestMatch.model.apiKey || latestMatch.provider.apiKey,
-            baseUrl: latestMatch.model.baseUrl || latestMatch.provider.baseUrl
-          }
-        : null;
+      const latestModel = resolveModelFromProviders(providers, latestModelId);
       if (!latestModel) {
         logger.error('找不到对应的模型:', latestModelId);
         // 如果找不到最新模型，回退到组件状态中的模型
@@ -186,14 +189,25 @@ export const useMessageHandling = (
 
   // 处理重新发送用户消息 - 使用统一的 regenerateResponse
   const handleResendMessage = useCallback(async (messageId: string) => {
-    if (!currentTopic || !selectedModel) return null;
+    if (!currentTopic) return null;
+
+    // 与发送/重新生成一致：直接从 Redux 现取最新选中的模型
+    const state = store.getState();
+    const latestModelId = state.settings.currentModelId;
+    const providers = state.settings.providers || [];
+    const modelToUse = resolveModelFromProviders(providers, latestModelId) || selectedModel;
+
+    if (!modelToUse) {
+      logger.error('没有可用的模型，无法重新发送消息');
+      return null;
+    }
 
     try {
       // 使用统一的 regenerateResponse，source='user' 表示从用户消息触发
       dispatch(regenerateResponse({
         messageId,
         topicId: currentTopic.id,
-        model: selectedModel,
+        model: modelToUse,
         source: 'user',
         saveVersion: true  // 用户重发也支持版本管理
       }));
