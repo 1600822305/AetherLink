@@ -208,6 +208,44 @@ export function findModelInProviders<T extends { id: string; models?: Model[] }>
   return null;
 }
 
+/**
+ * 在提供商列表中根据标识查找模型，并合并提供商级别的配置（apiKey、baseUrl 等）。
+ * 返回始终携带完整 provider/providerType 信息的模型对象，保证“存什么发什么”。
+ * @param providers 提供商列表
+ * @param identifier 模型标识字符串
+ * @param options 配置项
+ * @returns 合并后的模型对象，找不到时返回 null
+ */
+export function resolveModelFromProviders<
+  T extends {
+    id: string;
+    providerType?: string;
+    apiKey?: string;
+    baseUrl?: string;
+    useCorsPlugin?: boolean;
+    models?: Model[];
+  }
+>(
+  providers: T[],
+  identifier?: string | null,
+  options: { includeDisabled?: boolean } = {}
+): Model | null {
+  const match = findModelInProviders(providers, identifier, options);
+  if (!match) {
+    return null;
+  }
+
+  const { model, provider } = match;
+  return {
+    ...model,
+    provider: model.provider || provider.id,
+    providerType: model.providerType || provider.providerType || provider.id,
+    apiKey: model.apiKey || provider.apiKey,
+    baseUrl: model.baseUrl || provider.baseUrl,
+    useCorsPlugin: model.useCorsPlugin ?? provider.useCorsPlugin
+  };
+}
+
 
 /**
  * 获取模型的最大上下文长度

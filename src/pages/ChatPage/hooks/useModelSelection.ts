@@ -68,8 +68,11 @@ export function useModelSelection() {
               provider.models.forEach(model => {
                 if (model.enabled) {
                   // 确保模型包含提供商的信息
+                  // 显式补全 provider 字段（等于所属 provider.id），保证模型身份唯一、
+                  // 避免同一模型 id 跨多个服务商时因 provider 缺失而匹配歧义
                   const modelWithProviderInfo = {
                     ...model,
+                    provider: model.provider || provider.id,
                     apiKey: model.apiKey || provider.apiKey,
                     baseUrl: model.baseUrl || provider.baseUrl,
                     providerType: model.providerType || provider.providerType || provider.id,
@@ -113,13 +116,12 @@ export function useModelSelection() {
             if (model) {
               setSelectedModel(model);
             } else {
-              // 如果找不到匹配的模型（可能是模型被删除了），选择默认或第一个
-              const defaultModel = availableModels.find(model => model.isDefault) || availableModels[0];
-              setSelectedModel(defaultModel);
-              // 更新Redux中的当前模型ID
-              if (defaultModel) {
-                dispatch(setCurrentModel(getModelIdentityKey({ id: defaultModel.id, provider: defaultModel.provider })));
-              }
+              // 找不到匹配的模型：可能是数据尚未同步或模型被删除。
+              // 仅为“显示”回退到默认/第一个，绝不在此改写已持久化的 currentModelId，
+              // 否则误判会把用户刚切换的选择回退覆盖，导致“切换无效、退出重进也一样”。
+              // 模型确被删除的场景已在 settingsSlice 删除逻辑里同步 currentModelId。
+              const fallbackModel = availableModels.find(model => model.isDefault) || availableModels[0] || null;
+              setSelectedModel(fallbackModel);
             }
           } else {
             // 没有当前模型ID，选择默认或第一个
