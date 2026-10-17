@@ -9,6 +9,7 @@
 | [mcp-alarm.md](guides/mcp-alarm.md) | MCP 闹钟工具指南 |
 | [mcp-calendar.md](guides/mcp-calendar.md) | MCP 日历工具指南 |
 | [mcp-call-flow.md](guides/mcp-call-flow.md) | MCP 调用流程指南 |
+| [mcp-parallel-search.md](guides/mcp-parallel-search.md) | Tauri 桌面端 Parallel Search MCP 配置与检索指南（中英双语） |
 | [mcp-web-scout.md](guides/mcp-web-scout.md) | WebScout MCP 工具指南 |
 | [message-block-development.md](guides/message-block-development.md) | 消息块组件开发指南 |
 | [enhanced-rag-usage.md](guides/enhanced-rag-usage.md) | 增强 RAG 使用指南 |
