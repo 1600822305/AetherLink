@@ -7,6 +7,7 @@ import type { Model } from '../../types';
 import { createClient } from './client';
 import { universalFetch } from '../../utils/universalFetch';
 import { createLogger, LogLevel } from '../../services/infra/logger';
+import { buildOpenAIModelsEndpoint } from '../baseUrl';
 
 const logger = createLogger('OpenAI Models');
 
@@ -140,18 +141,8 @@ export async function fetchModels(provider: any): Promise<any[]> {
       logger.warn('警告: 未提供API密钥，可能导致请求失败');
     }
     
-    // 构建API端点
-    let endpoint = '';
-    // 确保baseUrl不以斜杠结尾，避免双斜杠问题
-    const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
-
-    if (cleanBaseUrl.includes('/v1')) {
-      // 如果baseUrl已经包含/v1，直接添加/models
-      endpoint = `${cleanBaseUrl}/models`;
-    } else {
-      // 否则添加完整路径
-      endpoint = `${cleanBaseUrl}/v1/models`;
-    }
+    // 构建API端点（与聊天请求共用版本段规范化，避免 /v4、/api/v3 被追加 /v1）
+    const endpoint = buildOpenAIModelsEndpoint(baseUrl);
     
     logger.debug(`请求端点: ${endpoint}`);
     

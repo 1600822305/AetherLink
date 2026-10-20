@@ -8,6 +8,7 @@ import type { Model } from '../../types';
 import { isReasoningModel } from '../../../config/models';
 import { createPlatformFetch, createHeaderFilterFetch } from '../../utils/universalFetch';
 import { createLogger, LogLevel } from '../../services/infra/logger';
+import { normalizeOpenAIBaseUrl } from '../baseUrl';
 
 const logger = createLogger('OpenAI Client');
 
@@ -40,30 +41,9 @@ export function createClient(model: Model): OpenAI {
       }
     }
 
-    // 检查是否需要特殊处理（在移除斜杠之前）
-    const forceUseOriginalHost = () => {
-      if (baseURL.endsWith('/')) {
-        return true;
-      }
-      // 火山引擎特殊处理
-      if (baseURL.endsWith('volces.com/api/v3')) {
-        return true;
-      }
-      return false;
-    };
-
-    const shouldUseOriginal = forceUseOriginalHost();
-
-    // 确保baseURL格式正确
-    if (baseURL.endsWith('/')) {
-      baseURL = baseURL.slice(0, -1);
-    }
-
-    // 确保baseURL包含/v1（特殊情况除外）
-    if (!baseURL.includes('/v1') && !shouldUseOriginal) {
-      // 确保在baseURL和/v1之间添加斜杠（避免出现类似http://example.com:3000v1这样的错误）
-      baseURL = `${baseURL}/v1`;
-    }
+    // 以 / 结尾表示“保持原始路径”，沿用旧行为；其余情况统一规范化版本段
+    const appendVersion = !baseURL.endsWith('/');
+    baseURL = normalizeOpenAIBaseUrl(baseURL, { appendVersion });
 
     logger.debug(`创建客户端, 模型ID: ${model.id}, baseURL: ${baseURL.substring(0, 20)}...`);
 

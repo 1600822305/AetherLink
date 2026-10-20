@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { normalizeOpenAIBaseUrl } from '../../../../shared/api/baseUrl';
 
 // ============================================================================
 // 常量定义
@@ -74,18 +75,13 @@ export const formatApiHost = (host: string, providerType?: string): string => {
 
   const normalizedUrl = host.trim().replace(/\/$/, '');
 
-  // 特殊处理：如果URL以特定路径结尾，保持原样
-  if (normalizedUrl.endsWith(CONSTANTS.SPECIAL_ENDPOINTS.VOLCES)) {
-    return normalizedUrl;
-  }
-
   // OpenAI Response API 特殊处理
   if (providerType === CONSTANTS.SPECIAL_ENDPOINTS.OPENAI_RESPONSE) {
     return normalizedUrl;
   }
 
-  // 默认添加 /v1
-  return `${normalizedUrl}/v1`;
+  // 与真实请求共用规范化逻辑：已有 /v1、/v4、/v1beta、/api/v3 等版本段时不再追加 /v1
+  return normalizeOpenAIBaseUrl(normalizedUrl);
 };
 
 /**
